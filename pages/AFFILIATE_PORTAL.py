@@ -153,9 +153,26 @@ with top_col2:
         st.session_state.clear()
         st.rerun()
 st.divider()
+
+
+# --- NEW AFFILIATE BROADCAST BANNER ---
+try:
+    promo_query = "SELECT title, message FROM admin_promos WHERE active = 1 AND (target = 'AFFILIATES' OR target = 'ALL USERS' OR target IS NULL) ORDER BY id DESC LIMIT 1"
+    promo = pd.read_sql_query(promo_query, conn)
     
+    if not promo.empty:
+        st.markdown(f"""
+        <div style="background-color: #004d40; color: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 20px;">
+            <h2 style="margin:0;">📢 {promo.iloc[0]['title']}</h2>
+            <p style="margin:0; font-size: 16px;">{promo.iloc[0]['message']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+except: 
+    pass
+# --------------------------------------
+
+
       
-# ----------------------------------------------------
 
 tabs = st.tabs(["BOOKINGS & HANDOVER", "MY ASSETS", "ADD ASSET", "ADD DRIVER"])
 
@@ -382,7 +399,7 @@ with tabs[3]:
         
         if st.form_submit_button("SUBMIT DRIVER FOR APPROVAL", type="primary"):
             if df_first and df_last and d_contact and d_gov and d_lic:
-                conn.execute("INSERT INTO drivers (owner_username, first_name, middle_name, last_name, age, address, contact_number, is_owner, license_img, govt_id_img, admin_status) VALUES (?,?,?,?,?,?,?,?,?,?, 'PENDING')", (username, df_first, df_mid, df_last, d_age, d_address, d_contact, 1 if is_owner else 0, save_file(d_lic), save_file(d_gov)))
+                conn.execute("INSERT INTO drivers (owner_username, first_name, middle_name, last_name, age, address, contact_number, is_owner, govt_id_img, license_img, admin_status) VALUES (?,?,?,?,?,?,?,?,?,?, 'PENDING')", (username, df_first, df_mid, df_last, d_age, d_address, d_contact, 1 if is_owner else 0, save_file(d_lic), save_file(d_gov)))
                 conn.commit()
                 st.success("SUCCESS: Driver Submitted! Pending Admin Approval.")
             else: 
