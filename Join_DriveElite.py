@@ -1,82 +1,54 @@
 import streamlit as st
 import pandas as pd
-import os
-import datetime
 import random
-import time
+import datetime
 from database_utils import get_connection
 
-os.makedirs("uploads", exist_ok=True)
-def save_file(uploaded_file):
-    if uploaded_file:
-        path = os.path.join("uploads", uploaded_file.name)
-        with open(path, "wb") as f: f.write(uploaded_file.getbuffer())
-        return path
-    return None
-
-st.set_page_config(page_title="DriveElite Registration", layout="wide")
-st.markdown("""
-<style>
-    .stApp { background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); }
-    div[data-baseweb="input"] > div, div[data-baseweb="base-input"], textarea {
-        background-color: #ffffff !important; border: 2px solid #cbd5e1 !important; border-radius: 6px !important;
-    }
-</style>
-""", unsafe_allow_html=True)
-
+# Connect to database
 conn = get_connection()
 
-if 'otp_pending' not in st.session_state: st.session_state.otp_pending = False
-if 'reg_payload' not in st.session_state: st.session_state.reg_payload = None
-if 'generated_otp' not in st.session_state: st.session_state.generated_otp = ""
-if 'verify_contact' not in st.session_state: st.session_state.verify_contact = ""
+st.title("🚗 Welcome to DriveElite")
+st.write("Join the premier peer-to-peer car rental network. Select your account type below to begin.")
+
+reg_type = st.radio("I want to register as a:", ["Select...", "Affiliate", "Renter"])
+st.divider()
 
 # ==========================================
-# OTP VERIFICATION SCREEN
+# AFFILIATE REGISTRATION BLOCK
 # ==========================================
-if st.session_state.otp_pending:
-    st.title("🔒 Phone Number Verification")
-    st.write("For security purposes, please verify your contact number to complete your registration.")
-    
-    st.success(f"📱 *MOCK SMS GATEWAY:* Sent OTP '{st.session_state.generated_otp}' to {st.session_state.verify_contact}")
-    
-    with st.form("otp_form"):
-        user_otp = st.text_input("Enter the 6-Digit OTP sent to your phone", max_chars=6)
+if reg_type == "Affiliate":
+    st.subheader("💼 Affiliate Partner Registration")
+    with st.form("affiliate_reg_form"):
+        st.write("*Personal Information*")
+        c1, c2, c3 = st.columns(3)
+        first_name = c1.text_input("First Name").title()
+        middle_name = c2.text_input("Middle Name").title()
+        surname = c3.text_input("Surname").title()
         
-        c1, c2 = st.columns(2)
-        if c1.form_submit_button("VERIFY & COMPLETE REGISTRATION", type="primary", use_container_width=True):
-            if user_otp == st.session_state.generated_otp:
-                try:
-                    p = st.session_state.reg_payload
-                    conn.execute("INSERT INTO users (username, password, role, full_name, age, contact_number, address, nationality, id_img, license_img, admin_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')", p)
-                    conn.commit()
-                    
-                    st.success("🎉 Phone Verified! Registration Successful. Pending Admin approval.")
-                    st.session_state.otp_pending = False
-                    time.sleep(3)
-                    st.rerun()
-                except Exception as e:
-                    st.error("⚠️ Username is already taken. Please go back and choose another.")
-            else:
-                st.error("❌ Incorrect OTP. Please try again.")
-                
-        if c2.form_submit_button("CANCEL & GO BACK", use_container_width=True):
-            st.session_state.otp_pending = False
-            st.rerun()
-
-# ==========================================
-# MAIN REGISTRATION SCREEN
-# ==========================================
-else:
-    st.title("🚗 Welcome to DriveElite")
-    st.write("Join the premier peer-to-peer car rental network. Select your account type below to begin.")
-
-    reg_type = st.radio("I want to register as a:", ["Select...", "Affiliate", "Renter"], horizontal=True)
-    st.divider()
-
-    if reg_type == "Affiliate":
-        with st.sidebar:
-            st.header("💼 Affiliate Policies")
+        # We use [3, 1, 1, 3] to make the middle two boxes much narrower!
+        c4, c5, c6, c7 = st.columns([3, 1, 1, 3])
+        
+        dob = c4.date_input("Date of Birth", min_value=datetime.date(1920, 1, 1), max_value=datetime.date.today())
+        age = c5.text_input("Age", max_chars=2) 
+        nationality = c6.text_input("Nat.", max_chars=3).upper() # Automatically forces it to uppercase (e.g. PHI)
+        contact = c7.text_input("Contact Number")
+        
+        # Changing text_input to text_area makes it a multi-line expanding box!
+        address = st.text_area("Complete Home Address")
+        
+        st.write("*Account Details*")
+        username = st.text_input("Choose a Username")
+        p1, p2 = st.columns(2)
+        password = p1.text_input("Password", type="password")
+        confirm_password = p2.text_input("Confirm Password", type="password")
+        
+        st.write("*Required Documents*")
+        gov_id = st.file_uploader("Upload Valid Government ID", type=['jpg', 'png', 'jpeg'])
+        lic_id = st.file_uploader("Upload Driver's License", type=['jpg', 'png', 'jpeg'])
+        
+        st.divider()
+        # The new Expander system!
+        with st.expander("📜 CLICK HERE TO READ AFFILIATE POLICIES (Required)"):
             st.markdown("""
             * *Vehicle Condition:* Cars must be registered, insured, safe, and clean.
             * *Platform Fee:* DriveElite retains an 18% fee. You receive 82%.
@@ -85,58 +57,69 @@ else:
             * *GPS:* For your security, GPS must be installed minus audio.
             * *Visibility:* Cars listed as "LIVE" must be ready to book.
             """)
-            st.info("You must agree to these terms to register.")
+        agreed = st.checkbox("✅ I have read, understood, and agree to the Affiliate Policies")
+        
+        if st.form_submit_button("Submit Partner Registration", type="primary"):
+            full_name = f"{first_name} {middle_name} {surname}".replace("  ", " ").strip()
+            today = datetime.date.today()
+            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+            
+            if not agreed:
+                st.error("🚨 Registration Blocked: You must check the agreement box above the submit button.")
+            elif password != confirm_password:
+                st.error("🚨 Passwords do not match. Please try again.")
+            elif not all([first_name, surname, username, password, gov_id, lic_id, contact]):
+                st.error("🚨 Please fill out all required fields and upload BOTH IDs.")
+            else:
+                user_check = pd.read_sql_query("SELECT username FROM users WHERE username=?", conn, params=(username,))
+                if not user_check.empty:
+                    st.error("🚨 Username taken. Please choose another.")
+                else:
+                    # Fixed 'AFFILIATE' role, added the missing verify_contact line!
+                    st.session_state.reg_payload = (username, password, 'AFFILIATE', full_name, age, nationality, address, contact, gov_id.read(), lic_id.read())
+            
+                    # --- ADD THESE 4 LINES BACK! ---
+                    st.session_state.verify_contact = contact
+                    st.session_state.generated_otp = str(random.randint(100000, 999999))
+                    st.session_state.otp_pending = True
+                    st.rerun()
+            # -------------------------------
+# ==========================================
+# RENTER REGISTRATION BLOCK
+# ==========================================
+elif reg_type == "Renter":
+    st.subheader("🚗 Renter Registration")
+    with st.form("renter_reg_form"):
+        st.write("*Personal Information*")
+        c1, c2, c3 = st.columns(3)
+        first_name = c1.text_input("First Name").title()
+        middle_name = c2.text_input("Middle Name").title()
+        surname = c3.text_input("Surname").title()
+        
+        # We use [3, 1, 1, 3] to make the middle two boxes much narrower!
+        c4, c5, c6, c7 = st.columns([3, 1, 1, 3])
+        
+        dob = c4.date_input("Date of Birth", min_value=datetime.date(1920, 1, 1), max_value=datetime.date.today())
+        age = c5.text_input("Age", max_chars=2) 
+        nationality = c6.text_input("Nat.", max_chars=3).upper() # Automatically forces it to uppercase (e.g. PHI)
+        contact = c7.text_input("Contact Number")
 
-        st.subheader("💼 Affiliate Partner Registration")
-        with st.form("affiliate_reg_form"):
-            st.write("*Personal Information*")
-            c1, c2, c3 = st.columns(3)
-            first_name = c1.text_input("First Name").title()
-            middle_name = c2.text_input("Middle Name").title()
-            surname = c3.text_input("Surname").title()
-            
-            c4, c5, c6 = st.columns([2, 1, 2])
-            dob = c4.date_input("Date of Birth", min_value=datetime.date(1930, 1, 1), max_value=datetime.date(2008, 1, 1), value=datetime.date(2000, 1, 1))
-            age = c5.number_input("Age", min_value=18, max_value=99, step=1)
-            contact = c6.text_input("Contact Number (e.g. 0917...)")
-            
-            c_addr, c_nat = st.columns([3, 1])
-            address = c_addr.text_area("Full Address")
-            nationality = c_nat.text_input("Nationality", value="Filipino")
-            
-            st.write("*Account Details*")
-            username = st.text_input("Choose a Username").lower()
-            c7, c8 = st.columns(2)
-            password = c7.text_input("Create a Password", type="password")
-            confirm_password = c8.text_input("Confirm Password", type="password")
-            
-            st.write("*Identity Verification (2 IDs Required)*")
-            c9, c10 = st.columns(2)
-            gov_id = c9.file_uploader("Upload Passport / Govt ID", type=['jpg', 'png'])
-            lic_id = c10.file_uploader("Upload Driver's License", type=['jpg', 'png'])
-            
-            st.divider()
-            agreed = st.checkbox("✅ I have read, understood, and agree to the Affiliate Policies & 15% Platform Fee rules in the sidebar.")
-            
-            if st.form_submit_button("Submit Partner Registration", type="primary"):
-                full_name = f"{first_name} {middle_name} {surname}".replace("  ", " ").strip()
-                
-                if not agreed: st.error("🚨 Registration Blocked: You must agree to the terms in the sidebar.")
-                elif password != confirm_password: st.error("🚨 Passwords do not match. Please try again.")
-                elif first_name and surname and username and password and gov_id and lic_id and contact and nationality:
-                    if not pd.read_sql_query("SELECT username FROM users WHERE username=?", conn, params=(username,)).empty:
-                        st.error("⚠️ Username taken. Please choose another.")
-                    else:
-                        st.session_state.reg_payload = (username, password, 'AFFILIATE', full_name, age, contact, address, nationality.title(), save_file(gov_id), save_file(lic_id))
-                        st.session_state.verify_contact = contact
-                        st.session_state.generated_otp = str(random.randint(100000, 999999))
-                        st.session_state.otp_pending = True
-                        st.rerun()
-                else: st.error("⚠️ Please fill out all required fields and upload BOTH IDs.")
-
-    elif reg_type == "Renter":
-        with st.sidebar:
-            st.header("📝 Renter Policies")
+        # Changing text_input to text_area makes it a multi-line expanding box!
+        address = st.text_area("Complete Home Address")
+        
+        st.write("*Account Details*")
+        username = st.text_input("Choose a Username")
+        p1, p2 = st.columns(2)
+        password = p1.text_input("Password", type="password")
+        confirm_password = p2.text_input("Confirm Password", type="password")
+        
+        st.write("*Required Documents*")
+        gov_id = st.file_uploader("Upload Valid Government ID", type=['jpg', 'png', 'jpeg'])
+        lic_id = st.file_uploader("Upload Driver's License", type=['jpg', 'png', 'jpeg'])
+        
+        st.divider()
+        # The new Expander system!
+        with st.expander("📜 CLICK HERE TO READ RENTER POLICIES (Required)"):
             st.markdown("""
             * *Fuel Policy:* Return with same fuel level. Missing fuel incurs a refill cost + ₱500 fee.
             * *Cleanliness:* Return clean. Excessive dirt incurs up to ₱600 fee.
@@ -146,51 +129,60 @@ else:
             * *Speed Limit:* Observe speed limit at all times to avoid penalties.
             * *Permitted Use:* Personal transport only. No racing/towing and interisland travel is strictly prohibited.
             """)
-            st.info("You must agree to these terms to register.")
-
-        st.subheader("🚙 Renter Registration")
-        with st.form("renter_reg_form"):
-            st.write("*Personal Information*")
-            c1, c2, c3 = st.columns(3)
-            first_name = c1.text_input("First Name").title()
-            middle_name = c2.text_input("Middle Name").title()
-            surname = c3.text_input("Surname").title()
+        agreed = st.checkbox("✅ I have read, understood, and agree to the Renter Policies")
+        
+        if st.form_submit_button("Submit Renter Registration", type="primary"):
+            full_name = f"{first_name} {middle_name} {surname}".replace("  ", " ").strip()
+            today = datetime.date.today()
+            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
             
-            c4, c5, c6 = st.columns([2, 1, 2])
-            dob = c4.date_input("Date of Birth", min_value=datetime.date(1930, 1, 1), max_value=datetime.date(2008, 1, 1), value=datetime.date(2000, 1, 1))
-            age = c5.number_input("Age", min_value=18, max_value=99, step=1)
-            contact = c6.text_input("Contact Number (e.g. 0917...)")
+            if not agreed:
+                st.error("🚨 Registration Blocked: You must check the agreement box above the submit button.")
+            elif password != confirm_password:
+                st.error("🚨 Passwords do not match. Please try again.")
+            elif not all([first_name, surname, username, password, gov_id, lic_id, contact]):
+                st.error("🚨 Please fill out all required fields and upload BOTH IDs.")
+            else:
+                user_check = pd.read_sql_query("SELECT username FROM users WHERE username=?", conn, params=(username,))
+                if not user_check.empty:
+                    st.error("🚨 Username taken. Please choose another.")
+                else:
             
-            c_addr, c_nat = st.columns([3, 1])
-            address = c_addr.text_area("Full Address")
-            nationality = c_nat.text_input("Nationality", value="Filipino")
+                    # Fixed 'RENTER' role, added the missing verify_contact line!
+                    st.session_state.reg_payload = (username, password, 'RENTER', full_name, age, nationality, address, contact, gov_id.read(), lic_id.read())
             
-            st.write("*Account Details*")
-            username = st.text_input("Choose a Username").lower()
-            c7, c8 = st.columns(2)
-            password = c7.text_input("Create a Password", type="password")
-            confirm_password = c8.text_input("Confirm Password", type="password")
+                    # --- ADD THESE 4 LINES BACK! ---
+                    st.session_state.verify_contact = contact
+                    st.session_state.generated_otp = str(random.randint(100000, 999999))
+                    st.session_state.otp_pending = True
+                    st.rerun()
+            # -------------------------------
+# ==========================================
+# OTP VERIFICATION LOGIC
+# ==========================================
+if st.session_state.get('otp_pending'):
+    st.divider()
+    st.warning(f"📲 An OTP has been sent to your number: *{st.session_state.verify_contact}*")
+    otp_input = st.text_input("Enter 6-digit OTP", key="otp_verify")
+    st.caption(f"(For Testing: The OTP is {st.session_state.generated_otp})")
+    
+    if st.button("Verify OTP"):
+        if otp_input == st.session_state.generated_otp:
+            payload = st.session_state.reg_payload
+            cursor = conn.cursor()
             
-            st.write("*Identity Verification (2 IDs Required)*")
-            c9, c10 = st.columns(2)
-            gov_id = c9.file_uploader("Upload Passport / Govt ID", type=['jpg', 'png'])
-            lic_id = c10.file_uploader("Upload Driver's License", type=['jpg', 'png'])
+            # Now it perfectly matches your database spellings and has 10 question marks!
+            cursor.execute('''INSERT INTO users 
+                              (username, password, role, full_name, age, nationality, address, contact_number, govt_id_img, license_img) 
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
             
-            st.divider()
-            agreed = st.checkbox("✅ I have read, understood, and agree to the DriveElite Renter Policies shown in the sidebar.")
+            conn.commit()
+            st.success("✅ Verification successful! Your account is created. Please log in.")
             
-            if st.form_submit_button("Submit Registration", type="primary"):
-                full_name = f"{first_name} {middle_name} {surname}".replace("  ", " ").strip()
-                
-                if not agreed: st.error("🚨 Registration Blocked: You must agree to the terms in the sidebar.")
-                elif password != confirm_password: st.error("🚨 Passwords do not match. Please try again.")
-                elif first_name and surname and username and password and gov_id and lic_id and contact and nationality:
-                    if not pd.read_sql_query("SELECT username FROM users WHERE username=?", conn, params=(username,)).empty:
-                        st.error("⚠️ Username taken. Please choose another.")
-                    else:
-                        st.session_state.reg_payload = (username, password, 'RENTER', full_name, age, contact, address, nationality.title(), save_file(gov_id), save_file(lic_id))
-                        st.session_state.verify_contact = contact
-                        st.session_state.generated_otp = str(random.randint(100000, 999999))
-                        st.session_state.otp_pending = True
-                        st.rerun()
-                else: st.error("⚠️ Please fill out all required fields and upload BOTH IDs.")
+            del st.session_state.reg_payload
+            del st.session_state.verify_contact
+            del st.session_state.generated_otp
+            st.session_state.otp_pending = False
+            st.rerun()
+        else:
+            st.error("🚨 Invalid OTP. Please try again.")
