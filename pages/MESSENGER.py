@@ -12,6 +12,22 @@ conn = get_connection()
 current_user = st.session_state.username
 role = st.session_state.get('role', 'USER')
 
+# --- DEV TOOLS: AUTO-BUILD MISSING MESSENGER TABLE ---
+try:
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS support_chats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender TEXT,
+            receiver TEXT,
+            message TEXT,
+            ts DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+except Exception:
+    pass
+# -----------------------------------------------------
+
 st.title("💬 DRIVEELITE MESSENGER")
 st.write(f"Logged in securely as: *{current_user.upper()}* ({role})")
 
