@@ -1,3 +1,6 @@
 streamlit
 pandas
+fpdf
+Pillow
 streamlit-drawable-canvas
+requests
