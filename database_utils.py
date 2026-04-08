@@ -43,7 +43,9 @@ def get_connection():
     # --- 4. DRIVERS TABLE ---
     conn.execute('''CREATE TABLE IF NOT EXISTS drivers (
                     id INTEGER PRIMARY KEY AUTOINCREMENT, owner_username TEXT, first_name TEXT, 
-                    middle_name TEXT, last_name TEXT, age INTEGER, address TEXT, contact_number TEXT, 
+                    cursor.execute('''INSERT INTO users 
+                              (username, password, role, full_name, email, age, nationality, address, contact_number, govt_id_img, license_img, signature_img) 
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
                     is_owner INTEGER DEFAULT 0, govt_id_img TEXT, license_img TEXT, admin_status TEXT DEFAULT 'PENDING')''')
 
     # --- 5. CATEGORIES TABLE ---
