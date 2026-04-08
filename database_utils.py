@@ -7,21 +7,19 @@ def get_connection():
     
     # --- 1. USERS TABLE ---
     conn.execute('''CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE,
-    password TEXT,
-    role TEXT,
-    full_name TEXT,
-    email TEXT,           -- MAKE SURE THIS IS HERE
-    age TEXT,
-    nationality TEXT,
-    address TEXT,
-    contact_number TEXT,
-    govt_id_img BLOB,
-    license_img BLOB,
-    signature_img BLOB,
-    moa_pdf_path TEXT     -- Good idea to add this too for the PDFs!
-)
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE,
+                    password TEXT,
+                    full_name TEXT,
+                    email TEXT,
+                    age INTEGER,
+                    nationality TEXT,
+                    address TEXT,
+                    contact_number TEXT,
+                    role TEXT,
+                    admin_status TEXT DEFAULT 'PENDING',
+                    govt_id_img TEXT,
+                    license_img TEXT)''')
                     
     # --- 2. VEHICLES TABLE (Assets) ---
     conn.execute('''CREATE TABLE IF NOT EXISTS vehicles (
