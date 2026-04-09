@@ -119,7 +119,7 @@ with tabs[0]:
                         img_path = img_col if pd.notnull(img_col) and str(img_col).strip() else "https://placehold.co/600x400?text=No+Image"
                         
                         # Properly indented checking block
-                        if img_path and os.path.exists(img_path):
+                       if img_path and os.path.exists(img_path):
                             st.image(img_path, use_container_width=True)
                         else:
                             st.warning("🚗 Image temporarily unavailable (Cloud Reset)")
@@ -130,7 +130,6 @@ with tabs[0]:
                         dr = car.get('daily_rate')
                         base_rate = ap if pd.notnull(ap) and ap > 0 else (dr if pd.notnull(dr) and dr > 0 else 2000.0)
 
-                    with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
                     with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
                         existing_books = pd.read_sql_query(
                             """
