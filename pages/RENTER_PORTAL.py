@@ -117,9 +117,9 @@ with tabs[0]:
                         img_col = car.get('vehicle_img') or car.get('vehicle_photo')
                         img_path = img_col if pd.notnull(img_col) and str(img_col).strip() else "https://placehold.co/600x400?text=No+Image"
                         if img_path and os.path.exists(img_path):
-    st.image(img_path, use_container_width=True)
-else:
-    st.warning("🚗 Image temporarily unavailable (Cloud Reset)")
+                        st.image(img_path, use_container_width=True)
+    else:
+                        st.warning("🚗 Image temporarily unavailable (Cloud Reset)")
                     
                     with col2:
                         st.write(f"### {car['make']} {car['model']} ({car['year']})")
