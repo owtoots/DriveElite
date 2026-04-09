@@ -124,20 +124,11 @@ with tabs[0]:
                         else:
                             st.warning("🚗 Image temporarily unavailable (Cloud Reset)")
                     
-                    with col2:
-                        st.write(f"### {car['make']} {car['model']} ({car['year']})")
-                    
-                    with col2:
+                   with col2:
                         st.write(f"### {car['make']} {car['model']} ({car['year']})")
                         ap = car.get('approved_price')
                         dr = car.get('daily_rate')
                         base_rate = ap if pd.notnull(ap) and ap > 0 else (dr if pd.notnull(dr) and dr > 0 else 2000.0)
-                        
-                        # INJECT VEHICLE REF NO HERE
-                        v_ref = car.get('ref_no') if pd.notnull(car.get('ref_no')) else 'PENDING'
-                        st.caption(f"🚗 **Ref:** #{v_ref} | **Plate:** {car['plate']} | **Category:** {car['category']}")
-                        
-                        st.write(f"#### ₱{base_rate:,.2f} / Day")
 
                     with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
                         existing_books = pd.read_sql_query(
