@@ -244,11 +244,16 @@ else:
                 else:
                     st.error("🚨 Digital signature required to proceed.")
 
-    # ==========================================
+# THIS IS THE CRITICAL LINE THAT CREATES THE VARIABLES
+renter_tab, affiliate_tab = st.tabs(["🚙 REGISTER AS RENTER", "🤝 JOIN AS AFFILIATE (CAR OWNER)"])
+
+# ==========================================
 # TAB 1: RENTER REGISTRATION
 # ==========================================
 with renter_tab:
     st.markdown("### 📝 Renter Account Setup")
+    
+    # ... your existing renter code continues here ...
     
     col1, col2 = st.columns(2)
     with col1:
