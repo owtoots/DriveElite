@@ -244,36 +244,78 @@ else:
                 else:
                     st.error("🚨 Digital signature required to proceed.")
 
-    # ---------------------------------------------------------
-    # RENTER REGISTRATION BLOCK
-    # ---------------------------------------------------------
-    elif reg_type == "Renter":
-        st.subheader("🚗 Renter Registration")
-        with st.form("renter_reg_form"):
-            c1, c2, c3 = st.columns(3)
-            first_name, middle_name, surname = c1.text_input("First Name").title(), c2.text_input("Middle Name").title(), c3.text_input("Surname").title()
-            
-            c4, c5, c6, c7 = st.columns([3, 1, 1, 3])
-            dob, age, nationality, contact = c4.date_input("DOB"), c5.text_input("Age"), c6.text_input("Nat."), c7.text_input("Contact")
-            
-            email, address = st.text_input("Email *"), st.text_area("Address")
-            username = st.text_input("Username")
-            p1, p2 = st.columns(2)
-            password, confirm_password = p1.text_input("Password", type="password"), p2.text_input("Confirm", type="password")
-            
-            gov_id, lic_id = st.file_uploader("Gov ID"), st.file_uploader("License")
-            
-            st.divider()
-            with st.expander("📜 RENTER POLICIES"):
-                st.write("Fuel, cleaning, and damage policies apply...")
-            agreed = st.checkbox("✅ I agree to the Renter Policies")
-            
-            if st.form_submit_button("Submit Renter Registration", type="primary"):
-                if not agreed: st.error("🚨 Must agree to policies.")
-                elif password != confirm_password: st.error("🚨 Passwords mismatch.")
-                elif not all([first_name, surname, username, password, gov_id, lic_id, contact, email]): st.error("🚨 Missing fields.")
-                else:
-                    full_name = f"{first_name} {middle_name} {surname}".replace("  ", " ").strip()
-                    st.session_state.reg_payload = (username, password, 'RENTER', full_name, email, age, nationality, address, contact, gov_id.read(), lic_id.read(), None)
-                    st.session_state.verify_contact, st.session_state.generated_otp, st.session_state.otp_pending = contact, str(random.randint(100000, 999999)), True
-                    st.rerun()
+    # ==========================================
+# TAB 1: RENTER REGISTRATION
+# ==========================================
+with renter_tab:
+    st.markdown("### 📝 Renter Account Setup")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        r_username = st.text_input("Choose Username *", key="r_user")
+        r_password = st.text_input("Choose Password *", type="password", key="r_pass")
+        r_name = st.text_input("Full Legal Name *", key="r_name")
+    with col2:
+        r_address = st.text_input("Complete Home Address *", key="r_add")
+        r_citizenship = st.text_input("Citizenship *", value="Filipino", key="r_cit")
+        r_license = st.text_input("Driver's License Number *", key="r_lic")
+
+    # Master Agreement for Renters
+    renter_agreement_text = f"""
+    MASTER RENTER AGREEMENT
+    DriveElite Peer-to-Peer Car Rentals
+    
+    KNOW ALL MEN BY THESE PRESENTS:
+    This agreement is made by {r_name.upper()} (the "LESSEE"), a citizen of {r_citizenship}, residing at {r_address}.
+    
+    1. GENERAL TERMS
+    The LESSEE agrees to abide by the rules of the DriveElite platform for all future vehicle bookings. 
+    The LESSEE shall use the subject vehicles for personal purposes only and within the Luzon region exclusively.
+    
+    2. PENALTIES AND MISUSE (ANNEX C)
+    - Missing RFID or Keys will result in replacement penalties (PHP 500 to PHP 15,000).
+    - Smoking inside any vehicle incurs a strict penalty up to PHP 5,000.
+    - Inter-island trips, off-roading, or driving through floods is strictly prohibited (Maximum Penalty: PHP 50,000.00).
+    - In case of total loss or theft, the LESSEE is responsible for 30% of the Fair Market Value of the vehicle.
+    """
+
+    st.markdown("#### 📄 Master Renter Agreement & Terms")
+    with st.expander("Read Master Agreement"):
+        st.write(renter_agreement_text)
+
+    st.write("**Draw your signature to accept terms and register:**")
+    r_canvas = st_canvas(
+        stroke_width=2, stroke_color="#000", background_color="#EEE",
+        height=150, width=400, drawing_mode="freedraw", key="r_canvas"
+    )
+
+    if st.button("SIGN & REGISTER AS RENTER", type="primary", use_container_width=True):
+        if not (r_username and r_password and r_name and r_address):
+            st.warning("Please fill out all required fields.")
+        elif r_canvas.image_data is None:
+            st.warning("Please sign the document before submitting.")
+        else:
+            with st.spinner("Generating Renter Profile and saving PDF..."):
+                # GENERATE PDF
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", size=11)
+                for line in renter_agreement_text.split('\n'):
+                    pdf.cell(200, 7, txt=line, ln=True)
+                pdf.ln(10)
+                pdf.cell(200, 7, txt=f"Digitally Signed by: {r_name} on {datetime.date.today()}", ln=True)
+                
+                # IN A REAL APP: Upload pdf_bytes to Google Drive here and get the URL
+                pdf_bytes = pdf.output(dest='S').encode('latin-1') 
+                fake_drive_url = "https://drive.google.com/renter_agreement_placeholder"
+
+                # SAVE TO DATABASE
+                try:
+                    conn.execute("""
+                        INSERT INTO users (username, password, role, full_name, address, document_url, admin_status) 
+                        VALUES (?, ?, 'RENTER', ?, ?, ?, 'APPROVED')
+                    """, (r_username, r_password, r_name, r_address, fake_drive_url))
+                    conn.commit()
+                    st.success("✅ Registration Successful! You can now log into the DriveElite Showroom.")
+                except Exception as e:
+                    st.error("Username might already exist. Please try another.")
