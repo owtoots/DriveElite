@@ -123,13 +123,14 @@ with tabs[0]:
                             st.image(img_path, use_container_width=True)
                         else:
                             st.warning("🚗 Image temporarily unavailable (Cloud Reset)")
-                    
-                   with col2:
+
+                    with col2:
                         st.write(f"### {car['make']} {car['model']} ({car['year']})")
                         ap = car.get('approved_price')
                         dr = car.get('daily_rate')
                         base_rate = ap if pd.notnull(ap) and ap > 0 else (dr if pd.notnull(dr) and dr > 0 else 2000.0)
 
+                    with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
                     with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
                         existing_books = pd.read_sql_query(
                             """
