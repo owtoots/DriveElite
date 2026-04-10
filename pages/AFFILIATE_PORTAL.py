@@ -15,6 +15,16 @@ from fpdf import FPDF
 from database_utils import get_connection
 from streamlit_drawable_canvas import st_canvas
 
+conn = get_connection()
+
+# --- DB PATCH: Add document_url to users table ---
+try: 
+    conn.execute("ALTER TABLE users ADD COLUMN document_url TEXT")
+    conn.commit()
+except Exception: 
+    pass
+# -------------------------------------------------
+
 # Creates uploads folder for asset photos
 if not os.path.exists("uploads"): 
     os.makedirs("uploads")
