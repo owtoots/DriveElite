@@ -17,18 +17,6 @@ from database_utils import get_connection
 st.set_page_config(page_title="DriveElite Admin", layout="wide")
 conn = get_connection()
 
-# --- DB PATCH: Fix the 'None' row for the test account ---
-try:
-    check_user = pd.read_sql_query("SELECT * FROM users WHERE username='testrenter'", conn)
-    if check_user.empty:
-        conn.execute("INSERT INTO users (username, password, role, admin_status, full_name, address, contact_number) VALUES ('testrenter', 'password123', 'RENTER', 'APPROVED', 'Test Renter Account', 'DriveElite HQ', '000-0000')")
-        conn.commit()
-    else:
-        conn.execute("UPDATE users SET full_name='Test Renter Account', address='DriveElite HQ', contact_number='000-0000' WHERE username='testrenter' AND full_name IS NULL")
-        conn.commit()
-except Exception: 
-    pass
-
 # --- AUTHENTICATION ---
 if not st.session_state.get('logged_in') or st.session_state.get('role') != 'ADMIN':
     st.title("ADMIN LOGIN")
@@ -201,125 +189,74 @@ with tabs[3]:
                             
     except Exception as e: st.error(f"Financial Error: {str(e)}")
 
-# --- TAB 4: FILING CABINET ---
+# --- TAB 4: FILING CABINET (COMPLETELY REDESIGNED) ---
 with tabs[4]: 
     st.header("🗄️ Master Digital Filing Cabinet")
+    st.write("View legally binding contracts signed by your users.")
     
-    file_tabs = st.tabs(["📝 Trip Records & Photos", "📄 Signed Contracts Vault"])
-    
-    # ---------------------------------------------------------
-    # SUB-TAB 1: Trip Records & Photos
-    # ---------------------------------------------------------
-    with file_tabs[0]:
-        q_all = "SELECT b.*, v.make, v.model, v.plate, r.full_name as rname, r.username as r_user, u.full_name as owner_name FROM bookings b JOIN vehicles v ON b.vehicle_id = v.id JOIN users r ON b.renter_username = r.username JOIN users u ON v.owner_username = u.username"
-        try:
-            df_search = pd.read_sql_query(q_all, conn)
-            search_mode = st.radio("Search Records By:", ["Booking Ref", "Booking ID", "Renter Name", "Affiliate Name", "Vehicle Plate"], horizontal=True)
-            filtered_df = pd.DataFrame()
-            
-            c_search, _ = st.columns([1, 1])
-            with c_search:
-                if search_mode == "Booking Ref":
-                    search_val = st.text_input("Enter 6-Digit Booking Reference (e.g. 123456)")
-                    if st.button("SEARCH") and search_val: 
-                        filtered_df = df_search[df_search['booking_ref'] == search_val]
-                elif search_mode == "Booking ID":
-                    search_val = st.number_input("Enter exact Legacy Booking ID", min_value=1, step=1, value=1)
-                    if st.button("SEARCH"): filtered_df = df_search[df_search['id'] == search_val]
-                elif search_mode == "Renter Name":
-                    r_list = ["-- Select Renter --"] + df_search['rname'].unique().tolist()
-                    s_val = st.selectbox("Select a Renter", r_list)
-                    if s_val != "-- Select Renter --": filtered_df = df_search[df_search['rname'] == s_val]
-                elif search_mode == "Affiliate Name":
-                    a_list = ["-- Select Affiliate --"] + df_search['owner_name'].unique().tolist()
-                    s_val = st.selectbox("Select an Affiliate", a_list)
-                    if s_val != "-- Select Affiliate --": filtered_df = df_search[df_search['owner_name'] == s_val]
-                elif search_mode == "Vehicle Plate":
-                    p_list = ["-- Select Plate --"] + df_search['plate'].unique().tolist()
-                    s_val = st.selectbox("Select Vehicle Plate", p_list)
-                    if s_val != "-- Select Plate --": filtered_df = df_search[df_search['plate'] == s_val]
-
+    if os.path.exists("uploads"):
+        # 1. Look for all PDF files
+        all_files = os.listdir("uploads")
+        pdf_files = [f for f in all_files if f.endswith('.pdf')]
+        
+        if len(pdf_files) > 0:
+            # 2. Add Filter by Role
             st.divider()
-
-            if not filtered_df.empty:
-                if len(filtered_df) > 1:
-                    st.info(f"Found {len(filtered_df)} records. Please select which specific trip you want to view:")
-                    b_id = st.selectbox("Select Trip Reference:", filtered_df['id'].apply(lambda x: f"DRV-{x:05d}").tolist())
-                    r = filtered_df[filtered_df['id'] == int(b_id.replace("DRV-", ""))].iloc[0]
-                else:
-                    r = filtered_df.iloc[0]
-                
-                display_ref = r.get('booking_ref') if pd.notnull(r.get('booking_ref')) else f"DRV-{r['id']:05d}"
-                st.success(f"Viewing Case File: #{display_ref}")
-                st.write(f"Vehicle: {r['make']} {r['model']} ({r['plate']})")
-                st.write(f"Renter: {r['rname']} | Affiliate: {r['owner_name']}")
-                st.write(f"Trip Status: {r['status']}")
-                
-                st.write("### 📸 Pre-Dispatch Visual Proof")
-                photos = [r.get('actual_dl_img'), r.get('front_img'), r.get('back_img'), r.get('left_img'), r.get('right_img'), r.get('odometer_img'), r.get('dseat_img'), r.get('pseat_img'), r.get('trunk_img'), r.get('tire_img')]
-                photo_cols = st.columns(5)
-                valid_photos = 0
-                for idx, p in enumerate(photos):
-                    if pd.notna(p) and p:
-                        photo_cols[idx % 5].image(p, caption=f"Dispatch Photo {idx+1}")
-                        valid_photos += 1
-                if valid_photos == 0: st.warning("No pre-dispatch photos were attached to this record.")
-                
-                if pd.notna(r.get('damage_img')) and r.get('damage_img'):
-                    st.divider()
-                    st.error("⚠️ DAMAGE REPORTED ON RETURN")
-                    st.image(r['damage_img'], caption="Proof of Damage", width=400)
-        except Exception as e:
-            st.info("Database is empty or formatting.")
-
-    # ---------------------------------------------------------
-    # SUB-TAB 2: Signed Contracts Vault (UPGRADED VISUALS)
-    # ---------------------------------------------------------
-    with file_tabs[1]:
-        st.write("### 🗄️ Master Contract Vault")
-        st.write("Welcome, Admin. Here are all the legally binding contracts signed by your users.")
-
-        if os.path.exists("uploads"):
-            all_files = os.listdir("uploads")
-            pdf_files = [f for f in all_files if f.endswith('.pdf')]
+            role_filter = st.radio("Filter Contracts:", ["All", "💼 Affiliates (MOA)", "🚙 Renters (Agreements)"], horizontal=True)
+            st.divider()
             
-            if len(pdf_files) > 0:
-                cols = st.columns(3)
-                for i, file_name in enumerate(pdf_files):
+            # 3. Apply Filter to File List
+            if role_filter == "💼 Affiliates (MOA)":
+                filtered_files = [f for f in pdf_files if f.startswith("MOA_")]
+            elif role_filter == "🚙 Renters (Agreements)":
+                filtered_files = [f for f in pdf_files if f.startswith("RENTER_")]
+            else:
+                filtered_files = pdf_files
+            
+            if not filtered_files:
+                st.info(f"No documents found matching the filter: {role_filter}")
+            else:
+                # 4. Create the condensed 4-column grid (Smaller version)
+                cols = st.columns(4)
+                for i, file_name in enumerate(filtered_files):
                     file_path = os.path.join("uploads", file_name)
                     
-                    # --- NEW LOGIC: Translate Username to Full Name for the UI ---
-                    display_name = file_name
+                    # --- Naming Logic: Translate Username to Full Name /username ---
+                    display_card_text = file_name # Fallback
                     if file_name.startswith("MOA_") or file_name.startswith("RENTER_"):
-                        doc_type = "Affiliate MOA" if file_name.startswith("MOA_") else "Renter Agreement"
+                        # Extract the username from filename
                         uname = file_name.replace("MOA_", "").replace("RENTER_", "").replace(".pdf", "")
                         
                         try:
                             name_df = pd.read_sql_query("SELECT full_name FROM users WHERE username=?", conn, params=(uname,))
                             if not name_df.empty and name_df.iloc[0]['full_name']:
                                 full_name = name_df.iloc[0]['full_name']
-                                display_name = f"{doc_type}:\n{full_name} (@{uname})"
+                                display_card_text = f"{full_name} /{uname}"
                             else:
-                                display_name = f"{doc_type}:\n(@{uname})"
+                                # No full name in DB, fallback to username format
+                                display_card_text = f"(@{uname})"
                         except:
                             pass # Fallback to original file_name if database fails
                     
-                    with cols[i % 3]:
+                    with cols[i % 4]:
+                        # Condensed Card Visuals
                         with st.container(border=True):
-                            st.write(f"📄 **{display_name}**")
+                            # Displays the elegant format Romeo /mingoy
+                            st.write(f"📄 **{display_card_text}**")
                             with open(file_path, "rb") as pdf_file:
+                                # Aligned to the left, condensed button text
                                 st.download_button(
-                                    label="⬇️ Download PDF",
+                                    label="⬇️ DL",
                                     data=pdf_file.read(),
                                     file_name=file_name,
                                     mime="application/pdf",
                                     key=f"dl_{file_name}",
-                                    use_container_width=True
+                                    use_container_width=True # Fills the card width
                                 )
-            else:
-                st.info("No contracts have been signed yet.")
         else:
-            st.warning("The uploads folder does not exist yet. It will be created when the first user registers.")
+            st.info("No contracts have been signed yet.")
+    else:
+        st.warning("The uploads folder does not exist yet. It will be created when the first user registers.")
 
 # --- TAB 5: PROMOS & DB ---
 with tabs[5]:
