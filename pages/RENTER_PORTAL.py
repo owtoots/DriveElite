@@ -356,17 +356,21 @@ with st.sidebar:
     st.write(f"### 👤 Renter Profile")
     st.write(f"**Username:** {st.session_state.username}")
     
-    # Fetch their specific contract link from the database
-    user_doc = pd.read_sql_query(
-        "SELECT document_url FROM users WHERE username=?", 
-        conn, 
-        params=(st.session_state.username,)
-    )
+    # Look for the PDF in the local uploads folder
+    renter_path = f"uploads/RENTER_{st.session_state.username}.pdf"
     
-    if not user_doc.empty and pd.notnull(user_doc.iloc[0]['document_url']):
-        doc_link = user_doc.iloc[0]['document_url']
+    if os.path.exists(renter_path):
         st.success("Account Verified ✅")
-        st.link_button("📄 View Master Agreement", doc_link, use_container_width=True)
+        with open(renter_path, "rb") as pdf_file:
+            pdf_bytes = pdf_file.read()
+            
+        st.download_button(
+            label="📄 Download Master Agreement", 
+            data=pdf_bytes, 
+            file_name=f"Master_Agreement_{st.session_state.username}.pdf", 
+            mime="application/pdf", 
+            use_container_width=True
+        )
     else:
         st.warning("⚠️ No signed agreement found.")
     
