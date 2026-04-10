@@ -17,6 +17,18 @@ from database_utils import get_connection
 st.set_page_config(page_title="DriveElite Admin", layout="wide")
 conn = get_connection()
 
+# --- DB PATCH: Fix the 'None' row for the test account ---
+try:
+    check_user = pd.read_sql_query("SELECT * FROM users WHERE username='testrenter'", conn)
+    if check_user.empty:
+        conn.execute("INSERT INTO users (username, password, role, admin_status, full_name, address, contact_number) VALUES ('testrenter', 'password123', 'RENTER', 'APPROVED', 'Test Renter Account', 'DriveElite HQ', '000-0000')")
+        conn.commit()
+    else:
+        conn.execute("UPDATE users SET full_name='Test Renter Account', address='DriveElite HQ', contact_number='000-0000' WHERE username='testrenter' AND full_name IS NULL")
+        conn.commit()
+except Exception: 
+    pass
+
 # --- AUTHENTICATION ---
 if not st.session_state.get('logged_in') or st.session_state.get('role') != 'ADMIN':
     st.title("ADMIN LOGIN")
@@ -193,7 +205,6 @@ with tabs[3]:
 with tabs[4]: 
     st.header("🗄️ Master Digital Filing Cabinet")
     
-    # Split the filing cabinet into two sub-tabs
     file_tabs = st.tabs(["📝 Trip Records & Photos", "📄 Signed Contracts Vault"])
     
     # ---------------------------------------------------------
@@ -262,7 +273,7 @@ with tabs[4]:
             st.info("Database is empty or formatting.")
 
     # ---------------------------------------------------------
-    # SUB-TAB 2: Signed Contracts Vault
+    # SUB-TAB 2: Signed Contracts Vault (UPGRADED VISUALS)
     # ---------------------------------------------------------
     with file_tabs[1]:
         st.write("### 🗄️ Master Contract Vault")
@@ -277,9 +288,25 @@ with tabs[4]:
                 for i, file_name in enumerate(pdf_files):
                     file_path = os.path.join("uploads", file_name)
                     
+                    # --- NEW LOGIC: Translate Username to Full Name for the UI ---
+                    display_name = file_name
+                    if file_name.startswith("MOA_") or file_name.startswith("RENTER_"):
+                        doc_type = "Affiliate MOA" if file_name.startswith("MOA_") else "Renter Agreement"
+                        uname = file_name.replace("MOA_", "").replace("RENTER_", "").replace(".pdf", "")
+                        
+                        try:
+                            name_df = pd.read_sql_query("SELECT full_name FROM users WHERE username=?", conn, params=(uname,))
+                            if not name_df.empty and name_df.iloc[0]['full_name']:
+                                full_name = name_df.iloc[0]['full_name']
+                                display_name = f"{doc_type}:\n{full_name} (@{uname})"
+                            else:
+                                display_name = f"{doc_type}:\n(@{uname})"
+                        except:
+                            pass # Fallback to original file_name if database fails
+                    
                     with cols[i % 3]:
                         with st.container(border=True):
-                            st.write(f"📄 **{file_name}**")
+                            st.write(f"📄 **{display_name}**")
                             with open(file_path, "rb") as pdf_file:
                                 st.download_button(
                                     label="⬇️ Download PDF",
