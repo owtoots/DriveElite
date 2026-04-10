@@ -3,7 +3,7 @@ import pandas as pd
 import datetime
 import time
 import random  
-import os  # <--- ADD THIS LINE HERE
+import os  
 from database_utils import get_connection
 
 # --- PAGE CONFIG ---
@@ -68,8 +68,10 @@ if not st.session_state.get('logged_in') or st.session_state.get('role') != 'REN
                 if user.iloc[0]['admin_status'] == 'APPROVED':
                     st.session_state.logged_in, st.session_state.username, st.session_state.role = True, u, 'RENTER'
                     st.rerun()
-                else: st.warning("⏳ Account pending Admin approval.")
-            else: st.error("❌ Invalid credentials.")
+                else: 
+                    st.warning("⏳ Account pending Admin approval.")
+            else: 
+                st.error("❌ Invalid credentials.")
     st.stop()
 
 renter_user = st.session_state.username
@@ -94,7 +96,8 @@ with tabs[0]:
     try:
         cat_df = pd.read_sql_query("SELECT name FROM vehicle_categories", conn)
         cat_list = ["All"] + [str(n).strip() for n in cat_df['name'].tolist()]
-    except: cat_list = ["All", "Sedan", "SUV", "Van"]
+    except: 
+        cat_list = ["All", "Sedan", "SUV", "Van"]
     
     c_f1, c_f2 = st.columns([2, 1])
     cat_filter = c_f1.selectbox("Filter by Category", cat_list)
@@ -103,8 +106,10 @@ with tabs[0]:
     query = "SELECT * FROM vehicles WHERE admin_status = 'APPROVED' AND booking_status = 'AVAILABLE'"
     cars = pd.read_sql_query(query, conn)
 
-    if cat_filter != "All": cars = cars[cars['category'].str.strip() == cat_filter]
-    if search_query: cars = cars[cars['make'].str.contains(search_query, case=False) | cars['model'].str.contains(search_query, case=False)]
+    if cat_filter != "All": 
+        cars = cars[cars['category'].str.strip() == cat_filter]
+    if search_query: 
+        cars = cars[cars['make'].str.contains(search_query, case=False) | cars['model'].str.contains(search_query, case=False)]
 
     if cars.empty:
         st.info("No vehicles currently matching your search.")
@@ -333,17 +338,6 @@ with tabs[1]:
                             st.success(f"**You rated this trip {int(t['rating'])}/5** {stars}")
                             if t.get('review'):
                                 st.write(f"*{t['review']}*")
-# --- 2. HEADER ---
-st.markdown("<h1 style='text-align: center;'>💼 RENTER COMMAND CENTER</h1>", unsafe_allow_html=True)
-top_col_logo, top_col1, top_col2 = st.columns([1, 4, 1])
-with top_col_logo:
-    try: st.image("logo.png", use_container_width=True)
-    except: pass
-with top_col2:
-    if st.button("🔒 LOGOUT", use_container_width=True):
-        st.session_state.clear()
-        st.rerun()
-st.divider()
 
 # ==========================================
 # 4. SIDEBAR (Placed safely at the bottom)
