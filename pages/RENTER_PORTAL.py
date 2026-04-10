@@ -29,8 +29,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-conn = get_connection()
-
 # --- DEV TOOLS: AUTO-HEAL DATABASE & USERS ---
 try:
     check_user = pd.read_sql_query("SELECT * FROM users WHERE username='testrenter'", conn)
@@ -43,17 +41,16 @@ except Exception:
 try: conn.execute("ALTER TABLE bookings ADD COLUMN rating INTEGER"); conn.commit()
 except Exception: pass
 
-try: conn.execute("ALTER TABLE bookings ADD COLUMN review_comment TEXT"); conn.commit()
+# Fixed naming bug here: aligned to 'review' to match the submission form
+try: conn.execute("ALTER TABLE bookings ADD COLUMN review TEXT"); conn.commit()
 except Exception: pass
 
-# Added new columns to track the 5k physical cash and penalties!
 try: conn.execute("ALTER TABLE bookings ADD COLUMN deposit_collected INTEGER DEFAULT 0"); conn.commit()
 except Exception: pass
 
 try: conn.execute("ALTER TABLE bookings ADD COLUMN penalties REAL DEFAULT 0.0"); conn.commit()
 except Exception: pass
 
-# Added reference number columns
 try: conn.execute("ALTER TABLE bookings ADD COLUMN booking_ref TEXT"); conn.commit()
 except Exception: pass
 
@@ -133,7 +130,6 @@ with tabs[0]:
                         img_col = car.get('vehicle_img') or car.get('vehicle_photo')
                         img_path = img_col if pd.notnull(img_col) and str(img_col).strip() else "https://placehold.co/600x400?text=No+Image"
                         
-                        # Properly indented checking block
                         if img_path and os.path.exists(img_path):
                             st.image(img_path, use_container_width=True)
                         else:
@@ -270,14 +266,6 @@ with tabs[0]:
 # --- TAB 1: MANAGE YOUR TRIPS & REVIEWS ---
 with tabs[1]:
     st.markdown("<h3 style='text-align: center;'>🧳 Manage Your Trips</h3>", unsafe_allow_html=True)
-    
-    # --- FIXED DB PATCH ---
-    # Separated into two blocks! If 'rating' already exists, it will still safely create 'review'.
-    try: conn.execute("ALTER TABLE bookings ADD COLUMN rating INTEGER")
-    except: pass
-    try: conn.execute("ALTER TABLE bookings ADD COLUMN review TEXT")
-    except: pass
-    conn.commit()
     
     trip_tabs = st.tabs(["🚀 Active Trips", "📜 Trip History & Reviews"])
     
