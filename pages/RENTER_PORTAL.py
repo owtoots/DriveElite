@@ -6,6 +6,16 @@ import random
 import os  
 from database_utils import get_connection
 
+conn = get_connection()
+
+# --- DB PATCH: Add document_url to users table ---
+try: 
+    conn.execute("ALTER TABLE users ADD COLUMN document_url TEXT")
+    conn.commit()
+except Exception: 
+    pass
+# -------------------------------------------------
+
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="DriveElite Showroom", layout="wide")
 
