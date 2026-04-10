@@ -333,3 +333,42 @@ with tabs[1]:
                             st.success(f"**You rated this trip {int(t['rating'])}/5** {stars}")
                             if t.get('review'):
                                 st.write(f"*{t['review']}*")
+# --- 2. HEADER ---
+st.markdown("<h1 style='text-align: center;'>💼 RENTER COMMAND CENTER</h1>", unsafe_allow_html=True)
+top_col_logo, top_col1, top_col2 = st.columns([1, 4, 1])
+with top_col_logo:
+    try: st.image("logo.png", use_container_width=True)
+    except: pass
+with top_col2:
+    if st.button("🔒 LOGOUT", use_container_width=True):
+        st.session_state.clear()
+        st.rerun()
+st.divider()
+
+# ==========================================
+# NEW: PASTE THE SIDEBAR SNIPPET RIGHT HERE
+# ==========================================
+with st.sidebar:
+    st.write(f"### 👤 Renter Profile")
+    st.write(f"**Username:** {st.session_state.username}")
+    
+    # Fetch their specific contract link from the database
+    user_doc = pd.read_sql_query(
+        "SELECT document_url FROM users WHERE username=?", 
+        conn, 
+        params=(st.session_state.username,)
+    )
+    
+    if not user_doc.empty and pd.notnull(user_doc.iloc[0]['document_url']):
+        doc_link = user_doc.iloc[0]['document_url']
+        st.success("Account Verified ✅")
+        st.link_button("📄 View Master Agreement", doc_link, use_container_width=True)
+    else:
+        st.warning("⚠️ No signed agreement found.")
+    
+    st.divider()
+    st.caption("Need help? Contact DriveElite Admin.")
+# ==========================================
+
+# --- 3. MAIN TABS (Your existing code continues below...) ---
+tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
