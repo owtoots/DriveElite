@@ -27,6 +27,8 @@ if not st.session_state.get('logged_in') or st.session_state.get('role') != 'ADM
             if u == "masterom" and p == "qZ822118qq":
                 st.session_state.logged_in, st.session_state.username, st.session_state.role = True, "masterom", "ADMIN"
                 st.rerun()
+            else:
+                st.error("Invalid credentials.")
     st.stop()
 
 # --- TOP NAVIGATION BAR ---
@@ -126,7 +128,7 @@ with tabs[2]:
                     st.write(f"Amount: ₱{r['amount']:,.2f} | Destination: {r.get('destination')}")
     except Exception as e: st.error(str(e))
 
-# --- TAB 3: FINANCIALS (82/18 SPLIT & PROPORTIONAL TAX) ---
+# --- TAB 3: FINANCIALS ---
 with tabs[3]:
     st.markdown("<h2 style='text-align: center;'>🏦 MASTER FINANCIAL LEDGER</h2>", unsafe_allow_html=True)
     try:
@@ -145,7 +147,6 @@ with tabs[3]:
         if df.empty:
             st.info("No financial transactions recorded yet.")
         else:
-            # --- THE 82/18 PROPORTIONAL TAX CALCULATIONS ---
             TAX_RATE = 0.02 # 2% Withholding
             
             # Affiliate 82% Calculations
@@ -160,7 +161,6 @@ with tabs[3]:
 
             df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
             
-            # Top Metrics
             c1, c2, c3 = st.columns(3)
             c1.metric("💰 Total Platform Gross", f"₱{df['Gross_Revenue'].sum():,.2f}")
             c2.metric("🏢 DriveElite Net Profit (18% - Tax)", f"₱{df['Platform_Net_Profit'].sum():,.2f}")
@@ -171,7 +171,6 @@ with tabs[3]:
             f_tabs = st.tabs(["📑 MASTER LEDGER", "📤 PROCESS PAYOUTS"])
             
             with f_tabs[0]: 
-                # Displaying the clean view for Admin
                 st.dataframe(df[['Ref', 'Date', 'Renter', 'Affiliate', 'Gross_Revenue', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']], use_container_width=True, hide_index=True)
             
             with f_tabs[1]:
@@ -193,68 +192,107 @@ with tabs[3]:
 # --- TAB 4: FILING CABINET ---
 with tabs[4]: 
     st.header("🗄️ Master Digital Filing Cabinet")
-    # Query all necessary fields including the new reference numbers
-    q_all = "SELECT b.*, v.make, v.model, v.plate, r.full_name as rname, r.username as r_user, u.full_name as owner_name FROM bookings b JOIN vehicles v ON b.vehicle_id = v.id JOIN users r ON b.renter_username = r.username JOIN users u ON v.owner_username = u.username"
-    try:
-        df_search = pd.read_sql_query(q_all, conn)
-        # Added "Booking Ref" as the primary search method
-        search_mode = st.radio("Search Records By:", ["Booking Ref", "Booking ID", "Renter Name", "Affiliate Name", "Vehicle Plate"], horizontal=True)
-        filtered_df = pd.DataFrame()
-        
-        c_search, _ = st.columns([1, 1])
-        with c_search:
-            if search_mode == "Booking Ref":
-                search_val = st.text_input("Enter 6-Digit Booking Reference (e.g. 123456)")
-                if st.button("SEARCH") and search_val: 
-                    filtered_df = df_search[df_search['booking_ref'] == search_val]
-            elif search_mode == "Booking ID":
-                search_val = st.number_input("Enter exact Legacy Booking ID", min_value=1, step=1, value=1)
-                if st.button("SEARCH"): filtered_df = df_search[df_search['id'] == search_val]
-            elif search_mode == "Renter Name":
-                r_list = ["-- Select Renter --"] + df_search['rname'].unique().tolist()
-                s_val = st.selectbox("Select a Renter", r_list)
-                if s_val != "-- Select Renter --": filtered_df = df_search[df_search['rname'] == s_val]
-            elif search_mode == "Affiliate Name":
-                a_list = ["-- Select Affiliate --"] + df_search['owner_name'].unique().tolist()
-                s_val = st.selectbox("Select an Affiliate", a_list)
-                if s_val != "-- Select Affiliate --": filtered_df = df_search[df_search['owner_name'] == s_val]
-            elif search_mode == "Vehicle Plate":
-                p_list = ["-- Select Plate --"] + df_search['plate'].unique().tolist()
-                s_val = st.selectbox("Select Vehicle Plate", p_list)
-                if s_val != "-- Select Plate --": filtered_df = df_search[df_search['plate'] == s_val]
+    
+    # Split the filing cabinet into two sub-tabs
+    file_tabs = st.tabs(["📝 Trip Records & Photos", "📄 Signed Contracts Vault"])
+    
+    # ---------------------------------------------------------
+    # SUB-TAB 1: Trip Records & Photos
+    # ---------------------------------------------------------
+    with file_tabs[0]:
+        q_all = "SELECT b.*, v.make, v.model, v.plate, r.full_name as rname, r.username as r_user, u.full_name as owner_name FROM bookings b JOIN vehicles v ON b.vehicle_id = v.id JOIN users r ON b.renter_username = r.username JOIN users u ON v.owner_username = u.username"
+        try:
+            df_search = pd.read_sql_query(q_all, conn)
+            search_mode = st.radio("Search Records By:", ["Booking Ref", "Booking ID", "Renter Name", "Affiliate Name", "Vehicle Plate"], horizontal=True)
+            filtered_df = pd.DataFrame()
+            
+            c_search, _ = st.columns([1, 1])
+            with c_search:
+                if search_mode == "Booking Ref":
+                    search_val = st.text_input("Enter 6-Digit Booking Reference (e.g. 123456)")
+                    if st.button("SEARCH") and search_val: 
+                        filtered_df = df_search[df_search['booking_ref'] == search_val]
+                elif search_mode == "Booking ID":
+                    search_val = st.number_input("Enter exact Legacy Booking ID", min_value=1, step=1, value=1)
+                    if st.button("SEARCH"): filtered_df = df_search[df_search['id'] == search_val]
+                elif search_mode == "Renter Name":
+                    r_list = ["-- Select Renter --"] + df_search['rname'].unique().tolist()
+                    s_val = st.selectbox("Select a Renter", r_list)
+                    if s_val != "-- Select Renter --": filtered_df = df_search[df_search['rname'] == s_val]
+                elif search_mode == "Affiliate Name":
+                    a_list = ["-- Select Affiliate --"] + df_search['owner_name'].unique().tolist()
+                    s_val = st.selectbox("Select an Affiliate", a_list)
+                    if s_val != "-- Select Affiliate --": filtered_df = df_search[df_search['owner_name'] == s_val]
+                elif search_mode == "Vehicle Plate":
+                    p_list = ["-- Select Plate --"] + df_search['plate'].unique().tolist()
+                    s_val = st.selectbox("Select Vehicle Plate", p_list)
+                    if s_val != "-- Select Plate --": filtered_df = df_search[df_search['plate'] == s_val]
 
-        st.divider()
+            st.divider()
 
-        if not filtered_df.empty:
-            if len(filtered_df) > 1:
-                st.info(f"Found {len(filtered_df)} records. Please select which specific trip you want to view:")
-                b_id = st.selectbox("Select Trip Reference:", filtered_df['id'].apply(lambda x: f"DRV-{x:05d}").tolist())
-                r = filtered_df[filtered_df['id'] == int(b_id.replace("DRV-", ""))].iloc[0]
+            if not filtered_df.empty:
+                if len(filtered_df) > 1:
+                    st.info(f"Found {len(filtered_df)} records. Please select which specific trip you want to view:")
+                    b_id = st.selectbox("Select Trip Reference:", filtered_df['id'].apply(lambda x: f"DRV-{x:05d}").tolist())
+                    r = filtered_df[filtered_df['id'] == int(b_id.replace("DRV-", ""))].iloc[0]
+                else:
+                    r = filtered_df.iloc[0]
+                
+                display_ref = r.get('booking_ref') if pd.notnull(r.get('booking_ref')) else f"DRV-{r['id']:05d}"
+                st.success(f"Viewing Case File: #{display_ref}")
+                st.write(f"Vehicle: {r['make']} {r['model']} ({r['plate']})")
+                st.write(f"Renter: {r['rname']} | Affiliate: {r['owner_name']}")
+                st.write(f"Trip Status: {r['status']}")
+                
+                st.write("### 📸 Pre-Dispatch Visual Proof")
+                photos = [r.get('actual_dl_img'), r.get('front_img'), r.get('back_img'), r.get('left_img'), r.get('right_img'), r.get('odometer_img'), r.get('dseat_img'), r.get('pseat_img'), r.get('trunk_img'), r.get('tire_img')]
+                photo_cols = st.columns(5)
+                valid_photos = 0
+                for idx, p in enumerate(photos):
+                    if pd.notna(p) and p:
+                        photo_cols[idx % 5].image(p, caption=f"Dispatch Photo {idx+1}")
+                        valid_photos += 1
+                if valid_photos == 0: st.warning("No pre-dispatch photos were attached to this record.")
+                
+                if pd.notna(r.get('damage_img')) and r.get('damage_img'):
+                    st.divider()
+                    st.error("⚠️ DAMAGE REPORTED ON RETURN")
+                    st.image(r['damage_img'], caption="Proof of Damage", width=400)
+        except Exception as e:
+            st.info("Database is empty or formatting.")
+
+    # ---------------------------------------------------------
+    # SUB-TAB 2: Signed Contracts Vault
+    # ---------------------------------------------------------
+    with file_tabs[1]:
+        st.write("### 🗄️ Master Contract Vault")
+        st.write("Welcome, Admin. Here are all the legally binding contracts signed by your users.")
+
+        if os.path.exists("uploads"):
+            all_files = os.listdir("uploads")
+            pdf_files = [f for f in all_files if f.endswith('.pdf')]
+            
+            if len(pdf_files) > 0:
+                cols = st.columns(3)
+                for i, file_name in enumerate(pdf_files):
+                    file_path = os.path.join("uploads", file_name)
+                    
+                    with cols[i % 3]:
+                        with st.container(border=True):
+                            st.write(f"📄 **{file_name}**")
+                            with open(file_path, "rb") as pdf_file:
+                                st.download_button(
+                                    label="⬇️ Download PDF",
+                                    data=pdf_file.read(),
+                                    file_name=file_name,
+                                    mime="application/pdf",
+                                    key=f"dl_{file_name}",
+                                    use_container_width=True
+                                )
             else:
-                r = filtered_df.iloc[0]
-            
-            display_ref = r.get('booking_ref') if pd.notnull(r.get('booking_ref')) else f"DRV-{r['id']:05d}"
-            st.success(f"Viewing Case File: #{display_ref}")
-            st.write(f"Vehicle: {r['make']} {r['model']} ({r['plate']})")
-            st.write(f"Renter: {r['rname']} | Affiliate: {r['owner_name']}")
-            st.write(f"Trip Status: {r['status']}")
-            
-            st.write("### 📸 Pre-Dispatch Visual Proof")
-            photos = [r.get('actual_dl_img'), r.get('front_img'), r.get('back_img'), r.get('left_img'), r.get('right_img'), r.get('odometer_img'), r.get('dseat_img'), r.get('pseat_img'), r.get('trunk_img'), r.get('tire_img')]
-            photo_cols = st.columns(5)
-            valid_photos = 0
-            for idx, p in enumerate(photos):
-                if pd.notna(p) and p:
-                    photo_cols[idx % 5].image(p, caption=f"Dispatch Photo {idx+1}")
-                    valid_photos += 1
-            if valid_photos == 0: st.warning("No pre-dispatch photos were attached to this record.")
-            
-            if pd.notna(r.get('damage_img')) and r.get('damage_img'):
-                st.divider()
-                st.error("⚠️ DAMAGE REPORTED ON RETURN")
-                st.image(r['damage_img'], caption="Proof of Damage", width=400)
-    except Exception as e:
-        st.info("Database is empty or formatting.")
+                st.info("No contracts have been signed yet.")
+        else:
+            st.warning("The uploads folder does not exist yet. It will be created when the first user registers.")
 
 # --- TAB 5: PROMOS & DB ---
 with tabs[5]:
@@ -335,6 +373,7 @@ with tabs[5]:
         with db_tabs[2]: st.dataframe(pd.read_sql_query(q_drivers, conn), hide_index=True, use_container_width=True)
     except: 
         pass
+
 # --- TAB 6: GLOBAL REVIEWS ---
 with tabs[6]:
     st.markdown("<h3 style='text-align: center;'>⭐ MASTER PLATFORM REVIEWS</h3>", unsafe_allow_html=True)
