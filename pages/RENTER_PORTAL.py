@@ -346,7 +346,7 @@ with top_col2:
 st.divider()
 
 # ==========================================
-# NEW: PASTE THE SIDEBAR SNIPPET RIGHT HERE
+# 4. SIDEBAR (Placed safely at the bottom)
 # ==========================================
 with st.sidebar:
     st.write(f"### 👤 Renter Profile")
@@ -368,7 +368,3 @@ with st.sidebar:
     
     st.divider()
     st.caption("Need help? Contact DriveElite Admin.")
-# ==========================================
-
-# --- 3. MAIN TABS (Your existing code continues below...) ---
-tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
