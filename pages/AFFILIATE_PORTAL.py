@@ -459,3 +459,27 @@ with tabs[4]:
                     if pd.notna(rev['review']) and str(rev['review']).strip():
                         st.info(f"💬 \"{rev['review']}\"")
     except Exception as e: st.error("Review database syncing...")
+# ==========================================
+# AFFILIATE SIDEBAR (My Documents)
+# ==========================================
+with st.sidebar:
+    st.write(f"### 👤 Affiliate Profile")
+    st.write(f"**Fleet Owner:** {st.session_state.username}")
+    
+    # Fetch their specific MOA link from the database
+    user_doc = pd.read_sql_query(
+        "SELECT document_url FROM users WHERE username=?", 
+        conn, 
+        params=(st.session_state.username,)
+    )
+    
+    if not user_doc.empty and pd.notnull(user_doc.iloc[0]['document_url']):
+        doc_link = user_doc.iloc[0]['document_url']
+        st.success("Fleet Partner Verified ✅")
+        st.link_button("📄 View Signed MOA", doc_link, use_container_width=True)
+    else:
+        st.warning("⚠️ No signed MOA found.")
+    
+    st.divider()
+    st.caption("Need help? Contact DriveElite Admin.")
+# ==========================================
