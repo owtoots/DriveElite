@@ -16,31 +16,7 @@ from database_utils import get_connection
 
 st.set_page_config(page_title="DriveElite Admin", layout="wide")
 conn = get_connection()
-st.markdown("### 🛑 MODERATION CONTROL PANEL")
 
-# Example: Managing Users (Renters & Affiliates)
-users_df = pd.read_sql_query("SELECT id, username, role, full_name, admin_status FROM users WHERE role != 'ADMIN'", conn)
-
-for _, user in users_df.iterrows():
-    col1, col2, col3 = st.columns([3, 1, 1])
-    with col1:
-        st.write(f"**{user['full_name']}** (@{user['username']}) - Role: {user['role']} - Status: {user['admin_status']}")
-    
-    with col2:
-        # If they are active, show the BAN button
-        if user['admin_status'] == 'APPROVED':
-            if st.button("🚫 BAN USER", key=f"ban_{user['id']}", type="primary"):
-                conn.execute("UPDATE users SET admin_status = 'BANNED' WHERE id = ?", (user['id'],))
-                conn.commit()
-                st.rerun()
-                
-    with col3:
-        # If they are banned, give the option to restore them
-        if user['admin_status'] == 'BANNED':
-            if st.button("✅ RESTORE", key=f"res_{user['id']}"):
-                conn.execute("UPDATE users SET admin_status = 'APPROVED' WHERE id = ?", (user['id'],))
-                conn.commit()
-                st.rerun()
 # --- AUTHENTICATION ---
 if not st.session_state.get('logged_in') or st.session_state.get('role') != 'ADMIN':
     st.title("ADMIN LOGIN")
