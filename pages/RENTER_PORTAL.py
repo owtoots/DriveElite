@@ -11,11 +11,14 @@ def save_chat_image(uploaded_file, booking_ref):
     if uploaded_file:
         if not os.path.exists("uploads/chat_images"):
             os.makedirs("uploads/chat_images")
+        # Ensure 'datetime' is imported at the top
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"CHAT_RENTER_{booking_ref}_{timestamp}_{uploaded_file.name}"
         path = os.path.join("uploads/chat_images", filename)
-        with open(path, "wb") as f: f.write(uploaded_file.getbuffer())
+        with open(path, "wb") as f: 
+            f.write(uploaded_file.getbuffer())
         return path
+    return None
     return None
 # --- DB PATCH: Add document_url to users table ---
 try: 
