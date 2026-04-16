@@ -14,40 +14,6 @@ from PIL import Image
 from fpdf import FPDF
 from database_utils import get_connection
 
-# 1. IMPORT the tools from your background files
-from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
-from payouts import email_receipt_to_affiliate
-
-st.title("Admin Portal: Cancellation processing")
-
-# Example database pull
-pickup_date = "2026-05-20 09:00:00"
-
-# 2. USE the finance tool to do the math
-days_left = get_days_before_pickup(pickup_date)
-settlement = calculate_moa_cancellation_40_60(
-    gross_rental_paid=10000.00, 
-    logistics_paid=2000.00, 
-    exact_gateway_fee=300.00, 
-    days_before_pickup=days_left
-)
-
-st.write(f"The Renter is canceling **{days_left} days** before pick-up.")
-st.write(f"Affiliate Payout (60%): ₱{settlement['affiliate_compensation']:,.2f}")
-
-# 3. USE the payout tool to send the email when you click the button
-if st.button("Finalize Cancellation"):
-    # (Pretend the text receipt was generated here)
-    sample_receipt_text = "Your booking was cancelled. Here is your 60% penalty compensation."
-    
-    email_success = email_receipt_to_affiliate(
-        affiliate_email="affiliate@test.com", 
-        receipt_text=sample_receipt_text, 
-        transaction_ref="BK-98765432"
-    )
-    
-    if email_success:
-        st.success("Cancellation finalized and email sent to the Affiliate!")
 
 st.set_page_config(page_title="DriveElite Admin", layout="wide")
 conn = get_connection()
@@ -394,3 +360,75 @@ with tabs[6]:
                     st.write(f"Renter: {rev['renter_name']} | Affiliate: {rev['affiliate_name']}")
                     if rev['review']: st.info(rev['review'])
     except: pass
+# 1. IMPORT your background tools
+from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
+from payouts import email_receipt_to_affiliate
+
+st.title("DriveElite Admin Portal")
+
+# 2. DEFINE YOUR TABS (You can rename these to whatever you currently use)
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "Overview", 
+    "Manage Users", 
+    "Fleet Status", 
+    "Active Bookings", 
+    "Disburse Payouts", 
+    "Cancellations & Refunds" # <-- This is Tab 6
+])
+
+# ... (Your code for tabs 1 through 5 goes here) ...
+
+# 3. PUT THE MATH AND UI INSIDE TAB 6
+with tab6:
+    st.header("Process Cancellations")
+    
+    # Example: You would pull this from your database based on what the Renter clicked
+    booking_to_cancel = "BK-98765432"
+    gross_paid = 10000.00
+    logistics = 2000.00
+    gateway_fee = 300.00
+    pickup_date = "2026-05-20 09:00:00"
+
+    st.subheader(f"Review: {booking_to_cancel}")
+
+    # Run the background math
+    days_left = get_days_before_pickup(pickup_date)
+    settlement = calculate_moa_cancellation_40_60(
+        gross_rental_paid=gross_paid, 
+        logistics_paid=logistics, 
+        exact_gateway_fee=gateway_fee, 
+        days_before_pickup=days_left
+    )
+
+    st.info(f"The Renter is canceling **{days_left} days** before pick-up.")
+
+    # Show the breakdown to the Admin
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write("### 💸 To Renter")
+        st.write(f"Penalty Applied: ₱{settlement['penalty_applied']:,.2f}")
+        st.success(f"Refund Amount: ₱{settlement['renter_refund']:,.2f}")
+
+    with col2:
+        st.write("### 🏢 To Platform & Affiliate")
+        st.write(f"Platform Cut (40%): ₱{settlement['nucleuz_platform_fee']:,.2f}")
+        st.write(f"Affiliate Payout (60%): ₱{settlement['affiliate_compensation']:,.2f}")
+
+    # The Final Execution Button
+    if st.button("🚨 Finalize Cancellation & Process Refunds"):
+        # The email receipt is generated and sent here
+        sample_receipt_text = f"Your booking {booking_to_cancel} was cancelled. Your 60% compensation is ₱{settlement['affiliate_compensation']:,.2f}."
+        
+        email_success = email_receipt_to_affiliate(
+            affiliate_email="affiliate@test.com", 
+            receipt_text=sample_receipt_text, 
+            transaction_ref=booking_to_cancel
+        )
+        
+        if email_success:
+            st.success("Cancellation finalized! Database updated and email sent to the Affiliate.")
+        else:
+            st.warning("Cancellation processed, but the email receipt failed to send.")
+By indenting everything under with tab6:, Streamlit knows to hide all of that complex math and UI until you explicitly click on the "Cancellations & Refunds" tab at the top of your screen.
+
+Are your other 5 tabs already set up with st.tabs(), or are you using the left-hand sidebar (st.sidebar) to navigate between your admin pages?
