@@ -45,7 +45,7 @@ with head_col2:
         st.session_state.clear()
         st.rerun()
 
-tabs = st.tabs(["PENDING APPROVALS", "ASSETS", "LOGISTICS", "FINANCIALS", "🗄️ FILING CABINET", "PROMOS & DB", "⭐ REVIEWS"])
+tabs = st.tabs(["PENDING APPROVALS", "ASSETS", "LOGISTICS", "FINANCIALS", "🗄️ FILING CABINET", "PROMOS & DB", "⭐ REVIEWS", "❌ CANCELLATIONS"])
 
 # --- TAB 0: PENDING APPROVALS ---
 with tabs[0]:
@@ -370,7 +370,7 @@ with tabs[6]:
 
 # ... (Keep all your existing code for tabs[0] through tabs[6] exactly as it is) ...
 
-# --- TAB 7: PROCESS CANCELLATIONS (This is your new 8th tab) ---
+# --- TAB 7: PROCESS CANCELLATIONS ---
 with tabs[7]:
     st.header("Process Cancellations")
     st.write("Select an active booking to calculate cancellation penalties and process refunds.")
@@ -388,7 +388,6 @@ with tabs[7]:
             st.info("There are currently no active bookings eligible for cancellation.")
         else:
             # 2. Create a dropdown menu for the Admin to select the booking
-            # We use 'booking_ref', but if your DB uses 'id', you can swap it.
             booking_options = ["-- Select a Booking --"] + active_bookings['booking_ref'].astype(str).tolist()
             selected_ref = st.selectbox("Search Active Bookings:", booking_options)
 
@@ -398,13 +397,13 @@ with tabs[7]:
                 
                 booking_to_cancel = b_data['booking_ref']
                 gross_paid = float(b_data['amount'])
-                pickup_date = str(b_data['pickup_time']) # Must be formatted like '2026-05-20 09:00:00'
+                pickup_date = str(b_data['pickup_time']) 
 
                 st.divider()
                 st.subheader(f"Review Details for #{booking_to_cancel}")
                 st.write(f"**Renter:** @{b_data['renter_username']} | **Gross Rental Paid:** ₱{gross_paid:,.2f} | **Pickup:** {pickup_date}")
 
-                # 4. Admin inputs for variables not stored in the main table (Logistics & Bank Fees)
+                # 4. Admin inputs for variables not stored in the main table
                 st.write("### Extra Fee Verification")
                 col_in1, col_in2 = st.columns(2)
                 with col_in1:
@@ -441,14 +440,12 @@ with tabs[7]:
                     # 6. The Final Execution Button
                     if st.button("🚨 Finalize Cancellation & Update Database", type="primary"):
                         
-                        # A. Update the database to reflect the cancellation
                         conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE booking_ref = ?", (booking_to_cancel,))
                         conn.commit()
                         
-                        # B. Send the Email Receipt
                         sample_receipt_text = f"Your booking {booking_to_cancel} was cancelled. Your 60% compensation is ₱{settlement['affiliate_compensation']:,.2f}."
                         email_success = email_receipt_to_affiliate(
-                            affiliate_email="affiliate@test.com", # In the future, query the affiliate's email from the DB here
+                            affiliate_email="affiliate@test.com", 
                             receipt_text=sample_receipt_text, 
                             transaction_ref=booking_to_cancel
                         )
@@ -458,7 +455,6 @@ with tabs[7]:
                         else:
                             st.warning("⚠️ Database updated, but the email receipt failed to send.")
                             
-                        # C. Refresh the screen so the cancelled booking disappears from the dropdown
                         st.rerun()
 
                 except ValueError:
