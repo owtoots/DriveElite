@@ -163,7 +163,7 @@ else:
     df['Platform_Tax_Deduct'] = df['Gross_Revenue'] * TAX_RATE * 0.18
     df['Platform_Net_Profit'] = df['Platform_Gross'] - df['Platform_Tax_Deduct']
 
-    # 4. Affiliate 82% Share & Payout (Subtracting the Gateway Fee/CC Surcharge)
+   # 4. Affiliate 82% Share & Payout (Subtracting the Gateway Fee/CC Surcharge)
     df['Affiliate_Gross_Share'] = df['Gross_Revenue'] * 0.82
     df['Affiliate_Tax_Deduct'] = df['Gross_Revenue'] * TAX_RATE * 0.82
     
