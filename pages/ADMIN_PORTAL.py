@@ -13,6 +13,9 @@ import random
 from PIL import Image
 from fpdf import FPDF
 from database_utils import get_connection
+from email.message import EmailMessage
+
+
 
 
 st.set_page_config(page_title="DriveElite Admin", layout="wide")
@@ -381,9 +384,6 @@ with tabs[7]:
 
     st.subheader(f"Review: {booking_to_cancel}")
 
-   from datetime import datetime
-import smtplib
-from email.message import EmailMessage
 
 # ==========================================
 # BACKGROUND MATH & EMAIL FUNCTIONS
