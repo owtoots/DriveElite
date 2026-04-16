@@ -367,7 +367,6 @@ with tabs[6]:
 # (Keep your existing header code above this)
 
 # WE ADDED "❌ CANCELLATIONS" AS THE 8TH TAB
-tabs = st.tabs(["PENDING APPROVALS", "ASSETS", "LOGISTICS", "FINANCIALS", "🗄️ FILING CABINET", "PROMOS & DB", "⭐ REVIEWS", "❌ CANCELLATIONS"])
 
 # ... (Keep all your existing code for tabs[0] through tabs[6] exactly as it is) ...
 
