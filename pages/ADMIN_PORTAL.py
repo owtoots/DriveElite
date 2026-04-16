@@ -14,6 +14,41 @@ from PIL import Image
 from fpdf import FPDF
 from database_utils import get_connection
 
+# 1. IMPORT the tools from your background files
+from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
+from payouts import email_receipt_to_affiliate
+
+st.title("Admin Portal: Cancellation processing")
+
+# Example database pull
+pickup_date = "2026-05-20 09:00:00"
+
+# 2. USE the finance tool to do the math
+days_left = get_days_before_pickup(pickup_date)
+settlement = calculate_moa_cancellation_40_60(
+    gross_rental_paid=10000.00, 
+    logistics_paid=2000.00, 
+    exact_gateway_fee=300.00, 
+    days_before_pickup=days_left
+)
+
+st.write(f"The Renter is canceling **{days_left} days** before pick-up.")
+st.write(f"Affiliate Payout (60%): ₱{settlement['affiliate_compensation']:,.2f}")
+
+# 3. USE the payout tool to send the email when you click the button
+if st.button("Finalize Cancellation"):
+    # (Pretend the text receipt was generated here)
+    sample_receipt_text = "Your booking was cancelled. Here is your 60% penalty compensation."
+    
+    email_success = email_receipt_to_affiliate(
+        affiliate_email="affiliate@test.com", 
+        receipt_text=sample_receipt_text, 
+        transaction_ref="BK-98765432"
+    )
+    
+    if email_success:
+        st.success("Cancellation finalized and email sent to the Affiliate!")
+
 st.set_page_config(page_title="DriveElite Admin", layout="wide")
 conn = get_connection()
 
