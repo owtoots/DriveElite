@@ -360,8 +360,16 @@ with tabs[6]:
                     st.write(f"Renter: {rev['renter_name']} | Affiliate: {rev['affiliate_name']}")
                     if rev['review']: st.info(rev['review'])
     except: pass
-# 3. PUT THE MATH AND UI INSIDE TAB 6
-with tab6:
+# --- TOP NAVIGATION BAR ---
+# (Keep your existing header code above this)
+
+# WE ADDED "❌ CANCELLATIONS" AS THE 8TH TAB
+tabs = st.tabs(["PENDING APPROVALS", "ASSETS", "LOGISTICS", "FINANCIALS", "🗄️ FILING CABINET", "PROMOS & DB", "⭐ REVIEWS", "❌ CANCELLATIONS"])
+
+# ... (Keep all your existing code for tabs[0] through tabs[6] exactly as it is) ...
+
+# --- TAB 7: PROCESS CANCELLATIONS (This is your new 8th tab) ---
+with tabs[7]:
     st.header("Process Cancellations")
 
     # Example: You would pull this from your database based on what the Renter clicked
