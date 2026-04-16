@@ -308,39 +308,43 @@ with tabs[1]:
                 st.info("No active trips at the moment.")
             else:
                 for _, t in active_trips.iterrows():
-                    with st.expander(f"🚗 {t['make']} {t['model']} ({t['plate']}) | STATUS: {t['status']}"):
-                        st.write(f"**Schedule:** {str(t['pickup_time'])[:16]} to {str(t['return_time'])[:16]}")
+    with st.expander(f"🚗 {t['make']} {t['model']} ({t['plate']}) | STATUS: {t['status']}"):
+        st.write(f"**Schedule:** {str(t['pickup_time'])[:16]} to {str(t['return_time'])[:16]}")
+        # ... existing lines ...
                         st.write(f"**Destination:** {t['destination']}")
                         st.write(f"**Grand Total:** ₱{t['amount']:,.2f}")
 
                         # --- MESSENGER START ---
                         st.divider()
-                        st.markdown("#### 💬 Message Host")
+                        st.markdown("#### 💬 Chat with Host")
                         
-                        # Find the Owner of this specific car
+                        # Identify the Affiliate for this car
                         owner_df = pd.read_sql_query("SELECT owner_username FROM vehicles WHERE id = ?", conn, params=(t['vehicle_id'],))
                         
                         if not owner_df.empty:
                             affiliate_uname = owner_df.iloc[0]['owner_username']
                             b_ref = t['booking_ref']
 
-                            # Chat display container
+                            # Chat Display Box
                             chat_box = st.container(height=300, border=True)
                             with chat_box:
-                                history = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
-                                for _, msg in history.iterrows():
-                                    role = "user" if msg['sender_username'] == renter_user else "assistant"
-                                    with st.chat_message(role):
-                                        st.write(msg['message_text'])
-                                        if msg['image_path'] and os.path.exists(msg['image_path']):
-                                            st.image(msg['image_path'], width=200)
+                                try:
+                                    history = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
+                                    for _, msg in history.iterrows():
+                                        role = "user" if msg['sender_username'] == renter_user else "assistant"
+                                        with st.chat_message(role):
+                                            st.write(msg['message_text'])
+                                            if msg['image_path'] and os.path.exists(msg['image_path']):
+                                                st.image(msg['image_path'], width=200)
+                                except:
+                                    st.caption("No message history yet.")
 
-                            # Input and Upload
+                            # Message Input & Photo Upload
                             c_img, c_msg = st.columns([1, 4])
                             with c_img:
                                 chat_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"img_{b_ref}", label_visibility="collapsed")
                             with c_msg:
-                                chat_input = st.text_input("Type message...", key=f"in_{b_ref}")
+                                chat_input = st.text_input("Type here...", key=f"in_{b_ref}")
 
                             if st.button("Send Message", key=f"btn_{b_ref}", use_container_width=True):
                                 if chat_input or chat_img:
