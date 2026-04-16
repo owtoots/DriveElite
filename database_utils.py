@@ -66,26 +66,38 @@ def init_db():
 
     conn.commit()
 
-# --- 3. DATABASE PATCHER (Safe Injection) ---
+# --- ADD THIS TO THE BOTTOM OF database_utils.py ---
+
 def patch_database():
-    """Safely adds new columns to existing tables without breaking data."""
-    # List of patches to apply (Column Name, Table Name, Type)
-    patches = [
-        ("gateway_fee", "bookings", "REAL DEFAULT 0.0"),
-        ("document_url", "users", "TEXT"),
-        ("booking_ref", "bookings", "TEXT"),
-        ("review", "bookings", "TEXT")
-    ]
+    """Safely injects missing columns into the database without losing data."""
+    conn = sqlite3.connect("driveelite.db", check_same_thread=False)
     
-    for column, table, col_type in patches:
-        try:
-            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
-            print(f"✅ Patched: {column} added to {table}")
-        except sqlite3.OperationalError:
-            # Column already exists, skip it
-            pass
+    # 1. Patch for Financials (The Gateway Fee / CC Surcharge)
+    try:
+        conn.execute("ALTER TABLE bookings ADD COLUMN gateway_fee REAL DEFAULT 0.0")
+        print("✅ Patch Applied: gateway_fee added to bookings")
+    except sqlite3.OperationalError:
+        # This means the column is already there, so we do nothing
+        pass
+    
+    # 2. Patch for Chat (Ensure table exists for messenger)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            booking_ref TEXT,
+            sender_username TEXT,
+            receiver_username TEXT,
+            message_text TEXT,
+            image_path TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     
     conn.commit()
+    conn.close()
+
+# Run the patcher every time the utility is loaded
+patch_database()
 
 # --- 4. EXECUTION ON LOAD ---
 init_db()
