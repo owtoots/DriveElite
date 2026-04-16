@@ -298,9 +298,12 @@ with tabs[1]:
                 st.info("No active trips at the moment.")
             else:
                 for _, t in active_trips.iterrows():
-                    with st.expander(f"🚗 {t['make']} {t['model']} ({t['plate']}) | STATUS: {t['status']}"):
-                        st.write(f"**Booking Ref:** #{t['booking_ref']}")
-                        st.write(f"**Schedule:** {str(t['pickup_time'])[:16]} to {str(t['return_time'])[:16]}")
+    with st.expander(f"🚗 {t['make']} {t['model']} ({t['plate']}) | STATUS: {t['status']}"):
+        st.write(f"**Schedule:** {str(t['pickup_time'])[:16]} to {str(t['return_time'])[:16]}")
+        st.write(f"**Destination:** {t['destination']}")
+        st.write(f"**Grand Total:** ₱{t['amount']:,.2f}")
+
+        # >>> INSERT THE CHAT CODE RIGHT HERE <<<
                         
                         # --- START OF CHAT INTEGRATION ---
                         st.divider()
