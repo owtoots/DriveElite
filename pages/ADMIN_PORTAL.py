@@ -360,28 +360,10 @@ with tabs[6]:
                     st.write(f"Renter: {rev['renter_name']} | Affiliate: {rev['affiliate_name']}")
                     if rev['review']: st.info(rev['review'])
     except: pass
-# 1. IMPORT your background tools
-from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
-from payouts import email_receipt_to_affiliate
-
-st.title("DriveElite Admin Portal")
-
-# 2. DEFINE YOUR TABS (You can rename these to whatever you currently use)
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "Overview", 
-    "Manage Users", 
-    "Fleet Status", 
-    "Active Bookings", 
-    "Disburse Payouts", 
-    "Cancellations & Refunds" # <-- This is Tab 6
-])
-
-# ... (Your code for tabs 1 through 5 goes here) ...
-
 # 3. PUT THE MATH AND UI INSIDE TAB 6
 with tab6:
     st.header("Process Cancellations")
-    
+
     # Example: You would pull this from your database based on what the Renter clicked
     booking_to_cancel = "BK-98765432"
     gross_paid = 10000.00
@@ -429,6 +411,3 @@ with tab6:
             st.success("Cancellation finalized! Database updated and email sent to the Affiliate.")
         else:
             st.warning("Cancellation processed, but the email receipt failed to send.")
-By indenting everything under with tab6:, Streamlit knows to hide all of that complex math and UI until you explicitly click on the "Cancellations & Refunds" tab at the top of your screen.
-
-Are your other 5 tabs already set up with st.tabs(), or are you using the left-hand sidebar (st.sidebar) to navigate between your admin pages?
