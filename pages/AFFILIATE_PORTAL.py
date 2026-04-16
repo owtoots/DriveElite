@@ -287,7 +287,66 @@ with tabs[0]:
                             if affiliate_email: send_pdf_email(affiliate_email, f"Partner Copy: {b_ref_display}", "Attached is your copy.", pdf_bytes, f"Handover_{b_ref_display}.pdf")
                             
                             st.rerun()
+# ----------------------------------------------------
+    # 3. DRIVEELITE MESSENGER (Affiliate View)
+    # ----------------------------------------------------
+    st.divider()
+    st.markdown("<h3 style='text-align: center;'>💬 DRIVEELITE MESSENGER</h3>", unsafe_allow_html=True)
+    
+    # Get list of active Renters to chat with
+    chat_partners = pd.read_sql_query("""
+        SELECT DISTINCT b.booking_ref, b.renter_username, u.full_name 
+        FROM bookings b 
+        JOIN vehicles v ON b.vehicle_id = v.id 
+        JOIN users u ON b.renter_username = u.username
+        WHERE v.owner_username = ? AND b.status IN ('CONFIRMED', 'ONGOING')
+    """, conn, params=(st.session_state.username,))
 
+    if chat_partners.empty:
+        st.info("No active bookings to chat with.")
+    else:
+        # Selection for which renter to talk to
+        chat_options = {f"Booking #{r['booking_ref']} - {r['full_name']}": r for _, r in chat_partners.iterrows()}
+        selected_label = st.selectbox("Select a conversation:", ["-- Select Renter --"] + list(chat_options.keys()))
+        
+        if selected_label != "-- Select Renter --":
+            target = chat_options[selected_label]
+            b_ref = target['booking_ref']
+            renter_uname = target['renter_username']
+            
+            # --- DISPLAY CHAT BOX ---
+            chat_container = st.container(height=400, border=True)
+            with chat_container:
+                history = pd.read_sql_query("""
+                    SELECT * FROM chat_messages 
+                    WHERE booking_ref = ? 
+                    ORDER BY timestamp ASC
+                """, conn, params=(b_ref,))
+                
+                for _, msg in history.iterrows():
+                    align = "user" if msg['sender_username'] == st.session_state.username else "assistant"
+                    with st.chat_message(align):
+                        st.write(msg['message_text'])
+                        if msg['image_path']:
+                            st.image(msg['image_path'], width=250)
+
+            # --- INPUT AREA ---
+            with st.expander("📎 Attach Photo (Turnover/Evidence)"):
+                chat_img = st.file_uploader("Upload photo", type=['jpg','png','jpeg'], key=f"chatimg_{b_ref}")
+            
+            chat_input = st.chat_input("Type a message to the Renter...")
+            
+            if chat_input or chat_img:
+                img_path = save_chat_image(chat_img, b_ref) if chat_img else ""
+                msg_text = chat_input if chat_input else "📸 Sent an attachment."
+                
+                conn.execute("""
+                    INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (b_ref, st.session_state.username, renter_uname, msg_text, img_path))
+                conn.commit()
+                st.rerun()
+    
     st.divider()
 
     # ----------------------------------------------------
