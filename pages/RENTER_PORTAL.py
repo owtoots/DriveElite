@@ -296,7 +296,7 @@ with tabs[0]:
                                     time.sleep(3)
                                     st.rerun()
 
-# --- TAB 1: MANAGE YOUR TRIPS & REVIEWS ---
+# # --- TAB 1: MANAGE YOUR TRIPS & REVIEWS ---
 with tabs[1]:
     st.markdown("<h3 style='text-align: center;'>🧳 Manage Your Trips</h3>", unsafe_allow_html=True)
     
@@ -315,7 +315,7 @@ with tabs[1]:
     if my_trips.empty:
         st.info("You haven't booked any trips yet. Head to the Showroom to get started!")
     else:
-        # --- SUB-TAB 1: ACTIVE TRIPS ---
+        # --- SUB-TAB 1: ACTIVE TRIPS (Coordination) ---
         with trip_tabs[0]:
             active_trips = my_trips[my_trips['status'].isin(['PENDING', 'CONFIRMED', 'ONGOING'])]
             if active_trips.empty:
@@ -331,55 +331,42 @@ with tabs[1]:
                         # --- MESSENGER INTEGRATION ---
                         st.divider()
                         st.markdown("#### 💬 Chat with Host")
+                        owner_info = pd.read_sql_query("SELECT owner_username FROM vehicles WHERE id = ?", conn, params=(t['vehicle_id'],))
                         
-                        # Identify the Affiliate for this car
-                        owner_df = pd.read_sql_query("SELECT owner_username FROM vehicles WHERE id = ?", conn, params=(t['vehicle_id'],))
-                        
-                        if not owner_df.empty:
-                            affiliate_uname = owner_df.iloc[0]['owner_username']
+                        if not owner_info.empty:
+                            host_username = owner_info.iloc[0]['owner_username']
                             b_ref = t['booking_ref']
 
-                            # Chat Display Box
-                            chat_box = st.container(height=300, border=True)
-                            with chat_box:
-                                try:
-                                    history = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
-                                    if history.empty:
-                                        st.caption("No message history yet.")
-                                    for _, msg in history.iterrows():
-                                        role = "user" if msg['sender_username'] == renter_user else "assistant"
-                                        with st.chat_message(role):
-                                            st.write(msg['message_text'])
-                                            if msg['image_path'] and os.path.exists(msg['image_path']):
-                                                st.image(msg['image_path'], width=200)
-                                except Exception as e:
-                                    st.caption("Start a conversation with your host.")
+                            chat_win = st.container(height=300, border=True)
+                            with chat_win:
+                                history = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
+                                for _, msg in history.iterrows():
+                                    role = "user" if msg['sender_username'] == st.session_state.username else "assistant"
+                                    with st.chat_message(role):
+                                        st.write(msg['message_text'])
+                                        if msg['image_path'] and os.path.exists(msg['image_path']):
+                                            st.image(msg['image_path'], width=200)
 
-                            # Message Input & Photo Upload
                             c_img, c_msg = st.columns([1, 4])
                             with c_img:
-                                chat_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"img_{b_ref}", label_visibility="collapsed")
+                                r_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"r_img_act_{b_ref}", label_visibility="collapsed")
                             with c_msg:
-                                chat_input = st.text_input("Type here...", key=f"in_{b_ref}")
+                                r_input = st.text_input("Reply to host...", key=f"r_in_act_{b_ref}")
 
-                            if st.button("Send Message", key=f"btn_{b_ref}", use_container_width=True):
-                                if chat_input or chat_img:
-                                    img_path = save_chat_image(chat_img, b_ref) if chat_img else ""
-                                    final_text = chat_input if chat_input else "📸 Sent a photo."
-                                    
-                                    conn.execute("""
-                                        INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path)
-                                        VALUES (?, ?, ?, ?, ?)
-                                    """, (b_ref, renter_user, affiliate_uname, final_text, img_path))
+                            if st.button("Send Message", key=f"r_btn_act_{b_ref}", use_container_width=True):
+                                if r_input or r_img:
+                                    path = save_chat_image(r_img, b_ref) if r_img else ""
+                                    text = r_input if r_input else "📸 Sent a photo."
+                                    conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", (b_ref, st.session_state.username, host_username, text, path))
                                     conn.commit()
                                     st.rerun()
-                        
+
                         st.divider()
                         if t['status'] == 'PENDING': st.warning("Waiting for Affiliate to review your booking...")
-                        elif t['status'] == 'CONFIRMED': st.success("Booking confirmed! Coordinate with your host via chat.")
-                        elif t['status'] == 'ONGOING': st.info("Trip is currently in progress. Drive safely!")
+                        elif t['status'] == 'CONFIRMED': st.success("Booking confirmed! Coordinate via chat.")
+                        elif t['status'] == 'ONGOING': st.info("Trip is in progress. Drive safely!")
 
-        # --- SUB-TAB 2: TRIP HISTORY & REVIEWS ---
+        # --- SUB-TAB 2: TRIP HISTORY & REVIEWS (Records) ---
         with trip_tabs[1]:
             history_trips = my_trips[my_trips['status'] == 'COMPLETED']
             if history_trips.empty:
@@ -388,15 +375,27 @@ with tabs[1]:
                 for _, t in history_trips.iterrows():
                     with st.expander(f"✅ COMPLETED: {t['make']} {t['model']} | {str(t['pickup_time'])[:10]}"):
                         st.write(f"**Trip Cost:** ₱{t['amount']:,.2f} | **Destination:** {t['destination']}")
+
+                        # --- VIEW CHAT LOG (Read-Only or Reply) ---
                         st.divider()
+                        st.markdown("#### 💬 Past Conversation Log")
+                        b_ref = t['booking_ref']
+                        history_box = st.container(height=200, border=True)
+                        with history_box:
+                            log = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
+                            if log.empty: st.caption("No messages were exchanged during this trip.")
+                            for _, msg in log.iterrows():
+                                role = "user" if msg['sender_username'] == st.session_state.username else "assistant"
+                                with st.chat_message(role):
+                                    st.write(msg['message_text'])
                         
+                        st.divider()
                         if pd.isna(t.get('rating')) or not t.get('rating'):
                             st.write("### ⭐ Rate Your Experience")
                             with st.form(f"review_form_{t['id']}"):
                                 star_options = ["5 ⭐⭐⭐⭐⭐", "4 ⭐⭐⭐⭐", "3 ⭐⭐⭐", "2 ⭐⭐", "1 ⭐"]
                                 star_choice = st.radio("Select Rating:", star_options, horizontal=True, key=f"star_{t['id']}")
                                 review_txt = st.text_area("Tell us about your trip!", key=f"txt_{t['id']}")
-                                
                                 if st.form_submit_button("Submit Review"):
                                     num_stars = int(star_choice[0]) 
                                     conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (num_stars, review_txt, t['id']))
@@ -407,19 +406,4 @@ with tabs[1]:
                         else:
                             stars = "⭐" * int(t['rating'])
                             st.success(f"**You rated this trip {int(t['rating'])}/5** {stars}")
-                            if t.get('review'):
-                                st.write(f"*{t['review']}*")
-
-# --- SIDEBAR ---
-with st.sidebar:
-    st.write(f"### 👤 Renter Profile")
-    st.write(f"**Username:** {st.session_state.username}")
-    renter_path = f"uploads/RENTER_{st.session_state.username}.pdf"
-    if os.path.exists(renter_path):
-        st.success("Account Verified ✅")
-        with open(renter_path, "rb") as pdf_file:
-            st.download_button(label="📄 Download Master Agreement", data=pdf_file.read(), file_name=f"Master_Agreement_{st.session_state.username}.pdf", mime="application/pdf", use_container_width=True)
-    else:
-        st.warning("⚠️ No signed agreement found.")
-    st.divider()
     st.caption("Need help? Contact DriveElite Admin.")
