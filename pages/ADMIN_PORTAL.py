@@ -374,90 +374,96 @@ tabs = st.tabs(["PENDING APPROVALS", "ASSETS", "LOGISTICS", "FINANCIALS", "🗄�
 # --- TAB 7: PROCESS CANCELLATIONS (This is your new 8th tab) ---
 with tabs[7]:
     st.header("Process Cancellations")
-
-    # Example: You would pull this from your database based on what the Renter clicked
-    booking_to_cancel = "BK-98765432"
-    gross_paid = 10000.00
-    logistics = 2000.00
-    gateway_fee = 300.00
-    pickup_date = "2026-05-20 09:00:00"
-
-    st.subheader(f"Review: {booking_to_cancel}")
-
-
-# ==========================================
-# BACKGROUND MATH & EMAIL FUNCTIONS
-# ==========================================
-
-def get_days_before_pickup(scheduled_pickup_str):
-    """Calculates days left before the trip starts."""
-    date_format = "%Y-%m-%d %H:%M:%S"
-    pickup_datetime = datetime.strptime(scheduled_pickup_str, date_format)
-    cancellation_datetime = datetime.now()
-    
-    time_difference = pickup_datetime - cancellation_datetime
-    days_left = time_difference.days
-    
-    if days_left < 0:
-        days_left = 0
-        
-    return days_left
-
-def calculate_moa_cancellation_40_60(gross_rental_paid, logistics_paid, exact_gateway_fee, days_before_pickup):
-    """Calculates the exact 40/60 penalty split and renter refund."""
-    if days_before_pickup >= 30:
-        penalty_percent = 0.0    
-    elif 15 <= days_before_pickup <= 29:
-        penalty_percent = 0.25   
-    elif 7 <= days_before_pickup <= 14:
-        penalty_percent = 0.50   
-    elif 3 <= days_before_pickup <= 6:
-        penalty_percent = 0.75   
-    else: 
-        penalty_percent = 1.00   
-
-    penalty_amount = gross_rental_paid * penalty_percent
-    renter_refund = max((gross_rental_paid + logistics_paid) - penalty_amount - exact_gateway_fee, 0.0)
-
-    if penalty_amount > 0:
-        platform_fee = penalty_amount * 0.40
-        affiliate_gross_penalty = penalty_amount * 0.60
-        
-        if renter_refund == 0.0:
-            affiliate_net_payout = max(affiliate_gross_penalty - exact_gateway_fee, 0.0)
-        else:
-            affiliate_net_payout = affiliate_gross_penalty
-    else:
-        platform_fee = 0.0
-        affiliate_net_payout = 0.0
-
-    return {
-        "penalty_applied": penalty_amount,
-        "renter_refund": renter_refund,
-        "nucleuz_platform_fee": platform_fee,
-        "affiliate_compensation": affiliate_net_payout
-    }
-
-def email_receipt_to_affiliate(affiliate_email, receipt_text, transaction_ref):
-    """Sends the generated text receipt via Gmail."""
-    msg = EmailMessage()
-    msg.set_content(receipt_text)
-    msg['Subject'] = f"DriveElite Settlement Complete - Ref: {transaction_ref}"
-    msg['From'] = "nucleuz.driveelite@gmail.com" 
-    msg['To'] = affiliate_email
+    st.write("Select an active booking to calculate cancellation penalties and process refunds.")
 
     try:
-        EMAIL_ADDRESS = "nucleuz.driveelite@gmail.com"
-        EMAIL_APP_PASSWORD = "your_16_digit_app_password" # Update this later
-        
-        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        server.login(EMAIL_ADDRESS, EMAIL_APP_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-        return True
-    except Exception as e:
-        return False
+        # 1. Fetch only bookings that have NOT been completed or cancelled yet
+        query = """
+        SELECT id, booking_ref, renter_username, amount, pickup_time, status 
+        FROM bookings 
+        WHERE status NOT IN ('COMPLETED', 'CANCELLED')
+        """
+        active_bookings = pd.read_sql_query(query, conn)
 
-# ==========================================
-# END OF FUNCTIONS
-# ==========================================
+        if active_bookings.empty:
+            st.info("There are currently no active bookings eligible for cancellation.")
+        else:
+            # 2. Create a dropdown menu for the Admin to select the booking
+            # We use 'booking_ref', but if your DB uses 'id', you can swap it.
+            booking_options = ["-- Select a Booking --"] + active_bookings['booking_ref'].astype(str).tolist()
+            selected_ref = st.selectbox("Search Active Bookings:", booking_options)
+
+            if selected_ref != "-- Select a Booking --":
+                # 3. Pull the specific data for the selected booking
+                b_data = active_bookings[active_bookings['booking_ref'].astype(str) == selected_ref].iloc[0]
+                
+                booking_to_cancel = b_data['booking_ref']
+                gross_paid = float(b_data['amount'])
+                pickup_date = str(b_data['pickup_time']) # Must be formatted like '2026-05-20 09:00:00'
+
+                st.divider()
+                st.subheader(f"Review Details for #{booking_to_cancel}")
+                st.write(f"**Renter:** @{b_data['renter_username']} | **Gross Rental Paid:** ₱{gross_paid:,.2f} | **Pickup:** {pickup_date}")
+
+                # 4. Admin inputs for variables not stored in the main table (Logistics & Bank Fees)
+                st.write("### Extra Fee Verification")
+                col_in1, col_in2 = st.columns(2)
+                with col_in1:
+                    logistics = st.number_input("Logistics/Delivery Fee Paid (₱)", value=0.0, step=100.0)
+                with col_in2:
+                    gateway_fee = st.number_input("Exact PayMongo Surcharge to Absorb (₱)", value=0.0, step=10.0)
+
+                st.divider()
+
+                # 5. Run the background math
+                try:
+                    days_left = get_days_before_pickup(pickup_date)
+                    settlement = calculate_moa_cancellation_40_60(
+                        gross_rental_paid=gross_paid, 
+                        logistics_paid=logistics, 
+                        exact_gateway_fee=gateway_fee, 
+                        days_before_pickup=days_left
+                    )
+
+                    st.info(f"⏳ The Renter is canceling **{days_left} days** before pick-up.")
+
+                    # Show the breakdown to the Admin
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write("### 💸 To Renter")
+                        st.write(f"Penalty Applied: ₱{settlement['penalty_applied']:,.2f}")
+                        st.success(f"Refund Amount: ₱{settlement['renter_refund']:,.2f}")
+
+                    with col2:
+                        st.write("### 🏢 To Platform & Affiliate")
+                        st.write(f"Platform Cut (40%): ₱{settlement['nucleuz_platform_fee']:,.2f}")
+                        st.write(f"Affiliate Payout (60%): ₱{settlement['affiliate_compensation']:,.2f}")
+
+                    # 6. The Final Execution Button
+                    if st.button("🚨 Finalize Cancellation & Update Database", type="primary"):
+                        
+                        # A. Update the database to reflect the cancellation
+                        conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE booking_ref = ?", (booking_to_cancel,))
+                        conn.commit()
+                        
+                        # B. Send the Email Receipt
+                        sample_receipt_text = f"Your booking {booking_to_cancel} was cancelled. Your 60% compensation is ₱{settlement['affiliate_compensation']:,.2f}."
+                        email_success = email_receipt_to_affiliate(
+                            affiliate_email="affiliate@test.com", # In the future, query the affiliate's email from the DB here
+                            receipt_text=sample_receipt_text, 
+                            transaction_ref=booking_to_cancel
+                        )
+                        
+                        if email_success:
+                            st.success("✅ Database updated and email sent to the Affiliate.")
+                        else:
+                            st.warning("⚠️ Database updated, but the email receipt failed to send.")
+                            
+                        # C. Refresh the screen so the cancelled booking disappears from the dropdown
+                        st.rerun()
+
+                except ValueError:
+                    st.error(f"Date Error: The database date '{pickup_date}' is not in the required 'YYYY-MM-DD HH:MM:SS' format.")
+
+    except Exception as e:
+        st.error(f"Database connection error: {e}")
