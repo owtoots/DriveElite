@@ -303,54 +303,47 @@ with tabs[1]:
                         st.write(f"**Destination:** {t['destination']}")
                         st.write(f"**Grand Total:** ₱{t['amount']:,.2f}")
 
-                        # >>> INSERT THE CHAT CODE RIGHT HERE <<<
-                        
-                        # --- START OF CHAT INTEGRATION ---
+                        # --- MESSENGER START ---
                         st.divider()
-        st.markdown("#### 💬 Message Host")
-        
-        # 1. Identify the Affiliate (Owner) for this vehicle
-        owner_query = "SELECT owner_username FROM vehicles WHERE id = ?"
-        owner_df = pd.read_sql_query(owner_query, conn, params=(t['vehicle_id'],))
-        
-        if not owner_df.empty:
-            affiliate_uname = owner_df.iloc[0]['owner_username']
-            b_ref = t['booking_ref']
+                        st.markdown("#### 💬 Message Host")
+                        
+                        # Find the Owner of this specific car
+                        owner_df = pd.read_sql_query("SELECT owner_username FROM vehicles WHERE id = ?", conn, params=(t['vehicle_id'],))
+                        
+                        if not owner_df.empty:
+                            affiliate_uname = owner_df.iloc[0]['owner_username']
+                            b_ref = t['booking_ref']
 
-            # 2. History Window
-            chat_container = st.container(height=300, border=True)
-            with chat_container:
-                history = pd.read_sql_query("""
-                    SELECT * FROM chat_messages 
-                    WHERE booking_ref = ? 
-                    ORDER BY timestamp ASC
-                """, conn, params=(b_ref,))
-                
-                for _, msg in history.iterrows():
-                    role = "user" if msg['sender_username'] == renter_user else "assistant"
-                    with st.chat_message(role):
-                        st.write(msg['message_text'])
-                        if msg['image_path'] and os.path.exists(msg['image_path']):
-                            st.image(msg['image_path'], width=200)
+                            # Chat display container
+                            chat_box = st.container(height=300, border=True)
+                            with chat_box:
+                                history = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
+                                for _, msg in history.iterrows():
+                                    role = "user" if msg['sender_username'] == renter_user else "assistant"
+                                    with st.chat_message(role):
+                                        st.write(msg['message_text'])
+                                        if msg['image_path'] and os.path.exists(msg['image_path']):
+                                            st.image(msg['image_path'], width=200)
 
-            # 3. Input & Photo Upload
-            c_img, c_msg = st.columns([1, 3])
-            with c_img:
-                chat_img = st.file_uploader("📸", type=['jpg','png','jpeg'], key=f"img_{b_ref}", label_visibility="collapsed")
-            with c_msg:
-                chat_input = st.text_input("Send message...", key=f"in_{b_ref}")
+                            # Input and Upload
+                            c_img, c_msg = st.columns([1, 4])
+                            with c_img:
+                                chat_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"img_{b_ref}", label_visibility="collapsed")
+                            with c_msg:
+                                chat_input = st.text_input("Type message...", key=f"in_{b_ref}")
 
-            if st.button("Send", key=f"send_{b_ref}", use_container_width=True):
-                if chat_input or chat_img:
-                    img_path = save_chat_image(chat_img, b_ref) if chat_img else ""
-                    final_text = chat_input if chat_input else "📸 Sent a photo."
-                    
-                    conn.execute("""
-                        INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path)
-                        VALUES (?, ?, ?, ?, ?)
-                    """, (b_ref, renter_user, affiliate_uname, final_text, img_path))
-                    conn.commit()
-                    st.rerun()
+                            if st.button("Send Message", key=f"btn_{b_ref}", use_container_width=True):
+                                if chat_input or chat_img:
+                                    img_path = save_chat_image(chat_img, b_ref) if chat_img else ""
+                                    final_text = chat_input if chat_input else "📸 Sent a photo."
+                                    
+                                    conn.execute("""
+                                        INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path)
+                                        VALUES (?, ?, ?, ?, ?)
+                                    """, (b_ref, renter_user, affiliate_uname, final_text, img_path))
+                                    conn.commit()
+                                    st.rerun()
+                        # --- MESSENGER END ---
                         # --- END OF CHAT INTEGRATION ---
 
                         st.divider()
