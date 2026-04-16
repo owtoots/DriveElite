@@ -321,13 +321,13 @@ with tabs[1]:
                 st.info("No active trips at the moment.")
             else:
                 for _, t in active_trips.iterrows():
-    with st.expander(f"🚗 {t['make']} {t['model']} ({t['plate']}) | STATUS: {t['status']}"):
-        st.write(f"**Schedule:** {str(t['pickup_time'])[:16]} to {str(t['return_time'])[:16]}")
-        # ... existing lines ...
+                    with st.expander(f"🚗 {t['make']} {t['model']} ({t['plate']}) | STATUS: {t['status']}"):
+                        st.write(f"**Booking Ref:** #{t['booking_ref']}")
+                        st.write(f"**Schedule:** {str(t['pickup_time'])[:16]} to {str(t['return_time'])[:16]}")
                         st.write(f"**Destination:** {t['destination']}")
                         st.write(f"**Grand Total:** ₱{t['amount']:,.2f}")
 
-                        # --- MESSENGER START ---
+                        # --- MESSENGER INTEGRATION ---
                         st.divider()
                         st.markdown("#### 💬 Chat with Host")
                         
@@ -343,14 +343,16 @@ with tabs[1]:
                             with chat_box:
                                 try:
                                     history = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
+                                    if history.empty:
+                                        st.caption("No message history yet.")
                                     for _, msg in history.iterrows():
                                         role = "user" if msg['sender_username'] == renter_user else "assistant"
                                         with st.chat_message(role):
                                             st.write(msg['message_text'])
                                             if msg['image_path'] and os.path.exists(msg['image_path']):
                                                 st.image(msg['image_path'], width=200)
-                                except:
-                                    st.caption("No message history yet.")
+                                except Exception as e:
+                                    st.caption("Start a conversation with your host.")
 
                             # Message Input & Photo Upload
                             c_img, c_msg = st.columns([1, 4])
@@ -370,13 +372,12 @@ with tabs[1]:
                                     """, (b_ref, renter_user, affiliate_uname, final_text, img_path))
                                     conn.commit()
                                     st.rerun()
-                        # --- MESSENGER END ---
-                        # --- END OF CHAT INTEGRATION ---
-
+                        
                         st.divider()
                         if t['status'] == 'PENDING': st.warning("Waiting for Affiliate to review your booking...")
                         elif t['status'] == 'CONFIRMED': st.success("Booking confirmed! Coordinate with your host via chat.")
                         elif t['status'] == 'ONGOING': st.info("Trip is currently in progress. Drive safely!")
+
         # --- SUB-TAB 2: TRIP HISTORY & REVIEWS ---
         with trip_tabs[1]:
             history_trips = my_trips[my_trips['status'] == 'COMPLETED']
@@ -388,57 +389,36 @@ with tabs[1]:
                         st.write(f"**Trip Cost:** ₱{t['amount']:,.2f} | **Destination:** {t['destination']}")
                         st.divider()
                         
-                        # Check if they have already left a review
                         if pd.isna(t.get('rating')) or not t.get('rating'):
                             st.write("### ⭐ Rate Your Experience")
                             with st.form(f"review_form_{t['id']}"):
-                                
-                                # UPGRADED UI: No more horizontal volume line! It now uses visual star buttons.
                                 star_options = ["5 ⭐⭐⭐⭐⭐", "4 ⭐⭐⭐⭐", "3 ⭐⭐⭐", "2 ⭐⭐", "1 ⭐"]
                                 star_choice = st.radio("Select Rating:", star_options, horizontal=True, key=f"star_{t['id']}")
-                                
                                 review_txt = st.text_area("Tell us about your trip!", key=f"txt_{t['id']}")
                                 
                                 if st.form_submit_button("Submit Review"):
-                                    # Extracts the number from the choice (e.g., grabs the "5" from "5 ⭐⭐⭐⭐⭐")
                                     num_stars = int(star_choice[0]) 
-                                    
                                     conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (num_stars, review_txt, t['id']))
                                     conn.commit()
                                     st.success("Thank you for your feedback!")
                                     time.sleep(1)
                                     st.rerun()
                         else:
-                            # Show the review they left
                             stars = "⭐" * int(t['rating'])
                             st.success(f"**You rated this trip {int(t['rating'])}/5** {stars}")
                             if t.get('review'):
                                 st.write(f"*{t['review']}*")
 
-# ==========================================
-# 4. SIDEBAR (Placed safely at the bottom)
-# ==========================================
+# --- SIDEBAR ---
 with st.sidebar:
     st.write(f"### 👤 Renter Profile")
     st.write(f"**Username:** {st.session_state.username}")
-    
-    # Look for the PDF in the local uploads folder
     renter_path = f"uploads/RENTER_{st.session_state.username}.pdf"
-    
     if os.path.exists(renter_path):
         st.success("Account Verified ✅")
         with open(renter_path, "rb") as pdf_file:
-            pdf_bytes = pdf_file.read()
-            
-        st.download_button(
-            label="📄 Download Master Agreement", 
-            data=pdf_bytes, 
-            file_name=f"Master_Agreement_{st.session_state.username}.pdf", 
-            mime="application/pdf", 
-            use_container_width=True
-        )
+            st.download_button(label="📄 Download Master Agreement", data=pdf_file.read(), file_name=f"Master_Agreement_{st.session_state.username}.pdf", mime="application/pdf", use_container_width=True)
     else:
         st.warning("⚠️ No signed agreement found.")
-    
     st.divider()
     st.caption("Need help? Contact DriveElite Admin.")
