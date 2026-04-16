@@ -57,8 +57,21 @@ except Exception: pass
 try: conn.execute("ALTER TABLE bookings ADD COLUMN review TEXT"); conn.commit()
 except Exception: pass
 
-try: conn.execute("ALTER TABLE bookings ADD COLUMN deposit_collected INTEGER DEFAULT 0"); conn.commit()
-except Exception: pass
+try:
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            booking_ref TEXT,
+            sender_username TEXT,
+            receiver_username TEXT,
+            message_text TEXT,
+            image_path TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+except Exception:
+    pass
 
 try:
     conn.execute("""
