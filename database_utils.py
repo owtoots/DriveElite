@@ -1,4 +1,25 @@
 import sqlite3
+
+# 1. Establish the connection FIRST
+conn = sqlite3.connect('driveelite.db', check_same_thread=False)
+
+# 2. NOW you can run the table creation
+conn.execute("""
+    CREATE TABLE IF NOT EXISTS chat_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        booking_ref TEXT,
+        sender_username TEXT,
+        receiver_username TEXT,
+        message_text TEXT,
+        image_path TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+conn.commit()
+
+# 3. This is the function your other files call
+def get_connection():
+    return conn
 # Insert this where you initialize your database
 conn.execute("""
     CREATE TABLE IF NOT EXISTS chat_messages (
