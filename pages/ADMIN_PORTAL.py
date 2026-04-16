@@ -381,41 +381,83 @@ with tabs[7]:
 
     st.subheader(f"Review: {booking_to_cancel}")
 
-    # Run the background math
-    days_left = get_days_before_pickup(pickup_date)
-    settlement = calculate_moa_cancellation_40_60(
-        gross_rental_paid=gross_paid, 
-        logistics_paid=logistics, 
-        exact_gateway_fee=gateway_fee, 
-        days_before_pickup=days_left
-    )
+   from datetime import datetime
+import smtplib
+from email.message import EmailMessage
 
-    st.info(f"The Renter is canceling **{days_left} days** before pick-up.")
+# ==========================================
+# BACKGROUND MATH & EMAIL FUNCTIONS
+# ==========================================
 
-    # Show the breakdown to the Admin
-    col1, col2 = st.columns(2)
-    with col1:
-        st.write("### 💸 To Renter")
-        st.write(f"Penalty Applied: ₱{settlement['penalty_applied']:,.2f}")
-        st.success(f"Refund Amount: ₱{settlement['renter_refund']:,.2f}")
-
-    with col2:
-        st.write("### 🏢 To Platform & Affiliate")
-        st.write(f"Platform Cut (40%): ₱{settlement['nucleuz_platform_fee']:,.2f}")
-        st.write(f"Affiliate Payout (60%): ₱{settlement['affiliate_compensation']:,.2f}")
-
-    # The Final Execution Button
-    if st.button("🚨 Finalize Cancellation & Process Refunds"):
-        # The email receipt is generated and sent here
-        sample_receipt_text = f"Your booking {booking_to_cancel} was cancelled. Your 60% compensation is ₱{settlement['affiliate_compensation']:,.2f}."
+def get_days_before_pickup(scheduled_pickup_str):
+    """Calculates days left before the trip starts."""
+    date_format = "%Y-%m-%d %H:%M:%S"
+    pickup_datetime = datetime.strptime(scheduled_pickup_str, date_format)
+    cancellation_datetime = datetime.now()
+    
+    time_difference = pickup_datetime - cancellation_datetime
+    days_left = time_difference.days
+    
+    if days_left < 0:
+        days_left = 0
         
-        email_success = email_receipt_to_affiliate(
-            affiliate_email="affiliate@test.com", 
-            receipt_text=sample_receipt_text, 
-            transaction_ref=booking_to_cancel
-        )
+    return days_left
+
+def calculate_moa_cancellation_40_60(gross_rental_paid, logistics_paid, exact_gateway_fee, days_before_pickup):
+    """Calculates the exact 40/60 penalty split and renter refund."""
+    if days_before_pickup >= 30:
+        penalty_percent = 0.0    
+    elif 15 <= days_before_pickup <= 29:
+        penalty_percent = 0.25   
+    elif 7 <= days_before_pickup <= 14:
+        penalty_percent = 0.50   
+    elif 3 <= days_before_pickup <= 6:
+        penalty_percent = 0.75   
+    else: 
+        penalty_percent = 1.00   
+
+    penalty_amount = gross_rental_paid * penalty_percent
+    renter_refund = max((gross_rental_paid + logistics_paid) - penalty_amount - exact_gateway_fee, 0.0)
+
+    if penalty_amount > 0:
+        platform_fee = penalty_amount * 0.40
+        affiliate_gross_penalty = penalty_amount * 0.60
         
-        if email_success:
-            st.success("Cancellation finalized! Database updated and email sent to the Affiliate.")
+        if renter_refund == 0.0:
+            affiliate_net_payout = max(affiliate_gross_penalty - exact_gateway_fee, 0.0)
         else:
-            st.warning("Cancellation processed, but the email receipt failed to send.")
+            affiliate_net_payout = affiliate_gross_penalty
+    else:
+        platform_fee = 0.0
+        affiliate_net_payout = 0.0
+
+    return {
+        "penalty_applied": penalty_amount,
+        "renter_refund": renter_refund,
+        "nucleuz_platform_fee": platform_fee,
+        "affiliate_compensation": affiliate_net_payout
+    }
+
+def email_receipt_to_affiliate(affiliate_email, receipt_text, transaction_ref):
+    """Sends the generated text receipt via Gmail."""
+    msg = EmailMessage()
+    msg.set_content(receipt_text)
+    msg['Subject'] = f"DriveElite Settlement Complete - Ref: {transaction_ref}"
+    msg['From'] = "nucleuz.driveelite@gmail.com" 
+    msg['To'] = affiliate_email
+
+    try:
+        EMAIL_ADDRESS = "nucleuz.driveelite@gmail.com"
+        EMAIL_APP_PASSWORD = "your_16_digit_app_password" # Update this later
+        
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        server.login(EMAIL_ADDRESS, EMAIL_APP_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        return False
+
+# ==========================================
+# END OF FUNCTIONS
+# ==========================================
