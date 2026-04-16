@@ -150,27 +150,25 @@ with tabs[3]:
         df = pd.read_sql_query(query, conn)
         
         if df.empty:
-            st.info("No financial transactions recorded yet.")
-        else:
-            # --- MOA FINANCIAL LOGIC ---
-            TAX_RATE = 0.02 # 2% Withholding
-            
-            # 1. Platform Earnings (Fixed 18% of Gross)
-            df['Platform_Gross'] = df['Gross_Revenue'] * 0.18
-            
-            # 2. Affiliate Share (82% of Gross)
-            df['Affiliate_Gross_Share'] = df['Gross_Revenue'] * 0.82
-            
-            # 3. Tax Deductions (Calculated on the Gross for each party)
-            df['Affiliate_Tax_Deduct'] = df['Gross_Revenue'] * TAX_RATE * 0.82
-            df['Platform_Tax_Deduct'] = df['Gross_Revenue'] * TAX_RATE * 0.18
-            
-            # 4. FINAL PAYOUT CALCULATION (The MOA Rule)
-            # Affiliate Payout = (82% Share - Tax Share) - CC Surcharge (Gateway Fee)
-            df['Affiliate_Net_Payout'] = (df['Affiliate_Gross_Share'] - df['Affiliate_Tax_Deduct']) - df['gateway_fee'].fillna(0)
-            
-            # Platform Net = 18% Share - Tax Share
-            df['Platform_Net_Profit'] = df['Platform_Gross'] - df['Platform_Tax_Deduct']
+    st.info("No financial transactions recorded yet.")
+else:
+    # 1. Standard Rates
+    TAX_RATE = 0.02 
+
+    # 2. Fill missing gateway fees with 0 so math works
+    df['gateway_fee'] = df['gateway_fee'].fillna(0)
+
+    # 3. Platform 18% Share
+    df['Platform_Gross'] = df['Gross_Revenue'] * 0.18
+    df['Platform_Tax_Deduct'] = df['Gross_Revenue'] * TAX_RATE * 0.18
+    df['Platform_Net_Profit'] = df['Platform_Gross'] - df['Platform_Tax_Deduct']
+
+    # 4. Affiliate 82% Share & Payout (Subtracting the Gateway Fee/CC Surcharge)
+    df['Affiliate_Gross_Share'] = df['Gross_Revenue'] * 0.82
+    df['Affiliate_Tax_Deduct'] = df['Gross_Revenue'] * TAX_RATE * 0.82
+    
+    # THE MOA RULE: Affiliate absorbs the CC Surcharge (gateway_fee)
+    df['Affiliate_Net_Payout'] = (df['Affiliate_Gross_Share'] - df['Affiliate_Tax_Deduct']) - df['gateway_fee']
 
             df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
             
