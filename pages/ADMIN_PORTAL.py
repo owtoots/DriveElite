@@ -136,7 +136,7 @@ with tabs[2]:
 with tabs[3]:
     st.markdown("<h2 style='text-align: center;'>🏦 MASTER FINANCIAL LEDGER</h2>", unsafe_allow_html=True)
     try:
-        # UPDATED QUERY: Added b.gateway_fee to the SELECT
+        # 1. Fetch Data (Ensuring gateway_fee is included)
         query = """
         SELECT b.id, b.booking_ref, b.pickup_time as Date, u_renter.full_name as Renter, u_owner.full_name as Affiliate,
                b.amount as Gross_Revenue, b.status as Trip_Status, b.payout_status as Payout_Status,
@@ -150,29 +150,30 @@ with tabs[3]:
         df = pd.read_sql_query(query, conn)
         
         if df.empty:
-    st.info("No financial transactions recorded yet.")
-else:
-    # 1. Standard Rates
-    TAX_RATE = 0.02 
+            st.info("No financial transactions recorded yet.")
+        else:
+            # --- 2. CALCULATIONS (MOA COMPLIANT) ---
+            TAX_RATE = 0.02  # 2% EWT
+            
+            # Fill empty gateway fees with 0 to prevent math errors
+            df['gateway_fee'] = df['gateway_fee'].fillna(0)
 
-    # 2. Fill missing gateway fees with 0 so math works
-    df['gateway_fee'] = df['gateway_fee'].fillna(0)
+            # A. Platform Earnings (18% of Gross)
+            df['Platform_Gross'] = df['Gross_Revenue'] * 0.18
+            df['Platform_Tax_Deduct'] = df['Gross_Revenue'] * TAX_RATE * 0.18
+            df['Platform_Net_Profit'] = df['Platform_Gross'] - df['Platform_Tax_Deduct']
 
-    # 3. Platform 18% Share
-    df['Platform_Gross'] = df['Gross_Revenue'] * 0.18
-    df['Platform_Tax_Deduct'] = df['Gross_Revenue'] * TAX_RATE * 0.18
-    df['Platform_Net_Profit'] = df['Platform_Gross'] - df['Platform_Tax_Deduct']
+            # B. Affiliate Share (82% of Gross)
+            df['Affiliate_Gross_Share'] = df['Gross_Revenue'] * 0.82
+            df['Affiliate_Tax_Deduct'] = df['Gross_Revenue'] * TAX_RATE * 0.82
+            
+            # THE MOA RULE: Payout = (82% Share - Tax Share) - CC Surcharge (gateway_fee)
+            df['Affiliate_Net_Payout'] = (df['Affiliate_Gross_Share'] - df['Affiliate_Tax_Deduct']) - df['gateway_fee']
 
-   # 4. Affiliate 82% Share & Payout (Subtracting the Gateway Fee/CC Surcharge)
-    df['Affiliate_Gross_Share'] = df['Gross_Revenue'] * 0.82
-    df['Affiliate_Tax_Deduct'] = df['Gross_Revenue'] * TAX_RATE * 0.82
-    
-    # THE MOA RULE: Affiliate absorbs the CC Surcharge (gateway_fee)
-    df['Affiliate_Net_Payout'] = (df['Affiliate_Gross_Share'] - df['Affiliate_Tax_Deduct']) - df['gateway_fee']
-
+            # Create clean reference labels
             df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
             
-            # --- METRICS ---
+            # --- 3. TOP LEVEL METRICS ---
             c1, c2, c3 = st.columns(3)
             c1.metric("💰 Total Platform Gross", f"₱{df['Gross_Revenue'].sum():,.2f}")
             c2.metric("🏢 DriveElite Net Profit", f"₱{df['Platform_Net_Profit'].sum():,.2f}")
@@ -180,30 +181,35 @@ else:
             pending_payouts = df[(df['Payout_Status'] == 'PENDING') & (df['Trip_Status'] == 'COMPLETED')]['Affiliate_Net_Payout'].sum()
             c3.metric("⏳ Pending Affiliate Payouts", f"₱{pending_payouts:,.2f}", delta="-Liabilities", delta_color="inverse")
             
+            # --- 4. SUB-TABS ---
             f_tabs = st.tabs(["📑 MASTER LEDGER", "📤 PROCESS PAYOUTS"])
             
             with f_tabs[0]: 
-                # Added 'gateway_fee' to the display so you can see the bank charge
-                st.dataframe(df[['Ref', 'Date', 'Affiliate', 'Gross_Revenue', 'gateway_fee', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']], use_container_width=True, hide_index=True)
+                # Master Ledger View
+                display_cols = ['Ref', 'Date', 'Affiliate', 'Gross_Revenue', 'gateway_fee', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
+                st.dataframe(df[display_cols], use_container_width=True, hide_index=True)
             
             with f_tabs[1]:
+                # Individual Payout Processing
                 pending_df = df[(df['Trip_Status'] == 'COMPLETED') & (df['Payout_Status'] == 'PENDING')]
-                if pending_df.empty: st.info("No pending payouts.")
+                if pending_df.empty:
+                    st.info("No pending payouts for completed trips.")
                 for _, p in pending_df.iterrows():
-                    with st.expander(f"{p['Ref']} | {p['Affiliate']} | Net Payout: ₱{p['Affiliate_Net_Payout']:,.2f}"):
+                    with st.expander(f"{p['Ref']} | {p['Affiliate']} | Net: ₱{p['Affiliate_Net_Payout']:,.2f}"):
                         st.write(f"**Gross Affiliate Share (82%):** ₱{p['Affiliate_Gross_Share']:,.2f}")
-                        st.write(f"**Tax Deduction:** -₱{p['Affiliate_Tax_Deduct']:,.2f}")
-                        st.write(f"**Gateway Fee (Absorbed by Owner):** -₱{p['gateway_fee']:,.2f}")
+                        st.write(f"**Tax Deduction (EWT):** -₱{p['Affiliate_Tax_Deduct']:,.2f}")
+                        st.write(f"**CC Gateway Fee (Owner Absorbed):** -₱{p['gateway_fee']:,.2f}")
                         st.divider()
                         st.write(f"**Final Remittance:** ₱{p['Affiliate_Net_Payout']:,.2f}")
-                        st.write(f"**Bank:** {p['bank_name']} | **Acc:** {p['account_no']}")
+                        st.info(f"🏦 **Bank:** {p['bank_name']} | **Acc:** {p['account_no']}")
                         
                         if st.button("MARK AS PAID", key=f"pay_{p['id']}", type="primary", use_container_width=True):
                             conn.execute("UPDATE bookings SET payout_status = 'PAID' WHERE id = ?", (p['id'],))
                             conn.commit()
                             st.rerun()
                             
-    except Exception as e: st.error(f"Financial Error: {str(e)}")
+    except Exception as e:
+        st.error(f"Financial Error: {str(e)}")
 
 # --- TAB 4: FILING CABINET (COMPLETELY REDESIGNED) ---
 with tabs[4]: 
