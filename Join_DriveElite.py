@@ -182,9 +182,12 @@ else:
             current_date = datetime.date.today().strftime("%B %d, %Y")
             affiliate_name = st.session_state.temp_affiliate_data['full_name']
             
-            # Preview replacements
+           # Preview replacements (Catching both formats for the UI)
             display_moa = raw_moa_html.replace("{{AFFILIATE_FULLNAME}}", affiliate_name.upper())
+            display_moa = display_moa.replace("{affiliate_fullname}", affiliate_name.upper()) # Fallback
+            
             display_moa = display_moa.replace("{{DATE_SIGNED}}", current_date)
+            display_moa = display_moa.replace("{date_signed}", current_date) # Fallback
 
             # Display the beautifully formatted HTML Document
             with st.container(border=True):
