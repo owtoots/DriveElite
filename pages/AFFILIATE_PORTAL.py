@@ -60,6 +60,65 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
         return False
 
 # --- PDF ENGINES ---
+def generate_booking_itinerary(booking_ref, renter_name, vehicle_info, total_paid):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # 1. Add Logo
+    try:
+        pdf.image("logo.png", x=80, y=10, w=50)
+        pdf.set_y(45) 
+    except Exception: 
+        pdf.set_y(20)
+        
+    # 2. Header
+    pdf.set_font("Helvetica", 'B', 14)
+    pdf.cell(0, 10, "DRIVEELITE BOOKING ITINERARY & PAYMENT SUMMARY", ln=True, align='C')
+    pdf.ln(5)
+    
+    # 3. Customer & Trip Details
+    pdf.set_font("Helvetica", '', 11)
+    pdf.cell(0, 8, f"Booking Ref No: {booking_ref}", ln=True)
+    pdf.cell(0, 8, f"Customer Name: {renter_name}", ln=True)
+    pdf.cell(0, 8, f"Vehicle Info: {vehicle_info}", ln=True)
+    pdf.cell(0, 8, f"Date Issued: {datetime.date.today().strftime('%B %d, %Y')}", ln=True)
+    pdf.ln(8)
+    
+    # 4. The "Tax-Safe" Financial Math
+    platform_fee = float(total_paid) * 0.18
+    rental_fee = float(total_paid) * 0.82
+    
+    pdf.set_font("Helvetica", 'B', 12)
+    pdf.cell(0, 10, "PAYMENT BREAKDOWN:", ln=True)
+    
+    pdf.set_font("Helvetica", '', 11)
+    pdf.cell(140, 8, "Vehicle Rental (Collected on behalf of Affiliate):")
+    pdf.cell(0, 8, f"Php {rental_fee:,.2f}", ln=True, align='R')
+    
+    pdf.cell(140, 8, "DriveElite Platform Service Fee:")
+    pdf.cell(0, 8, f"Php {platform_fee:,.2f}", ln=True, align='R')
+    
+    # Divider Line
+    pdf.line(10, pdf.get_y() + 2, 200, pdf.get_y() + 2)
+    pdf.ln(5)
+    
+    pdf.set_font("Helvetica", 'B', 12)
+    pdf.cell(140, 10, "TOTAL AMOUNT CHARGED:")
+    pdf.cell(0, 10, f"Php {float(total_paid):,.2f}", ln=True, align='R')
+    pdf.ln(15)
+    
+    # 5. The Legal Firewall Disclaimer
+    pdf.set_font("Helvetica", 'I', 9)
+    pdf.set_text_color(100, 100, 100) # Make it grey
+    disclaimer = (
+        "Disclaimer: DriveElite operates strictly as a marketplace facilitator. "
+        "This document serves as an acknowledgment of payment collection. "
+        "Official BIR Receipts for the 'Vehicle Rental' portion must be requested directly "
+        "from the Vehicle Owner (Affiliate)."
+    )
+    pdf.multi_cell(0, 5, disclaimer)
+    
+    return pdf.output(dest="S").encode("latin-1")
 def generate_contract(booking_ref, renter, vehicle, plate, chk_data, sig_r, sig_a, is_with_driver=False, driver_name=""):
     pdf = FPDF()
     pdf.add_page()
