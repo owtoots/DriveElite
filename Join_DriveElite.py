@@ -9,7 +9,10 @@ import numpy as np
 import requests 
 from database_utils import get_connection
 from streamlit_drawable_canvas import st_canvas
-from fpdf import FPDF
+
+# --- GOOGLE API IMPORTS ---
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 
 # ==========================================
 # PAGE CONFIG & DATABASE
@@ -17,29 +20,56 @@ from fpdf import FPDF
 st.set_page_config(page_title="Join DriveElite", layout="wide")
 conn = get_connection()
 
+if not os.path.exists("uploads"): 
+    os.makedirs("uploads")
+
 # ==========================================
-# UNIVERSAL GOOGLE DOC FETCH FUNCTION
+# GOOGLE DOCS API AUTOMATION
 # ==========================================
 def get_live_google_doc(doc_id):
+    """Fetches text for the UI preview only."""
     url = f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
     try:
         response = requests.get(url)
-        # We use 'replace' to handle any hidden characters from Google Docs
         return response.content.decode('utf-8').replace('\ufeff', '')
     except Exception as e:
         return f"Agreement terms are temporarily unavailable. Error: {e}"
 
-def clean_text_for_pdf(text):
-    """Cleans Google Docs 'smart' punctuation so FPDF doesn't crash."""
-    return text.replace('\u2014', '-') \
-               .replace('\u2013', '-') \
-               .replace('“', '"') \
-               .replace('”', '"') \
-               .replace('‘', "'") \
-               .replace('’', "'") \
-               .replace('•', '-') \
-               .replace('₱', 'PhP') \
-               .encode('latin-1', 'replace').decode('latin-1')
+def generate_legal_doc_from_drive(role, username, full_name, doc_id):
+    """Duplicates the Google Doc, replaces tags, and exports a perfect PDF."""
+    creds_path = 'google_credentials.json'
+    creds = service_account.Credentials.from_service_account_file(
+        creds_path,
+        scopes=['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/documents']
+    )
+    drive_service = build('drive', 'v3', credentials=creds)
+    docs_service = build('docs', 'v1', credentials=creds)
+
+    # Duplicate the Template
+    prefix = "MOA" if role == "AFFILIATE" else "RENTER"
+    copy_title = f"TEMP_{prefix}_{username}"
+    copied_file = drive_service.files().copy(fileId=doc_id, body={'name': copy_title}).execute()
+    new_doc_id = copied_file.get('id')
+
+    # Replace the Tags in the Google Doc
+    today_date = datetime.datetime.now().strftime("%B %d, %Y")
+    requests_payload = [
+        {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': True}, 'replaceText': today_date}},
+        {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': True}, 'replaceText': full_name.upper()}},
+        {'replaceAllText': {'containsText': {'text': '{{RENTER_FULLNAME}}', 'matchCase': True}, 'replaceText': full_name.upper()}},
+        {'replaceAllText': {'containsText': {'text': '{{USERNAME}}', 'matchCase': True}, 'replaceText': username}}
+    ]
+
+    docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': requests_payload}).execute()
+
+    # Export as PDF Bytes
+    request = drive_service.files().export_media(fileId=new_doc_id, mimeType='application/pdf')
+    pdf_bytes = request.execute()
+
+    # Clean up (Delete temporary doc)
+    drive_service.files().delete(fileId=new_doc_id).execute()
+
+    return pdf_bytes
 
 # ==========================================
 # OTP VERIFICATION SCREEN
@@ -63,7 +93,6 @@ if st.session_state.get('otp_pending'):
             conn.commit()
             st.success("✅ Verification successful! Your account is created. Please log in.")
             
-            # Clean up session state
             for key in ['reg_payload', 'verify_contact', 'generated_otp']:
                 if key in st.session_state: del st.session_state[key]
             st.session_state.otp_pending = False
@@ -80,7 +109,6 @@ else:
     st.title("🚗 Welcome to DriveElite")
     st.write("Join the premier peer-to-peer car rental network.")
 
-    # The radio button controls what renders below it
     reg_type = st.radio("I want to register as a:", ["Select...", "Affiliate", "Renter"])
     st.divider()
 
@@ -141,32 +169,28 @@ else:
         elif st.session_state.affiliate_step == 2:
             st.write("### Step 2: Memorandum of Agreement")
             
-            # Fetch Live Affiliate MOA
             affiliate_doc_id = "1CUT_lzsYG0M9RiLuItk8FHKg03QUZ3TXLHT9f6quR5A"
             raw_moa_text = get_live_google_doc(affiliate_doc_id)
             
             current_date = datetime.date.today().strftime("%B %d, %Y")
-            affiliate_name = f"{st.session_state.temp_affiliate_data['first_name']} {st.session_state.temp_affiliate_data['surname']}"
+            affiliate_name = st.session_state.temp_affiliate_data['full_name']
             
-            display_moa = raw_moa_text.replace("{affiliate_fullname}", affiliate_name.upper())
-            display_moa = display_moa.replace("{date_signed}", current_date)
+            # Preview replacements
+            display_moa = raw_moa_text.replace("{{AFFILIATE_FULLNAME}}", affiliate_name.upper())
+            display_moa = display_moa.replace("{{DATE_SIGNED}}", current_date)
 
             with st.container(height=400):
                 st.markdown(display_moa)
                 
             st.divider()
             st.write("#### Sign to Accept")
-            st.caption("Please draw your signature below to formally execute the agreement.")
+            st.caption("Please draw your signature below. This will be saved to your profile for future booking handovers.")
             
             canvas_result = st_canvas(
                 stroke_width=3, stroke_color="#000000", background_color="#f0f2f6",
                 height=150, width=400, drawing_mode="freedraw", key="a_canvas",
             )
             
-            col_sign_a, col_sign_b = st.columns(2)
-            col_sign_a.write(f"**OWNER:** {affiliate_name}")
-            col_sign_b.write("**AGENCY:** DriveElite Platform")
-
             c_back, c_submit = st.columns([1, 4])
             
             if c_back.button("⬅️ Back", key="a_back"):
@@ -175,58 +199,40 @@ else:
 
             if c_submit.button("Submit Registration & Send OTP", type="primary", key="a_sub"):
                 if canvas_result.image_data is not None and len(np.unique(canvas_result.image_data)) > 1:
-                    sig_image = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-                    img_byte_arr = io.BytesIO()
-                    sig_image.save(img_byte_arr, format='PNG')
-                    signature_bytes = img_byte_arr.getvalue() 
-                    
-                    data = st.session_state.temp_affiliate_data
-                    
-                    if not os.path.exists("uploads"):
-                        os.makedirs("uploads") 
-                        
-                    # GENERATE PDF
-                    pdf = FPDF()
-                    pdf.add_page()
-                    
-                    try:
-                        pdf.image("logo.png", x=10, y=10, w=40) 
-                        pdf.set_y(40)
-                    except:
-                        pdf.set_y(20) 
-                    
-                    pdf.set_font("Helvetica", 'B', 16)
-                    pdf.cell(0, 10, "MEMORANDUM OF AGREEMENT", ln=True, align='C')
-                    pdf.ln(5)
-                    pdf.set_font("Helvetica", '', 10)
-                    
-                    clean_moa = clean_text_for_pdf(display_moa)
-                    pdf.multi_cell(0, 5, clean_moa)
-                    
-                    pdf.ln(10)
-                    y_sig = pdf.get_y()
-                    sig_image.convert('RGB').save("temp_a_sig.jpg") 
-                    pdf.image("temp_a_sig.jpg", x=20, y=y_sig, w=50)
-                    
-                    pdf.set_xy(20, y_sig + 35)
-                    pdf.set_font("Helvetica", 'B', 10)
-                    pdf.cell(0, 10, f"DIGITALLY SIGNED: {affiliate_name.upper()}", ln=True)
-                    
-                    pdf_filename = f"uploads/MOA_{data['username']}.pdf"
-                    pdf.output(pdf_filename)
-                    
-                    st.session_state.reg_payload = (
-                        data["username"], data["password"], 'AFFILIATE', data["full_name"], data["email"],
-                        data["age"], data["nationality"], data["address"], data["contact"], 
-                        data["gov_id_bytes"], data["lic_id_bytes"], signature_bytes 
-                    )
-                    
-                    st.session_state.verify_contact = data["contact"]
-                    st.session_state.generated_otp = str(random.randint(100000, 999999))
-                    st.session_state.otp_pending = True
-                    st.session_state.affiliate_step = 1 
-                    del st.session_state.temp_affiliate_data
-                    st.rerun()
+                    with st.spinner("Connecting to Google Cloud to generate your legal PDF..."):
+                        try:
+                            # 1. Save Signature Image
+                            sig_image = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+                            img_byte_arr = io.BytesIO()
+                            sig_image.save(img_byte_arr, format='PNG')
+                            signature_bytes = img_byte_arr.getvalue() 
+                            
+                            data = st.session_state.temp_affiliate_data
+                            
+                            # 2. Call Google Docs API
+                            pdf_bytes = generate_legal_doc_from_drive("AFFILIATE", data['username'], data['full_name'], affiliate_doc_id)
+                            
+                            # 3. Save PDF to uploads folder
+                            pdf_filename = f"uploads/MOA_{data['username']}.pdf"
+                            with open(pdf_filename, "wb") as f:
+                                f.write(pdf_bytes)
+                                
+                            # 4. Set Payload and Move to OTP
+                            st.session_state.reg_payload = (
+                                data["username"], data["password"], 'AFFILIATE', data["full_name"], data["email"],
+                                data["age"], data["nationality"], data["address"], data["contact"], 
+                                data["gov_id_bytes"], data["lic_id_bytes"], signature_bytes 
+                            )
+                            
+                            st.session_state.verify_contact = data["contact"]
+                            st.session_state.generated_otp = str(random.randint(100000, 999999))
+                            st.session_state.otp_pending = True
+                            st.session_state.affiliate_step = 1 
+                            del st.session_state.temp_affiliate_data
+                            st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"Failed to connect to Google Docs API. Ensure credentials are valid. Error: {e}")
                 else:
                     st.error("🚨 Digital signature required to proceed.")
 
@@ -287,32 +293,28 @@ else:
         elif st.session_state.renter_step == 2:
             st.write("### Step 2: Master Renter Agreement")
             
-            data = st.session_state.temp_renter_data
-            renter_name = data['full_name'].upper()
-
-            # Fetch Live Renter Agreement
             renter_doc_id = "1bEs6dcwb5OYuerZHeAg7MAF2c1HTsP2Zk67Pg71QYj8" 
             raw_renter_text = get_live_google_doc(renter_doc_id)
             
-            display_renter = raw_renter_text.replace("{renter_fullname}", renter_name)
-            display_renter = display_renter.replace("{renter_nationality}", data['nationality'])
-            display_renter = display_renter.replace("{renter_address}", data['address'])
+            data = st.session_state.temp_renter_data
+            current_date = datetime.date.today().strftime("%B %d, %Y")
+            renter_name = data['full_name']
+
+            # Preview replacements
+            display_renter = raw_renter_text.replace("{{RENTER_FULLNAME}}", renter_name.upper())
+            display_renter = display_renter.replace("{{DATE_SIGNED}}", current_date)
 
             with st.container(height=400):
                 st.markdown(display_renter)
 
             st.divider()
             st.write("#### Sign to Accept")
-            st.caption("Please draw your signature below to formally execute the agreement.")
+            st.caption("Please draw your signature below. This will be saved to your profile for future bookings.")
 
             r_canvas = st_canvas(
                 stroke_width=3, stroke_color="#000000", background_color="#f0f2f6",
                 height=150, width=400, drawing_mode="freedraw", key="r_canvas",
             )
-            
-            col_sign_a, col_sign_b = st.columns(2)
-            col_sign_a.write(f"**LESSEE:** {renter_name}")
-            col_sign_b.write("**LESSOR:** DriveElite Platform")
 
             c_back, c_submit = st.columns([1, 4])
             
@@ -322,55 +324,37 @@ else:
 
             if c_submit.button("Submit Registration & Send OTP", type="primary", key="r_sub"):
                 if r_canvas.image_data is not None and len(np.unique(r_canvas.image_data)) > 1:
-                    sig_image = Image.fromarray(r_canvas.image_data.astype('uint8'), 'RGBA')
-                    img_byte_arr = io.BytesIO()
-                    sig_image.save(img_byte_arr, format='PNG')
-                    signature_bytes = img_byte_arr.getvalue() 
-                    
-                    if not os.path.exists("uploads"):
-                        os.makedirs("uploads") 
-                        
-                    # GENERATE PDF
-                    pdf = FPDF()
-                    pdf.add_page()
-                    
-                    try:
-                        pdf.image("logo.png", x=10, y=10, w=40) 
-                        pdf.set_y(40)
-                    except:
-                        pdf.set_y(20)
-                    
-                    pdf.set_font("Helvetica", 'B', 14)
-                    pdf.cell(0, 10, "MASTER RENTER AGREEMENT", ln=True, align='C')
-                    pdf.ln(5)
-                    pdf.set_font("Helvetica", '', 10)
-                    
-                    clean_renter_moa = clean_text_for_pdf(display_renter)
-                    pdf.multi_cell(0, 5, clean_renter_moa)
-                    
-                    pdf.ln(10)
-                    y_sig = pdf.get_y()
-                    sig_image.convert('RGB').save("temp_r_sig.jpg") 
-                    pdf.image("temp_r_sig.jpg", x=20, y=y_sig, w=50)
-                    
-                    pdf.set_xy(20, y_sig + 35)
-                    pdf.set_font("Helvetica", 'B', 10)
-                    pdf.cell(0, 10, f"DIGITALLY SIGNED: {renter_name}", ln=True)
-                    
-                    pdf_filename = f"uploads/RENTER_{data['username']}.pdf"
-                    pdf.output(pdf_filename)
-                    
-                    st.session_state.reg_payload = (
-                        data["username"], data["password"], 'RENTER', data["full_name"], data["email"],
-                        data["age"], data["nationality"], data["address"], data["contact"], 
-                        data["gov_id_bytes"], data["lic_id_bytes"], signature_bytes 
-                    )
-                    
-                    st.session_state.verify_contact = data["contact"]
-                    st.session_state.generated_otp = str(random.randint(100000, 999999))
-                    st.session_state.otp_pending = True
-                    st.session_state.renter_step = 1 
-                    del st.session_state.temp_renter_data
-                    st.rerun()
+                    with st.spinner("Connecting to Google Cloud to generate your legal PDF..."):
+                        try:
+                            # 1. Save Signature Image
+                            sig_image = Image.fromarray(r_canvas.image_data.astype('uint8'), 'RGBA')
+                            img_byte_arr = io.BytesIO()
+                            sig_image.save(img_byte_arr, format='PNG')
+                            signature_bytes = img_byte_arr.getvalue() 
+                            
+                            # 2. Call Google Docs API
+                            pdf_bytes = generate_legal_doc_from_drive("RENTER", data['username'], data['full_name'], renter_doc_id)
+                            
+                            # 3. Save PDF to uploads folder
+                            pdf_filename = f"uploads/RENTER_{data['username']}.pdf"
+                            with open(pdf_filename, "wb") as f:
+                                f.write(pdf_bytes)
+                                
+                            # 4. Set Payload and Move to OTP
+                            st.session_state.reg_payload = (
+                                data["username"], data["password"], 'RENTER', data["full_name"], data["email"],
+                                data["age"], data["nationality"], data["address"], data["contact"], 
+                                data["gov_id_bytes"], data["lic_id_bytes"], signature_bytes 
+                            )
+                            
+                            st.session_state.verify_contact = data["contact"]
+                            st.session_state.generated_otp = str(random.randint(100000, 999999))
+                            st.session_state.otp_pending = True
+                            st.session_state.renter_step = 1 
+                            del st.session_state.temp_renter_data
+                            st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"Failed to connect to Google Docs API. Ensure credentials are valid. Error: {e}")
                 else:
                     st.error("🚨 Digital signature required to proceed.")
