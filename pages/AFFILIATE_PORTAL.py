@@ -333,17 +333,37 @@ with tabs[0]:
                             chk_items = ["Full Tank", "Exterior check OK", "Php 5k Deposit Confirmed"]
                             b_ref_display = f"#{t['booking_ref']}" if pd.notnull(t.get('booking_ref')) else f"DRV-{t['id']:05d}"
                             
+                            # --- 1. Generate Handover Contract ---
                             pdf_bytes = generate_contract(b_ref_display, t['renter_fullname'], f"{t['make']} {t['model']}", t['plate'], chk_items, s_r.image_data, s_a.image_data, is_with_driver, assigned_driver)
                             st.session_state[f"contract_{t['id']}"] = pdf_bytes
+                            
+                            # --- 2. Generate Booking Itinerary ---
+                            # (We need to grab the total amount from the database first)
+                            amt_df = pd.read_sql_query("SELECT amount FROM bookings WHERE id=?", conn, params=(t['id'],))
+                            total_booking_amt = amt_df.iloc[0]['amount'] if not amt_df.empty else 0.0
+                            
+                            itinerary_bytes = generate_booking_itinerary(
+                                booking_ref=b_ref_display, 
+                                renter_name=t['renter_fullname'], 
+                                vehicle_info=f"{t['make']} {t['model']} ({t['plate']})", 
+                                total_paid=total_booking_amt
+                            )
+                            
                             st.session_state[f"imgs_{t['id']}"] = [save_file(bulk_photos[i]) for i in range(10)]
                             st.session_state[f"drv_{t['id']}"] = assigned_driver
                             
-                            # Email execution
+                            # --- 3. Send Emails ---
                             affiliate_email_df = pd.read_sql_query("SELECT email FROM users WHERE username=?", conn, params=(st.session_state.username,))
                             affiliate_email = affiliate_email_df.iloc[0]['email'] if not affiliate_email_df.empty else None
                             
-                            if t['renter_email']: send_pdf_email(t['renter_email'], f"Handover Contract: {b_ref_display}", "Attached is your binding handover agreement.", pdf_bytes, f"Handover_{b_ref_display}.pdf")
-                            if affiliate_email: send_pdf_email(affiliate_email, f"Partner Copy: {b_ref_display}", "Attached is your copy.", pdf_bytes, f"Handover_{b_ref_display}.pdf")
+                            if t['renter_email']: 
+                                # Email the Handover Contract
+                                send_pdf_email(t['renter_email'], f"Handover Contract: {b_ref_display}", "Attached is your binding handover agreement.", pdf_bytes, f"Handover_{b_ref_display}.pdf")
+                                # Email the Payment Summary
+                                send_pdf_email(t['renter_email'], f"Payment Summary: {b_ref_display}", "Attached is your booking itinerary and payment breakdown.", itinerary_bytes, f"Itinerary_{b_ref_display}.pdf")
+                                
+                            if affiliate_email: 
+                                send_pdf_email(affiliate_email, f"Partner Copy: {b_ref_display}", "Attached is your copy of the handover agreement.", pdf_bytes, f"Handover_{b_ref_display}.pdf")
                             
                             st.rerun()
 # ----------------------------------------------------
