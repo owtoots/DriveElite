@@ -25,9 +25,6 @@ if not os.path.exists("uploads"):
     os.makedirs("uploads")
 
 # ==========================================
-# GOOGLE DOCS API AUTOMATION
-# ==========================================
-# ==========================================
 # UNIVERSAL GOOGLE DOC FETCH FUNCTION
 # ==========================================
 def get_live_google_doc(doc_id):
@@ -55,13 +52,19 @@ def generate_legal_doc_from_drive(role, username, full_name, doc_id):
     copied_file = drive_service.files().copy(fileId=doc_id, body={'name': copy_title}).execute()
     new_doc_id = copied_file.get('id')
 
-    # Replace the Tags in the Google Doc
+    # Replace the Tags in the Google Doc (Catching both old and new formats)
     today_date = datetime.datetime.now().strftime("%B %d, %Y")
     requests_payload = [
-        {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': True}, 'replaceText': today_date}},
-        {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': True}, 'replaceText': full_name.upper()}},
-        {'replaceAllText': {'containsText': {'text': '{{RENTER_FULLNAME}}', 'matchCase': True}, 'replaceText': full_name.upper()}},
-        {'replaceAllText': {'containsText': {'text': '{{USERNAME}}', 'matchCase': True}, 'replaceText': username}}
+        # 1. Target the NEW double-bracket formatting
+        {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
+        {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
+        {'replaceAllText': {'containsText': {'text': '{{RENTER_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
+        {'replaceAllText': {'containsText': {'text': '{{USERNAME}}', 'matchCase': False}, 'replaceText': username}},
+        
+        # 2. Target the OLD single-bracket formatting (Just in case!)
+        {'replaceAllText': {'containsText': {'text': '{date_signed}', 'matchCase': False}, 'replaceText': today_date}},
+        {'replaceAllText': {'containsText': {'text': '{affiliate_fullname}', 'matchCase': False}, 'replaceText': full_name.upper()}},
+        {'replaceAllText': {'containsText': {'text': '{renter_fullname}', 'matchCase': False}, 'replaceText': full_name.upper()}}
     ]
 
     docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': requests_payload}).execute()
