@@ -60,7 +60,7 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
         return False
 
 # --- PDF ENGINES ---
-def generate_booking_itinerary(booking_ref, renter_name, vehicle_info, total_paid):
+def generate_booking_itinerary(booking_ref, renter_name, vehicle_info, total_paid, affiliate_name):
     pdf = FPDF()
     pdf.add_page()
     
@@ -92,7 +92,8 @@ def generate_booking_itinerary(booking_ref, renter_name, vehicle_info, total_pai
     pdf.cell(0, 10, "PAYMENT BREAKDOWN:", ln=True)
     
     pdf.set_font("Helvetica", '', 11)
-    pdf.cell(140, 8, "Vehicle Rental (Collected on behalf of Affiliate):")
+    # INJECTING THE AFFILIATE'S NAME HERE
+    pdf.cell(140, 8, f"Vehicle Rental (Collected on behalf of {affiliate_name}):")
     pdf.cell(0, 8, f"Php {rental_fee:,.2f}", ln=True, align='R')
     
     pdf.cell(140, 8, "DriveElite Platform Service Fee:")
@@ -109,12 +110,12 @@ def generate_booking_itinerary(booking_ref, renter_name, vehicle_info, total_pai
     
     # 5. The Legal Firewall Disclaimer
     pdf.set_font("Helvetica", 'I', 9)
-    pdf.set_text_color(100, 100, 100) # Make it grey
+    pdf.set_text_color(100, 100, 100)
     disclaimer = (
         "Disclaimer: DriveElite operates strictly as a marketplace facilitator. "
         "This document serves as an acknowledgment of payment collection. "
-        "Official BIR Receipts for the 'Vehicle Rental' portion must be requested directly "
-        "from the Vehicle Owner (Affiliate)."
+        f"Official BIR Receipts for the 'Vehicle Rental' portion must be requested directly "
+        f"from the Vehicle Owner ({affiliate_name})."
     )
     pdf.multi_cell(0, 5, disclaimer)
     
@@ -346,7 +347,8 @@ with tabs[0]:
                                 booking_ref=b_ref_display, 
                                 renter_name=t['renter_fullname'], 
                                 vehicle_info=f"{t['make']} {t['model']} ({t['plate']})", 
-                                total_paid=total_booking_amt
+                                total_paid=total_booking_amt,
+                                affiliate_name=affiliate_full_name  # <-- ADDED THIS LINE
                             )
                             
                             st.session_state[f"imgs_{t['id']}"] = [save_file(bulk_photos[i]) for i in range(10)]
