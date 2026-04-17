@@ -9,6 +9,7 @@ import numpy as np
 import requests 
 from database_utils import get_connection
 from streamlit_drawable_canvas import st_canvas
+import streamlit.components.v1 as components
 
 # --- GOOGLE API IMPORTS ---
 from google.oauth2 import service_account
@@ -26,14 +27,17 @@ if not os.path.exists("uploads"):
 # ==========================================
 # GOOGLE DOCS API AUTOMATION
 # ==========================================
+# ==========================================
+# UNIVERSAL GOOGLE DOC FETCH FUNCTION
+# ==========================================
 def get_live_google_doc(doc_id):
-    """Fetches text for the UI preview only."""
-    url = f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
+    """Fetches the Google Doc as HTML so it keeps all bolding, paragraphs, and spacing."""
+    url = f"https://docs.google.com/document/d/{doc_id}/export?format=html"
     try:
         response = requests.get(url)
-        return response.content.decode('utf-8').replace('\ufeff', '')
+        return response.content.decode('utf-8')
     except Exception as e:
-        return f"Agreement terms are temporarily unavailable. Error: {e}"
+        return f"<p>Agreement terms are temporarily unavailable. Error: {e}</p>"
 
 def generate_legal_doc_from_drive(role, username, full_name, doc_id):
     """Duplicates the Google Doc, replaces tags, and exports a perfect PDF."""
@@ -170,17 +174,24 @@ else:
             st.write("### Step 2: Memorandum of Agreement")
             
             affiliate_doc_id = "1CUT_lzsYG0M9RiLuItk8FHKg03QUZ3TXLHT9f6quR5A"
-            raw_moa_text = get_live_google_doc(affiliate_doc_id)
+            raw_moa_html = get_live_google_doc(affiliate_doc_id)
             
             current_date = datetime.date.today().strftime("%B %d, %Y")
             affiliate_name = st.session_state.temp_affiliate_data['full_name']
             
             # Preview replacements
-            display_moa = raw_moa_text.replace("{{AFFILIATE_FULLNAME}}", affiliate_name.upper())
+            display_moa = raw_moa_html.replace("{{AFFILIATE_FULLNAME}}", affiliate_name.upper())
             display_moa = display_moa.replace("{{DATE_SIGNED}}", current_date)
 
-            with st.container(height=400):
-                st.markdown(display_moa)
+            # Display the beautifully formatted HTML Document
+            with st.container(border=True):
+                components.html(display_moa, height=400, scrolling=True)
+                
+            st.divider()
+            # ... (keep your signature canvas code below this exactly the same) ...
+                
+            st.divider()
+            # ... (keep your signature canvas code below this exactly the same) ...)
                 
             st.divider()
             st.write("#### Sign to Accept")
@@ -294,18 +305,22 @@ else:
             st.write("### Step 2: Master Renter Agreement")
             
             renter_doc_id = "1bEs6dcwb5OYuerZHeAg7MAF2c1HTsP2Zk67Pg71QYj8" 
-            raw_renter_text = get_live_google_doc(renter_doc_id)
+            raw_renter_html = get_live_google_doc(renter_doc_id)
             
             data = st.session_state.temp_renter_data
             current_date = datetime.date.today().strftime("%B %d, %Y")
             renter_name = data['full_name']
 
             # Preview replacements
-            display_renter = raw_renter_text.replace("{{RENTER_FULLNAME}}", renter_name.upper())
+            display_renter = raw_renter_html.replace("{{RENTER_FULLNAME}}", renter_name.upper())
             display_renter = display_renter.replace("{{DATE_SIGNED}}", current_date)
 
-            with st.container(height=400):
-                st.markdown(display_renter)
+            # Display the beautifully formatted HTML Document
+            with st.container(border=True):
+                components.html(display_renter, height=400, scrolling=True)
+
+            st.divider()
+            # ... (keep your signature canvas code below this exactly the same) ...
 
             st.divider()
             st.write("#### Sign to Accept")
