@@ -38,11 +38,17 @@ def get_live_google_doc(doc_id):
 
 def generate_legal_doc_from_drive(role, username, full_name, doc_id):
     """Duplicates the Google Doc, replaces tags, and exports a perfect PDF."""
-    creds_path = 'google_credentials.json'
-    creds = service_account.Credentials.from_service_account_file(
-        creds_path,
-        scopes=['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/documents']
-    )
+    # --- SMART CLOUD AUTHENTICATION ---
+    scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/documents']
+    
+    if "gcp_service_account" in st.secrets:
+        # If running on Streamlit Cloud, use Secrets
+        creds_info = dict(st.secrets["gcp_service_account"])
+        creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
+    else:
+        # If running on your laptop, use the local file
+        creds = service_account.Credentials.from_service_account_file('google_credentials.json', scopes=scopes)
+    # ----------------------------------
     drive_service = build('drive', 'v3', credentials=creds)
     docs_service = build('docs', 'v1', credentials=creds)
 
