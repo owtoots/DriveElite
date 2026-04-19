@@ -61,41 +61,38 @@ def get_live_google_doc(doc_id):
     except Exception as e:
         return f"<p>Agreement terms are temporarily unavailable. Error: {e}</p>"
 
-def generate_legal_doc_from_drive(role, username, full_name, doc_id):
+dedef generate_legal_doc_from_drive(role, username, full_name, doc_id):
     """Duplicates the Google Doc, replaces tags, and exports a perfect PDF using the VIP Token."""
     from google.oauth2.credentials import Credentials
     
-    # --- NEW VIP TOKEN AUTHENTICATION ---
     token_data = json.loads(st.secrets["google_oauth"]["token"])
     creds = Credentials.from_authorized_user_info(token_data)
-    # ------------------------------------
     
     drive_service = build('drive', 'v3', credentials=creds)
     docs_service = build('docs', 'v1', credentials=creds)
 
-    # Duplicate the Template
     prefix = "MOA" if role == "AFFILIATE" else "RENTER"
     copy_title = f"TEMP_{prefix}_{username}"
     copied_file = drive_service.files().copy(fileId=doc_id, body={'name': copy_title}).execute()
     new_doc_id = copied_file.get('id')
 
-    # Replace the Tags (Adding more variations to be safe)
     today_date = datetime.datetime.now().strftime("%B %d, %Y")
+    
+    # We search for EVERY variation of the tags to ensure no blanks!
     requests_payload = [
         {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
+        {'replaceAllText': {'containsText': {'text': '{date_signed}', 'matchCase': False}, 'replaceText': today_date}},
         {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
+        {'replaceAllText': {'containsText': {'text': '{affiliate_fullname}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         {'replaceAllText': {'containsText': {'text': '{{RENTER_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
-        {'replaceAllText': {'containsText': {'text': '{{FULL_NAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}}, # Backup tag
+        {'replaceAllText': {'containsText': {'text': '{renter_fullname}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         {'replaceAllText': {'containsText': {'text': '{{USERNAME}}', 'matchCase': False}, 'replaceText': username}},
     ]
 
     docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': requests_payload}).execute()
 
-    # Export as PDF Bytes
     request = drive_service.files().export_media(fileId=new_doc_id, mimeType='application/pdf')
     pdf_bytes = request.execute()
-
-    # Clean up (Delete temporary doc from Drive so it stays perfectly empty!)
     drive_service.files().delete(fileId=new_doc_id).execute()
 
     return pdf_bytes
