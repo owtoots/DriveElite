@@ -62,15 +62,14 @@ def get_live_google_doc(doc_id):
     except Exception as e:
         return f"<p>Agreement terms are temporarily unavailable. Error: {e}</p>"
 
-    def generate_legal_doc_from_drive(role, username, full_name, address, doc_id, signature_bytes):
-        # EVERY line below here must be indented by 4 spaces!
-        from google.oauth2.credentials import Credentials
-        from googleapiclient.http import MediaIoBaseUpload
-        import datetime
-        import json
-        import io
-    
-    # ... the rest of the function ...
+   def generate_legal_doc_from_drive(role, username, full_name, address, doc_id, signature_bytes):
+    from google.oauth2.credentials import Credentials
+    from googleapiclient.http import MediaIoBaseUpload
+    from googleapiclient.discovery import build
+    import datetime
+    import json
+    import io
+    import streamlit as st
 
     token_data = json.loads(st.secrets["google_oauth"]["token"])
     creds = Credentials.from_authorized_user_info(token_data)
@@ -100,12 +99,11 @@ def get_live_google_doc(doc_id):
         {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         {'replaceAllText': {'containsText': {'text': '{{RENTER_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
-        {'replaceAllText': {'containsText': {'text': '{{ADDRESS}}', 'matchCase': False}, 'replaceText': address}}, # <-- NEW LINE
+        {'replaceAllText': {'containsText': {'text': '{{ADDRESS}}', 'matchCase': False}, 'replaceText': address}},
     ]
     docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': text_requests}).execute()
 
     # 4. GET THE END INDEX & INSERT SIGNATURE
-    # This reads the document length to find the exact bottom
     doc_metadata = docs_service.documents().get(documentId=new_doc_id).execute()
     end_index = doc_metadata.get('body').get('content')[-1].get('endIndex') - 1
 
