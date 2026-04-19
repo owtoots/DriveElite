@@ -87,10 +87,10 @@ def generate_legal_doc_from_drive(role, username, full_name, doc_id):
         {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         
         # RENTER Agreement Tags (from your screenshot)
-        {'replaceAllText': {'containsText': {'text': '{renter_fullname}', 'matchCase': False}, 'replaceText': full_name.upper()}},
-        {'replaceAllText': {'containsText': {'text': '{renter_nationality}', 'matchCase': False}, 'replaceText': 'FILIPINO'}},
-        {'replaceAllText': {'containsText': {'text': '{renter_address}', 'matchCase': False}, 'replaceText': 'METRO MANILA'}},
-        {'replaceAllText': {'containsText': {'text': '{date_signed}', 'matchCase': False}, 'replaceText': today_date}},
+        {'replaceAllText': {'containsText': {'text': '{{renter_fullname}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
+        {'replaceAllText': {'containsText': {'text': '{{renter_nationality}}', 'matchCase': False}, 'replaceText': 'FILIPINO'}},
+        {'replaceAllText': {'containsText': {'text': '{{renter_address}}', 'matchCase': False}, 'replaceText': 'METRO MANILA'}},
+        {'replaceAllText': {'containsText': {'text': '{{date_signed}}', 'matchCase': False}, 'replaceText': today_date}},
     ]
 
     docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': requests_payload}).execute()
