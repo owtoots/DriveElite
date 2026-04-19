@@ -62,46 +62,56 @@ def get_live_google_doc(doc_id):
     except Exception as e:
         return f"<p>Agreement terms are temporarily unavailable. Error: {e}</p>"
 
-def generate_legal_doc_from_drive(role, username, full_name, doc_id):
-    """Duplicates the Google Doc, replaces tags, and exports a perfect PDF using the VIP Token."""
+def generate_legal_doc_from_drive(role, username, full_name, doc_id, signature_bytes):
     from google.oauth2.credentials import Credentials
-    
-    # --- AUTHENTICATION ---
+    from googleapiclient.http import MediaIoBaseUpload
+
     token_data = json.loads(st.secrets["google_oauth"]["token"])
     creds = Credentials.from_authorized_user_info(token_data)
+    
     drive_service = build('drive', 'v3', credentials=creds)
     docs_service = build('docs', 'v1', credentials=creds)
 
-    # --- DUPLICATE TEMPLATE ---
-    prefix = "MOA" if role == "AFFILIATE" else "RENTER"
-    copy_title = f"TEMP_{prefix}_{username}"
+    # 1. Duplicate Template
+    copy_title = f"TEMP_{role}_{username}"
     copied_file = drive_service.files().copy(fileId=doc_id, body={'name': copy_title}).execute()
     new_doc_id = copied_file.get('id')
 
-    # --- REPLACE TAGS ---
-    today_date = datetime.datetime.now().strftime("%B %d, %Y")
+    # 2. Temporary Signature Upload (to your Vault)
+    VAULT_ID = "1Gc21xmpLvKHFB_0ta9vl-osySjLyrPD7"
+    sig_metadata = {'name': f'temp_sig_{username}.png', 'parents': [VAULT_ID]}
+    sig_media = MediaIoBaseUpload(io.BytesIO(signature_bytes), mimetype='image/png')
+    sig_file = drive_service.files().create(body=sig_metadata, media_body=sig_media, fields='id').execute()
+    sig_id = sig_file.get('id')
     
-    # We include every possible version of the tags
-    requests_payload = [
-        # MOA Tags
-        {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
+    # Make it readable for the Docs API
+    drive_service.permissions().create(fileId=sig_id, body={'type': 'anyone', 'role': 'reader'}).execute()
+    sig_url = f"https://drive.google.com/uc?id={sig_id}"
+
+    # 3. Replace Text Tags
+    today_date = datetime.datetime.now().strftime("%B %d, %Y")
+    text_requests = [
         {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
-        
-        # RENTER Agreement Tags 
-        {'replaceAllText': {'containsText': {'text': '{{renter_fullname}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
-        {'replaceAllText': {'containsText': {'text': '{{renter_nationality}}', 'matchCase': False}, 'replaceText': 'FILIPINO'}},
-        {'replaceAllText': {'containsText': {'text': '{{renter_address}}', 'matchCase': False}, 'replaceText': 'METRO MANILA'}},
-        {'replaceAllText': {'containsText': {'text': '{{date_signed}}', 'matchCase': False}, 'replaceText': today_date}},
+        {'replaceAllText': {'containsText': {'text': '{{RENTER_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
+        {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
     ]
+    docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': text_requests}).execute()
 
-    docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': requests_payload}).execute()
+    # 4. Insert Signature at the End
+    # This finds the end of the document and drops the signature image
+    img_request = [{
+        'insertInlineImage': {
+            'uri': sig_url,
+            'location': {'index': 1}, # Tip: We can adjust this index to place it exactly
+            'objectSize': {'height': {'magnitude': 60, 'unit': 'PT'}, 'width': {'magnitude': 120, 'unit': 'PT'}}
+        }
+    }]
+    docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': img_request}).execute()
 
-    # --- EXPORT TO PDF ---
-    request = drive_service.files().export_media(fileId=new_doc_id, mimeType='application/pdf')
-    pdf_bytes = request.execute()
-
-    # --- CLEANUP DRIVE ---
+    # 5. Export and Cleanup
+    pdf_bytes = drive_service.files().export_media(fileId=new_doc_id, mimeType='application/pdf').execute()
     drive_service.files().delete(fileId=new_doc_id).execute()
+    drive_service.files().delete(fileId=sig_id).execute()
 
     return pdf_bytes
 
@@ -319,7 +329,7 @@ else:
                             data = st.session_state.temp_affiliate_data
                             
                             # 2. Call Google Docs API
-                            pdf_bytes = generate_legal_doc_from_drive("AFFILIATE", data['username'], data['full_name'], affiliate_doc_id)
+                            pdf_bytes = generate_legal_doc_from_drive("AFFILIATE", data['username'], data['full_name'], affiliate_doc_id, signature_bytes)
                             
                             # 3. Save PDF to uploads folder
                             pdf_filename = f"uploads/MOA_{data['username']}.pdf"
@@ -445,7 +455,7 @@ else:
                             signature_bytes = img_byte_arr.getvalue() 
                             
                             # 2. Call Google Docs API
-                            pdf_bytes = generate_legal_doc_from_drive("RENTER", data['username'], data['full_name'], renter_doc_id)
+                            pdf_bytes = generate_legal_doc_from_drive("RENTER", data['username'], data['full_name'], renter_doc_id, signature_bytes)
                             
                             # 3. Save PDF to uploads folder
                             pdf_filename = f"uploads/RENTER_{data['username']}.pdf"
