@@ -82,20 +82,16 @@ def generate_legal_doc_from_drive(role, username, full_name, doc_id):
     
     # We include every possible version of the tags found in your screenshots
     requests_payload = [
+        requests_payload = [
         # MOA Tags
         {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
         {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         
-        # Update this specific list inside generate_legal_doc_from_drive
-    requests_payload = [
-        # This will now catch the exact tags from your latest screenshot!
+        # RENTER Agreement Tags (Matching your new template!)
         {'replaceAllText': {'containsText': {'text': '{{renter_fullname}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         {'replaceAllText': {'containsText': {'text': '{{renter_nationality}}', 'matchCase': False}, 'replaceText': 'FILIPINO'}},
         {'replaceAllText': {'containsText': {'text': '{{renter_address}}', 'matchCase': False}, 'replaceText': 'METRO MANILA'}},
-        {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
-        
-        # Keeping these as backups for the MOA
-        {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
+        {'replaceAllText': {'containsText': {'text': '{{date_signed}}', 'matchCase': False}, 'replaceText': today_date}},
     ]
 
     docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': requests_payload}).execute()
