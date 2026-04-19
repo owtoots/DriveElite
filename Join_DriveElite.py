@@ -82,7 +82,6 @@ def generate_legal_doc_from_drive(role, username, full_name, doc_id):
     
     # We include every possible version of the tags found in your screenshots
     requests_payload = [
-        requests_payload = [
         # MOA Tags
         {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
         {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
