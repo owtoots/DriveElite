@@ -158,13 +158,13 @@ if st.session_state.get('otp_pending'):
             payload = st.session_state.reg_payload
             cursor = conn.cursor()
             
+            # 1. SAVE TO DATABASE
             cursor.execute('''INSERT INTO users 
                               (username, password, role, full_name, email, age, nationality, address, contact_number, govt_id_img, license_img, signature_img) 
                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
-            
             conn.commit()
             
-            # --- START NEW DRIVEELITE AUTOMATION INJECTION ---
+            # 2. THE AUTOMATION INJECTION (Vault + Email)
             with st.spinner("Securing IDs to Vault and emailing your contract..."):
                 try:
                     username = payload[0]
@@ -173,26 +173,28 @@ if st.session_state.get('otp_pending'):
                     gov_id_bytes = payload[9]
                     lic_id_bytes = payload[10]
 
-                    # 1. Upload IDs to the Vault (YOUR VAULT ID IS RIGHT HERE!)
+                    # Upload IDs to the Vault
                     VAULT_ID = "1Gc21xmpLvKHFB_0ta9vl-osySjLyrPD7"  
                     upload_to_vault(gov_id_bytes, VAULT_ID, f"{username}_GovID.jpg")
                     upload_to_vault(lic_id_bytes, VAULT_ID, f"{username}_License.jpg")
 
-                    # 2. Email the PDF
+                    # Decide which file to look for based on role
                     pdf_prefix = "MOA" if role == "AFFILIATE" else "RENTER"
                     pdf_path = f"uploads/{pdf_prefix}_{username}.pdf"
+                    
+                    # SEND THE EMAIL (This uses your email_app_password from Secrets)
                     send_welcome_email(email_addr, role, username, pdf_path)
                     
-                    # 3. Clean up the local server
+                    # Cleanup local server memory
                     if os.path.exists(pdf_path):
                         os.remove(pdf_path)
                         
                 except Exception as e:
-                    st.warning(f"Account created, but background tasks encountered an error: {e}")
-            # --- END NEW DRIVEELITE AUTOMATION INJECTION ---
+                    st.warning(f"Account created, but background tasks (Vault/Email) encountered an error: {e}")
+
+            st.success("✅ Verification successful! Your account is created and your contract has been emailed.")
             
-            st.success("✅ Verification successful! Your account is created. Please log in.")
-            
+            # Reset session state for next use
             for key in ['reg_payload', 'verify_contact', 'generated_otp']:
                 if key in st.session_state: del st.session_state[key]
             st.session_state.otp_pending = False
