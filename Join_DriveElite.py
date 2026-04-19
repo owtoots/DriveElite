@@ -62,7 +62,7 @@ def get_live_google_doc(doc_id):
     except Exception as e:
         return f"<p>Agreement terms are temporarily unavailable. Error: {e}</p>"
 
-   def generate_legal_doc_from_drive(role, username, full_name, address, doc_id, signature_bytes):
+def generate_legal_doc_from_drive(role, username, full_name, address, doc_id, signature_bytes):
     from google.oauth2.credentials import Credentials
     from googleapiclient.http import MediaIoBaseUpload
     from googleapiclient.discovery import build
