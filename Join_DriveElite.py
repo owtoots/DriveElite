@@ -41,18 +41,14 @@ def get_live_google_doc(doc_id):
         return f"<p>Agreement terms are temporarily unavailable. Error: {e}</p>"
 
 def generate_legal_doc_from_drive(role, username, full_name, doc_id):
-    """Duplicates the Google Doc, replaces tags, and exports a perfect PDF."""
-    # --- SMART CLOUD AUTHENTICATION ---
-    scopes = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/documents']
+    """Duplicates the Google Doc, replaces tags, and exports a perfect PDF using the VIP Token."""
+    from google.oauth2.credentials import Credentials
     
-    if "gcp_service_account" in st.secrets:
-        # If running on Streamlit Cloud, use Secrets
-        creds_info = dict(st.secrets["gcp_service_account"])
-        creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
-    else:
-        # If running on your laptop, use the local file
-        creds = service_account.Credentials.from_service_account_file('google_credentials.json', scopes=scopes)
-    # ----------------------------------
+    # --- NEW VIP TOKEN AUTHENTICATION ---
+    token_data = json.loads(st.secrets["google_oauth"]["token"])
+    creds = Credentials.from_authorized_user_info(token_data)
+    # ------------------------------------
+    
     drive_service = build('drive', 'v3', credentials=creds)
     docs_service = build('docs', 'v1', credentials=creds)
 
@@ -62,16 +58,16 @@ def generate_legal_doc_from_drive(role, username, full_name, doc_id):
     copied_file = drive_service.files().copy(fileId=doc_id, body={'name': copy_title}).execute()
     new_doc_id = copied_file.get('id')
 
-    # Replace the Tags in the Google Doc (Catching both old and new formats)
+    # Replace the Tags in the Google Doc
     today_date = datetime.datetime.now().strftime("%B %d, %Y")
     requests_payload = [
-        # 1. Target the NEW double-bracket formatting
+        # Target the NEW double-bracket formatting
         {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
         {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         {'replaceAllText': {'containsText': {'text': '{{RENTER_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         {'replaceAllText': {'containsText': {'text': '{{USERNAME}}', 'matchCase': False}, 'replaceText': username}},
         
-        # 2. Target the OLD single-bracket formatting (Just in case!)
+        # Target the OLD single-bracket formatting
         {'replaceAllText': {'containsText': {'text': '{date_signed}', 'matchCase': False}, 'replaceText': today_date}},
         {'replaceAllText': {'containsText': {'text': '{affiliate_fullname}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         {'replaceAllText': {'containsText': {'text': '{renter_fullname}', 'matchCase': False}, 'replaceText': full_name.upper()}}
@@ -83,7 +79,7 @@ def generate_legal_doc_from_drive(role, username, full_name, doc_id):
     request = drive_service.files().export_media(fileId=new_doc_id, mimeType='application/pdf')
     pdf_bytes = request.execute()
 
-    # Clean up (Delete temporary doc)
+    # Clean up (Delete temporary doc from Drive so it stays perfectly empty!)
     drive_service.files().delete(fileId=new_doc_id).execute()
 
     return pdf_bytes
