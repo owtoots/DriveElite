@@ -260,7 +260,7 @@ else:
                     else:
                        user_check = pd.read_sql_query("SELECT username FROM platform_users WHERE username=?", conn, params=(username,))
                         if not user_check.empty:
-                            st.error("🚨 Username taken.")
+                        st.error("🚨 Username taken.")
                         else:
                             full_name = f"{first_name} {middle_name} {surname}".replace("  ", " ").strip()
                             st.session_state.temp_affiliate_data = {
