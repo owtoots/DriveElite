@@ -362,7 +362,7 @@ else:
                 else:
                     st.error("🚨 Digital signature required to proceed.")
 
-    # ---------------------------------------------------------
+   # ---------------------------------------------------------
     # RENTER REGISTRATION BLOCK
     # ---------------------------------------------------------
     elif reg_type == "Renter":
@@ -462,12 +462,12 @@ else:
                             signature_bytes = img_byte_arr.getvalue() 
                             
                             # 2. Call Google Docs API
-                            # Check the end of this line!
                             pdf_bytes = generate_legal_doc_from_drive("RENTER", data['username'], data['full_name'], data['address'], renter_doc_id, signature_bytes)
+                            
                             # 3. Save PDF to uploads folder
                             pdf_filename = f"uploads/RENTER_{data['username']}.pdf"
                             with open(pdf_filename, "wb") as f:
-                                f.write()
+                                f.write(pdf_bytes) # <--- THIS IS FIXED!
                                 
                             # 4. Set Payload and Move to OTP
                             st.session_state.reg_payload = (
