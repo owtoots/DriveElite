@@ -62,67 +62,66 @@ def get_live_google_doc(doc_id):
     except Exception as e:
         return f"<p>Agreement terms are temporarily unavailable. Error: {e}</p>"
 
- def generate_legal_doc_from_drive(role, username, full_name, address, doc_id, signature_bytes):
-     from google.oauth2.credentials import Credentials
-     from googleapiclient.http import MediaIoBaseUpload
-     from googleapiclient.discovery import build
-     import datetime
-     import json
-     import io
-     import streamlit as st
+def generate_legal_doc_from_drive(role, username, full_name, address, doc_id, signature_bytes):
+    from google.oauth2.credentials import Credentials
+    from googleapiclient.http import MediaIoBaseUpload
+    from googleapiclient.discovery import build
+    import datetime
+    import json
+    import io
+    import streamlit as st
 
-     token_data = json.loads(st.secrets["google_oauth"]["token"])
-     creds = Credentials.from_authorized_user_info(token_data)
+    token_data = json.loads(st.secrets["google_oauth"]["token"])
+    creds = Credentials.from_authorized_user_info(token_data)
     
-     drive_service = build('drive', 'v3', credentials=creds)
-     docs_service = build('docs', 'v1', credentials=creds)
+    drive_service = build('drive', 'v3', credentials=creds)
+    docs_service = build('docs', 'v1', credentials=creds)
 
-     # 1. Duplicate Template
-     copy_title = f"TEMP_{role}_{username}"
-     copied_file = drive_service.files().copy(fileId=doc_id, body={'name': copy_title}).execute()
-     new_doc_id = copied_file.get('id')
+    # 1. Duplicate Template
+    copy_title = f"TEMP_{role}_{username}"
+    copied_file = drive_service.files().copy(fileId=doc_id, body={'name': copy_title}).execute()
+    new_doc_id = copied_file.get('id')
 
-     # 2. Temporary Signature Upload (to your Vault)
-     VAULT_ID = "1Gc21xmpLvKHFB_0ta9vl-osySjLyrPD7"
-     sig_metadata = {'name': f'temp_sig_{username}.png', 'parents': [VAULT_ID]}
-     sig_media = MediaIoBaseUpload(io.BytesIO(signature_bytes), mimetype='image/png')
-     sig_file = drive_service.files().create(body=sig_metadata, media_body=sig_media, fields='id').execute()
-     sig_id = sig_file.get('id')
+    # 2. Temporary Signature Upload (to your Vault)
+    VAULT_ID = "1Gc21xmpLvKHFB_0ta9vl-osySjLyrPD7"
+    sig_metadata = {'name': f'temp_sig_{username}.png', 'parents': [VAULT_ID]}
+    sig_media = MediaIoBaseUpload(io.BytesIO(signature_bytes), mimetype='image/png')
+    sig_file = drive_service.files().create(body=sig_metadata, media_body=sig_media, fields='id').execute()
+    sig_id = sig_file.get('id')
     
-     # Make it readable for the Docs API
-     drive_service.permissions().create(fileId=sig_id, body={'type': 'anyone', 'role': 'reader'}).execute()
-     sig_url = f"https://drive.google.com/uc?id={sig_id}"
+    # Make it readable for the Docs API
+    drive_service.permissions().create(fileId=sig_id, body={'type': 'anyone', 'role': 'reader'}).execute()
+    sig_url = f"https://drive.google.com/uc?id={sig_id}"
 
-     # 3. Replace Text Tags
-     today_date = datetime.datetime.now().strftime("%B %d, %Y")
-     text_requests = [
-         {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
-         {'replaceAllText': {'containsText': {'text': '{{RENTER_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
-         {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
+    # 3. Replace Text Tags
+    today_date = datetime.datetime.now().strftime("%B %d, %Y")
+    text_requests = [
+        {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
+        {'replaceAllText': {'containsText': {'text': '{{RENTER_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
+        {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
         {'replaceAllText': {'containsText': {'text': '{{ADDRESS}}', 'matchCase': False}, 'replaceText': address}},
-     ]
-     docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': text_requests}).execute()
+    ]
+    docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': text_requests}).execute()
 
-     # 4. GET THE END INDEX & INSERT SIGNATURE
-     doc_metadata = docs_service.documents().get(documentId=new_doc_id).execute()
-     end_index = doc_metadata.get('body').get('content')[-1].get('endIndex') - 1
+    # 4. GET THE END INDEX & INSERT SIGNATURE
+    doc_metadata = docs_service.documents().get(documentId=new_doc_id).execute()
+    end_index = doc_metadata.get('body').get('content')[-1].get('endIndex') - 1
 
-     img_request = [{
-         'insertInlineImage': {
-             'uri': sig_url,
-             'location': {'index': end_index}, 
-             'objectSize': {'height': {'magnitude': 60, 'unit': 'PT'}, 'width': {'magnitude': 120, 'unit': 'PT'}}
-         }
-     }]
-     docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': img_request}).execute()
+    img_request = [{
+        'insertInlineImage': {
+            'uri': sig_url,
+            'location': {'index': end_index}, 
+            'objectSize': {'height': {'magnitude': 60, 'unit': 'PT'}, 'width': {'magnitude': 120, 'unit': 'PT'}}
+        }
+    }]
+    docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': img_request}).execute()
 
-     # 5. Export and Cleanup
-     pdf_bytes = drive_service.files().export_media(fileId=new_doc_id, mimeType='application/pdf').execute()
-     drive_service.files().delete(fileId=new_doc_id).execute()
-     drive_service.files().delete(fileId=sig_id).execute()
+    # 5. Export and Cleanup
+    pdf_bytes = drive_service.files().export_media(fileId=new_doc_id, mimeType='application/pdf').execute()
+    drive_service.files().delete(fileId=new_doc_id).execute()
+    drive_service.files().delete(fileId=sig_id).execute()
 
-     return pdf_bytes
-
+    return pdf_bytes
 # ==========================================
 # DRIVEELITE VAULT & MAILROOM FUNCTIONS
 # ==========================================
