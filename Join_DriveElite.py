@@ -79,19 +79,14 @@ def generate_legal_doc_from_drive(role, username, full_name, doc_id):
     copied_file = drive_service.files().copy(fileId=doc_id, body={'name': copy_title}).execute()
     new_doc_id = copied_file.get('id')
 
-    # Replace the Tags in the Google Doc
+    # Replace the Tags (Adding more variations to be safe)
     today_date = datetime.datetime.now().strftime("%B %d, %Y")
     requests_payload = [
-        # Target the NEW double-bracket formatting
         {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
         {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         {'replaceAllText': {'containsText': {'text': '{{RENTER_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
+        {'replaceAllText': {'containsText': {'text': '{{FULL_NAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}}, # Backup tag
         {'replaceAllText': {'containsText': {'text': '{{USERNAME}}', 'matchCase': False}, 'replaceText': username}},
-        
-        # Target the OLD single-bracket formatting
-        {'replaceAllText': {'containsText': {'text': '{date_signed}', 'matchCase': False}, 'replaceText': today_date}},
-        {'replaceAllText': {'containsText': {'text': '{affiliate_fullname}', 'matchCase': False}, 'replaceText': full_name.upper()}},
-        {'replaceAllText': {'containsText': {'text': '{renter_fullname}', 'matchCase': False}, 'replaceText': full_name.upper()}}
     ]
 
     docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': requests_payload}).execute()
