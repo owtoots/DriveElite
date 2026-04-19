@@ -12,31 +12,17 @@ conn = get_connection()
 current_user = st.session_state.username
 role = st.session_state.get('role', 'USER')
 
-# --- DEV TOOLS: AUTO-BUILD MISSING MESSENGER TABLE ---
-try:
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS support_chats (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sender TEXT,
-            receiver TEXT,
-            message TEXT,
-            ts DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-except Exception:
-    pass
-# -----------------------------------------------------
-
 st.title("💬 DRIVEELITE MESSENGER")
-st.write(f"Logged in securely as: *{current_user.upper()}* ({role})")
+st.write(f"Logged in as: *{current_user.upper()}*")
 
-# --- Get list of users from the Database ---
-users_df = pd.read_sql_query("SELECT username, role, full_name FROM users WHERE username != ?", conn, params=(current_user,))
+# --- 1. COORDINATED CONTACT LIST ---
+# FIXED: Changed 'users' to 'platform_users' and added 'APPROVED' filter
+query = "SELECT username, role, full_name FROM platform_users WHERE username != ? AND admin_status = 'APPROVED'"
+users_df = pd.read_sql_query(query, conn, params=(current_user,))
 
 contacts = []
 
-# --- Manually insert the Admin into the list! ---
+# Manually insert Admin if not already in the list
 if current_user != "masterom":
     contacts.append("masterom (System Admin) - ADMIN")
     
@@ -45,18 +31,15 @@ for _, r in users_df.iterrows():
     contacts.append(f"{r['username']} ({name}) - {r['role']}")
 
 if not contacts:
-    st.info("No other users found on the platform yet.")
+    st.info("No approved users found to chat with yet.")
     st.stop()
 
-# Dropdown to select who to message
 selected_contact_str = st.selectbox("Select someone to message:", contacts)
-
-# Extract just the username
 receiver_username = selected_contact_str.split(" ")[0]
 
-st.markdown(f"### Chat History with @{receiver_username}")
+st.divider()
 
-# --- Fetch Chat History ---
+# --- 2. FETCH CHAT HISTORY ---
 chat_query = """
     SELECT sender, message, ts 
     FROM support_chats 
@@ -65,37 +48,37 @@ chat_query = """
 """
 chats = pd.read_sql_query(chat_query, conn, params=(current_user, receiver_username, receiver_username, current_user))
 
-# --- BEAUTIFUL FB MESSENGER UI ---
+# --- 3. UI CONTAINER ---
 chat_container = st.container(height=450)
 with chat_container:
     if chats.empty:
-        st.info("Say hello to start the conversation!")
+        st.info(f"Start a conversation with @{receiver_username}")
     else:
         for _, c in chats.iterrows():
             if c['sender'] == current_user:
-                # FB Style: Your Messages (Blue, Right-aligned)
+                # User's Messages (Blue)
                 st.markdown(f"""
                 <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-                    <div style="background-color: #0084FF; color: white; padding: 10px 15px; border-radius: 20px 20px 5px 20px; max-width: 75%; font-family: Arial, sans-serif; box-shadow: 0px 2px 5px rgba(0,0,0,0.1);">
+                    <div style="background-color: #0084FF; color: white; padding: 10px 15px; border-radius: 18px 18px 4px 18px; max-width: 75%; font-family: sans-serif;">
                         {c['message']}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                # FB Style: Their Messages (Grey, Left-aligned)
+                # Receiver's Messages (Grey)
                 st.markdown(f"""
                 <div style="display: flex; justify-content: flex-start; margin-bottom: 10px;">
-                    <div style="background-color: #E4E6EB; color: black; padding: 10px 15px; border-radius: 20px 20px 20px 5px; max-width: 75%; font-family: Arial, sans-serif; box-shadow: 0px 2px 5px rgba(0,0,0,0.1);">
-                        <small style="color: #65676B;">@{c['sender']}</small><br>
+                    <div style="background-color: #E4E6EB; color: black; padding: 10px 15px; border-radius: 18px 18px 18px 4px; max-width: 75%; font-family: sans-serif;">
+                        <small style="color: #65676B; font-weight: bold;">@{c['sender']}</small><br>
                         {c['message']}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
 
-# --- Send a new message ---
+# --- 4. MESSAGE INPUT ---
 with st.form("send_msg", clear_on_submit=True):
-    msg = st.text_input("Type your message here...", placeholder="Type here and press Enter to send...")
-    if st.form_submit_button("Send Message", type="primary", use_container_width=True):
+    msg = st.text_input("Message...", placeholder="Type here...")
+    if st.form_submit_button("SEND", type="primary", use_container_width=True):
         if msg.strip():
             conn.execute("INSERT INTO support_chats (sender, receiver, message) VALUES (?, ?, ?)", (current_user, receiver_username, msg))
             conn.commit()
