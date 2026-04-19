@@ -21,8 +21,17 @@ from email.message import EmailMessage
 st.set_page_config(page_title="DriveElite Admin", layout="wide")
 conn = get_connection()
 
+# --- ADD THIS QUICK DATABASE PATCH ---
+try:
+    conn.execute("ALTER TABLE platform_users ADD COLUMN admin_status TEXT")
+    conn.commit()
+except:
+    pass # If the column already exists, just move on!
+# -------------------------------------
+
 # --- AUTHENTICATION ---
 if not st.session_state.get('logged_in') or st.session_state.get('role') != 'ADMIN':
+# ... rest of your code ...
     st.title("ADMIN LOGIN")
     with st.form("login"):
         u = st.text_input("Username")
