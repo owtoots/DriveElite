@@ -1,8 +1,5 @@
 import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email.mime.text import MIMEText
-from email import encoders
+from email.message import EmailMessage
 import streamlit as st
 import pandas as pd
 import datetime
@@ -12,30 +9,53 @@ import time
 import random 
 from PIL import Image
 from database_utils import get_connection
-from email.message import EmailMessage
 
-# ... your existing imports like smtplib, streamlit, pandas ...
-from database_utils import get_connection
-from email.message import EmailMessage
+# --- 1. FINANCE LOGIC IMPORT ---
+# Ensure finance.py is in your main folder!
+try:
+    from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
+except ImportError:
+    st.error("Missing finance.py! Please ensure the finance script is in your root folder.")
 
-# --- DROP THE FINANCE IMPORT RIGHT HERE ---
-from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
-# ------------------------------------------
-
+# --- 2. CONFIG & INITIALIZATION ---
+# This MUST be the first Streamlit command
 st.set_page_config(page_title="DriveElite Admin", layout="wide")
 conn = get_connection()
-st.set_page_config(page_title="DriveElite Admin", layout="wide")
-conn = get_connection()
 
-# --- QUICK DATABASE PATCH ---
+# --- 3. UTILITY FUNCTIONS ---
+def email_receipt_to_affiliate(affiliate_email, receipt_text, transaction_ref):
+    """Sends a cancellation compensation summary to the Affiliate."""
+    sender_email = "rdalbaojrh@gmail.com" 
+    # Grab the password securely from your Streamlit Secrets
+    try:
+        app_password = st.secrets["email_app_password"]
+    except KeyError:
+        st.error("Secret 'email_app_password' not found in Streamlit Cloud Settings!")
+        return False
+    
+    msg = EmailMessage()
+    msg.set_content(receipt_text)
+    msg['Subject'] = f"Cancellation Compensation: {transaction_ref}"
+    msg['From'] = f"DriveElite Finance <{sender_email}>"
+    msg['To'] = affiliate_email
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(sender_email, app_password)
+            smtp.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"Email Error: {e}")
+        return False
+
+# --- 4. DATABASE PATCH (Auto-Heal) ---
 try:
     conn.execute("ALTER TABLE platform_users ADD COLUMN admin_status TEXT")
     conn.commit()
 except:
-    pass # If the column already exists, just move on!
-# -------------------------------------
+    pass 
 
-# --- AUTHENTICATION ---
+# --- 5. AUTHENTICATION ---
 if not st.session_state.get('logged_in') or st.session_state.get('role') != 'ADMIN':
     st.title("ADMIN LOGIN")
     with st.form("login"):
@@ -49,7 +69,7 @@ if not st.session_state.get('logged_in') or st.session_state.get('role') != 'ADM
                 st.error("Invalid credentials.")
     st.stop()
 
-# --- TOP NAVIGATION BAR ---
+# --- 6. TOP NAVIGATION BAR ---
 head_col1, head_col2 = st.columns([5, 1])
 with head_col1:
     st.title("🛡️ MASTER COMMAND CENTER")
@@ -130,7 +150,6 @@ with tabs[1]:
 with tabs[2]:
     st.subheader("Active Logistics")
     try:
-        # FIXED: Joined with platform_users
         query = """
             SELECT b.*, u_renter.full_name as renter_name, u_owner.full_name as affiliate_name 
             FROM bookings b 
@@ -151,7 +170,6 @@ with tabs[2]:
 with tabs[3]:
     st.markdown("<h2 style='text-align: center;'>🏦 MASTER FINANCIAL LEDGER</h2>", unsafe_allow_html=True)
     try:
-        # FIXED: Joined with platform_users
         query = """
         SELECT b.id, b.booking_ref, b.pickup_time as Date, u_renter.full_name as Renter, u_owner.full_name as Affiliate,
                b.amount as Gross_Revenue, b.status as Trip_Status, b.payout_status as Payout_Status,
@@ -163,303 +181,110 @@ with tabs[3]:
         ORDER BY b.id DESC
         """
         df = pd.read_sql_query(query, conn)
-        
         if df.empty:
             st.info("No financial transactions recorded yet.")
         else:
-            # --- CALCULATIONS ---
-            TAX_RATE = 0.02  # 2% EWT
+            TAX_RATE = 0.02
             df['gateway_fee'] = df['gateway_fee'].fillna(0)
-
             df['Platform_Gross'] = df['Gross_Revenue'] * 0.18
-            df['Platform_Tax_Deduct'] = df['Gross_Revenue'] * TAX_RATE * 0.18
-            df['Platform_Net_Profit'] = df['Platform_Gross'] - df['Platform_Tax_Deduct']
-
+            df['Platform_Net_Profit'] = df['Platform_Gross'] - (df['Gross_Revenue'] * TAX_RATE * 0.18)
             df['Affiliate_Gross_Share'] = df['Gross_Revenue'] * 0.82
-            df['Affiliate_Tax_Deduct'] = df['Gross_Revenue'] * TAX_RATE * 0.82
-            df['Affiliate_Net_Payout'] = (df['Affiliate_Gross_Share'] - df['Affiliate_Tax_Deduct']) - df['gateway_fee']
-
+            df['Affiliate_Net_Payout'] = (df['Affiliate_Gross_Share'] - (df['Gross_Revenue'] * TAX_RATE * 0.82)) - df['gateway_fee']
             df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
             
             c1, c2, c3 = st.columns(3)
-            c1.metric("💰 Total Platform Gross", f"₱{df['Gross_Revenue'].sum():,.2f}")
-            c2.metric("🏢 DriveElite Net Profit", f"₱{df['Platform_Net_Profit'].sum():,.2f}")
-            pending_payouts = df[(df['Payout_Status'] == 'PENDING') & (df['Trip_Status'] == 'COMPLETED')]['Affiliate_Net_Payout'].sum()
-            c3.metric("⏳ Pending Affiliate Payouts", f"₱{pending_payouts:,.2f}", delta="-Liabilities", delta_color="inverse")
+            c1.metric("💰 Total Gross", f"₱{df['Gross_Revenue'].sum():,.2f}")
+            c2.metric("🏢 Platform Net", f"₱{df['Platform_Net_Profit'].sum():,.2f}")
+            
+            payouts_due = df[(df['Payout_Status'] == 'PENDING') & (df['Trip_Status'] == 'COMPLETED')]['Affiliate_Net_Payout'].sum()
+            c3.metric("⏳ Payouts Due", f"₱{payouts_due:,.2f}")
             
             f_tabs = st.tabs(["📑 MASTER LEDGER", "📤 PROCESS PAYOUTS"])
-            
-            with f_tabs[0]: 
-                display_cols = ['Ref', 'Date', 'Affiliate', 'Gross_Revenue', 'gateway_fee', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
-                st.dataframe(df[display_cols], use_container_width=True, hide_index=True)
-            
+            with f_tabs[0]: st.dataframe(df, use_container_width=True, hide_index=True)
             with f_tabs[1]:
-                pending_df = df[(df['Trip_Status'] == 'COMPLETED') & (df['Payout_Status'] == 'PENDING')]
-                if pending_df.empty:
-                    st.info("No pending payouts for completed trips.")
-                for _, p in pending_df.iterrows():
+                pending_p = df[(df['Trip_Status'] == 'COMPLETED') & (df['Payout_Status'] == 'PENDING')]
+                for _, p in pending_p.iterrows():
                     with st.expander(f"{p['Ref']} | {p['Affiliate']} | Net: ₱{p['Affiliate_Net_Payout']:,.2f}"):
-                        st.write(f"**Gross Affiliate Share (82%):** ₱{p['Affiliate_Gross_Share']:,.2f}")
-                        st.write(f"**Tax Deduction (EWT):** -₱{p['Affiliate_Tax_Deduct']:,.2f}")
-                        st.write(f"**CC Gateway Fee (Owner Absorbed):** -₱{p['gateway_fee']:,.2f}")
-                        st.divider()
-                        st.write(f"**Final Remittance:** ₱{p['Affiliate_Net_Payout']:,.2f}")
-                        st.info(f"🏦 **Bank:** {p['bank_name']} | **Acc:** {p['account_no']}")
-                        
-                        if st.button("MARK AS PAID", key=f"pay_{p['id']}", type="primary", use_container_width=True):
+                        if st.button("MARK AS PAID", key=f"p_{p['id']}", type="primary", use_container_width=True):
                             conn.execute("UPDATE bookings SET payout_status = 'PAID' WHERE id = ?", (p['id'],))
-                            conn.commit()
-                            st.rerun()
-                            
-    except Exception as e:
-        st.error(f"Financial Error: {str(e)}")
+                            conn.commit(); st.rerun()
+    except Exception as e: st.error(f"Financial Error: {e}")
 
 # --- TAB 4: FILING CABINET ---
-with tabs[4]: 
-    st.header("🗄️ Master Digital Filing Cabinet")
-    st.write("View legally binding contracts signed by your users.")
-    
+with tabs[4]:
+    st.header("🗄️ Master Filing Cabinet")
     if os.path.exists("uploads"):
-        all_files = os.listdir("uploads")
-        pdf_files = [f for f in all_files if f.endswith('.pdf')]
-        
-        if len(pdf_files) > 0:
-            st.divider()
-            role_filter = st.radio("Filter Contracts:", ["All", "💼 Affiliates (MOA)", "🚙 Renters (Agreements)"], horizontal=True)
-            st.divider()
-            
-            if role_filter == "💼 Affiliates (MOA)":
-                filtered_files = [f for f in pdf_files if f.startswith("MOA_")]
-            elif role_filter == "🚙 Renters (Agreements)":
-                filtered_files = [f for f in pdf_files if f.startswith("RENTER_")]
-            else:
-                filtered_files = pdf_files
-            
-            if not filtered_files:
-                st.info(f"No documents found matching the filter: {role_filter}")
-            else:
-                cols = st.columns(4)
-                for i, file_name in enumerate(filtered_files):
-                    file_path = os.path.join("uploads", file_name)
-                    display_card_text = file_name
-                    
-                    if file_name.startswith("MOA_") or file_name.startswith("RENTER_"):
-                        uname = file_name.replace("MOA_", "").replace("RENTER_", "").replace(".pdf", "")
-                        try:
-                            # FIXED: Look up in platform_users
-                            name_df = pd.read_sql_query("SELECT full_name FROM platform_users WHERE username=?", conn, params=(uname,))
-                            if not name_df.empty and name_df.iloc[0]['full_name']:
-                                full_name = name_df.iloc[0]['full_name']
-                                display_card_text = f"{full_name} /{uname}"
-                            else:
-                                display_card_text = f"(@{uname})"
-                        except:
-                            pass 
-                    
-                    with cols[i % 4]:
-                        with st.container(border=True):
-                            st.write(f"📄 **{display_card_text}**")
-                            with open(file_path, "rb") as pdf_file:
-                                st.download_button(
-                                    label="⬇️ DL",
-                                    data=pdf_file.read(),
-                                    file_name=file_name,
-                                    mime="application/pdf",
-                                    key=f"dl_{file_name}",
-                                    use_container_width=True 
-                                )
+        pdf_files = [f for f in os.listdir("uploads") if f.endswith('.pdf')]
+        if not pdf_files: st.info("No contracts found.")
         else:
-            st.info("No contracts have been signed yet.")
-    else:
-        st.warning("The uploads folder does not exist yet. It will be created when the first user registers.")
+            cols = st.columns(4)
+            for i, f_name in enumerate(pdf_files):
+                with cols[i % 4]:
+                    with st.container(border=True):
+                        st.write(f"📄 {f_name}")
+                        with open(os.path.join("uploads", f_name), "rb") as f:
+                            st.download_button("⬇️ DL", f.read(), file_name=f_name, key=f"dl_{f_name}")
+    else: st.warning("Uploads folder not found.")
 
 # --- TAB 5: PROMOS & DB ---
 with tabs[5]:
-    col_promo, col_cat = st.columns(2)
-    with col_promo:
-        st.subheader("📢 Broadcast Manager")
-        with st.form("promo"):
-            t = st.text_input("Broadcast Title")
-            m = st.text_area("Broadcast Message")
-            target = st.radio("Target Audience:", ["RENTERS", "AFFILIATES", "ALL USERS"], horizontal=True)
-            
-            if st.form_submit_button("PUBLISH BROADCAST"):
-                if t and m:
-                    try:
-                        conn.execute("ALTER TABLE admin_promos ADD COLUMN target TEXT DEFAULT 'ALL USERS'")
-                        conn.commit()
-                    except: pass
-                    
-                    conn.execute("UPDATE admin_promos SET active = 0")
-                    conn.execute("INSERT INTO admin_promos (title, message, target) VALUES (?, ?, ?)", (t, m, target))
-                    conn.commit()
-                    st.success(f"Live! Broadcast successfully published to {target}.")
-                    
-    with col_cat:
-        st.subheader("📈 Category Manager")
-        with st.form("add_cat", clear_on_submit=True):
-            n = st.text_input("New Category (e.g., Pickup, Luxury)")
-            p = st.number_input("Daily Rate (₱)", min_value=500.0, step=100.0, value=2500.0)
-            if st.form_submit_button("ADD NEW CATEGORY"):
-                if n:
-                    try:
-                        conn.execute("INSERT INTO vehicle_categories (name, default_price) VALUES (?, ?)", (n.title(), p))
-                        conn.commit()
-                    except: pass
+    st.subheader("📢 Broadcast Manager")
+    with st.form("promo"):
+        t = st.text_input("Title"); m = st.text_area("Message")
+        target = st.radio("Target", ["RENTERS", "AFFILIATES", "ALL"], horizontal=True)
+        if st.form_submit_button("PUBLISH"):
+            conn.execute("INSERT INTO admin_promos (title, message, target) VALUES (?, ?, ?)", (t, m, target))
+            conn.commit(); st.success("Broadcast Live!")
 
-    st.divider()
-    st.write("🔍 Quick Profile Viewer (Lookup IDs)*")
-    
-    # FIXED: Query platform_users instead of users
-    u_df = pd.read_sql_query("SELECT full_name, role, govt_id_img, license_img FROM platform_users WHERE admin_status = 'APPROVED'", conn)
-    try:
-        d_df = pd.read_sql_query("SELECT first_name || ' ' || last_name AS full_name, 'DRIVER' AS role, id_img AS govt_id_img, license_img FROM drivers WHERE admin_status = 'APPROVED'", conn)
-        all_profiles = pd.concat([u_df, d_df], ignore_index=True)
-    except:
-        all_profiles = u_df 
-
-    if not all_profiles.empty:
-        all_profiles['display_name'] = all_profiles['full_name']
-        user_list = ["-- Select a Profile --"] + all_profiles['display_name'].tolist()
-        selected_user = st.selectbox("Search for an Approved Profile to view their documents:", user_list)
-        
-        if selected_user != "-- Select a Profile --":
-            u_data = all_profiles[all_profiles['display_name'] == selected_user].iloc[0]
-            c_id1, c_id2 = st.columns(2)
-            
-            with c_id1:
-                if pd.notna(u_data.get('govt_id_img')) and u_data.get('govt_id_img'): 
-                    c_id1.image(u_data['govt_id_img'], caption="Govt ID")
-                else: st.info("No Government ID uploaded.")
-            
-            with c_id2:
-                if pd.notna(u_data.get('license_img')) and u_data.get('license_img'): 
-                    c_id2.image(u_data['license_img'], caption="Driver's License")
-                else: st.info("No Driver's License uploaded.")
-
-    st.divider()
-    st.markdown("<h3 style='text-align: center;'>ALL REGISTERED USERS</h3>", unsafe_allow_html=True)
-    
-    try:
-        db_tabs = st.tabs(["🚗 RENTERS", "💼 AFFILIATES", "🧑‍✈️ DRIVERS"])
-        
-        # FIXED: Query platform_users
-        q_renters = "SELECT full_name as 'FULLNAME', address as 'ADDRESS', contact_number as 'CONTACT NO.', admin_status as 'STATUS' FROM platform_users WHERE role='RENTER'"
-        with db_tabs[0]: st.dataframe(pd.read_sql_query(q_renters, conn), hide_index=True, use_container_width=True)
-        
-        q_affiliates = "SELECT full_name as 'FULLNAME', address as 'ADDRESS', contact_number as 'CONTACT NO.', admin_status as 'STATUS' FROM platform_users WHERE role='AFFILIATE'"
-        with db_tabs[1]: st.dataframe(pd.read_sql_query(q_affiliates, conn), hide_index=True, use_container_width=True)
-        
-        q_drivers = "SELECT first_name || ' ' || last_name as 'FULLNAME', owner_username as 'BELONGS TO AFFILIATE', contact_number as 'CONTACT NO.', admin_status as 'STATUS' FROM drivers"
-        with db_tabs[2]: st.dataframe(pd.read_sql_query(q_drivers, conn), hide_index=True, use_container_width=True)
-    except: 
-        pass
-
-# --- TAB 6: GLOBAL REVIEWS ---
+# --- TAB 6: REVIEWS ---
 with tabs[6]:
-    st.markdown("<h3 style='text-align: center;'>⭐ MASTER PLATFORM REVIEWS</h3>", unsafe_allow_html=True)
-    # FIXED: Joined with platform_users
-    q_all_reviews = """
-        SELECT b.rating, b.review, b.pickup_time, r.full_name as renter_name, a.full_name as affiliate_name, v.make, v.model, v.plate
-        FROM bookings b
-        JOIN vehicles v ON b.vehicle_id = v.id
-        JOIN platform_users r ON b.renter_username = r.username
-        JOIN platform_users a ON v.owner_username = a.username
-        WHERE b.rating IS NOT NULL ORDER BY b.id DESC
-    """
+    st.header("⭐ Master Reviews")
     try:
-        all_rev_df = pd.read_sql_query(q_all_reviews, conn)
-        if all_rev_df.empty: st.info("No reviews yet.")
-        else:
-            st.metric("Platform Average Rating", f"{all_rev_df['rating'].mean():.1f} ⭐")
-            for _, rev in all_rev_df.iterrows():
-                with st.expander(f"{'⭐'*int(rev['rating'])} | {rev['make']} {rev['model']}"):
-                    st.write(f"Renter: {rev['renter_name']} | Affiliate: {rev['affiliate_name']}")
-                    if rev['review']: st.info(rev['review'])
-    except: pass
+        revs = pd.read_sql_query("SELECT b.rating, b.review, u.full_name FROM bookings b JOIN platform_users u ON b.renter_username = u.username WHERE rating IS NOT NULL", conn)
+        st.dataframe(revs, use_container_width=True)
+    except: st.info("No reviews yet.")
 
-# --- TAB 7: PROCESS CANCELLATIONS ---
+# --- TAB 7: CANCELLATIONS ---
 with tabs[7]:
-    st.header("Process Cancellations")
-    st.write("Select an active booking to calculate cancellation penalties and process refunds.")
-
+    st.header("❌ Process Cancellations")
     try:
-        query = """
-        SELECT id, booking_ref, renter_username, amount, pickup_time, status 
-        FROM bookings 
-        WHERE status NOT IN ('COMPLETED', 'CANCELLED')
-        """
-        active_bookings = pd.read_sql_query(query, conn)
+        active_q = "SELECT id, booking_ref, renter_username, amount, pickup_time FROM bookings WHERE status NOT IN ('COMPLETED', 'CANCELLED')"
+        active_bookings = pd.read_sql_query(active_q, conn)
 
-        if active_bookings.empty:
-            st.info("There are currently no active bookings eligible for cancellation.")
+        if active_bookings.empty: st.info("No active bookings eligible for cancellation.")
         else:
-            booking_options = ["-- Select a Booking --"] + active_bookings['booking_ref'].astype(str).tolist()
-            selected_ref = st.selectbox("Search Active Bookings:", booking_options)
+            selected_ref = st.selectbox("Select Booking:", ["-- Select --"] + active_bookings['booking_ref'].tolist())
+            if selected_ref != "-- Select --":
+                b = active_bookings[active_bookings['booking_ref'] == selected_ref].iloc[0]
+                pickup_dt = str(b['pickup_time'])
+                if len(pickup_dt) == 16: pickup_dt += ":00" # Add seconds if missing
 
-            if selected_ref != "-- Select a Booking --":
-                b_data = active_bookings[active_bookings['booking_ref'].astype(str) == selected_ref].iloc[0]
-                
-                booking_to_cancel = b_data['booking_ref']
-                gross_paid = float(b_data['amount'])
-                pickup_date = str(b_data['pickup_time']) 
+                logistics = st.number_input("Logistics/Delivery Paid (₱)", value=0.0)
+                gateway = st.number_input("PayMongo Fee (₱)", value=0.0)
 
-                st.divider()
-                st.subheader(f"Review Details for #{booking_to_cancel}")
-                st.write(f"**Renter:** @{b_data['renter_username']} | **Gross Rental Paid:** ₱{gross_paid:,.2f} | **Pickup:** {pickup_date}")
+                days_left = get_days_before_pickup(pickup_dt)
+                settlement = calculate_moa_cancellation_40_60(b['amount'], logistics, gateway, days_left)
 
-                st.write("### Extra Fee Verification")
-                col_in1, col_in2 = st.columns(2)
-                with col_in1:
-                    logistics = st.number_input("Logistics/Delivery Fee Paid (₱)", value=0.0, step=100.0)
-                with col_in2:
-                    gateway_fee = st.number_input("Exact PayMongo Surcharge to Absorb (₱)", value=0.0, step=10.0)
+                st.info(f"Cancellation Timing: {days_left} days before pickup.")
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.write("💸 **To Renter**")
+                    st.success(f"Refund: ₱{settlement['renter_refund']:,.2f}")
+                with c2:
+                    st.write("🏢 **To Platform & Affiliate**")
+                    st.write(f"Affiliate Payout (60%): ₱{settlement['affiliate_compensation']:,.2f}")
 
-                st.divider()
-
-                try:
-                    days_left = get_days_before_pickup(pickup_date)
-                    settlement = calculate_moa_cancellation_40_60(
-                        gross_rental_paid=gross_paid, 
-                        logistics_paid=logistics, 
-                        exact_gateway_fee=gateway_fee, 
-                        days_before_pickup=days_left
-                    )
-
-                    st.info(f"⏳ The Renter is canceling **{days_left} days** before pick-up.")
-
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write("### 💸 To Renter")
-                        st.write(f"Penalty Applied: ₱{settlement['penalty_applied']:,.2f}")
-                        st.success(f"Refund Amount: ₱{settlement['renter_refund']:,.2f}")
-
-                    with col2:
-                        st.write("### 🏢 To Platform & Affiliate")
-                        st.write(f"Platform Cut (40%): ₱{settlement['nucleuz_platform_fee']:,.2f}")
-                        st.write(f"Affiliate Payout (60%): ₱{settlement['affiliate_compensation']:,.2f}")
-
-                    if st.button("🚨 Finalize Cancellation & Update Database", type="primary"):
-                        
-                        conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE booking_ref = ?", (booking_to_cancel,))
-                        conn.commit()
-                        
-                        sample_receipt_text = f"Your booking {booking_to_cancel} was cancelled. Your 60% compensation is ₱{settlement['affiliate_compensation']:,.2f}."
-                        email_success = email_receipt_to_affiliate(
-                            affiliate_email="affiliate@test.com", 
-                            receipt_text=sample_receipt_text, 
-                            transaction_ref=booking_to_cancel
-                        )
-                        
-                        if email_success:
-                            st.success("✅ Database updated and email sent to the Affiliate.")
-                        else:
-                            st.warning("⚠️ Database updated, but the email receipt failed to send.")
-                            
-                        st.rerun()
-
-                except ValueError:
-                    st.error(f"Date Error: The database date '{pickup_date}' is not in the required 'YYYY-MM-DD HH:MM:SS' format.")
-
-    except Exception as e:
-        st.error(f"Database connection error: {e}")
+                if st.button("🚨 FINALIZE CANCELLATION", type="primary", use_container_width=True):
+                    conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE booking_ref = ?", (selected_ref,))
+                    conn.commit()
+                    
+                    # Email Logic
+                    aff_email_q = "SELECT u.email FROM platform_users u JOIN vehicles v ON v.owner_username = u.username JOIN bookings b ON b.vehicle_id = v.id WHERE b.booking_ref = ?"
+                    email_res = pd.read_sql_query(aff_email_q, conn, params=(selected_ref,))
+                    target_email = email_res.iloc[0]['email'] if not email_res.empty else "rdalbaojrh@gmail.com"
+                    
+                    receipt_txt = f"Notice: Booking {selected_ref} cancelled. Affiliate Compensation: ₱{settlement['affiliate_compensation']:,.2f}."
+                    email_receipt_to_affiliate(target_email, receipt_txt, selected_ref)
+                    
+                    st.success("Database Updated and Email Sent!"); st.rerun()
+    except Exception as e: st.error(f"Cancellation Error: {e}")
