@@ -1,20 +1,21 @@
 import sqlite3
 import os
 
-# --- 1. GLOBAL CONNECTION ---
-# Establishing one persistent connection for the session
-conn = sqlite3.connect("driveelite.db", check_same_thread=False)
-conn.row_factory = sqlite3.Row
+# --- 1. SINGLE SOURCE OF TRUTH ---
+DB_NAME = "driveelite_v2.db"
 
 def get_connection():
-    """Returns the globally defined connection."""
+    """Returns a connection to the active V2 database."""
+    conn = sqlite3.connect(DB_NAME, check_same_thread=False)
+    conn.row_factory = sqlite3.Row 
     return conn
 
 # --- 2. TABLE INITIALIZATION ---
 def init_db():
-    """Initializes all required tables for DriveElite."""
+    """Initializes all required tables for DriveElite V2."""
+    conn = get_connection()
     
-    # CHAT MESSAGES (The Room for Renters & Affiliates)
+    # CHAT MESSAGES 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS chat_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,12 +28,25 @@ def init_db():
         )
     """)
 
-    # USERS TABLE
-    conn.execute('''CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT,
-                    full_name TEXT, email TEXT, age INTEGER, nationality TEXT, address TEXT,
-                    contact_number TEXT, role TEXT, admin_status TEXT DEFAULT 'PENDING',
-                    govt_id_img TEXT, license_img TEXT, document_url TEXT)''')
+    # PLATFORM USERS TABLE (The new V2 Structure)
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS platform_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, 
+            username TEXT UNIQUE, 
+            password TEXT,
+            role TEXT,
+            full_name TEXT, 
+            email TEXT, 
+            age TEXT, 
+            nationality TEXT, 
+            address TEXT,
+            contact_number TEXT, 
+            admin_status TEXT DEFAULT 'PENDING',
+            govt_id_img BLOB, 
+            license_img BLOB, 
+            signature_img BLOB
+        )
+    ''')
 
     # VEHICLES TABLE
     conn.execute('''CREATE TABLE IF NOT EXISTS vehicles (
@@ -42,7 +56,7 @@ def init_db():
                     daily_rate REAL, admin_status TEXT DEFAULT 'PENDING', 
                     booking_status TEXT DEFAULT 'AVAILABLE', ref_no TEXT)''')
 
-    # BOOKINGS TABLE (Added gateway_fee for CC Surcharges)
+    # BOOKINGS TABLE
     conn.execute('''CREATE TABLE IF NOT EXISTS bookings (
                     id INTEGER PRIMARY KEY AUTOINCREMENT, vehicle_id INTEGER, renter_username TEXT,
                     status TEXT, pickup_loc TEXT, return_loc TEXT, destination TEXT, pickup_time TEXT,
@@ -60,44 +74,26 @@ def init_db():
                     middle_name TEXT, last_name TEXT, age INTEGER, address TEXT, contact_number TEXT, 
                     is_owner INTEGER DEFAULT 0, govt_id_img TEXT, license_img TEXT, admin_status TEXT DEFAULT 'PENDING')''')
 
-    # CATEGORIES, PROMOS, ETC.
+    # CATEGORIES & PROMOS
     conn.execute('CREATE TABLE IF NOT EXISTS vehicle_categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, default_price REAL)')
     conn.execute('CREATE TABLE IF NOT EXISTS admin_promos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, target TEXT DEFAULT "ALL USERS", active INTEGER DEFAULT 1)')
 
     conn.commit()
-
-# --- ADD THIS TO THE BOTTOM OF database_utils.py ---
-
-def patch_database():
-    """Safely injects missing columns into the database without losing data."""
-    conn = sqlite3.connect("driveelite.db", check_same_thread=False)
-    
-    # 1. Patch for Financials (The Gateway Fee / CC Surcharge)
-    try:
-        conn.execute("ALTER TABLE bookings ADD COLUMN gateway_fee REAL DEFAULT 0.0")
-        print("✅ Patch Applied: gateway_fee added to bookings")
-    except sqlite3.OperationalError:
-        # This means the column is already there, so we do nothing
-        pass
-    
-    # 2. Patch for Chat (Ensure table exists for messenger)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS chat_messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            booking_ref TEXT,
-            sender_username TEXT,
-            receiver_username TEXT,
-            message_text TEXT,
-            image_path TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    
-    conn.commit()
     conn.close()
 
-# Run the patcher every time the utility is loaded
-patch_database()
+# --- 3. PATCHING SYSTEM ---
+def patch_database():
+    """Safely injects missing columns into the database without losing data."""
+    conn = get_connection()
+    
+    # 1. Patch for Financials (Gateway Fee)
+    try:
+        conn.execute("ALTER TABLE bookings ADD COLUMN gateway_fee REAL DEFAULT 0.0")
+    except sqlite3.OperationalError:
+        pass
+        
+    conn.commit()
+    conn.close()
 
 # --- 4. EXECUTION ON LOAD ---
 init_db()
