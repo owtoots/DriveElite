@@ -3,7 +3,7 @@ import os
 
 # --- 1. GLOBAL CONNECTION ---
 # Establishing one persistent connection for the session
-conn = sqlite3.connect("driveelite.db", check_same_thread=False)
+conn = sqlite3.connect("driveelite_v2.db", check_same_thread=False)
 conn.row_factory = sqlite3.Row
 
 def get_connection():
