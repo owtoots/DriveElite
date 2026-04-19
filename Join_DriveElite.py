@@ -25,9 +25,30 @@ from googleapiclient.discovery import build
 st.set_page_config(page_title="Join DriveElite", layout="wide")
 conn = get_connection()
 
+# --- NEW: AUTO-BUILD THE DATABASE TABLE ---
+cursor = conn.cursor()
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT,
+        role TEXT,
+        full_name TEXT,
+        email TEXT,
+        age TEXT,
+        nationality TEXT,
+        address TEXT,
+        contact_number TEXT,
+        govt_id_img BLOB,
+        license_img BLOB,
+        signature_img BLOB
+    )
+''')
+conn.commit()
+# ------------------------------------------
+
 if not os.path.exists("uploads"): 
     os.makedirs("uploads")
-
 # ==========================================
 # UNIVERSAL GOOGLE DOC FETCH FUNCTION
 # ==========================================
