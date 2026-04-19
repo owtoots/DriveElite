@@ -408,8 +408,12 @@ else:
             current_date = datetime.date.today().strftime("%B %d, %Y")
             renter_name = data['full_name']
 
-            display_renter = raw_renter_html.replace("{{RENTER_FULLNAME}}", renter_name.upper())
-            display_renter = display_renter.replace("{{DATE_SIGNED}}", current_date)
+            # --- UPDATE THESE EXACT LINES ---
+            display_renter = raw_renter_html.replace("{{renter_fullname}}", renter_name.upper())
+            display_renter = display_renter.replace("{{renter_nationality}}", "FILIPINO")
+            display_renter = display_renter.replace("{{renter_address}}", "METRO MANILA")
+            display_renter = display_renter.replace("{{date_signed}}", current_date)
+            # --------------------------------
 
             with st.container(border=True):
                 components.html(display_renter, height=400, scrolling=True)
