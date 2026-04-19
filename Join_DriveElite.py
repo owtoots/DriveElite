@@ -10,6 +10,10 @@ import requests
 from database_utils import get_connection
 from streamlit_drawable_canvas import st_canvas
 import streamlit.components.v1 as components
+import smtplib
+from email.message import EmailMessage
+from googleapiclient.http import MediaIoBaseUpload
+import json
 
 # --- GOOGLE API IMPORTS ---
 from google.oauth2 import service_account
@@ -85,6 +89,49 @@ def generate_legal_doc_from_drive(role, username, full_name, doc_id):
     return pdf_bytes
 
 # ==========================================
+# DRIVEELITE VAULT & MAILROOM FUNCTIONS
+# ==========================================
+def upload_to_vault(file_bytes, folder_id, filename):
+    """Uploads ID bytes directly to Google Drive Vault using your personal token."""
+    token_data = json.loads(st.secrets["google_oauth"]["token"])
+    from google.oauth2.credentials import Credentials
+    creds = Credentials.from_authorized_user_info(token_data)
+    drive_service = build('drive', 'v3', credentials=creds)
+
+    file_metadata = {'name': filename, 'parents': [folder_id]}
+    media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype='application/octet-stream', resumable=True)
+    drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+
+def send_welcome_email(recipient_email, role, username, pdf_filepath):
+    """Emails the generated PDF to the user and your backup inbox."""
+    msg = EmailMessage()
+    doc_type = "Memorandum of Agreement" if role == "AFFILIATE" else "Master Renter Agreement"
+    
+    msg['Subject'] = f'DriveElite: Your Official {doc_type}'
+    msg['From'] = 'rdalbaojr@gmail.com'
+    msg['To'] = recipient_email
+    msg['Bcc'] = 'rdalbaojr@gmail.com' # Your permanent backup copy!
+
+    msg.set_content(f'''Hello,
+    
+Welcome to DriveElite! Please find your official {doc_type} attached to this email.
+
+Best regards,
+The DriveElite Team''')
+
+    # Read the PDF that your script already saved to the uploads folder
+    with open(pdf_filepath, 'rb') as f:
+        pdf_data = f.read()
+        
+    msg.add_attachment(pdf_data, maintype='application', subtype='pdf', filename=f"DriveElite_{doc_type}.pdf")
+
+    # Send the email securely
+    email_password = st.secrets["email_app_password"]
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+        smtp.login('rdalbaojr@gmail.com', email_password)
+        smtp.send_message(msg)
+
+# ==========================================
 # OTP VERIFICATION SCREEN
 # ==========================================
 if st.session_state.get('otp_pending'):
@@ -104,6 +151,34 @@ if st.session_state.get('otp_pending'):
                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
             
             conn.commit()
+            
+            # --- START NEW DRIVEELITE AUTOMATION INJECTION ---
+            with st.spinner("Securing IDs to Vault and emailing your contract..."):
+                try:
+                    username = payload[0]
+                    role = payload[2]
+                    email_addr = payload[4]
+                    gov_id_bytes = payload[9]
+                    lic_id_bytes = payload[10]
+
+                    # 1. Upload IDs to the Vault (YOUR VAULT ID IS RIGHT HERE!)
+                    VAULT_ID = "1Gc21xmpLvKHFB_0ta9vl-osySjLyrPD7"  
+                    upload_to_vault(gov_id_bytes, VAULT_ID, f"{username}_GovID.jpg")
+                    upload_to_vault(lic_id_bytes, VAULT_ID, f"{username}_License.jpg")
+
+                    # 2. Email the PDF
+                    pdf_prefix = "MOA" if role == "AFFILIATE" else "RENTER"
+                    pdf_path = f"uploads/{pdf_prefix}_{username}.pdf"
+                    send_welcome_email(email_addr, role, username, pdf_path)
+                    
+                    # 3. Clean up the local server
+                    if os.path.exists(pdf_path):
+                        os.remove(pdf_path)
+                        
+                except Exception as e:
+                    st.warning(f"Account created, but background tasks encountered an error: {e}")
+            # --- END NEW DRIVEELITE AUTOMATION INJECTION ---
+            
             st.success("✅ Verification successful! Your account is created. Please log in.")
             
             for key in ['reg_payload', 'verify_contact', 'generated_otp']:
@@ -188,22 +263,14 @@ else:
             current_date = datetime.date.today().strftime("%B %d, %Y")
             affiliate_name = st.session_state.temp_affiliate_data['full_name']
             
-           # Preview replacements (Catching both formats for the UI)
             display_moa = raw_moa_html.replace("{{AFFILIATE_FULLNAME}}", affiliate_name.upper())
-            display_moa = display_moa.replace("{affiliate_fullname}", affiliate_name.upper()) # Fallback
+            display_moa = display_moa.replace("{affiliate_fullname}", affiliate_name.upper()) 
             
             display_moa = display_moa.replace("{{DATE_SIGNED}}", current_date)
-            display_moa = display_moa.replace("{date_signed}", current_date) # Fallback
+            display_moa = display_moa.replace("{date_signed}", current_date) 
 
-            # Display the beautifully formatted HTML Document
             with st.container(border=True):
                 components.html(display_moa, height=400, scrolling=True)
-                
-            st.divider()
-            # ... (keep your signature canvas code below this exactly the same) ...
-                
-            st.divider()
-            # ... (keep your signature canvas code below this exactly the same) ...)
                 
             st.divider()
             st.write("#### Sign to Accept")
@@ -323,16 +390,11 @@ else:
             current_date = datetime.date.today().strftime("%B %d, %Y")
             renter_name = data['full_name']
 
-            # Preview replacements
             display_renter = raw_renter_html.replace("{{RENTER_FULLNAME}}", renter_name.upper())
             display_renter = display_renter.replace("{{DATE_SIGNED}}", current_date)
 
-            # Display the beautifully formatted HTML Document
             with st.container(border=True):
                 components.html(display_renter, height=400, scrolling=True)
-
-            st.divider()
-            # ... (keep your signature canvas code below this exactly the same) ...
 
             st.divider()
             st.write("#### Sign to Accept")
