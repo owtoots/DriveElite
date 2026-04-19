@@ -102,8 +102,11 @@ def generate_legal_doc_from_drive(role, username, full_name, doc_id, signature_b
     img_request = [{
         'insertInlineImage': {
             'uri': sig_url,
-            'location': {'index': 1}, # Tip: We can adjust this index to place it exactly
-            'objectSize': {'height': {'magnitude': 60, 'unit': 'PT'}, 'width': {'magnitude': 120, 'unit': 'PT'}}
+            'location': {'index': end_index}, 
+            'objectSize': {
+                'height': {'magnitude': 60, 'unit': 'PT'}, 
+                'width': {'magnitude': 120, 'unit': 'PT'}
+            }
         }
     }]
     docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': img_request}).execute()
