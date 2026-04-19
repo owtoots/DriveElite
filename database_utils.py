@@ -16,15 +16,17 @@ def init_db():
     conn = get_connection()
     
     # CHAT MESSAGES 
+    conn.execute('CREATE TABLE IF NOT EXISTS vehicle_categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, default_price REAL)')
+    conn.execute('CREATE TABLE IF NOT EXISTS admin_promos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, target TEXT DEFAULT "ALL USERS", active INTEGER DEFAULT 1)')
+
+    # --- DROP THE NEW MESSENGER CODE RIGHT HERE! ---
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS chat_messages (
+        CREATE TABLE IF NOT EXISTS support_chats (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            booking_ref TEXT,
-            sender_username TEXT,
-            receiver_username TEXT,
-            message_text TEXT,
-            image_path TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            sender TEXT,
+            receiver TEXT,
+            message TEXT,
+            ts DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
 
