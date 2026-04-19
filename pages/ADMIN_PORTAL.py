@@ -53,7 +53,8 @@ with tabs[0]:
     p_tabs = st.tabs(["🚙 PENDING RENTERS", "💼 PENDING AFFILIATES", "👨‍✈️ PENDING DRIVERS"])
     
     with p_tabs[0]:
-        renters = pd.read_sql_query("SELECT * FROM users WHERE admin_status = 'PENDING' AND role = 'RENTER'", conn)
+        # FIXED: Look at platform_users and check for NULL
+        renters = pd.read_sql_query("SELECT * FROM platform_users WHERE (admin_status = 'PENDING' OR admin_status IS NULL) AND role = 'RENTER'", conn)
         if renters.empty: st.info("No pending renters.")
         for i, r in renters.iterrows():
             with st.expander(f"{r['full_name']} (@{r['username']})"):
@@ -62,12 +63,14 @@ with tabs[0]:
                 if pd.notna(r.get('govt_id_img')) and r.get('govt_id_img'): c_img1.image(r['govt_id_img'], caption="Passport / Govt ID")
                 if pd.notna(r.get('license_img')) and r.get('license_img'): c_img2.image(r['license_img'], caption="Driver's License")
                 if st.button("APPROVE RENTER", key=f"ra_{r['id']}", type="primary", use_container_width=True):
-                    conn.execute("UPDATE users SET admin_status = 'APPROVED' WHERE id = ?", (r['id'],))
+                    # FIXED: Update platform_users
+                    conn.execute("UPDATE platform_users SET admin_status = 'APPROVED' WHERE id = ?", (r['id'],))
                     conn.commit()
                     st.rerun()
 
     with p_tabs[1]:
-        affiliates = pd.read_sql_query("SELECT * FROM users WHERE admin_status = 'PENDING' AND role = 'AFFILIATE'", conn)
+        # FIXED: Look at platform_users and check for NULL
+        affiliates = pd.read_sql_query("SELECT * FROM platform_users WHERE (admin_status = 'PENDING' OR admin_status IS NULL) AND role = 'AFFILIATE'", conn)
         if affiliates.empty: st.info("No pending affiliates.")
         for i, r in affiliates.iterrows():
             with st.expander(f"{r['full_name']} (@{r['username']})"):
@@ -78,7 +81,8 @@ with tabs[0]:
                 if pd.notna(r.get('signature_img')) and r.get('signature_img'):
                     st.image(r['signature_img'], caption=f"Digitally Signed MOA", width=300)
                 if st.button("APPROVE AFFILIATE", key=f"aa_{r['id']}", type="primary", use_container_width=True):
-                    conn.execute("UPDATE users SET admin_status = 'APPROVED' WHERE id = ?", (r['id'],))
+                    # FIXED: Update platform_users
+                    conn.execute("UPDATE platform_users SET admin_status = 'APPROVED' WHERE id = ?", (r['id'],))
                     conn.commit()
                     st.rerun()
 
