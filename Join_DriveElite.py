@@ -65,36 +65,41 @@ def generate_legal_doc_from_drive(role, username, full_name, doc_id):
     """Duplicates the Google Doc, replaces tags, and exports a perfect PDF using the VIP Token."""
     from google.oauth2.credentials import Credentials
     
+    # --- AUTHENTICATION ---
     token_data = json.loads(st.secrets["google_oauth"]["token"])
     creds = Credentials.from_authorized_user_info(token_data)
-    
     drive_service = build('drive', 'v3', credentials=creds)
     docs_service = build('docs', 'v1', credentials=creds)
 
+    # --- DUPLICATE TEMPLATE ---
     prefix = "MOA" if role == "AFFILIATE" else "RENTER"
     copy_title = f"TEMP_{prefix}_{username}"
     copied_file = drive_service.files().copy(fileId=doc_id, body={'name': copy_title}).execute()
     new_doc_id = copied_file.get('id')
 
+    # --- REPLACE TAGS ---
     today_date = datetime.datetime.now().strftime("%B %d, %Y")
     
-    # We search for EVERY variation of the tags to ensure no blanks!
+    # We include every possible version of the tags found in your screenshots
     requests_payload = [
-       # 1. MOA TAGS (Double Brackets)
+        # MOA Tags
         {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
         {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         
-        # 2. RENTER AGREEMENT TAGS (Single Brackets - as per your text)
+        # RENTER Agreement Tags (from your screenshot)
         {'replaceAllText': {'containsText': {'text': '{renter_fullname}', 'matchCase': False}, 'replaceText': full_name.upper()}},
-        {'replaceAllText': {'containsText': {'text': '{renter_nationality}', 'matchCase': False}, 'replaceText': data.get('nationality', 'PH')}},
-        {'replaceAllText': {'containsText': {'text': '{renter_address}', 'matchCase': False}, 'replaceText': data.get('address', 'N/A')}},
+        {'replaceAllText': {'containsText': {'text': '{renter_nationality}', 'matchCase': False}, 'replaceText': 'FILIPINO'}},
+        {'replaceAllText': {'containsText': {'text': '{renter_address}', 'matchCase': False}, 'replaceText': 'METRO MANILA'}},
         {'replaceAllText': {'containsText': {'text': '{date_signed}', 'matchCase': False}, 'replaceText': today_date}},
     ]
 
     docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': requests_payload}).execute()
 
+    # --- EXPORT TO PDF ---
     request = drive_service.files().export_media(fileId=new_doc_id, mimeType='application/pdf')
     pdf_bytes = request.execute()
+
+    # --- CLEANUP DRIVE ---
     drive_service.files().delete(fileId=new_doc_id).execute()
 
     return pdf_bytes
