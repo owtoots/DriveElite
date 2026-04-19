@@ -65,6 +65,9 @@ def get_live_google_doc(doc_id):
 def generate_legal_doc_from_drive(role, username, full_name, doc_id, signature_bytes):
     from google.oauth2.credentials import Credentials
     from googleapiclient.http import MediaIoBaseUpload
+    import datetime
+    import json
+    import io
 
     token_data = json.loads(st.secrets["google_oauth"]["token"])
     creds = Credentials.from_authorized_user_info(token_data)
@@ -97,16 +100,16 @@ def generate_legal_doc_from_drive(role, username, full_name, doc_id, signature_b
     ]
     docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': text_requests}).execute()
 
-    # 4. Insert Signature at the End
-    # This finds the end of the document and drops the signature image
+    # 4. GET THE END INDEX & INSERT SIGNATURE
+    # This reads the document length to find the exact bottom
+    doc_metadata = docs_service.documents().get(documentId=new_doc_id).execute()
+    end_index = doc_metadata.get('body').get('content')[-1].get('endIndex') - 1
+
     img_request = [{
         'insertInlineImage': {
             'uri': sig_url,
             'location': {'index': end_index}, 
-            'objectSize': {
-                'height': {'magnitude': 60, 'unit': 'PT'}, 
-                'width': {'magnitude': 120, 'unit': 'PT'}
-            }
+            'objectSize': {'height': {'magnitude': 60, 'unit': 'PT'}, 'width': {'magnitude': 120, 'unit': 'PT'}}
         }
     }]
     docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': img_request}).execute()
