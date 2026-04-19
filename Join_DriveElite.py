@@ -163,9 +163,9 @@ if st.session_state.get('otp_pending'):
             cursor = conn.cursor()
             
             # 1. SAVE TO DATABASE
-            cursor.execute('''INSERT INTO users 
-                              (username, password, role, full_name, email, age, nationality, address, contact_number, govt_id_img, license_img, signature_img) 
-                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
+            cursor.execute('''INSERT INTO platform_users 
+                  (username, password, role, full_name, email, age, nationality, address, contact_number, govt_id_img, license_img, signature_img) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
             conn.commit()
             
             # 2. THE AUTOMATION INJECTION (Vault + Email)
@@ -258,7 +258,7 @@ else:
                     elif not all([first_name, surname, username, password, gov_id, lic_id, contact, email]):
                         st.error("🚨 Please fill out all required fields.")
                     else:
-                        user_check = pd.read_sql_query("SELECT username FROM users WHERE username=?", conn, params=(username,))
+                       user_check = pd.read_sql_query("SELECT username FROM platform_users WHERE username=?", conn, params=(username,))
                         if not user_check.empty:
                             st.error("🚨 Username taken.")
                         else:
@@ -384,7 +384,7 @@ else:
                     elif not all([first_name, surname, username, password, gov_id, lic_id, contact, email, address]):
                         st.error("🚨 Please fill out all required fields.")
                     else:
-                        user_check = pd.read_sql_query("SELECT username FROM users WHERE username=?", conn, params=(username,))
+                        user_check = pd.read_sql_query("SELECT username FROM platform_users WHERE username=?", conn, params=(username,))
                         if not user_check.empty:
                             st.error("🚨 Username taken.")
                         else:
