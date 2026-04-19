@@ -325,7 +325,7 @@ with tabs[5]:
         all_profiles = u_df 
 
     if not all_profiles.empty:
-        all_profiles['display_name'] = all_profiles['full_name'] + " (" + all_profiles['role'] + ")"
+        all_profiles['display_name'] = all_profiles['full_name']
         user_list = ["-- Select a Profile --"] + all_profiles['display_name'].tolist()
         selected_user = st.selectbox("Search for an Approved Profile to view their documents:", user_list)
         
