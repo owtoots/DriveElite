@@ -28,7 +28,7 @@ conn = get_connection()
 # --- NEW: AUTO-BUILD THE DATABASE TABLE ---
 cursor = conn.cursor()
 cursor.execute('''
-    CREATE TABLE IF NOT EXISTS users (
+    CREATE TABLE IF NOT EXISTS platform_users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
         password TEXT,
@@ -49,6 +49,7 @@ conn.commit()
 
 if not os.path.exists("uploads"): 
     os.makedirs("uploads")
+
 # ==========================================
 # UNIVERSAL GOOGLE DOC FETCH FUNCTION
 # ==========================================
@@ -80,13 +81,13 @@ def generate_legal_doc_from_drive(role, username, full_name, doc_id):
     # --- REPLACE TAGS ---
     today_date = datetime.datetime.now().strftime("%B %d, %Y")
     
-    # We include every possible version of the tags found in your screenshots
+    # We include every possible version of the tags
     requests_payload = [
         # MOA Tags
         {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
         {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         
-        # RENTER Agreement Tags (Matching your new template!)
+        # RENTER Agreement Tags 
         {'replaceAllText': {'containsText': {'text': '{{renter_fullname}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         {'replaceAllText': {'containsText': {'text': '{{renter_nationality}}', 'matchCase': False}, 'replaceText': 'FILIPINO'}},
         {'replaceAllText': {'containsText': {'text': '{{renter_address}}', 'matchCase': False}, 'replaceText': 'METRO MANILA'}},
@@ -186,7 +187,7 @@ if st.session_state.get('otp_pending'):
                     pdf_prefix = "MOA" if role == "AFFILIATE" else "RENTER"
                     pdf_path = f"uploads/{pdf_prefix}_{username}.pdf"
                     
-                    # SEND THE EMAIL (This uses your email_app_password from Secrets)
+                    # SEND THE EMAIL
                     send_welcome_email(email_addr, role, username, pdf_path)
                     
                     # Cleanup local server memory
@@ -258,9 +259,9 @@ else:
                     elif not all([first_name, surname, username, password, gov_id, lic_id, contact, email]):
                         st.error("🚨 Please fill out all required fields.")
                     else:
-                       user_check = pd.read_sql_query("SELECT username FROM platform_users WHERE username=?", conn, params=(username,))
+                        user_check = pd.read_sql_query("SELECT username FROM platform_users WHERE username=?", conn, params=(username,))
                         if not user_check.empty:
-                        st.error("🚨 Username taken.")
+                            st.error("🚨 Username taken.")
                         else:
                             full_name = f"{first_name} {middle_name} {surname}".replace("  ", " ").strip()
                             st.session_state.temp_affiliate_data = {
