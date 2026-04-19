@@ -466,7 +466,7 @@ else:
                             
                             # 2. Call Google Docs API
                             # Check the end of this line!
-                             = generate_legal_doc_from_drive("RENTER", data['username'], data['full_name'], data['address'], renter_doc_id, signature_bytes)
+                            pdf_bytes = generate_legal_doc_from_drive("RENTER", data['username'], data['full_name'], data['address'], renter_doc_id, signature_bytes)
                             # 3. Save PDF to uploads folder
                             pdf_filename = f"uploads/RENTER_{data['username']}.pdf"
                             with open(pdf_filename, "wb") as f:
