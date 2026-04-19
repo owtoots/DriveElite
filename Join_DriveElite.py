@@ -80,13 +80,15 @@ dedef generate_legal_doc_from_drive(role, username, full_name, doc_id):
     
     # We search for EVERY variation of the tags to ensure no blanks!
     requests_payload = [
+       # 1. MOA TAGS (Double Brackets)
         {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
-        {'replaceAllText': {'containsText': {'text': '{date_signed}', 'matchCase': False}, 'replaceText': today_date}},
         {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
-        {'replaceAllText': {'containsText': {'text': '{affiliate_fullname}', 'matchCase': False}, 'replaceText': full_name.upper()}},
-        {'replaceAllText': {'containsText': {'text': '{{RENTER_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
+        
+        # 2. RENTER AGREEMENT TAGS (Single Brackets - as per your text)
         {'replaceAllText': {'containsText': {'text': '{renter_fullname}', 'matchCase': False}, 'replaceText': full_name.upper()}},
-        {'replaceAllText': {'containsText': {'text': '{{USERNAME}}', 'matchCase': False}, 'replaceText': username}},
+        {'replaceAllText': {'containsText': {'text': '{renter_nationality}', 'matchCase': False}, 'replaceText': data.get('nationality', 'PH')}},
+        {'replaceAllText': {'containsText': {'text': '{renter_address}', 'matchCase': False}, 'replaceText': data.get('address', 'N/A')}},
+        {'replaceAllText': {'containsText': {'text': '{date_signed}', 'matchCase': False}, 'replaceText': today_date}},
     ]
 
     docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': requests_payload}).execute()
