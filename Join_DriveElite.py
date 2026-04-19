@@ -63,11 +63,14 @@ def get_live_google_doc(doc_id):
         return f"<p>Agreement terms are temporarily unavailable. Error: {e}</p>"
 
     def generate_legal_doc_from_drive(role, username, full_name, address, doc_id, signature_bytes):
-    from google.oauth2.credentials import Credentials
-    from googleapiclient.http import MediaIoBaseUpload
-    import datetime
-    import json
-    import io
+        # EVERY line below here must be indented by 4 spaces!
+        from google.oauth2.credentials import Credentials
+        from googleapiclient.http import MediaIoBaseUpload
+        import datetime
+        import json
+        import io
+    
+    # ... the rest of the function ...
 
     token_data = json.loads(st.secrets["google_oauth"]["token"])
     creds = Credentials.from_authorized_user_info(token_data)
