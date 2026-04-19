@@ -61,7 +61,7 @@ def get_live_google_doc(doc_id):
     except Exception as e:
         return f"<p>Agreement terms are temporarily unavailable. Error: {e}</p>"
 
-dedef generate_legal_doc_from_drive(role, username, full_name, doc_id):
+def generate_legal_doc_from_drive(role, username, full_name, doc_id):
     """Duplicates the Google Doc, replaces tags, and exports a perfect PDF using the VIP Token."""
     from google.oauth2.credentials import Credentials
     
