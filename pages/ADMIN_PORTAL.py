@@ -14,6 +14,16 @@ from PIL import Image
 from database_utils import get_connection
 from email.message import EmailMessage
 
+# ... your existing imports like smtplib, streamlit, pandas ...
+from database_utils import get_connection
+from email.message import EmailMessage
+
+# --- DROP THE FINANCE IMPORT RIGHT HERE ---
+from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
+# ------------------------------------------
+
+st.set_page_config(page_title="DriveElite Admin", layout="wide")
+conn = get_connection()
 st.set_page_config(page_title="DriveElite Admin", layout="wide")
 conn = get_connection()
 
