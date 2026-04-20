@@ -328,4 +328,108 @@ with tabs[0]:
                                 if st.button("Clear Renter Pad", key=f"btn_sr_{b['id']}", use_container_width=True): 
                                     st.session_state[f"clr_sr_{b['id']}"] += 1
                                     st.rerun()
-                                st.markdown(f"<div style='text-align:
+                                st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{b['renter_name']}</b></u><br>Renter</div>", unsafe_allow_html=True)
+                            
+                            with col_sig2:
+                                if f"clr_sa_{b['id']}" not in st.session_state: st.session_state[f"clr_sa_{b['id']}"] = 0
+                                s_a = st_canvas(stroke_width=2, stroke_color="#000", background_color="#eee", height=150, width=300, display_toolbar=False, key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}")
+                                if st.button("Clear Host Pad", key=f"btn_sa_{b['id']}", use_container_width=True): 
+                                    st.session_state[f"clr_sa_{b['id']}"] += 1
+                                    st.rerun()
+                                st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
+                            
+                            if st.button("🚀 FINAL LOG HANDOVER & DISPATCH", key=f"dispatch_{b['id']}", type="primary", use_container_width=True):
+                                has_sr = s_r.image_data is not None and len(s_r.json_data.get("objects", [])) > 0
+                                has_sa = s_a.image_data is not None and len(s_a.json_data.get("objects", [])) > 0
+                                
+                                if not h_photos or len(h_photos) < 10:
+                                    st.error("❌ DISPATCH BLOCKED: You must upload at least 10 photos of the vehicle condition.")
+                                elif not c_deposit:
+                                    st.error("❌ DISPATCH BLOCKED: You must verify receipt of the ₱5,000 Cash Deposit.")
+                                elif not (has_sr and has_sa):
+                                    st.error("❌ DISPATCH BLOCKED: Both parties must sign on the digital pads.")
+                                else:
+                                    r_sig_path = save_canvas_image(s_r.image_data, f"sig_r_{b['booking_ref']}")
+                                    a_sig_path = save_canvas_image(s_a.image_data, f"sig_a_{b['booking_ref']}")
+                                    
+                                    chk_data = {'fuel': c_fuel, 'ext': c_ext, 'int': c_int, 'tools': c_tools, 'deposit': c_deposit}
+                                    travel_dates = f"{str(b.get('pickup_time'))[:10]} to {str(b.get('return_time'))[:10]}"
+                                    pdf_bytes = generate_handover_pdf(b['booking_ref'], f"{b['make']} {b['model']} ({b['plate']})", b['renter_name'], travel_dates, chk_data, r_sig_path, a_sig_path, affiliate_full_name)
+                                    
+                                    pdf_filepath = f"uploads/Handover_{b['booking_ref']}.pdf"
+                                    with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
+                                    
+                                    photo_paths = [save_file(img) for img in h_photos]
+                                    photo_string = ",".join(filter(None, photo_paths))
+                                    
+                                    conn.execute("""
+                                        UPDATE bookings 
+                                        SET status = 'ONGOING', handover_photos = ?, handover_sig_renter = ?, handover_sig_affiliate = ? 
+                                        WHERE id = ?
+                                    """, (photo_string, r_sig_path, a_sig_path, b['id']))
+                                    conn.commit()
+                                    
+                                    if b['renter_email']:
+                                        success = send_pdf_email(b['renter_email'], f"DriveElite: Digital Handover Record (#{b['booking_ref']})", "Attached is the official digital handover record with checklists and signatures. Please drive safely!", pdf_bytes, f"Handover_{b['booking_ref']}.pdf")
+                                        if success: st.toast("📧 Secure PDF Handover record sent to renter!", icon="✅")
+                                        else: st.error("⚠️ Email failed. PDF saved locally.")
+                                    
+                                    st.success("✅ Handover Secured! PDF Generated and Trip started.")
+                                    time.sleep(3)
+                                    st.rerun()
+
+                    # --- PHASE 2: RETURN & SETTLEMENT LOGIC ---
+                    elif b['status'] == 'ONGOING':
+                        st.warning("⏱️ This trip is currently active. Coordinate the return below.")
+                        
+                        pdf_filepath = f"uploads/Handover_{b['booking_ref']}.pdf"
+                        if os.path.exists(pdf_filepath):
+                            with open(pdf_filepath, "rb") as pdf_file:
+                                st.download_button("📄 DOWNLOAD SIGNED HANDOVER PDF", data=pdf_file.read(), file_name=f"Handover_{b['booking_ref']}.pdf", mime="application/pdf", type="secondary", use_container_width=True)
+                            st.divider()
+
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            st.write("#### 🛠️ Agreement Penalties")
+                            
+                            # 1. Late Fee
+                            l_ok = st.checkbox("Returned on Time", value=True, key=f"l_{b['id']}")
+                            late_fee = st.number_input("Hours Late (Php 300/hr)", min_value=1, step=1, key=f"l_hrs_{b['id']}") * 300.0 if not l_ok else 0.0
+                            
+                            # 2. Fuel Fee
+                            f_ok = st.checkbox("Fuel Full", value=True, key=f"f_{b['id']}")
+                            fuel_fee = (st.number_input("Refuel Receipt (Php)", step=100.0, key=f"f_cost_{b['id']}") + 200.0) if not f_ok else 0.0
+                            
+                            # 3. NEW: Cleaning & Smoking Fine
+                            c_ok = st.checkbox("Interior Clean & Odor-Free", value=True, key=f"c_{b['id']}")
+                            if not c_ok:
+                                st.caption("Industry standard smoking/deep-clean fine is ₱2,500.")
+                            cleaning_fee = st.number_input("Cleaning/Smoking Fine (Php)", value=2500.0, step=500.0, key=f"c_fine_{b['id']}") if not c_ok else 0.0
+                            
+                            # 4. Damage Fee
+                            d_ok = st.checkbox("No Damage Found", value=True, key=f"d_{b['id']}")
+                            damage_fee = 0.0
+                            img_damage = None
+                            if not d_ok:
+                                img_damage = st.file_uploader("Upload Damage Photos", type=['jpg','png'], accept_multiple_files=True, key=f"p_dam_{b['id']}")
+                                damage_fee = st.number_input("Estimated Damage Amount", step=500.0, key=f"d_est_{b['id']}")
+                                
+                            total_deduct = late_fee + fuel_fee + cleaning_fee + damage_fee
+                            refund_amount = max(0, 5000.0 - total_deduct)
+                            
+                            st.write(f"**Total Deductions:** -Php {total_deduct:,.2f}")
+                            if (5000.0 - total_deduct) < 0: 
+                                st.error(f"RENTER OWES EXTRA: Php {abs(5000.0 - total_deduct):,.2f}")
+                            else: 
+                                st.success(f"REFUND CASH TO RENTER: Php {refund_amount:,.2f}")
+
+                        with c2:
+                            st.write("#### 🖊️ Final Sign-off")
+                            if f"clr_sret_{b['id']}" not in st.session_state: st.session_state[f"clr_sret_{b['id']}"] = 0
+                            s_ret = st_canvas(stroke_width=2, stroke_color="#000", background_color="#eee", height=150, width=200, key=f"sret_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}")
+                            if st.button("Clear Pad", key=f"btn_sret_{b['id']}"): 
+                                st.session_state[f"clr_sret_{b['id']}"] += 1
+                                st.rerun()
+                                
+                            if st.button("✅ COMPLETE JOURNEY & SEND TO ADMIN", type="primary", use_container_width=True):
+                                has_sig = s_ret.image_data is not None and len(s_ret.json_data.get("objects", [])) > 0
