@@ -32,7 +32,25 @@ def email_receipt_to_affiliate(affiliate_email, receipt_text, transaction_ref):
     except KeyError:
         st.error("Secret 'email_app_password' not found in Streamlit Cloud Settings!")
         return False
+    # ... inside email_receipt_to_affiliate ...
+        return True
+    except Exception as e:
+        print(f"Email Error: {e}")
+        return False
+
+  # --- NEW MAILROOM FUNCTION GOES RIGHT HERE (Line 51) ---
+  def send_pdf_copy(to_email, file_path, file_name):
+    """Attaches a PDF from the uploads folder and emails it to the user."""
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.base import MIMEBase
+    from email.mime.text import MIMEText
+    from email import encoders
+    import smtplib
     
+    sender_email = "rdalbaojrh@gmail.com" 
+    try:
+        app_password = st.secrets["email_app_password"]
+# ... (the rest of the send_pdf_copy function) ...
     msg = EmailMessage()
     msg.set_content(receipt_text)
     msg['Subject'] = f"Cancellation Compensation: {transaction_ref}"
@@ -226,65 +244,71 @@ with tabs[4]:
                             st.download_button("⬇️ DL", f.read(), file_name=f_name, key=f"dl_{f_name}")
     else: st.warning("Uploads folder not found.")
 
-# --- TAB 5: PROMOS & DB ---
-with tabs[5]:
-    st.subheader("📢 Broadcast Manager")
-    with st.form("promo"):
-        t = st.text_input("Title"); m = st.text_area("Message")
-        target = st.radio("Target", ["RENTERS", "AFFILIATES", "ALL"], horizontal=True)
-        if st.form_submit_button("PUBLISH"):
-            conn.execute("INSERT INTO admin_promos (title, message, target) VALUES (?, ?, ?)", (t, m, target))
-            conn.commit(); st.success("Broadcast Live!")
-
-# --- TAB 6: REVIEWS ---
-with tabs[6]:
-    st.header("⭐ Master Reviews")
-    try:
-        revs = pd.read_sql_query("SELECT b.rating, b.review, u.full_name FROM bookings b JOIN platform_users u ON b.renter_username = u.username WHERE rating IS NOT NULL", conn)
-        st.dataframe(revs, use_container_width=True)
-    except: st.info("No reviews yet.")
-
-# --- TAB 7: CANCELLATIONS ---
-with tabs[7]:
-    st.header("❌ Process Cancellations")
-    try:
-        active_q = "SELECT id, booking_ref, renter_username, amount, pickup_time FROM bookings WHERE status NOT IN ('COMPLETED', 'CANCELLED')"
-        active_bookings = pd.read_sql_query(active_q, conn)
-
-        if active_bookings.empty: st.info("No active bookings eligible for cancellation.")
+# --- TAB 4: FILING CABINET (COMPLETELY REDESIGNED) ---
+with tabs[4]: 
+    st.header("🗄️ Master Digital Filing Cabinet")
+    st.write("View legally binding contracts signed by your users.")
+    
+    if os.path.exists("uploads"):
+        # 1. Look for all PDF files
+        all_files = os.listdir("uploads")
+        pdf_files = [f for f in all_files if f.endswith('.pdf')]
+        
+        if len(pdf_files) > 0:
+            # 2. Add Filter by Role
+            st.divider()
+            role_filter = st.radio("Filter Contracts:", ["All", "💼 Affiliates (MOA)", "🚙 Renters (Agreements)"], horizontal=True)
+            st.divider()
+            
+            # 3. Apply Filter to File List
+            if role_filter == "💼 Affiliates (MOA)":
+                filtered_files = [f for f in pdf_files if f.startswith("MOA_")]
+            elif role_filter == "🚙 Renters (Agreements)":
+                filtered_files = [f for f in pdf_files if f.startswith("RENTER_")]
+            else:
+                filtered_files = pdf_files
+            
+            if not filtered_files:
+                st.info(f"No documents found matching the filter: {role_filter}")
+            else:
+                # 4. Create the condensed 4-column grid
+                cols = st.columns(4)
+                for i, file_name in enumerate(filtered_files):
+                    file_path = os.path.join("uploads", file_name)
+                    
+                    # --- Naming Logic: Translate Username to Full Name /username ---
+                    display_card_text = file_name # Fallback
+                    if file_name.startswith("MOA_") or file_name.startswith("RENTER_"):
+                        # Extract the username from filename
+                        uname = file_name.replace("MOA_", "").replace("RENTER_", "").replace(".pdf", "")
+                        
+                        try:
+                            # COORDINATED: Look up the real name in platform_users
+                            name_df = pd.read_sql_query("SELECT full_name FROM platform_users WHERE username=?", conn, params=(uname,))
+                            if not name_df.empty and name_df.iloc[0]['full_name']:
+                                full_name = name_df.iloc[0]['full_name']
+                                display_card_text = f"{full_name} / {uname}"
+                            else:
+                                # No full name in DB, fallback to username format
+                                display_card_text = f"(@{uname})"
+                        except:
+                            pass # Fallback to original file_name if database fails
+                    
+                    with cols[i % 4]:
+                        # Condensed Card Visuals
+                        with st.container(border=True):
+                            st.write(f"📄 **{display_card_text}**")
+                            with open(file_path, "rb") as pdf_file:
+                                # Aligned to the left, condensed button text
+                                st.download_button(
+                                    label="⬇️ DL",
+                                    data=pdf_file.read(),
+                                    file_name=file_name,
+                                    mime="application/pdf",
+                                    key=f"dl_{file_name}",
+                                    use_container_width=True # Fills the card width
+                                )
         else:
-            selected_ref = st.selectbox("Select Booking:", ["-- Select --"] + active_bookings['booking_ref'].tolist())
-            if selected_ref != "-- Select --":
-                b = active_bookings[active_bookings['booking_ref'] == selected_ref].iloc[0]
-                pickup_dt = str(b['pickup_time'])
-                if len(pickup_dt) == 16: pickup_dt += ":00" # Add seconds if missing
-
-                logistics = st.number_input("Logistics/Delivery Paid (₱)", value=0.0)
-                gateway = st.number_input("PayMongo Fee (₱)", value=0.0)
-
-                days_left = get_days_before_pickup(pickup_dt)
-                settlement = calculate_moa_cancellation_40_60(b['amount'], logistics, gateway, days_left)
-
-                st.info(f"Cancellation Timing: {days_left} days before pickup.")
-                c1, c2 = st.columns(2)
-                with c1:
-                    st.write("💸 **To Renter**")
-                    st.success(f"Refund: ₱{settlement['renter_refund']:,.2f}")
-                with c2:
-                    st.write("🏢 **To Platform & Affiliate**")
-                    st.write(f"Affiliate Payout (60%): ₱{settlement['affiliate_compensation']:,.2f}")
-
-                if st.button("🚨 FINALIZE CANCELLATION", type="primary", use_container_width=True):
-                    conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE booking_ref = ?", (selected_ref,))
-                    conn.commit()
-                    
-                    # Email Logic
-                    aff_email_q = "SELECT u.email FROM platform_users u JOIN vehicles v ON v.owner_username = u.username JOIN bookings b ON b.vehicle_id = v.id WHERE b.booking_ref = ?"
-                    email_res = pd.read_sql_query(aff_email_q, conn, params=(selected_ref,))
-                    target_email = email_res.iloc[0]['email'] if not email_res.empty else "rdalbaojrh@gmail.com"
-                    
-                    receipt_txt = f"Notice: Booking {selected_ref} cancelled. Affiliate Compensation: ₱{settlement['affiliate_compensation']:,.2f}."
-                    email_receipt_to_affiliate(target_email, receipt_txt, selected_ref)
-                    
-                    st.success("Database Updated and Email Sent!"); st.rerun()
-    except Exception as e: st.error(f"Cancellation Error: {e}")
+            st.info("No contracts have been signed yet.")
+    else:
+        st.warning("The uploads folder does not exist yet. It will be created when the first user registers.")
