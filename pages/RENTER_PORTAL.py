@@ -337,17 +337,24 @@ with tabs[1]:
                         st.write(f"**Trip Cost:** ₱{t['amount']:,.2f} | **Destination:** {t['destination']}")
 
                         st.divider()
-                        st.markdown("#### 💬 Past Conversation Log")
-                        b_ref = t['booking_ref']
-                        history_box = st.container(height=200, border=True)
-                        with history_box:
-                            log = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
-                            if log.empty: st.caption("No messages were exchanged during this trip.")
-                            for _, msg in log.iterrows():
-                                role = "user" if msg['sender_username'] == st.session_state.username else "assistant"
-                                with st.chat_message(role):
-                                    st.write(msg['message_text'])
-                        
+                        # --- RENTER CHAT PATCH ---
+st.markdown("#### 💬 Chat with Owner")
+try:
+    # We wrap this in a try block so it doesn't crash if the table is empty
+    history = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
+    
+    if history.empty:
+        st.caption("No messages yet. Send a greeting to the owner!")
+    else:
+        for _, msg in history.iterrows():
+            # In the Renter Portal, the Renter is the 'user' (right side)
+            role = "user" if msg['sender_username'] == st.session_state.username else "assistant"
+            with st.chat_message(role):
+                st.write(msg['message_text'])
+                if pd.notna(msg.get('image_path')) and msg['image_path']:
+                    st.image(msg['image_path'], width=200)
+except Exception:
+    st.caption("Chat system initializing...")
                         st.divider()
                         if pd.isna(t.get('rating')) or not t.get('rating'):
                             st.write("### ⭐ Rate Your Experience")
