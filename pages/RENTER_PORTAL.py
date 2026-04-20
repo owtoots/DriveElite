@@ -179,22 +179,45 @@ with tabs[0]:
                             
                             grand_total = (subtotal - savings) + driver_fee + d_fee + c_fee
 
-                            # --- THE DARK-FONT EXCEL BILL ---
-                            st.markdown("#### 🧾 4. Cost Breakdown")
-                            bill_html = f'''
-                            <div class="bill-box">
-                                <table class="table-bill">
-                                    <tr><td class="bill-label">Base Rental (₱{base_rate:,.2f} x {days} days)</td><td style="text-align:right; font-weight:bold;">₱{subtotal:,.2f}</td></tr>
-                                    {f'<tr><td style="color:#cc0000; font-style:italic;">Tiered Discount ({int(discount_pct*100)}%)</td><td style="text-align:right; color:#cc0000;">-₱{savings:,.2f}</td></tr>' if savings > 0 else ""}
-                                    {f'<tr><td style="color:#003399;">Professional Driver Fee</td><td style="text-align:right; color:#003399;">+₱{driver_fee:,.2f}</td></tr>' if is_driver else ""}
-                                    {f'<tr><td style="color:#e67e22;">Delivery Fee ({p_zone.split(":")[0]})</td><td style="text-align:right; color:#e67e22;">+₱{d_fee:,.2f}</td></tr>' if d_fee > 0 else ""}
-                                    {f'<tr><td style="color:#e67e22;">Collection Fee ({r_zone.split(":")[0]})</td><td style="text-align:right; color:#e67e22;">+₱{c_fee:,.2f}</td></tr>' if c_fee > 0 else ""}
-                                    <tr style="border-top:2px solid #000; font-size:1.15em;"><td class="bill-label" style="padding-top:10px;">GRAND TOTAL (TO PAY)</td><td style="text-align:right; padding-top:10px; font-weight:900; color:#000000;">₱{grand_total:,.2f}</td></tr>
-                                    <tr style="color:#006600; font-size:0.9em; font-style:italic;"><td>Refundable Cash Deposit (Pay on Handover)</td><td style="text-align:right;">₱5,000.00</td></tr>
-                                </table>
-                            </div>
-                            '''
-                            st.markdown(bill_html, unsafe_allow_html=True)
+                            # --- 1. BUILD THE BILL ROWS ---
+bill_rows = []
+
+# Base Rental Row
+plural_days = "day" if days == 1 else "days"
+bill_rows.append(f'<tr><td class="bill-label">Base Rental (₱{base_rate:,.2f} x {days} {plural_days})</td><td style="text-align:right; font-weight:bold;">₱{subtotal:,.2f}</td></tr>')
+
+# Optional Rows (Only show if they exist)
+if savings > 0:
+    bill_rows.append(f'<tr><td style="color:#cc0000; font-style:italic;">Tiered Discount ({int(discount_pct*100)}%)</td><td style="text-align:right; color:#cc0000;">-₱{savings:,.2f}</td></tr>')
+if is_driver:
+    bill_rows.append(f'<tr><td style="color:#003399;">Professional Driver Fee</td><td style="text-align:right; color:#003399;">+₱{driver_fee:,.2f}</td></tr>')
+if d_fee > 0:
+    bill_rows.append(f'<tr><td style="color:#e67e22;">Delivery Fee ({p_zone.split(":")[0]})</td><td style="text-align:right; color:#e67e22;">+₱{d_fee:,.2f}</td></tr>')
+if c_fee > 0:
+    bill_rows.append(f'<tr><td style="color:#e67e22;">Collection Fee ({r_zone.split(":")[0]})</td><td style="text-align:right; color:#e67e22;">+₱{c_fee:,.2f}</td></tr>')
+
+# --- 2. JOIN AND RENDER ---
+# We use .join() to combine rows and ensure NO leading spaces are added to the lines
+bill_content = "".join(bill_rows)
+
+final_bill_html = f'''
+<div class="bill-box">
+<table class="table-bill">
+{bill_content}
+<tr style="border-top:2px solid #000; font-size:1.15em;">
+<td class="bill-label" style="padding-top:10px;">GRAND TOTAL (TO PAY)</td>
+<td style="text-align:right; padding-top:10px; font-weight:900; color:#000000;">₱{grand_total:,.2f}</td>
+</tr>
+<tr style="color:#006600; font-size:0.9em; font-style:italic;">
+<td>Refundable Cash Deposit (Pay on Handover)</td>
+<td style="text-align:right;">₱5,000.00</td>
+</tr>
+</table>
+</div>
+'''
+
+# CRITICAL: Do not indent the tags inside the f-string above!
+st.markdown(final_bill_html, unsafe_allow_html=True)
                             
                             # --- 💳 5. PAYMENT & QR CODE ---
                             st.divider()
