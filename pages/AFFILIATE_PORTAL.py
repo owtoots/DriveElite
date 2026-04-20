@@ -433,3 +433,130 @@ with tabs[0]:
                                 
                             if st.button("✅ COMPLETE JOURNEY & SEND TO ADMIN", type="primary", use_container_width=True):
                                 has_sig = s_ret.image_data is not None and len(s_ret.json_data.get("objects", [])) > 0
+                                if not has_sig:
+                                    st.error("Renter signature is required to close the trip.")
+                                elif not d_ok and not img_damage:
+                                    st.error("Upload a damage photo to proceed.")
+                                else:
+                                    d_img_path = ",".join([save_file(img) for img in img_damage]) if img_damage else None
+                                    conn.execute("UPDATE bookings SET status = 'COMPLETED', payout_status = 'PENDING', damage_img = ? WHERE id = ?", (d_img_path, b['id']))
+                                    conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
+                                    conn.commit()
+                                    
+                                    st.success("Car returned! Payout request sent to Admin.")
+                                    time.sleep(2)
+                                    st.rerun()
+                                    
+    except Exception as e:
+        st.error(f"System Error loading bookings: {e}")
+
+# --- TAB 1: MY ASSETS ---
+with tabs[1]:
+    st.markdown("<h3 style='text-align: center;'>MY FLEET CONTROLS</h3>", unsafe_allow_html=True)
+    fleet = pd.read_sql_query("SELECT id, make, model, plate, booking_status, admin_status, ref_no FROM vehicles WHERE owner_username = ?", conn, params=(st.session_state.username,))
+    if fleet.empty: st.info("You haven't added any vehicles yet.")
+    for _, c in fleet.iterrows():
+        v_ref = c.get('ref_no') if pd.notnull(c.get('ref_no')) else 'PENDING'
+        with st.expander(f"🚗 #{v_ref} | {c['make']} {c['model']} ({c['plate']}) - Status: {c['booking_status']} (Admin: {c['admin_status']})"):
+            if c['admin_status'] == 'APPROVED':
+                if c['booking_status'] == 'AVAILABLE' and st.button("Hide Vehicle", key=f"h_{c['id']}"):
+                    conn.execute("UPDATE vehicles SET booking_status = 'UNAVAILABLE' WHERE id = ?", (c['id'],))
+                    conn.commit(); st.rerun()
+                elif c['booking_status'] == 'UNAVAILABLE' and st.button("Repost Vehicle", key=f"s_{c['id']}"):
+                    conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (c['id'],))
+                    conn.commit(); st.rerun()
+
+# --- TAB 2: ADD ASSET ---
+with tabs[2]:
+    st.markdown("<h3 style='text-align: center;'>REGISTER A VEHICLE</h3>", unsafe_allow_html=True)
+    try:
+        cat_df = pd.read_sql_query("SELECT name, default_price FROM vehicle_categories", conn)
+        FIXED_RATES = dict(zip(cat_df['name'], cat_df['default_price']))
+    except Exception: 
+        FIXED_RATES = {"Sedan": 1500.0} 
+        
+    with st.form("add_v"):
+        cat = st.selectbox("CATEGORY", list(FIXED_RATES.keys()))
+        c1, c2 = st.columns(2)
+        ma = c1.text_input("MAKE (e.g., Nissan)")
+        mo = c2.text_input("MODEL (e.g., Terra VE)")
+        ye = c1.text_input("YEAR")
+        pl = c2.text_input("PLATE")
+        bn = c1.text_input("PAYOUT BANK")
+        an = c2.text_input("ACCOUNT NUMBER")
+        vi = st.file_uploader("Vehicle Photo", type=['jpg','png'])
+        orc = st.file_uploader("OR/CR Doc", type=['jpg','png'])
+        ins = st.file_uploader("Comprehensive Insurance", type=['jpg','png'])
+        
+        if st.form_submit_button("SUBMIT FOR APPROVAL", type="primary"):
+            if ma and mo and pl and bn and an and vi and orc and ins:
+                new_ref_no = str(random.randint(100000, 999999))
+                conn.execute("""
+                    INSERT INTO vehicles (owner_username, make, model, year, plate, bank_name, account_no, vehicle_img, or_cr_img, insurance_img, category, approved_price, ref_no, admin_status, booking_status) 
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'PENDING','UNAVAILABLE')
+                """, (st.session_state.username, ma.title(), mo.title(), ye, pl.upper(), bn, an, save_file(vi), save_file(orc), save_file(ins), cat, FIXED_RATES.get(cat,0), new_ref_no))
+                conn.commit()
+                st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
+            else: 
+                st.error("Please fill all required fields.")
+
+# --- TAB 3: ADD DRIVER ---
+with tabs[3]:
+    st.markdown("<h3 style='text-align: center;'>REGISTER A DRIVER</h3>", unsafe_allow_html=True)
+    with st.form("add_d"):
+        c1, c2, c3 = st.columns(3)
+        df_first = c1.text_input("First Name").title()
+        df_mid = c2.text_input("Middle Name").title()
+        df_last = c3.text_input("Last Name").title()
+        c_contact, c_age = st.columns(2)
+        d_contact = c_contact.text_input("Contact No.")
+        d_age = c_age.number_input("Age", min_value=18, max_value=99, step=1)
+        d_address = st.text_area("Full Address")
+        is_owner = st.checkbox("I am the driver (Owner driving)")
+        d_gov = st.file_uploader("Upload Govt ID", type=['jpg','png'])
+        d_lic = st.file_uploader("Upload Professional License", type=['jpg','png'])
+        if st.form_submit_button("SUBMIT DRIVER FOR APPROVAL", type="primary"):
+            if df_first and df_last and d_contact and d_gov and d_lic:
+                conn.execute("INSERT INTO drivers (owner_username, first_name, middle_name, last_name, age, address, contact_number, is_owner, govt_id_img, license_img, admin_status) VALUES (?,?,?,?,?,?,?,?,?,?, 'PENDING')", (st.session_state.username, df_first, df_mid, df_last, d_age, d_address, d_contact, 1 if is_owner else 0, save_file(d_lic), save_file(d_gov)))
+                conn.commit()
+                st.success("SUCCESS: Driver Submitted!")
+            else: 
+                st.error("Please fill required fields.")
+    
+    my_drivers = pd.read_sql_query("SELECT first_name, last_name, contact_number, admin_status FROM drivers WHERE owner_username = ?", conn, params=(st.session_state.username,))
+    if not my_drivers.empty: 
+        st.dataframe(my_drivers, hide_index=True, use_container_width=True)
+
+# --- TAB 4: REVIEWS ---
+with tabs[4]:
+    st.markdown("<h3 style='text-align: center;'>⭐ Guest Reviews</h3>", unsafe_allow_html=True)
+    query_reviews = """
+        SELECT b.rating, b.review, b.pickup_time, u.full_name as renter_name, v.make, v.model, v.plate
+        FROM bookings b JOIN vehicles v ON b.vehicle_id = v.id JOIN platform_users u ON b.renter_username = u.username
+        WHERE v.owner_username = ? AND b.rating IS NOT NULL ORDER BY b.id DESC
+    """
+    try:
+        reviews_df = pd.read_sql_query(query_reviews, conn, params=(st.session_state.username,))
+        if reviews_df.empty: st.info("No reviews yet!")
+        else:
+            for _, rev in reviews_df.iterrows():
+                with st.container(border=True):
+                    st.markdown(f"#### {'⭐'*int(rev['rating'])} - {rev['make']} {rev['model']} ({rev['plate']})")
+                    st.caption(f"🕵️‍♂️ Renter: {rev['renter_name']} | 📅 Date: {str(rev['pickup_time'])[:10]}")
+                    if pd.notna(rev['review']) and str(rev['review']).strip(): st.info(f"💬 \"{rev['review']}\"")
+    except: pass
+
+# --- SIDEBAR ---
+with st.sidebar:
+    st.write(f"### 👤 Affiliate Profile")
+    st.write(f"**Name:** {affiliate_full_name}")
+    st.write(f"**Username:** @{st.session_state.username}")
+    moa_path = f"uploads/MOA_{st.session_state.username}.pdf"
+    if os.path.exists(moa_path):
+        st.success("Partner Verified ✅")
+        with open(moa_path, "rb") as pdf_file:
+            st.download_button("📄 Download Signed MOA", data=pdf_file.read(), file_name=f"Signed_MOA_{st.session_state.username}.pdf", mime="application/pdf", use_container_width=True)
+    else: 
+        st.warning("⚠️ No signed MOA found.")
+    st.divider()
+    st.caption("DriveElite 2026")
