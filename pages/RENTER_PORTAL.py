@@ -9,6 +9,7 @@ import math
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from database_utils import get_connection
+pip install streamlit-star-rating
 
 # --- DATABASE CONNECTION ---
 conn = get_connection()
@@ -355,13 +356,27 @@ with tabs[1]:
         for _, t in history.iterrows():
             with st.expander(f"✅ COMPLETED: {t['make']} {t['model']} | {str(t['pickup_time'])[:10]}"):
                 st.write(f"**Final Cost:** ₱{t['amount']:,.2f}")
+                
+                # Check if the trip is unrated
                 if not t.get('rating'):
                     with st.form(f"rev_{t['id']}"):
-                        s = st.slider("Rating", 1, 5, 5, key=f"s_{t['id']}")
-                        r = st.text_area("Review", key=f"r_{t['id']}")
-                        if st.form_submit_button("Submit Review"):
+                        st.markdown("#### ⭐ Rate Your Experience")
+                        
+                        # NEW: The interactive, clickable star component!
+                        s = st_star_rating(
+                            label="", 
+                            maxValue=5, 
+                            defaultValue=5, 
+                            key=f"s_{t['id']}", 
+                            emoticons=False 
+                        )
+                        
+                        r = st.text_area("Write a Review (Visible to Affiliate & Admin)", placeholder="How was the car and the host?", key=f"r_{t['id']}")
+                        
+                        if st.form_submit_button("Submit Review", type="primary", use_container_width=True):
                             conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (s, r, t['id']))
                             conn.commit()
                             st.rerun()
                 else:
-                    st.success(f"**Rating:** {'⭐' * int(t['rating'])}")
+                    # Display the stars if they already submitted it
+                    st.success(f"**Your Rating:** {'⭐' * int(t['rating'])}")
