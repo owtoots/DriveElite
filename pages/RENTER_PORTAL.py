@@ -35,25 +35,19 @@ def calculate_24h_rental(pickup_dt, return_dt, daily_rate, hourly_late_fee=300.0
     diff = return_dt - pickup_dt
     total_seconds = diff.total_seconds()
     
-    # 1. Minimum rental is always 1 Full Day (24 hours)
     if total_seconds <= 86400:
         return 1, 0, daily_rate, 0.0, daily_rate
         
-    # 2. Calculate full 24-hour blocks
     full_days = int(total_seconds // 86400)
-    
-    # 3. Calculate leftover minutes
     remainder_mins = (total_seconds % 86400) / 60.0
     
     billed_hours = 0
     hourly_fee_total = 0.0
     
-    # 4. Apply Grace Period & Hourly Fees
     if remainder_mins > grace_mins:
-        billed_hours = math.ceil(remainder_mins / 60.0) # Round up to next hour
+        billed_hours = math.ceil(remainder_mins / 60.0)
         hourly_fee_total = billed_hours * hourly_late_fee
         
-        # 5. The Extra Day Cap Protection
         if hourly_fee_total >= daily_rate:
             full_days += 1
             billed_hours = 0
@@ -210,7 +204,6 @@ with tabs[0]:
                         base_rate = car.get('approved_price', 2000.0)
 
                         with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
-                            # --- 1. TRIP DATES ---
                             st.markdown("#### 📅 1. Choose Trip Dates")
                             c_d1, c_t1 = st.columns(2)
                             d1 = c_d1.date_input("Pickup Date", min_value=datetime.date.today(), key=f"d1_{car['id']}")
@@ -220,14 +213,12 @@ with tabs[0]:
                             t2 = c_t2.time_input("Return Time", value=datetime.time(18, 0), key=f"t2_{car['id']}")
 
                             st.divider()
-                            # --- 2. DETAILS ---
                             st.markdown("#### 📍 2. Trip Details")
                             drive_mode = st.radio("Mode", ["Self-Drive", "With Driver (+₱1k/day)"], key=f"dm_{car['id']}")
                             is_driver = 1 if "Driver" in drive_mode else 0
                             dest = st.text_input("Destination", key=f"dest_{car['id']}")
                             luzon_agree = st.checkbox("I agree to LUZON ONLY travel.", key=f"luzon_{car['id']}")
 
-                            # --- 3. LOGISTICS ---
                             st.markdown("#### 🚚 3. Logistics")
                             ZONES = {"HQ: Pasig (Free)": 0.0, "Zone 1: Ortigas/BGC": 500.0, "Zone 2: Manila/QC": 1000.0, "Zone 3: Alabang/LP": 1500.0}
                             c_loc1, c_loc2 = st.columns(2)
@@ -236,7 +227,6 @@ with tabs[0]:
                             r_zone = c_loc2.selectbox("Return Zone", list(ZONES.keys()), key=f"rz_{car['id']}")
                             r_exact = c_loc2.text_input("Return Address", key=f"ra_{car['id']}")
 
-                            # --- 4. PRO 24-HOUR CALCULATION ENGINE ---
                             p_dt_obj = datetime.datetime.combine(d1, t1)
                             r_dt_obj = datetime.datetime.combine(d2, t2)
                             
@@ -274,7 +264,6 @@ with tabs[0]:
                                 bill_html = f'<div class="bill-box"><table class="table-bill">{bill_content}<tr style="border-top:2px solid #000; font-size:1.1em;"><td class="bill-label">GRAND TOTAL</td><td style="text-align:right; font-weight:900;">₱{grand_total:,.2f}</td></tr><tr><td style="color:#006600; font-size:0.9em; font-style:italic;">Security Deposit (Cash)</td><td style="text-align:right;">₱5,000.00</td></tr></table></div>'
                                 st.markdown(bill_html, unsafe_allow_html=True)
                                 
-                                # --- 5. PAYMENT & EMAIL FIRING ---
                                 st.divider()
                                 st.markdown("#### 💳 5. Payment")
                                 qr_p = "gcash_qr.jpg" 
@@ -292,7 +281,6 @@ with tabs[0]:
                                                      (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
                                         conn.commit()
                                         
-                                        # FETCH EMAIL & SEND RECEIPT
                                         r_info = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(renter_user,))
                                         if not r_info.empty and r_info.iloc[0]['email']:
                                             r_email = r_info.iloc[0]['email']
@@ -321,7 +309,6 @@ with tabs[1]:
                 st.write(f"**Booking Ref:** #{t['booking_ref']} | **Total:** ₱{t['amount']:,.2f}")
                 st.write(f"**Pickup:** {t['pickup_time']} | **Return:** {t['return_time']}")
                 
-                # --- CHAT ---
                 st.divider()
                 st.markdown("#### 💬 Message the Owner")
                 b_ref = t['booking_ref']
@@ -354,12 +341,10 @@ with tabs[1]:
             with st.expander(f"✅ COMPLETED: {t['make']} {t['model']} | {str(t['pickup_time'])[:10]}"):
                 st.write(f"**Final Cost:** ₱{t['amount']:,.2f}")
                 
-                # Check if the trip is unrated
                 if not t.get('rating'):
                     with st.form(f"rev_{t['id']}"):
                         st.markdown("#### ⭐ Rate Your Experience")
                         
-                        # NEW: The interactive, clickable star component!
                         s = st_star_rating(
                             label="", 
                             maxValue=5, 
@@ -375,5 +360,4 @@ with tabs[1]:
                             conn.commit()
                             st.rerun()
                 else:
-                    # Display the stars if they already submitted it
                     st.success(f"**Your Rating:** {'⭐' * int(t['rating'])}")
