@@ -200,28 +200,49 @@ with tabs[0]:
                             r_zone = c_loc2.selectbox("Return Zone", list(ZONES.keys()), key=f"rz_{car['id']}")
                             r_exact = c_loc2.text_input("Return Address", key=f"ra_{car['id']}")
 
-                            # --- 4. CALCULATION ---
-                            days = max(1, (d2 - d1).days + 1)
-                            subtotal = days * base_rate
-                            driver_fee = (days * 1000.0) if is_driver else 0.0
-                            d_fee = ZONES[p_zone]
-                            c_fee = ZONES[r_zone]
+                           # --- 4. PRO 24-HOUR CALCULATION ENGINE ---
+                            # Combine the separate dates and times into exact datetime objects
+                            p_dt_obj = datetime.datetime.combine(d1, t1)
+                            r_dt_obj = datetime.datetime.combine(d2, t2)
                             
-                            discount_pct = 0.15 if days >= 15 else (0.10 if days >= 7 else (0.05 if days >= 3 else 0.0))
-                            savings = subtotal * discount_pct
-                            grand_total = (subtotal - savings) + driver_fee + d_fee + c_fee
+                            if r_dt_obj <= p_dt_obj:
+                                st.error("⚠️ Return time must be strictly after the pickup time.")
+                            else:
+                                # Run the 24-hour math! (Defaults to Php 300/hr late fee)
+                                full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
+                                
+                                # Driver is paid per day touching the road
+                                driver_days = full_days + (1 if billed_hrs > 0 else 0)
+                                driver_fee = (driver_days * 1000.0) if is_driver else 0.0
+                                
+                                d_fee = ZONES[p_zone]
+                                c_fee = ZONES[r_zone]
+                                
+                                discount_pct = 0.15 if full_days >= 15 else (0.10 if full_days >= 7 else (0.05 if full_days >= 3 else 0.0))
+                                savings = subtotal * discount_pct
+                                grand_total = (subtotal - savings) + driver_fee + d_fee + c_fee
 
-                            st.markdown("#### 🧾 4. Cost Breakdown")
-                            # Build HTML rows to avoid indentation trap
-                            rows = [f'<tr><td class="bill-label">Base Rental (₱{base_rate:,.2f} x {days} days)</td><td style="text-align:right; font-weight:bold;">₱{subtotal:,.2f}</td></tr>']
-                            if savings > 0: rows.append(f'<tr><td style="color:#cc0000; font-style:italic;">Tiered Discount ({int(discount_pct*100)}%)</td><td style="text-align:right; color:#cc0000;">-₱{savings:,.2f}</td></tr>')
-                            if is_driver: rows.append(f'<tr><td style="color:#003399;">Professional Driver Fee</td><td style="text-align:right; color:#003399;">+₱{driver_fee:,.2f}</td></tr>')
-                            if d_fee > 0: rows.append(f'<tr><td style="color:#e67e22;">Delivery Fee</td><td style="text-align:right; color:#e67e22;">+₱{d_fee:,.2f}</td></tr>')
-                            if c_fee > 0: rows.append(f'<tr><td style="color:#e67e22;">Collection Fee</td><td style="text-align:right; color:#e67e22;">+₱{c_fee:,.2f}</td></tr>')
-                            
-                            bill_content = "".join(rows)
-                            bill_html = f'<div class="bill-box"><table class="table-bill">{bill_content}<tr style="border-top:2px solid #000; font-size:1.1em;"><td class="bill-label">GRAND TOTAL</td><td style="text-align:right; font-weight:900;">₱{grand_total:,.2f}</td></tr><tr><td style="color:#006600; font-size:0.9em; font-style:italic;">Security Deposit (Cash)</td><td style="text-align:right;">₱5,000.00</td></tr></table></div>'
-                            st.markdown(bill_html, unsafe_allow_html=True)
+                                st.markdown("#### 🧾 4. Cost Breakdown")
+                                # Build HTML rows (Now includes Hourly Extensions!)
+                                plural_days = "day" if full_days == 1 else "days"
+                                rows = [f'<tr><td class="bill-label">Base Rental (₱{base_rate:,.2f} x {full_days} {plural_days})</td><td style="text-align:right; font-weight:bold;">₱{base_cost:,.2f}</td></tr>']
+                                
+                                if billed_hrs > 0: 
+                                    rows.append(f'<tr><td style="color:#d35400; font-style:italic;">Hourly Extension ({billed_hrs} hrs @ ₱300/hr)</td><td style="text-align:right; color:#d35400;">+₱{ext_fee:,.2f}</td></tr>')
+                                if savings > 0: 
+                                    rows.append(f'<tr><td style="color:#cc0000; font-style:italic;">Tiered Discount ({int(discount_pct*100)}%)</td><td style="text-align:right; color:#cc0000;">-₱{savings:,.2f}</td></tr>')
+                                if is_driver: 
+                                    rows.append(f'<tr><td style="color:#003399;">Driver Fee ({driver_days} days)</td><td style="text-align:right; color:#003399;">+₱{driver_fee:,.2f}</td></tr>')
+                                if d_fee > 0: 
+                                    rows.append(f'<tr><td style="color:#e67e22;">Delivery Fee</td><td style="text-align:right; color:#e67e22;">+₱{d_fee:,.2f}</td></tr>')
+                                if c_fee > 0: 
+                                    rows.append(f'<tr><td style="color:#e67e22;">Collection Fee</td><td style="text-align:right; color:#e67e22;">+₱{c_fee:,.2f}</td></tr>')
+                                
+                                bill_content = "".join(rows)
+                                bill_html = f'<div class="bill-box"><table class="table-bill">{bill_content}<tr style="border-top:2px solid #000; font-size:1.1em;"><td class="bill-label">GRAND TOTAL</td><td style="text-align:right; font-weight:900;">₱{grand_total:,.2f}</td></tr><tr><td style="color:#006600; font-size:0.9em; font-style:italic;">Security Deposit (Cash)</td><td style="text-align:right;">₱5,000.00</td></tr></table></div>'
+                                st.markdown(bill_html, unsafe_allow_html=True)
+                                
+                                # ... Keep your existing Payment and "Confirm Booking" button below this ...
                             
                             # --- 5. PAYMENT & EMAIL FIRING ---
                             st.divider()
@@ -256,6 +277,7 @@ with tabs[0]:
                                     st.rerun()
                                 else:
                                     st.warning("⚠️ Please fill all required fields.")
+                                    
 
 # --- TAB 1: MY BOOKINGS ---
 with tabs[1]:
