@@ -147,7 +147,7 @@ affiliate_full_name = aff_info.iloc[0]['full_name'] if not aff_info.empty else s
 # (The rest of your tabs and handover logic will now work flawlessly with the v2 database)
 
 # Get Affiliate Full Name
-aff_info = pd.read_sql_query("SELECT full_name FROM users WHERE username=?", conn, params=(st.session_state.username,))
+aff_info = pd.read_sql_query("SELECT full_name FROM platform_users WHERE username=?", conn, params=(st.session_state.username,))
 affiliate_full_name = aff_info.iloc[0]['full_name'] if not aff_info.empty else st.session_state.username
 
 st.markdown("<h1 style='text-align: center;'>💼 AFFILIATE COMMAND CENTER</h1>", unsafe_allow_html=True)
