@@ -188,17 +188,25 @@ with tabs[0]:
                             '''
                             st.markdown(bill_html, unsafe_allow_html=True)
                             
+                            # --- 💳 5. PAYMENT & QR CODE FETCH ---
                             st.divider()
                             st.markdown("#### 💳 5. Payment")
+                            
+                            qr_path = "gcash_qr.jpg" # Make sure your QR image is named exactly this
+                            
+                            if os.path.exists(qr_path):
+                                # This "fetches" and displays your QR code
+                                st.image(qr_path, caption=f"Scan to Pay: ₱{grand_total:,.2f}", width=300)
+                                st.info("💡 Scan the QR code above using your GCash app, then enter the Reference Number below.")
+                            else:
+                                # Friendly reminder if the file is missing from GitHub
+                                st.warning("⚠️ **QR Code Missing:** Please upload your 'gcash_qr.jpg' file to your GitHub repository so it can be displayed here.")
+                            
+                            st.divider()
                             ref_num = st.text_input("GCash Reference Number *", key=f"ref_{car['id']}")
 
                             if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True):
-                                if dest and ref_num and p_exact and r_exact and luzon_agree:
-                                    b_ref = str(random.randint(100000, 999999))
-                                    p_dt = f"{d1} {t1.strftime('%H:%M')}"
-                                    r_dt = f"{d2} {t2.strftime('%H:%M')}"
-                                    p_full = f"{p_zone}: {p_exact}"
-                                    r_full = f"{r_zone}: {r_exact}"
+                                # ... (rest of your existing Confirm Booking logic)
                                     
                                     conn.execute("""
                                         INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) 
