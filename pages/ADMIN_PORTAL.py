@@ -11,14 +11,12 @@ from PIL import Image
 from database_utils import get_connection
 
 # --- 1. FINANCE LOGIC IMPORT ---
-# Ensure finance.py is in your main folder!
 try:
     from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
 except ImportError:
     st.error("Missing finance.py! Please ensure the finance script is in your root folder.")
 
 # --- 2. CONFIG & INITIALIZATION ---
-# This MUST be the first Streamlit command
 st.set_page_config(page_title="DriveElite Admin", layout="wide")
 conn = get_connection()
 
@@ -26,31 +24,12 @@ conn = get_connection()
 def email_receipt_to_affiliate(affiliate_email, receipt_text, transaction_ref):
     """Sends a cancellation compensation summary to the Affiliate."""
     sender_email = "rdalbaojrh@gmail.com" 
-    # Grab the password securely from your Streamlit Secrets
     try:
         app_password = st.secrets["email_app_password"]
     except KeyError:
         st.error("Secret 'email_app_password' not found in Streamlit Cloud Settings!")
         return False
-    # ... inside email_receipt_to_affiliate ...
-        return True
-    except Exception as e:
-        print(f"Email Error: {e}")
-        return False
-
-  # --- NEW MAILROOM FUNCTION GOES RIGHT HERE (Line 51) ---
-  def send_pdf_copy(to_email, file_path, file_name):
-    """Attaches a PDF from the uploads folder and emails it to the user."""
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.base import MIMEBase
-    from email.mime.text import MIMEText
-    from email import encoders
-    import smtplib
-    
-    sender_email = "rdalbaojrh@gmail.com" 
-    try:
-        app_password = st.secrets["email_app_password"]
-# ... (the rest of the send_pdf_copy function) ...
+        
     msg = EmailMessage()
     msg.set_content(receipt_text)
     msg['Subject'] = f"Cancellation Compensation: {transaction_ref}"
@@ -65,6 +44,42 @@ def email_receipt_to_affiliate(affiliate_email, receipt_text, transaction_ref):
     except Exception as e:
         print(f"Email Error: {e}")
         return False
+
+def send_pdf_copy(to_email, file_path, file_name):
+    """Attaches a PDF from the uploads folder and emails it to the user."""
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.base import MIMEBase
+    from email.mime.text import MIMEText
+    from email import encoders
+    import smtplib
+    
+    sender_email = "rdalbaojrh@gmail.com" 
+    try:
+        app_password = st.secrets["email_app_password"]
+    except KeyError:
+        return False, "Missing email_app_password in Streamlit Secrets."
+        
+    msg = MIMEMultipart()
+    msg['From'] = f"DriveElite Admin <{sender_email}>"
+    msg['To'] = to_email
+    msg['Subject'] = f"Your DriveElite Contract Copy: {file_name}"
+    msg.attach(MIMEText("Hello,\n\nPer your request or an Admin action, please find attached a secure copy of your signed DriveElite contract.\n\nBest regards,\nThe DriveElite Team", 'plain'))
+    
+    try:
+        with open(file_path, "rb") as attachment:
+            part = MIMEBase('application', 'octet-stream')
+            part.set_payload(attachment.read())
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', f"attachment; filename= {file_name}")
+        msg.attach(part)
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(sender_email, app_password)
+            server.send_message(msg)
+        return True, "Email sent successfully!"
+    except Exception as e:
+        return False, str(e)
+
 
 # --- 4. DATABASE PATCH (Auto-Heal) ---
 try:
@@ -199,15 +214,19 @@ with tabs[3]:
         ORDER BY b.id DESC
         """
         df = pd.read_sql_query(query, conn)
+        
         if df.empty:
             st.info("No financial transactions recorded yet.")
         else:
             TAX_RATE = 0.02
             df['gateway_fee'] = df['gateway_fee'].fillna(0)
+
             df['Platform_Gross'] = df['Gross_Revenue'] * 0.18
             df['Platform_Net_Profit'] = df['Platform_Gross'] - (df['Gross_Revenue'] * TAX_RATE * 0.18)
+
             df['Affiliate_Gross_Share'] = df['Gross_Revenue'] * 0.82
             df['Affiliate_Net_Payout'] = (df['Affiliate_Gross_Share'] - (df['Gross_Revenue'] * TAX_RATE * 0.82)) - df['gateway_fee']
+
             df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
             
             c1, c2, c3 = st.columns(3)
@@ -218,49 +237,46 @@ with tabs[3]:
             c3.metric("⏳ Payouts Due", f"₱{payouts_due:,.2f}")
             
             f_tabs = st.tabs(["📑 MASTER LEDGER", "📤 PROCESS PAYOUTS"])
-            with f_tabs[0]: st.dataframe(df, use_container_width=True, hide_index=True)
+            
+            with f_tabs[0]: 
+                display_cols = ['Ref', 'Date', 'Affiliate', 'Gross_Revenue', 'gateway_fee', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
+                st.dataframe(df[display_cols], use_container_width=True, hide_index=True)
+            
             with f_tabs[1]:
                 pending_p = df[(df['Trip_Status'] == 'COMPLETED') & (df['Payout_Status'] == 'PENDING')]
+                if pending_p.empty:
+                    st.info("No pending payouts for completed trips.")
                 for _, p in pending_p.iterrows():
                     with st.expander(f"{p['Ref']} | {p['Affiliate']} | Net: ₱{p['Affiliate_Net_Payout']:,.2f}"):
+                        st.write(f"**Gross Affiliate Share (82%):** ₱{p['Affiliate_Gross_Share']:,.2f}")
+                        st.write(f"**Tax Deduction (EWT):** -₱{p['Gross_Revenue'] * TAX_RATE * 0.82:,.2f}")
+                        st.write(f"**CC Gateway Fee (Owner Absorbed):** -₱{p['gateway_fee']:,.2f}")
+                        st.divider()
+                        st.write(f"**Final Remittance:** ₱{p['Affiliate_Net_Payout']:,.2f}")
+                        st.info(f"🏦 **Bank:** {p['bank_name']} | **Acc:** {p['account_no']}")
+                        
                         if st.button("MARK AS PAID", key=f"p_{p['id']}", type="primary", use_container_width=True):
                             conn.execute("UPDATE bookings SET payout_status = 'PAID' WHERE id = ?", (p['id'],))
-                            conn.commit(); st.rerun()
-    except Exception as e: st.error(f"Financial Error: {e}")
+                            conn.commit()
+                            st.rerun()
+    except Exception as e:
+        st.error(f"Financial Error: {e}")
 
-# --- TAB 4: FILING CABINET ---
-with tabs[4]:
-    st.header("🗄️ Master Filing Cabinet")
-    if os.path.exists("uploads"):
-        pdf_files = [f for f in os.listdir("uploads") if f.endswith('.pdf')]
-        if not pdf_files: st.info("No contracts found.")
-        else:
-            cols = st.columns(4)
-            for i, f_name in enumerate(pdf_files):
-                with cols[i % 4]:
-                    with st.container(border=True):
-                        st.write(f"📄 {f_name}")
-                        with open(os.path.join("uploads", f_name), "rb") as f:
-                            st.download_button("⬇️ DL", f.read(), file_name=f_name, key=f"dl_{f_name}")
-    else: st.warning("Uploads folder not found.")
 
-# --- TAB 4: FILING CABINET (COMPLETELY REDESIGNED) ---
+# --- TAB 4: FILING CABINET (MAILROOM LOGIC) ---
 with tabs[4]: 
     st.header("🗄️ Master Digital Filing Cabinet")
-    st.write("View legally binding contracts signed by your users.")
+    st.write("View legally binding contracts, download them, or instantly email a copy to the user.")
     
     if os.path.exists("uploads"):
-        # 1. Look for all PDF files
         all_files = os.listdir("uploads")
         pdf_files = [f for f in all_files if f.endswith('.pdf')]
         
         if len(pdf_files) > 0:
-            # 2. Add Filter by Role
             st.divider()
             role_filter = st.radio("Filter Contracts:", ["All", "💼 Affiliates (MOA)", "🚙 Renters (Agreements)"], horizontal=True)
             st.divider()
             
-            # 3. Apply Filter to File List
             if role_filter == "💼 Affiliates (MOA)":
                 filtered_files = [f for f in pdf_files if f.startswith("MOA_")]
             elif role_filter == "🚙 Renters (Agreements)":
@@ -271,44 +287,257 @@ with tabs[4]:
             if not filtered_files:
                 st.info(f"No documents found matching the filter: {role_filter}")
             else:
-                # 4. Create the condensed 4-column grid
                 cols = st.columns(4)
                 for i, file_name in enumerate(filtered_files):
                     file_path = os.path.join("uploads", file_name)
                     
-                    # --- Naming Logic: Translate Username to Full Name /username ---
-                    display_card_text = file_name # Fallback
+                    display_card_text = file_name 
+                    uname = ""
+                    target_email = ""
+                    
                     if file_name.startswith("MOA_") or file_name.startswith("RENTER_"):
-                        # Extract the username from filename
                         uname = file_name.replace("MOA_", "").replace("RENTER_", "").replace(".pdf", "")
-                        
                         try:
-                            # COORDINATED: Look up the real name in platform_users
-                            name_df = pd.read_sql_query("SELECT full_name FROM platform_users WHERE username=?", conn, params=(uname,))
-                            if not name_df.empty and name_df.iloc[0]['full_name']:
-                                full_name = name_df.iloc[0]['full_name']
-                                display_card_text = f"{full_name} / {uname}"
-                            else:
-                                # No full name in DB, fallback to username format
-                                display_card_text = f"(@{uname})"
+                            user_df = pd.read_sql_query("SELECT full_name, email FROM platform_users WHERE username=?", conn, params=(uname,))
+                            if not user_df.empty:
+                                target_email = user_df.iloc[0]['email']
+                                full_name = user_df.iloc[0]['full_name']
+                                display_card_text = f"{full_name} / {uname}" if full_name else f"(@{uname})"
                         except:
-                            pass # Fallback to original file_name if database fails
+                            pass 
                     
                     with cols[i % 4]:
-                        # Condensed Card Visuals
                         with st.container(border=True):
                             st.write(f"📄 **{display_card_text}**")
-                            with open(file_path, "rb") as pdf_file:
-                                # Aligned to the left, condensed button text
-                                st.download_button(
-                                    label="⬇️ DL",
-                                    data=pdf_file.read(),
-                                    file_name=file_name,
-                                    mime="application/pdf",
-                                    key=f"dl_{file_name}",
-                                    use_container_width=True # Fills the card width
-                                )
+                            
+                            btn_col1, btn_col2 = st.columns(2)
+                            with btn_col1:
+                                with open(file_path, "rb") as pdf_file:
+                                    st.download_button(
+                                        label="⬇️ DL",
+                                        data=pdf_file.read(),
+                                        file_name=file_name,
+                                        mime="application/pdf",
+                                        key=f"dl_{file_name}",
+                                        use_container_width=True 
+                                    )
+                            with btn_col2:
+                                if st.button("📧 Email", key=f"em_{file_name}", use_container_width=True):
+                                    if not target_email:
+                                        st.toast(f"❌ No email found in DB for @{uname}", icon="⚠️")
+                                    else:
+                                        with st.spinner("Sending..."):
+                                            success, msg = send_pdf_copy(target_email, file_path, file_name)
+                                            if success:
+                                                st.toast(f"✅ Contract sent to {target_email}", icon="🚀")
+                                            else:
+                                                st.error(f"Failed: {msg}")
         else:
             st.info("No contracts have been signed yet.")
     else:
         st.warning("The uploads folder does not exist yet. It will be created when the first user registers.")
+
+
+# --- TAB 5: PROMOS & DB ---
+with tabs[5]:
+    col_promo, col_cat = st.columns(2)
+    with col_promo:
+        st.subheader("📢 Broadcast Manager")
+        with st.form("promo"):
+            t = st.text_input("Broadcast Title")
+            m = st.text_area("Broadcast Message")
+            target = st.radio("Target Audience:", ["RENTERS", "AFFILIATES", "ALL USERS"], horizontal=True)
+            
+            if st.form_submit_button("PUBLISH BROADCAST"):
+                if t and m:
+                    try:
+                        conn.execute("ALTER TABLE admin_promos ADD COLUMN target TEXT DEFAULT 'ALL USERS'")
+                        conn.commit()
+                    except: pass
+                    
+                    conn.execute("UPDATE admin_promos SET active = 0")
+                    conn.execute("INSERT INTO admin_promos (title, message, target) VALUES (?, ?, ?)", (t, m, target))
+                    conn.commit()
+                    st.success(f"Live! Broadcast successfully published to {target}.")
+                    
+    with col_cat:
+        st.subheader("📈 Category Manager")
+        with st.form("add_cat", clear_on_submit=True):
+            n = st.text_input("New Category (e.g., Pickup, Luxury)")
+            p = st.number_input("Daily Rate (₱)", min_value=500.0, step=100.0, value=2500.0)
+            if st.form_submit_button("ADD NEW CATEGORY"):
+                if n:
+                    try:
+                        conn.execute("INSERT INTO vehicle_categories (name, default_price) VALUES (?, ?)", (n.title(), p))
+                        conn.commit()
+                    except: pass
+
+    st.divider()
+    st.write("🔍 Quick Profile Viewer (Lookup IDs)*")
+    u_df = pd.read_sql_query("SELECT full_name, role, govt_id_img, license_img FROM platform_users WHERE admin_status = 'APPROVED'", conn)
+    try:
+        d_df = pd.read_sql_query("SELECT first_name || ' ' || last_name AS full_name, 'DRIVER' AS role, id_img AS govt_id_img, license_img FROM drivers WHERE admin_status = 'APPROVED'", conn)
+        all_profiles = pd.concat([u_df, d_df], ignore_index=True)
+    except:
+        all_profiles = u_df 
+
+    if not all_profiles.empty:
+        all_profiles['display_name'] = all_profiles['full_name']
+        user_list = ["-- Select a Profile --"] + all_profiles['display_name'].tolist()
+        selected_user = st.selectbox("Search for an Approved Profile to view their documents:", user_list)
+        
+        if selected_user != "-- Select a Profile --":
+            u_data = all_profiles[all_profiles['display_name'] == selected_user].iloc[0]
+            c_id1, c_id2 = st.columns(2)
+            
+            with c_id1:
+                if pd.notna(u_data.get('govt_id_img')) and u_data.get('govt_id_img'): 
+                    c_id1.image(u_data['govt_id_img'], caption="Govt ID")
+                else: st.info("No Government ID uploaded.")
+            
+            with c_id2:
+                if pd.notna(u_data.get('license_img')) and u_data.get('license_img'): 
+                    c_id2.image(u_data['license_img'], caption="Driver's License")
+                else: st.info("No Driver's License uploaded.")
+
+    st.divider()
+    st.markdown("<h3 style='text-align: center;'>ALL REGISTERED USERS</h3>", unsafe_allow_html=True)
+    
+    try:
+        db_tabs = st.tabs(["🚗 RENTERS", "💼 AFFILIATES", "🧑‍✈️ DRIVERS"])
+        
+        q_renters = "SELECT full_name as 'FULLNAME', address as 'ADDRESS', contact_number as 'CONTACT NO.', admin_status as 'STATUS' FROM platform_users WHERE role='RENTER'"
+        with db_tabs[0]: st.dataframe(pd.read_sql_query(q_renters, conn), hide_index=True, use_container_width=True)
+        
+        q_affiliates = "SELECT full_name as 'FULLNAME', address as 'ADDRESS', contact_number as 'CONTACT NO.', admin_status as 'STATUS' FROM platform_users WHERE role='AFFILIATE'"
+        with db_tabs[1]: st.dataframe(pd.read_sql_query(q_affiliates, conn), hide_index=True, use_container_width=True)
+        
+        q_drivers = "SELECT first_name || ' ' || last_name as 'FULLNAME', owner_username as 'BELONGS TO AFFILIATE', contact_number as 'CONTACT NO.', admin_status as 'STATUS' FROM drivers"
+        with db_tabs[2]: st.dataframe(pd.read_sql_query(q_drivers, conn), hide_index=True, use_container_width=True)
+    except: 
+        pass
+
+# --- TAB 6: GLOBAL REVIEWS ---
+with tabs[6]:
+    st.markdown("<h3 style='text-align: center;'>⭐ MASTER PLATFORM REVIEWS</h3>", unsafe_allow_html=True)
+    q_all_reviews = """
+        SELECT b.rating, b.review, b.pickup_time, r.full_name as renter_name, a.full_name as affiliate_name, v.make, v.model, v.plate
+        FROM bookings b
+        JOIN vehicles v ON b.vehicle_id = v.id
+        JOIN platform_users r ON b.renter_username = r.username
+        JOIN platform_users a ON v.owner_username = a.username
+        WHERE b.rating IS NOT NULL ORDER BY b.id DESC
+    """
+    try:
+        all_rev_df = pd.read_sql_query(q_all_reviews, conn)
+        if all_rev_df.empty: st.info("No reviews yet.")
+        else:
+            st.metric("Platform Average Rating", f"{all_rev_df['rating'].mean():.1f} ⭐")
+            for _, rev in all_rev_df.iterrows():
+                with st.expander(f"{'⭐'*int(rev['rating'])} | {rev['make']} {rev['model']}"):
+                    st.write(f"Renter: {rev['renter_name']} | Affiliate: {rev['affiliate_name']}")
+                    if rev['review']: st.info(rev['review'])
+    except: pass
+
+# --- TAB 7: PROCESS CANCELLATIONS ---
+with tabs[7]:
+    st.header("Process Cancellations")
+    st.write("Select an active booking to calculate cancellation penalties and process refunds.")
+
+    try:
+        query = """
+        SELECT id, booking_ref, renter_username, amount, pickup_time, status 
+        FROM bookings 
+        WHERE status NOT IN ('COMPLETED', 'CANCELLED')
+        """
+        active_bookings = pd.read_sql_query(query, conn)
+
+        if active_bookings.empty:
+            st.info("There are currently no active bookings eligible for cancellation.")
+        else:
+            booking_options = ["-- Select a Booking --"] + active_bookings['booking_ref'].astype(str).tolist()
+            selected_ref = st.selectbox("Search Active Bookings:", booking_options)
+
+            if selected_ref != "-- Select a Booking --":
+                b_data = active_bookings[active_bookings['booking_ref'].astype(str) == selected_ref].iloc[0]
+                
+                booking_to_cancel = b_data['booking_ref']
+                gross_paid = float(b_data['amount'])
+                pickup_date = str(b_data['pickup_time']) 
+
+                st.divider()
+                st.subheader(f"Review Details for #{booking_to_cancel}")
+                st.write(f"**Renter:** @{b_data['renter_username']} | **Gross Rental Paid:** ₱{gross_paid:,.2f} | **Pickup:** {pickup_date}")
+
+                st.write("### Extra Fee Verification")
+                col_in1, col_in2 = st.columns(2)
+                with col_in1:
+                    logistics = st.number_input("Logistics/Delivery Fee Paid (₱)", value=0.0, step=100.0)
+                with col_in2:
+                    gateway_fee = st.number_input("Exact PayMongo Surcharge to Absorb (₱)", value=0.0, step=10.0)
+
+                st.divider()
+
+                try:
+                    if len(pickup_date) == 16:
+                        pickup_date += ":00"
+
+                    days_left = get_days_before_pickup(pickup_date)
+                    settlement = calculate_moa_cancellation_40_60(
+                        gross_rental_paid=gross_paid, 
+                        logistics_paid=logistics, 
+                        exact_gateway_fee=gateway_fee, 
+                        days_before_pickup=days_left
+                    )
+
+                    st.info(f"⏳ The Renter is canceling **{days_left} days** before pick-up.")
+
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write("### 💸 To Renter")
+                        st.write(f"Penalty Applied: ₱{settlement['penalty_applied']:,.2f}")
+                        st.success(f"Refund Amount: ₱{settlement['renter_refund']:,.2f}")
+
+                    with col2:
+                        st.write("### 🏢 To Platform & Affiliate")
+                        st.write(f"Platform Cut (40%): ₱{settlement['nucleuz_platform_fee']:,.2f}")
+                        st.write(f"Affiliate Payout (60%): ₱{settlement['affiliate_compensation']:,.2f}")
+
+                    if st.button("🚨 Finalize Cancellation & Update Database", type="primary"):
+                        
+                        conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE booking_ref = ?", (booking_to_cancel,))
+                        conn.commit()
+                        
+                        sample_receipt_text = (
+                            f"DriveElite Cancellation Notice\n"
+                            f"Booking Ref: {booking_to_cancel}\n"
+                            f"Status: CANCELLED\n\n"
+                            f"Financial Breakdown:\n"
+                            f"Penalty Collected from Renter: ₱{settlement['penalty_applied']:,.2f}\n"
+                            f"Your Compensation (60%): ₱{settlement['affiliate_compensation']:,.2f}\n\n"
+                            f"This will be included in your next payout cycle."
+                        )
+                        
+                        aff_q = """
+                            SELECT u.email FROM platform_users u 
+                            JOIN vehicles v ON v.owner_username = u.username 
+                            JOIN bookings b ON b.vehicle_id = v.id 
+                            WHERE b.booking_ref = ?
+                        """
+                        aff_data = pd.read_sql_query(aff_q, conn, params=(booking_to_cancel,))
+                        target_email = aff_data.iloc[0]['email'] if not aff_data.empty else "rdalbaojrh@gmail.com"
+
+                        email_success = email_receipt_to_affiliate(target_email, sample_receipt_text, booking_to_cancel)
+                        
+                        if email_success:
+                            st.success(f"✅ Cancelled! Compensation email sent to {target_email}.")
+                        else:
+                            st.warning("⚠️ Database updated, but the email failed to send.")
+                            
+                        st.rerun()
+
+                except ValueError as ve:
+                    st.error(f"Date Error: {ve}. Ensure date format is YYYY-MM-DD HH:MM:SS")
+
+    except Exception as e:
+        st.error(f"Database connection error: {e}")
