@@ -9,14 +9,12 @@ import math
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from database_utils import get_connection
-from streamlit_star_rating import st_star_rating
 
 # --- DATABASE CONNECTION ---
 conn = get_connection()
 
 # --- UTILITIES & HELPERS ---
 def save_chat_image(uploaded_file, booking_ref):
-    """Saves chat images to a dedicated directory."""
     if uploaded_file:
         if not os.path.exists("uploads/chat_images"):
             os.makedirs("uploads/chat_images")
@@ -31,7 +29,6 @@ def save_chat_image(uploaded_file, booking_ref):
     return None
 
 def calculate_24h_rental(pickup_dt, return_dt, daily_rate, hourly_late_fee=300.0, grace_mins=59):
-    """Calculates rental cost based strictly on a 24-hour clock."""
     diff = return_dt - pickup_dt
     total_seconds = diff.total_seconds()
     
@@ -59,7 +56,6 @@ def calculate_24h_rental(pickup_dt, return_dt, daily_rate, hourly_late_fee=300.0
     return full_days, billed_hours, base_cost, hourly_fee_total, total_rental_cost
 
 def send_booking_confirmation_email(to_email, renter_name, car_display, b_ref, p_dt, r_dt, html_bill):
-    """Sends a professional HTML receipt to the renter."""
     sender_email = "rdalbaojr@gmail.com" 
     try:
         app_password = st.secrets["email_app_password"]
@@ -341,23 +337,25 @@ with tabs[1]:
             with st.expander(f"✅ COMPLETED: {t['make']} {t['model']} | {str(t['pickup_time'])[:10]}"):
                 st.write(f"**Final Cost:** ₱{t['amount']:,.2f}")
                 
+                # Check if the trip is unrated
                 if not t.get('rating'):
-                    with st.form(f"rev_{t['id']}"):
+                    with st.container(border=True):
                         st.markdown("#### ⭐ Rate Your Experience")
                         
-                        s = st_star_rating(
-                            label="", 
-                            maxValue=5, 
-                            defaultValue=5, 
-                            key=f"s_{t['id']}", 
-                            emoticons=False 
-                        )
+                        # NATIVE STREAMLIT STAR RATING (0-4 index)
+                        raw_stars = st.feedback("stars", key=f"s_{t['id']}")
                         
                         r = st.text_area("Write a Review (Visible to Affiliate & Admin)", placeholder="How was the car and the host?", key=f"r_{t['id']}")
                         
-                        if st.form_submit_button("Submit Review", type="primary", use_container_width=True):
-                            conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (s, r, t['id']))
-                            conn.commit()
-                            st.rerun()
+                        if st.button("Submit Review", type="primary", use_container_width=True, key=f"btn_sub_{t['id']}"):
+                            if raw_stars is None:
+                                st.error("⚠️ Please tap a star rating before submitting.")
+                            else:
+                                actual_stars = raw_stars + 1 # Convert 0-4 to 1-5
+                                conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (actual_stars, r, t['id']))
+                                conn.commit()
+                                st.success("Review submitted!")
+                                time.sleep(1)
+                                st.rerun()
                 else:
                     st.success(f"**Your Rating:** {'⭐' * int(t['rating'])}")
