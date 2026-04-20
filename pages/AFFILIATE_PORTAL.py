@@ -164,8 +164,103 @@ st.divider()
 # --- TABS ---
 tabs = st.tabs(["BOOKINGS & HANDOVER", "MY ASSETS", "ADD ASSET", "ADD DRIVER", "REVIEWS"])
 
-# --- TAB 0: BOOKINGS, HANDOVER & RETURNS ---
-with tabs[0]:
+# --- TAB: MY BOOKINGS & HANDOVERS ---
+with tabs[1]: # Change this index [1] to whatever tab number fits your layout
+    st.header("📦 Active Bookings & Handovers")
+    st.write("Manage your upcoming deliveries, chat with renters, and log your handovers.")
+    
+    # We use st.session_state.username to ONLY show cars owned by this specific affiliate
+    affiliate_user = st.session_state.username
+    
+    query = """
+        SELECT b.*, v.make, v.model, v.plate, r.full_name as renter_name, r.contact_number as renter_contact
+        FROM bookings b
+        JOIN vehicles v ON b.vehicle_id = v.id
+        JOIN platform_users r ON b.renter_username = r.username
+        WHERE v.owner_username = ? AND b.status NOT IN ('COMPLETED', 'CANCELLED')
+        ORDER BY b.pickup_time ASC
+    """
+    
+    try:
+        my_bookings = pd.read_sql_query(query, conn, params=(affiliate_user,))
+        
+        if my_bookings.empty:
+            st.info("You have no active bookings right now. Ensure your vehicles are marked 'AVAILABLE'.")
+        else:
+            for _, b in my_bookings.iterrows():
+                # Visual warning colors based on status
+                status_icon = "🟡" if b['status'] in ['PENDING', 'CONFIRMED'] else "🟢"
+                
+                with st.expander(f"{status_icon} {str(b['pickup_time'])[:16]} | {b['make']} {b['model']} ({b['plate']})"):
+                    
+                    # --- TRIP DETAILS ---
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**Booking Ref:** #{b['booking_ref']}")
+                        st.write(f"**Renter:** {b['renter_name']}")
+                        st.write(f"**Contact:** {b['renter_contact']}")
+                        st.write(f"**Destination:** {b['destination']}")
+                    with col2:
+                        st.write(f"**Pickup Address:** {b['pickup_loc']}")
+                        st.write(f"**Return Address:** {b['return_loc']}")
+                        st.write(f"**Driver Required:** {'Yes (Provide Driver)' if b['with_driver'] else 'No (Self-Drive)'}")
+                        st.write(f"**Total Revenue:** ₱{b['amount']:,.2f}")
+                    
+                    st.divider()
+                    
+                    # --- CHAT INTERFACE ---
+                    st.markdown("#### 💬 Message the Renter")
+                    b_ref = b['booking_ref']
+                    
+                    chat_win = st.container(height=250, border=True)
+                    with chat_win:
+                        history = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
+                        for _, msg in history.iterrows():
+                            role = "user" if msg['sender_username'] == st.session_state.username else "assistant"
+                            with st.chat_message(role):
+                                st.write(msg['message_text'])
+                                if msg['image_path'] and os.path.exists(msg['image_path']):
+                                    st.image(msg['image_path'], width=200)
+
+                    c_img, c_msg = st.columns([1, 4])
+                    with c_img:
+                        # Ensure your save_chat_image function is at the top of this file too!
+                        a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"a_img_{b_ref}", label_visibility="collapsed")
+                    with c_msg:
+                        a_input = st.text_input("Reply...", key=f"a_in_{b_ref}")
+
+                    if st.button("Send", key=f"a_btn_{b_ref}", use_container_width=True):
+                        if a_input or a_img:
+                            path = save_chat_image(a_img, b_ref) if a_img else ""
+                            text = a_input if a_input else "📸 Sent a photo."
+                            conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", (b_ref, st.session_state.username, b['renter_username'], text, path))
+                            conn.commit()
+                            st.rerun()
+                            
+                    st.divider()
+
+                    # --- HANDOVER / RETURN LOGIC ---
+                    if b['status'] == 'PENDING' or b['status'] == 'CONFIRMED':
+                        st.info("🚨 **ACTION REQUIRED:** Deliver the car to the Pickup Address. Collect the ₱5,000 Cash Deposit from the Renter upon handover.")
+                        if st.button("🔑 LOG HANDOVER (Start Trip)", key=f"start_{b['id']}", type="primary", use_container_width=True):
+                            conn.execute("UPDATE bookings SET status = 'ONGOING' WHERE id = ?", (b['id'],))
+                            conn.commit()
+                            st.success("Trip officially started! Drive safely.")
+                            time.sleep(1)
+                            st.rerun()
+                            
+                    elif b['status'] == 'ONGOING':
+                        st.warning("⏱️ This trip is currently active. Coordinate the return with the Renter.")
+                        if st.button("✅ LOG RETURN (Complete Trip)", key=f"end_{b['id']}", type="primary", use_container_width=True):
+                            # The magic line: Sets to COMPLETED and alerts the Admin to pay out!
+                            conn.execute("UPDATE bookings SET status = 'COMPLETED', payout_status = 'PENDING' WHERE id = ?", (b['id'],))
+                            conn.commit()
+                            st.success("Car returned successfully! Payout request sent to Admin.")
+                            time.sleep(2)
+                            st.rerun()
+                            
+    except Exception as e:
+        st.error(f"Error loading bookings: {e}")
     
     # ----------------------------------------------------
     # 1. PENDING DISPATCH (Handover)
