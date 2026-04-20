@@ -23,7 +23,7 @@ conn = get_connection()
 # --- 3. UTILITY FUNCTIONS ---
 def email_receipt_to_affiliate(affiliate_email, receipt_text, transaction_ref):
     """Sends a cancellation compensation summary to the Affiliate."""
-    sender_email = "rdalbaojrh@gmail.com" 
+    sender_email = "rdalbaojr@gmail.com" 
     try:
         app_password = st.secrets["email_app_password"]
     except KeyError:
