@@ -2,8 +2,11 @@ import streamlit as st
 import pandas as pd
 import datetime
 import time
-import random  
-import os  
+import random
+import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from database_utils import get_connection
 
 # --- DATABASE CONNECTION ---
@@ -24,6 +27,53 @@ def save_chat_image(uploaded_file, booking_ref):
             f.write(uploaded_file.getbuffer())
         return path
     return None
+
+def send_booking_confirmation_email(to_email, renter_name, car_display, b_ref, p_dt, r_dt, html_bill):
+    """Sends a professional HTML receipt to the renter."""
+    sender_email = "rdalbaojr@gmail.com" 
+    try:
+        app_password = st.secrets["email_app_password"]
+    except KeyError:
+        return False
+        
+    msg = MIMEMultipart("alternative")
+    msg['Subject'] = f"DriveElite: Booking Confirmed (#{b_ref})"
+    msg['From'] = f"DriveElite Reservations <{sender_email}>"
+    msg['To'] = to_email
+    
+    html_body = f"""
+    <html>
+    <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; line-height: 1.6;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+            <h2 style="color: #2c8c80; text-align: center;">Booking Confirmed! 🚗</h2>
+            <p>Hi <b>{renter_name}</b>,</p>
+            <p>Your reservation for the <strong>{car_display}</strong> is officially locked in.</p>
+            
+            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 5px 0;"><strong>Reference Number:</strong> #{b_ref}</p>
+                <p style="margin: 5px 0;"><strong>Pickup:</strong> {p_dt}</p>
+                <p style="margin: 5px 0;"><strong>Return:</strong> {r_dt}</p>
+            </div>
+            
+            <h3 style="border-bottom: 2px solid #eee; padding-bottom: 5px;">Payment Summary</h3>
+            {html_bill}
+            
+            <p style="margin-top: 30px; font-size: 0.9em; color: #555;">
+                <i>Please prepare your payment and the refundable security deposit. The vehicle owner will contact you shortly via the DriveElite messenger to coordinate the handover.</i>
+            </p>
+        </div>
+    </body>
+    </html>
+    """
+    msg.attach(MIMEText(html_body, 'html'))
+    
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(sender_email, app_password)
+            smtp.send_message(msg)
+        return True
+    except Exception:
+        return False
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="DriveElite Showroom", layout="wide")
@@ -170,9 +220,10 @@ with tabs[0]:
                             if c_fee > 0: rows.append(f'<tr><td style="color:#e67e22;">Collection Fee</td><td style="text-align:right; color:#e67e22;">+₱{c_fee:,.2f}</td></tr>')
                             
                             bill_content = "".join(rows)
-                            st.markdown(f'<div class="bill-box"><table class="table-bill">{bill_content}<tr style="border-top:2px solid #000; font-size:1.1em;"><td class="bill-label">GRAND TOTAL</td><td style="text-align:right; font-weight:900;">₱{grand_total:,.2f}</td></tr><tr><td style="color:#006600; font-size:0.9em; font-style:italic;">Security Deposit (Cash)</td><td style="text-align:right;">₱5,000.00</td></tr></table></div>', unsafe_allow_html=True)
+                            bill_html = f'<div class="bill-box"><table class="table-bill">{bill_content}<tr style="border-top:2px solid #000; font-size:1.1em;"><td class="bill-label">GRAND TOTAL</td><td style="text-align:right; font-weight:900;">₱{grand_total:,.2f}</td></tr><tr><td style="color:#006600; font-size:0.9em; font-style:italic;">Security Deposit (Cash)</td><td style="text-align:right;">₱5,000.00</td></tr></table></div>'
+                            st.markdown(bill_html, unsafe_allow_html=True)
                             
-                            # --- 5. PAYMENT ---
+                            # --- 5. PAYMENT & EMAIL FIRING ---
                             st.divider()
                             st.markdown("#### 💳 5. Payment")
                             qr_p = "gcash_qr.jpg" 
@@ -183,9 +234,23 @@ with tabs[0]:
                             if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True):
                                 if dest and ref_num and p_exact and r_exact and luzon_agree:
                                     b_ref = str(random.randint(100000, 999999))
+                                    p_dt_str = f"{d1} {t1.strftime('%H:%M')}"
+                                    r_dt_str = f"{d2} {t2.strftime('%H:%M')}"
+                                    
                                     conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?)", 
-                                                 (renter_user, car['id'], f"{d1} {t1.strftime('%H:%M')}", f"{d2} {t2.strftime('%H:%M')}", grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
+                                                 (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
                                     conn.commit()
+                                    
+                                    # FETCH EMAIL & SEND RECEIPT
+                                    r_info = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(renter_user,))
+                                    if not r_info.empty and r_info.iloc[0]['email']:
+                                        r_email = r_info.iloc[0]['email']
+                                        r_name = r_info.iloc[0]['full_name']
+                                        car_display = f"{car['make']} {car['model']} ({car['plate']})"
+                                        
+                                        send_booking_confirmation_email(r_email, r_name, car_display, b_ref, p_dt_str, r_dt_str, bill_html)
+                                        st.toast("📧 Official receipt sent to your email!", icon="✅")
+                                    
                                     st.success(f"✅ Confirmed! Ref: #{b_ref}")
                                     time.sleep(2)
                                     st.rerun()
