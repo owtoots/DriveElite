@@ -337,12 +337,12 @@ with tabs[1]:
             with st.expander(f"✅ COMPLETED: {t['make']} {t['model']} | {str(t['pickup_time'])[:10]}"):
                 st.write(f"**Final Cost:** ₱{t['amount']:,.2f}")
                 
-                # Check if the trip is unrated
-                if not t.get('rating'):
+                # FIX: Properly check for 'NaN' (Not a Number) database entries
+                if pd.isna(t.get('rating')) or t.get('rating') == "":
                     with st.container(border=True):
                         st.markdown("#### ⭐ Rate Your Experience")
                         
-                        # NATIVE STREAMLIT STAR RATING (0-4 index)
+                        # NATIVE STREAMLIT STAR RATING
                         raw_stars = st.feedback("stars", key=f"s_{t['id']}")
                         
                         r = st.text_area("Write a Review (Visible to Affiliate & Admin)", placeholder="How was the car and the host?", key=f"r_{t['id']}")
@@ -358,4 +358,5 @@ with tabs[1]:
                                 time.sleep(1)
                                 st.rerun()
                 else:
-                    st.success(f"**Your Rating:** {'⭐' * int(t['rating'])}")
+                    # FIX: Safely convert the number before printing the stars
+                    st.success(f"**Your Rating:** {'⭐' * int(float(t['rating']))}")
