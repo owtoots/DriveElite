@@ -13,6 +13,12 @@ from database_utils import get_connection
 # --- DATABASE CONNECTION ---
 conn = get_connection()
 
+# Ensure admin_promos table exists so it doesn't crash before Admin creates it
+try:
+    conn.execute("CREATE TABLE IF NOT EXISTS admin_promos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, target TEXT DEFAULT 'ALL USERS', active INTEGER DEFAULT 1)")
+    conn.commit()
+except: pass
+
 # --- UTILITIES & HELPERS ---
 def save_chat_image(uploaded_file, booking_ref):
     if uploaded_file:
@@ -158,6 +164,65 @@ with col_r:
         st.session_state.clear()
         st.rerun()
 st.divider()
+
+# ==========================================
+# 📢 NEW: SMART COLOR-CHANGING BROADCAST BANNER
+# ==========================================
+try:
+    # Look for active promos targeting 'ALL USERS', 'ALL', 'RENTER', or 'RENTERS'
+    query = "SELECT title, message, target FROM admin_promos WHERE active = 1 AND target IN ('ALL USERS', 'ALL', 'RENTER', 'RENTERS')"
+    broadcasts = pd.read_sql_query(query, conn)
+    
+    if not broadcasts.empty:
+        # Get the most recent active broadcast
+        latest_b = broadcasts.iloc[-1]
+        target_group = str(latest_b['target']).upper()
+        
+        # Smart Color Logic
+        if target_group in ['ALL USERS', 'ALL']:
+            # GREEN for Global messages (like Merry Christmas)
+            primary_color = "#27ae60" 
+            gradient = "linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)"
+            glow_color = "rgba(39, 174, 96, 0.7)"
+        else:
+            # BLUE for Renter-specific messages
+            primary_color = "#2980b9" 
+            gradient = "linear-gradient(135deg, #3498db 0%, #2980b9 100%)"
+            glow_color = "rgba(41, 128, 185, 0.7)"
+            
+        # CSS to create a pulsing "siren" effect matching the color logic
+        blink_css = f"""
+        <style>
+        @keyframes pulse_glow_renter {{
+            0% {{ box-shadow: 0 0 0 0 {glow_color}; border-color: {primary_color}; }}
+            70% {{ box-shadow: 0 0 15px 15px rgba(0,0,0,0); border-color: #ffffff; }}
+            100% {{ box-shadow: 0 0 0 0 rgba(0,0,0,0); border-color: {primary_color}; }}
+        }}
+        .broadcast-banner-renter {{
+            background: {gradient};
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 2px solid {primary_color};
+            text-align: center;
+            margin-bottom: 25px;
+            animation: pulse_glow_renter 2s infinite;
+        }}
+        .broadcast-title-renter {{ font-size: 1.3em; font-weight: 900; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;}}
+        .broadcast-msg-renter {{ font-size: 1.1em; font-weight: 500; }}
+        </style>
+        """
+        
+        # Render the banner
+        st.markdown(blink_css + f"""
+        <div class="broadcast-banner-renter">
+            <div class="broadcast-title-renter">📢 ADMIN BROADCAST: {latest_b['title']} 📢</div>
+            <div class="broadcast-msg-renter">{latest_b['message']}</div>
+        </div>
+        """, unsafe_allow_html=True)
+except Exception as e:
+    pass # Fails silently if the admin hasn't sent anything yet
+# ==========================================
 
 # --- 3. MAIN TABS ---
 tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
@@ -358,5 +423,5 @@ with tabs[1]:
                                 time.sleep(1)
                                 st.rerun()
                 else:
-                    # FIX: Safely convert the number before printing the stars
+                    # Safely convert the number before printing the stars
                     st.success(f"**Your Rating:** {'⭐' * int(float(t['rating']))}")
