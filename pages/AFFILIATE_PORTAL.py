@@ -506,5 +506,26 @@ with st.sidebar:
             st.download_button("📄 Download Signed MOA", data=pdf_file.read(), file_name=f"Signed_MOA_{st.session_state.username}.pdf", mime="application/pdf", use_container_width=True)
     else: 
         st.warning("⚠️ No signed MOA found.")
+    
+    # --- 📢 NEW: BROADCAST RECEIVER ---
+    st.divider()
+    st.markdown("### 📢 System Broadcasts")
+    try:
+        # Create the table if it somehow doesn't exist yet
+        conn.execute("CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT, target_role TEXT, message TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)")
+        conn.commit()
+        
+        # Fetch the latest 5 announcements for Affiliates or Everyone
+        broadcasts = pd.read_sql_query("SELECT message, timestamp FROM notifications WHERE target_role IN ('AFFILIATE', 'ALL') ORDER BY timestamp DESC LIMIT 5", conn)
+        
+        if broadcasts.empty:
+            st.caption("No new announcements from Admin.")
+        else:
+            for _, row in broadcasts.iterrows():
+                # Display the message in a nice blue info box
+                st.info(f"**Admin:** {row['message']}\n\n*(Sent: {str(row['timestamp'])[:16]})*")
+    except Exception as e:
+        st.caption(f"Broadcast system initializing... {e}")
+        
     st.divider()
     st.caption("DriveElite 2026")
