@@ -245,32 +245,35 @@ with tabs[1]:
                     
                     # --- MESSENGER ---
                     st.divider()
-                    st.markdown("#### 💬 Message the Owner")
-                    b_ref = t['booking_ref']
-                    chat_box = st.container(height=200, border=True)
-                    with chat_box:
-                        try:
-                            msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
-                            if msgs.empty: 
-                                st.caption("No messages yet.")
-                            for _, m in msgs.iterrows():
-                                role = "user" if m['sender_username'] == st.session_state.username else "assistant"
-                                with st.chat_message(role):
-                                    st.write(m['message_text'])
-                                    if m['image_path'] and os.path.exists(m['image_path']):
-                                        st.image(m['image_path'], width=200)
-                        except: st.caption("Chat system initializing...")
+                        st.markdown("#### 💳 5. Payment")
+                        try: st.image("gcash_qr.jpg", caption=f"Pay ₱{grand_total:,.2f}", width=250)
+                        except: st.warning("Admin: Upload gcash_qr.jpg")
+                            
+                        ref_num = st.text_input("GCash Reference Number *", key=f"ref_{car['id']}")
 
-                    c_img, c_msg = st.columns([1, 4])
-                    with c_img: r_img = st.file_uploader("📷", type=['jpg','png'], key=f"img_{b_ref}", label_visibility="collapsed")
-                    with c_msg: r_input = st.text_input("Reply...", key=f"txt_{b_ref}")
-
-                    if st.button("Send Message", key=f"btn_{b_ref}", use_container_width=True):
-                        if r_input or r_img:
-                            path = save_chat_image(r_img, b_ref) if r_img else ""
-                            conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", (b_ref, st.session_state.username, t['owner_username'], r_input or "📸 Photo Attachment", path))
-                            conn.commit()
-                            st.rerun()
+                        if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True):
+                            if not (dest and ref_num and luzon_agree and p_exact and r_exact):
+                                st.warning("Please complete all required fields.")
+                            elif out_of_bounds:
+                                st.error("❌ Cannot proceed: Please change your delivery/return address to a supported zone.")
+                            else:
+                                # GENERATE 6-DIGIT BOOKING REF
+                                booking_ref = str(random.randint(100000, 999999))
+                                
+                                pickup_dt = f"{d1} {t1.strftime('%H:%M')}"
+                                return_dt = f"{d2} {t2.strftime('%H:%M')}"
+                                
+                                # INJECT BOOKING REF INTO DATABASE
+                                conn.execute("""
+                                    INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) 
+                                    VALUES (?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?)
+                                """, (renter_user, car['id'], pickup_dt, return_dt, grand_total, dest, final_pickup_str, final_return_str, is_driver, booking_ref))
+                                conn.commit()
+                                
+                                # SHOW REFERENCE NUMBER TO RENTER
+                                st.success(f"✅ Booking Confirmed! Your Reference No is: #{booking_ref}")
+                                time.sleep(3)
+                                st.rerun()
 
     with trip_tabs[1]:
         history = my_trips[my_trips['status'] == 'COMPLETED']
