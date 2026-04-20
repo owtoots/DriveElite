@@ -500,6 +500,7 @@ with st.sidebar:
     st.write(f"**Name:** {affiliate_full_name}")
     st.write(f"**Username:** @{st.session_state.username}")
     moa_path = f"uploads/MOA_{st.session_state.username}.pdf"
+    
     if os.path.exists(moa_path):
         st.success("Partner Verified ✅")
         with open(moa_path, "rb") as pdf_file:
@@ -507,25 +508,30 @@ with st.sidebar:
     else: 
         st.warning("⚠️ No signed MOA found.")
     
-    # --- 📢 NEW: BROADCAST RECEIVER ---
+    # --- 📢 SYSTEM BROADCAST RECEIVER (UPDATED) ---
     st.divider()
-    st.markdown("### 📢 System Broadcasts")
+    st.markdown("### 📢 Admin Broadcasts")
     try:
-        # Create the table if it somehow doesn't exist yet
-        conn.execute("CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT, target_role TEXT, message TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)")
-        conn.commit()
-        
-        # Fetch the latest 5 announcements for Affiliates or Everyone
-        broadcasts = pd.read_sql_query("SELECT message, timestamp FROM notifications WHERE target_role IN ('AFFILIATE', 'ALL') ORDER BY timestamp DESC LIMIT 5", conn)
+        # We query YOUR specific admin_promos table looking for active broadcasts
+        # targeted at ALL USERS or specifically AFFILIATES
+        query = """
+            SELECT title, message 
+            FROM admin_promos 
+            WHERE active = 1 
+            AND target IN ('ALL USERS', 'ALL', 'AFFILIATE', 'AFFILIATES')
+        """
+        broadcasts = pd.read_sql_query(query, conn)
         
         if broadcasts.empty:
             st.caption("No new announcements from Admin.")
         else:
             for _, row in broadcasts.iterrows():
-                # Display the message in a nice blue info box
-                st.info(f"**Admin:** {row['message']}\n\n*(Sent: {str(row['timestamp'])[:16]})*")
+                # Display the title in bold, and the message below it
+                st.info(f"**{row['title']}**\n\n{row['message']}")
+                
     except Exception as e:
-        st.caption(f"Broadcast system initializing... {e}")
+        # If the table doesn't exist yet, it fails silently without crashing the app
+        st.caption("Broadcast system initializing...")
         
     st.divider()
     st.caption("DriveElite 2026")
