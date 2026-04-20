@@ -163,21 +163,39 @@ with tabs[0]:
                     conn.commit()
                     st.rerun()
 
-# --- TAB 1: ASSETS ---
+# --- TAB 1: ASSETS (ADMIN PORTAL) ---
 with tabs[1]:
+    # This query looks for any car where the Admin hasn't clicked approve yet
     pv = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'PENDING'", conn)
-    if pv.empty: st.info("No pending vehicles.")
-    for i, r in pv.iterrows():
-        v_ref = r.get('ref_no') if pd.notnull(r.get('ref_no')) else 'PENDING'
-        with st.expander(f"🚗 #{v_ref} | {r['make']} {r['model']} ({r['plate']})"):
-            col_img1, col_img2, col_img3 = st.columns(3)
-            if r.get('vehicle_img'): col_img1.image(r['vehicle_img'], caption="Vehicle")
-            if r.get('or_cr_img'): col_img2.image(r['or_cr_img'], caption="OR/CR")
-            if r.get('insurance_img'): col_img3.image(r['insurance_img'], caption="Insurance")
-            if st.button("APPROVE ASSET", key=f"v_{r['id']}", type="primary"):
-                conn.execute("UPDATE vehicles SET admin_status = 'APPROVED' WHERE id = ?", (r['id'],))
-                conn.commit()
-                st.rerun()
+    
+    if pv.empty: 
+        st.info("No vehicles pending approval.")
+    else:
+        st.subheader(f"📋 {len(pv)} Vehicles Waiting for Review")
+        for i, r in pv.iterrows():
+            v_ref = r.get('ref_no') if pd.notnull(r.get('ref_no')) else 'PENDING'
+            with st.expander(f"🚗 #{v_ref} | {r['make']} {r['model']} ({r['plate']})"):
+                st.write(f"**Owner:** @{r['owner_username']} | **Category:** {r.get('category', 'N/A')}")
+                
+                col_img1, col_img2, col_img3 = st.columns(3)
+                if r.get('vehicle_img'): col_img1.image(r['vehicle_img'], caption="Vehicle")
+                if r.get('or_cr_img'): col_img2.image(r['or_cr_img'], caption="OR/CR")
+                if r.get('insurance_img'): col_img3.image(r['insurance_img'], caption="Insurance")
+                
+                # THE CRITICAL UPDATE IS HERE:
+                if st.button("✅ APPROVE & LIST IN SHOWROOM", key=f"v_app_{r['id']}", type="primary", use_container_width=True):
+                    # 1. We set admin_status to APPROVED so it disappears from this 'Pending' list
+                    # 2. We set booking_status to AVAILABLE so the Renter Showroom can 'see' it
+                    conn.execute("""
+                        UPDATE vehicles 
+                        SET admin_status = 'APPROVED', 
+                            booking_status = 'AVAILABLE' 
+                        WHERE id = ?
+                    """, (r['id'],))
+                    conn.commit()
+                    st.success(f"Asset {r['plate']} is now live in the Showroom!")
+                    time.sleep(1)
+                    st.rerun()
 
 # --- TAB 2: LOGISTICS ---
 with tabs[2]:
