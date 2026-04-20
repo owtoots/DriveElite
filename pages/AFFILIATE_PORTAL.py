@@ -32,7 +32,6 @@ try:
     conn.commit()
 except: pass
 
-# Ensure admin_promos table exists so it doesn't crash before Admin creates it
 try:
     conn.execute("CREATE TABLE IF NOT EXISTS admin_promos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, target TEXT DEFAULT 'ALL USERS', active INTEGER DEFAULT 1)")
     conn.commit()
@@ -164,7 +163,6 @@ if not st.session_state.get('logged_in') or st.session_state.get('role') != 'AFF
                 st.error("❌ Invalid credentials.")
     st.stop()
 
-# Get Affiliate Full Name
 aff_info = pd.read_sql_query("SELECT full_name FROM platform_users WHERE username=?", conn, params=(st.session_state.username,))
 affiliate_full_name = aff_info.iloc[0]['full_name'] if not aff_info.empty else st.session_state.username
 
@@ -181,49 +179,59 @@ with top_col2:
 st.divider()
 
 # ==========================================
-# 📢 NEW: BLINKING SYSTEM BROADCAST BANNER
+# 📢 SMART COLOR-CHANGING BROADCAST BANNER
 # ==========================================
 try:
-    # Look for active promos targeting 'ALL USERS', 'ALL', or 'AFFILIATE'
-    query = "SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('ALL USERS', 'ALL', 'AFFILIATE', 'AFFILIATES')"
+    # Look for active promos targeting 'ALL USERS', 'ALL', 'AFFILIATE', or 'AFFILIATES'
+    query = "SELECT title, message, target FROM admin_promos WHERE active = 1 AND target IN ('ALL USERS', 'ALL', 'AFFILIATE', 'AFFILIATES')"
     broadcasts = pd.read_sql_query(query, conn)
     
     if not broadcasts.empty:
-        # Get the most recent active broadcast
         latest_b = broadcasts.iloc[-1]
+        target_group = str(latest_b['target']).upper()
         
-        # CSS to create a pulsing "siren" effect
-        blink_css = """
+        # Smart Color Logic
+        if target_group in ['ALL USERS', 'ALL']:
+            # GREEN for Global messages
+            primary_color = "#27ae60" 
+            gradient = "linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)"
+            glow_color = "rgba(39, 174, 96, 0.7)"
+        else:
+            # RED/ORANGE for Affiliate-specific memos
+            primary_color = "#c0392b" 
+            gradient = "linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)"
+            glow_color = "rgba(231, 76, 60, 0.7)"
+            
+        blink_css = f"""
         <style>
-        @keyframes pulse_glow {
-            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); border-color: #e74c3c; }
-            70% { box-shadow: 0 0 15px 15px rgba(220, 53, 69, 0); border-color: #ff9ff3; }
-            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); border-color: #e74c3c; }
-        }
-        .broadcast-banner {
-            background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+        @keyframes pulse_glow_affiliate {{
+            0% {{ box-shadow: 0 0 0 0 {glow_color}; border-color: {primary_color}; }}
+            70% {{ box-shadow: 0 0 15px 15px rgba(0,0,0,0); border-color: #ffffff; }}
+            100% {{ box-shadow: 0 0 0 0 rgba(0,0,0,0); border-color: {primary_color}; }}
+        }}
+        .broadcast-banner-affiliate {{
+            background: {gradient};
             color: white;
             padding: 15px 20px;
             border-radius: 8px;
-            border: 2px solid #e74c3c;
+            border: 2px solid {primary_color};
             text-align: center;
             margin-bottom: 25px;
-            animation: pulse_glow 2s infinite;
-        }
-        .broadcast-title { font-size: 1.3em; font-weight: 900; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;}
-        .broadcast-msg { font-size: 1.1em; font-weight: 500; }
+            animation: pulse_glow_affiliate 2s infinite;
+        }}
+        .broadcast-title-affiliate {{ font-size: 1.3em; font-weight: 900; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;}}
+        .broadcast-msg-affiliate {{ font-size: 1.1em; font-weight: 500; }}
         </style>
         """
         
-        # Render the banner
         st.markdown(blink_css + f"""
-        <div class="broadcast-banner">
-            <div class="broadcast-title">🚨 ADMIN ALERT: {latest_b['title']} 🚨</div>
-            <div class="broadcast-msg">{latest_b['message']}</div>
+        <div class="broadcast-banner-affiliate">
+            <div class="broadcast-title-affiliate">📢 ADMIN BROADCAST: {latest_b['title']} 📢</div>
+            <div class="broadcast-msg-affiliate">{latest_b['message']}</div>
         </div>
         """, unsafe_allow_html=True)
 except Exception as e:
-    pass # Fails silently if the admin hasn't sent anything yet
+    pass 
 # ==========================================
 
 # --- TABS ---
@@ -255,7 +263,6 @@ with tabs[0]:
                 
                 with st.expander(f"{status_icon} {str(b['pickup_time'])[:16]} | {b['make']} {b['model']} ({b['plate']})"):
                     
-                    # --- TRIP DETAILS ---
                     col1, col2 = st.columns(2)
                     with col1:
                         st.write(f"**Booking Ref:** {b_ref_display}")
@@ -267,7 +274,6 @@ with tabs[0]:
                         st.write(f"**Total Revenue:** ₱{b['amount']:,.2f}")
                     st.divider()
                     
-                    # --- CHAT INTERFACE ---
                     st.markdown("#### 💬 Message the Renter")
                     chat_win = st.container(height=250, border=True)
                     with chat_win:
@@ -295,7 +301,6 @@ with tabs[0]:
                                 
                     st.divider()
 
-                    # --- PHASE 1: TRIPLE-LOCK HANDOVER LOGIC ---
                     if b['status'] == 'PENDING' or b['status'] == 'CONFIRMED':
                         st.info("🚨 **ACTION REQUIRED:** Complete the Digital Handover with the Renter present.")
                         
@@ -378,7 +383,6 @@ with tabs[0]:
                                     time.sleep(3)
                                     st.rerun()
 
-                    # --- PHASE 2: RETURN & SETTLEMENT LOGIC ---
                     elif b['status'] == 'ONGOING':
                         st.warning("⏱️ This trip is currently active. Coordinate the return below.")
                         
@@ -392,21 +396,17 @@ with tabs[0]:
                         with c1:
                             st.write("#### 🛠️ Agreement Penalties")
                             
-                            # 1. Late Fee
                             l_ok = st.checkbox("Returned on Time", value=True, key=f"l_{b['id']}")
                             late_fee = st.number_input("Hours Late (Php 300/hr)", min_value=1, step=1, key=f"l_hrs_{b['id']}") * 300.0 if not l_ok else 0.0
                             
-                            # 2. Fuel Fee
                             f_ok = st.checkbox("Fuel Full", value=True, key=f"f_{b['id']}")
                             fuel_fee = (st.number_input("Refuel Receipt (Php)", step=100.0, key=f"f_cost_{b['id']}") + 200.0) if not f_ok else 0.0
                             
-                            # 3. NEW: Cleaning & Smoking Fine
                             c_ok = st.checkbox("Interior Clean & Odor-Free", value=True, key=f"c_{b['id']}")
                             if not c_ok:
                                 st.caption("Industry standard smoking/deep-clean fine is ₱2,500.")
                             cleaning_fee = st.number_input("Cleaning/Smoking Fine (Php)", value=2500.0, step=500.0, key=f"c_fine_{b['id']}") if not c_ok else 0.0
                             
-                            # 4. Damage Fee
                             d_ok = st.checkbox("No Damage Found", value=True, key=f"d_{b['id']}")
                             damage_fee = 0.0
                             img_damage = None
@@ -541,22 +541,13 @@ with tabs[4]:
         else:
             for _, rev in reviews_df.iterrows():
                 with st.container(border=True):
-                    st.markdown(f"#### {'⭐'*int(rev['rating'])} - {rev['make']} {rev['model']} ({rev['plate']})")
+                    # Proactive NaN fix to ensure Affiliate portal doesn't crash on empty ratings
+                    if pd.notna(rev['rating']) and rev['rating'] != "":
+                        stars = '⭐' * int(float(rev['rating']))
+                    else:
+                        stars = "No rating provided"
+                        
+                    st.markdown(f"#### {stars} - {rev['make']} {rev['model']} ({rev['plate']})")
                     st.caption(f"🕵️‍♂️ Renter: {rev['renter_name']} | 📅 Date: {str(rev['pickup_time'])[:10]}")
                     if pd.notna(rev['review']) and str(rev['review']).strip(): st.info(f"💬 \"{rev['review']}\"")
     except: pass
-
-# --- SIDEBAR ---
-with st.sidebar:
-    st.write(f"### 👤 Affiliate Profile")
-    st.write(f"**Name:** {affiliate_full_name}")
-    st.write(f"**Username:** @{st.session_state.username}")
-    moa_path = f"uploads/MOA_{st.session_state.username}.pdf"
-    if os.path.exists(moa_path):
-        st.success("Partner Verified ✅")
-        with open(moa_path, "rb") as pdf_file:
-            st.download_button("📄 Download Signed MOA", data=pdf_file.read(), file_name=f"Signed_MOA_{st.session_state.username}.pdf", mime="application/pdf", use_container_width=True)
-    else: 
-        st.warning("⚠️ No signed MOA found.")
-    st.divider()
-    st.caption("DriveElite 2026")
