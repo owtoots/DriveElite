@@ -97,7 +97,6 @@ with tabs[0]:
     cat_filter = c_f1.selectbox("Filter by Category", cat_list)
     search_query = c_f2.text_input("Search Brand/Model", placeholder="e.g. Nissan")
 
-    # THE HANDSHAKE QUERY
     query = "SELECT * FROM vehicles WHERE admin_status = 'APPROVED' AND booking_status = 'AVAILABLE'"
     cars = pd.read_sql_query(query, conn)
 
@@ -156,22 +155,21 @@ with tabs[0]:
                             r_zone = c_loc2.selectbox("Return Zone", list(DELIVERY_ZONES.keys()), key=f"rz_{car['id']}")
                             r_exact = c_loc2.text_input("Exact Return Address", key=f"ra_{car['id']}")
 
-                            # --- EXCEL-STYLE CALCULATION ENGINE ---
+                            # --- CALCULATION ENGINE ---
                             days = max(1, (d2 - d1).days + 1)
                             subtotal = days * base_rate
                             driver_fee = (days * 1000.0) if is_driver else 0.0
                             d_fee = DELIVERY_ZONES[p_zone]
                             c_fee = DELIVERY_ZONES[r_zone]
                             
-                            # Tiered Discount Logic
                             discount_pct = 0.0
                             if days >= 15: discount_pct = 0.15
                             elif days >= 7: discount_pct = 0.10
                             elif days >= 3: discount_pct = 0.05
                             savings = subtotal * discount_pct
-                            
                             grand_total = (subtotal - savings) + driver_fee + d_fee + c_fee
 
+                            # --- EXCEL BILL TABLE ---
                             st.markdown("#### 🧾 4. Cost Breakdown")
                             bill_html = f'''
                             <div class="bill-box">
@@ -181,24 +179,19 @@ with tabs[0]:
                                     {f'<tr><td style="color:#0056b3">Professional Driver Fee</td><td style="text-align:right; color:#0056b3">+₱{driver_fee:,.2f}</td></tr>' if is_driver else ""}
                                     {f'<tr><td style="color:#e67e22">Delivery Fee ({p_zone.split(":")[0]})</td><td style="text-align:right; color:#e67e22">+₱{d_fee:,.2f}</td></tr>' if d_fee > 0 else ""}
                                     {f'<tr><td style="color:#e67e22">Collection Fee ({r_zone.split(":")[0]})</td><td style="text-align:right; color:#e67e22">+₱{c_fee:,.2f}</td></tr>' if c_fee > 0 else ""}
-                                    <tr style="border-top:1.5px solid #333; font-weight:bold;"><td style="padding-top:10px;">GRAND TOTAL (Pay Online)</td><td style="text-align:right; padding-top:10px;">₱{grand_total:,.2f}</td></tr>
-                                    <tr style="color:#198754; font-size:0.9em;"><td><i>Security Deposit (Refundable Cash)</i></td><td style="text-align:right;"><i>₱5,000.00</i></td></tr>
+                                    <tr style="border-top:1.5px solid #333; font-weight:bold;"><td style="padding-top:10px;">GRAND TOTAL</td><td style="text-align:right; padding-top:10px;">₱{grand_total:,.2f}</td></tr>
+                                    <tr style="color:#198754; font-size:0.9em;"><td><i>Security Deposit (Cash)</i></td><td style="text-align:right;"><i>₱5,000.00</i></td></tr>
                                 </table>
                             </div>
                             '''
                             st.markdown(bill_html, unsafe_allow_html=True)
                             
-                            # --- 💳 5. PAYMENT & QR CODE FETCH ---
                             st.divider()
                             st.markdown("#### 💳 5. Payment")
                             qr_path = "gcash_qr.jpg" 
-                            
                             if os.path.exists(qr_path):
-                                st.image(qr_path, caption=f"Scan to Pay: ₱{grand_total:,.2f}", width=300)
-                            else:
-                                st.warning("⚠️ **QR Code Missing:** Please upload 'gcash_qr.jpg' to GitHub.")
+                                st.image(qr_path, caption=f"Scan to Pay: ₱{grand_total:,.2f}", width=250)
                             
-                            st.divider()
                             ref_num = st.text_input("GCash Reference Number *", key=f"ref_{car['id']}")
 
                             if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True):
@@ -214,11 +207,11 @@ with tabs[0]:
                                         VALUES (?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?)
                                     """, (renter_user, car['id'], p_dt, r_dt, grand_total, dest, p_full, r_full, is_driver, b_ref))
                                     conn.commit()
-                                    st.success(f"✅ Booking Confirmed! Reference: #{b_ref}")
+                                    st.success(f"✅ Booking Confirmed! Ref: #{b_ref}")
                                     time.sleep(2)
                                     st.rerun()
                                 else:
-                                    st.warning("⚠️ Please fill all required fields and check the agreement.")
+                                    st.warning("⚠️ Please fill all required fields.")
 
 # --- TAB 1: MY BOOKINGS ---
 with tabs[1]:
@@ -234,46 +227,41 @@ with tabs[1]:
     with trip_tabs[0]:
         active = my_trips[my_trips['status'].isin(['CONFIRMED', 'ONGOING', 'PENDING'])]
         if active.empty:
-            st.info("No active trips. Visit the Showroom to book your next ride!")
+            st.info("No active trips.")
         else:
             for _, t in active.iterrows():
                 with st.expander(f"🚗 {t['make']} {t['model']} ({t['plate']}) | {t['status']}"):
                     st.write(f"**Booking Ref:** #{t['booking_ref']}")
                     st.write(f"**Total Paid:** ₱{t['amount']:,.2f}")
-                    st.write(f"**Pickup:** {t['pickup_time']}")
-                    st.write(f"**Return:** {t['return_time']}")
+                    st.write(f"**Schedule:** {t['pickup_time']} to {t['return_time']}")
                     
                     # --- MESSENGER ---
                     st.divider()
-                        st.markdown("#### 💳 5. Payment")
-                        try: st.image("gcash_qr.jpg", caption=f"Pay ₱{grand_total:,.2f}", width=250)
-                        except: st.warning("Admin: Upload gcash_qr.jpg")
-                            
-                        ref_num = st.text_input("GCash Reference Number *", key=f"ref_{car['id']}")
+                    st.markdown("#### 💬 Message the Owner")
+                    b_ref = t['booking_ref']
+                    chat_box = st.container(height=200, border=True)
+                    with chat_box:
+                        try:
+                            msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
+                            if msgs.empty: st.caption("No messages yet.")
+                            for _, m in msgs.iterrows():
+                                role = "user" if m['sender_username'] == st.session_state.username else "assistant"
+                                with st.chat_message(role):
+                                    st.write(m['message_text'])
+                                    if m['image_path'] and os.path.exists(m['image_path']):
+                                        st.image(m['image_path'], width=200)
+                        except: st.caption("Chat system initializing...")
 
-                        if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True):
-                            if not (dest and ref_num and luzon_agree and p_exact and r_exact):
-                                st.warning("Please complete all required fields.")
-                            elif out_of_bounds:
-                                st.error("❌ Cannot proceed: Please change your delivery/return address to a supported zone.")
-                            else:
-                                # GENERATE 6-DIGIT BOOKING REF
-                                booking_ref = str(random.randint(100000, 999999))
-                                
-                                pickup_dt = f"{d1} {t1.strftime('%H:%M')}"
-                                return_dt = f"{d2} {t2.strftime('%H:%M')}"
-                                
-                                # INJECT BOOKING REF INTO DATABASE
-                                conn.execute("""
-                                    INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) 
-                                    VALUES (?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?)
-                                """, (renter_user, car['id'], pickup_dt, return_dt, grand_total, dest, final_pickup_str, final_return_str, is_driver, booking_ref))
-                                conn.commit()
-                                
-                                # SHOW REFERENCE NUMBER TO RENTER
-                                st.success(f"✅ Booking Confirmed! Your Reference No is: #{booking_ref}")
-                                time.sleep(3)
-                                st.rerun()
+                    c_img, c_msg = st.columns([1, 4])
+                    with c_img: r_img = st.file_uploader("📷", type=['jpg','png'], key=f"img_{b_ref}", label_visibility="collapsed")
+                    with c_msg: r_input = st.text_input("Reply...", key=f"txt_{b_ref}")
+
+                    if st.button("Send Message", key=f"btn_{b_ref}", use_container_width=True):
+                        if r_input or r_img:
+                            path = save_chat_image(r_img, b_ref) if r_img else ""
+                            conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", (b_ref, st.session_state.username, t['owner_username'], r_input or "📸 Photo Attachment", path))
+                            conn.commit()
+                            st.rerun()
 
     with trip_tabs[1]:
         history = my_trips[my_trips['status'] == 'COMPLETED']
@@ -283,7 +271,6 @@ with tabs[1]:
             for _, t in history.iterrows():
                 with st.expander(f"✅ COMPLETED: {t['make']} {t['model']} | {str(t['pickup_time'])[:10]}"):
                     st.write(f"**Final Cost:** ₱{t['amount']:,.2f}")
-                    
                     if not t.get('rating'):
                         st.markdown("### ⭐ Rate Your Trip")
                         with st.form(f"rev_{t['id']}"):
@@ -292,8 +279,6 @@ with tabs[1]:
                             if st.form_submit_button("Submit Review"):
                                 conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (s, r, t['id']))
                                 conn.commit()
-                                st.success("Thank you!")
-                                time.sleep(1)
                                 st.rerun()
                     else:
                         st.success(f"**Your Rating:** {'⭐' * int(t['rating'])}")
