@@ -18,29 +18,21 @@ from streamlit_drawable_canvas import st_canvas
 # --- DATABASE CONNECTION ---
 conn = get_connection()
 
-# --- DB PATCH (Ensuring V2 Compliance & Dispute Features) ---
-try: 
-    conn.execute("ALTER TABLE platform_users ADD COLUMN document_url TEXT")
-    conn.commit()
-except Exception: 
-    pass
+# --- DB PATCHES (Ensuring V2 Compliance & Dispute Features) ---
+try: conn.execute("ALTER TABLE platform_users ADD COLUMN document_url TEXT"); conn.commit()
+except: pass
 
-try:
-    conn.execute("ALTER TABLE vehicles ADD COLUMN admin_status TEXT DEFAULT 'PENDING'")
-    conn.commit()
-except:
-    pass
+try: conn.execute("ALTER TABLE vehicles ADD COLUMN admin_status TEXT DEFAULT 'PENDING'"); conn.commit()
+except: pass
 
 try:
     conn.execute("ALTER TABLE bookings ADD COLUMN handover_photos TEXT")
     conn.execute("ALTER TABLE bookings ADD COLUMN handover_sig_renter TEXT")
     conn.execute("ALTER TABLE bookings ADD COLUMN handover_sig_affiliate TEXT")
     conn.commit()
-except:
-    pass
+except: pass
 
-if not os.path.exists("uploads"): 
-    os.makedirs("uploads")
+if not os.path.exists("uploads"): os.makedirs("uploads")
 
 # --- UTILITIES & HELPERS ---
 def save_file(uploaded_file):
@@ -75,7 +67,7 @@ def save_canvas_image(image_data, prefix):
     return None
 
 def generate_handover_pdf(ref_no, car_name, renter_name, travel_dates, checklist, r_sig_path, a_sig_path, affiliate_name):
-    """Generates the official Handover Record PDF with signatures."""
+    """Generates the official Handover Record PDF with drawn signatures."""
     pdf = FPDF()
     pdf.add_page()
     
@@ -170,6 +162,7 @@ if not st.session_state.get('logged_in') or st.session_state.get('role') != 'AFF
                 st.error("❌ Invalid credentials.")
     st.stop()
 
+# Get Affiliate Full Name
 aff_info = pd.read_sql_query("SELECT full_name FROM platform_users WHERE username=?", conn, params=(st.session_state.username,))
 affiliate_full_name = aff_info.iloc[0]['full_name'] if not aff_info.empty else st.session_state.username
 
@@ -184,6 +177,7 @@ with top_col2:
         st.rerun()
 st.divider()
 
+# --- TABS ---
 tabs = st.tabs(["BOOKINGS & HANDOVER", "MY ASSETS", "ADD ASSET", "ADD DRIVER", "REVIEWS"])
 
 # --- TAB 0: BOOKINGS & HANDOVER ---
@@ -222,7 +216,6 @@ with tabs[0]:
                         st.write(f"**Pickup:** {b.get('pickup_loc', 'Not specified')}")
                         st.write(f"**Return:** {b.get('return_loc', 'Not specified')}")
                         st.write(f"**Total Revenue:** ₱{b['amount']:,.2f}")
-                    
                     st.divider()
                     
                     # --- CHAT INTERFACE ---
@@ -237,31 +230,25 @@ with tabs[0]:
                                     st.write(msg['message_text'])
                                     if pd.notna(msg.get('image_path')) and msg['image_path'] and os.path.exists(msg['image_path']):
                                         st.image(msg['image_path'], width=200)
-                        except:
-                            st.caption("No messages yet.")
+                        except: st.caption("No messages yet.")
 
                     c_img, c_msg = st.columns([1, 4])
-                    with c_img:
-                        a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"a_img_{b['id']}", label_visibility="collapsed")
-                    with c_msg:
-                        a_input = st.text_input("Reply...", key=f"a_in_{b['id']}")
+                    with c_img: a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"a_img_{b['id']}", label_visibility="collapsed")
+                    with c_msg: a_input = st.text_input("Reply...", key=f"a_in_{b['id']}")
 
                     if st.button("Send", key=f"a_btn_{b['id']}", use_container_width=True):
                         if a_input or a_img:
                             path = save_chat_image(a_img, b['booking_ref']) if a_img else ""
                             text = a_input if a_input else "📸 Sent a photo."
-                            try:
-                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", (b['booking_ref'], st.session_state.username, b['renter_username'], text, path))
-                                conn.commit()
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Failed to send message: {e}")
+                            conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", (b['booking_ref'], st.session_state.username, b['renter_username'], text, path))
+                            conn.commit()
+                            st.rerun()
                                 
                     st.divider()
 
                     # --- PHASE 1: TRIPLE-LOCK HANDOVER LOGIC ---
                     if b['status'] == 'PENDING' or b['status'] == 'CONFIRMED':
-                        st.info("🚨 **ACTION REQUIRED:** You must complete the Digital Handover with the Renter present.")
+                        st.info("🚨 **ACTION REQUIRED:** Complete the Digital Handover with the Renter present.")
                         
                         with st.expander("📋 Official Handover & Photo Evidence", expanded=True):
                             st.write("### 1. Vehicle Checklist")
@@ -280,7 +267,7 @@ with tabs[0]:
                             h_photos = st.file_uploader("Dump 10 Photos here", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"photos_{b['id']}")
                             
                             if h_photos and len(h_photos) < 10:
-                                st.warning(f"⚠️ You have only uploaded {len(h_photos)}/10 photos. Please upload all 10 to proceed.")
+                                st.warning(f"⚠️ Uploaded {len(h_photos)}/10 photos. Please upload all 10 to proceed.")
 
                             st.divider()
                             st.write("### 🖋️ 3. Dual Digital Signatures")
@@ -289,7 +276,7 @@ with tabs[0]:
                             with col_sig1:
                                 if f"clr_sr_{b['id']}" not in st.session_state: st.session_state[f"clr_sr_{b['id']}"] = 0
                                 s_r = st_canvas(stroke_width=2, stroke_color="#000", background_color="#eee", height=150, width=300, display_toolbar=False, key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}")
-                                if st.button("Clear Pad", key=f"btn_sr_{b['id']}", use_container_width=True): 
+                                if st.button("Clear Renter Pad", key=f"btn_sr_{b['id']}", use_container_width=True): 
                                     st.session_state[f"clr_sr_{b['id']}"] += 1
                                     st.rerun()
                                 st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{b['renter_name']}</b></u><br>Renter</div>", unsafe_allow_html=True)
@@ -297,7 +284,7 @@ with tabs[0]:
                             with col_sig2:
                                 if f"clr_sa_{b['id']}" not in st.session_state: st.session_state[f"clr_sa_{b['id']}"] = 0
                                 s_a = st_canvas(stroke_width=2, stroke_color="#000", background_color="#eee", height=150, width=300, display_toolbar=False, key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}")
-                                if st.button("Clear Pad", key=f"btn_sa_{b['id']}", use_container_width=True): 
+                                if st.button("Clear Host Pad", key=f"btn_sa_{b['id']}", use_container_width=True): 
                                     st.session_state[f"clr_sa_{b['id']}"] += 1
                                     st.rerun()
                                 st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
@@ -312,16 +299,19 @@ with tabs[0]:
                                 elif not c_deposit:
                                     st.error("❌ DISPATCH BLOCKED: You must verify receipt of the ₱5,000 Cash Deposit.")
                                 elif not (has_sr and has_sa):
-                                    st.error("❌ DISPATCH BLOCKED: Both parties must sign on the digital pads before the car is released.")
+                                    st.error("❌ DISPATCH BLOCKED: Both parties must sign on the digital pads.")
                                 else:
                                     # 1. Save Signatures
                                     r_sig_path = save_canvas_image(s_r.image_data, f"sig_r_{b['booking_ref']}")
                                     a_sig_path = save_canvas_image(s_a.image_data, f"sig_a_{b['booking_ref']}")
                                     
-                                    # 2. Build Checklist Data & Generate PDF
+                                    # 2. Generate PDF & Save Hardcopy
                                     chk_data = {'fuel': c_fuel, 'ext': c_ext, 'int': c_int, 'tools': c_tools, 'deposit': c_deposit}
                                     travel_dates = f"{str(b.get('pickup_time'))[:10]} to {str(b.get('return_time'))[:10]}"
                                     pdf_bytes = generate_handover_pdf(b['booking_ref'], f"{b['make']} {b['model']} ({b['plate']})", b['renter_name'], travel_dates, chk_data, r_sig_path, a_sig_path, affiliate_full_name)
+                                    
+                                    pdf_filepath = f"uploads/Handover_{b['booking_ref']}.pdf"
+                                    with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
                                     
                                     # 3. Save Photos
                                     photo_paths = [save_file(img) for img in h_photos]
@@ -330,27 +320,32 @@ with tabs[0]:
                                     # 4. Update Database
                                     conn.execute("""
                                         UPDATE bookings 
-                                        SET status = 'ONGOING', 
-                                            handover_photos = ?, 
-                                            handover_sig_renter = ?, 
-                                            handover_sig_affiliate = ? 
+                                        SET status = 'ONGOING', handover_photos = ?, handover_sig_renter = ?, handover_sig_affiliate = ? 
                                         WHERE id = ?
                                     """, (photo_string, r_sig_path, a_sig_path, b['id']))
                                     conn.commit()
                                     
-                                    # 5. Email PDF to Renter
+                                    # 5. Email Renter
                                     if b['renter_email']:
-                                        send_pdf_email(b['renter_email'], f"DriveElite: Digital Handover Record (#{b['booking_ref']})", "Attached is the official digital handover record with checklists and signatures. Please drive safely!", pdf_bytes, f"Handover_{b['booking_ref']}.pdf")
-                                        st.toast("📧 Secure PDF Handover record sent to renter!", icon="✅")
+                                        success = send_pdf_email(b['renter_email'], f"DriveElite: Digital Handover Record (#{b['booking_ref']})", "Attached is the official digital handover record with checklists and signatures. Please drive safely!", pdf_bytes, f"Handover_{b['booking_ref']}.pdf")
+                                        if success: st.toast("📧 Secure PDF Handover record sent to renter!", icon="✅")
+                                        else: st.error("⚠️ Email failed. PDF saved locally.")
                                     
                                     st.success("✅ Handover Secured! PDF Generated and Trip started.")
-                                    time.sleep(2)
+                                    time.sleep(3)
                                     st.rerun()
 
                     # --- PHASE 2: RETURN & SETTLEMENT LOGIC ---
                     elif b['status'] == 'ONGOING':
-                        st.warning("⏱️ This trip is currently active. Use the form below to process the return.")
+                        st.warning("⏱️ This trip is currently active. Coordinate the return below.")
                         
+                        # --- PDF DOWNLOAD BUTTON ---
+                        pdf_filepath = f"uploads/Handover_{b['booking_ref']}.pdf"
+                        if os.path.exists(pdf_filepath):
+                            with open(pdf_filepath, "rb") as pdf_file:
+                                st.download_button("📄 DOWNLOAD SIGNED HANDOVER PDF", data=pdf_file.read(), file_name=f"Handover_{b['booking_ref']}.pdf", mime="application/pdf", type="secondary", use_container_width=True)
+                            st.divider()
+
                         c1, c2 = st.columns(2)
                         with c1:
                             st.write("#### 🛠️ Agreement Penalties")
@@ -392,17 +387,16 @@ with tabs[0]:
                                     st.error("Upload a damage photo to proceed.")
                                 else:
                                     d_img_path = ",".join([save_file(img) for img in img_damage]) if img_damage else None
-                                    
                                     conn.execute("UPDATE bookings SET status = 'COMPLETED', payout_status = 'PENDING', damage_img = ? WHERE id = ?", (d_img_path, b['id']))
                                     conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
                                     conn.commit()
                                     
-                                    st.success("Car returned! Payout request sent to Admin Master Ledger.")
+                                    st.success("Car returned! Payout request sent to Admin.")
                                     time.sleep(2)
                                     st.rerun()
                                     
     except Exception as e:
-        st.error(f"System Error: {e}")
+        st.error(f"System Error loading bookings: {e}")
 
 # --- TAB 1: MY ASSETS ---
 with tabs[1]:
