@@ -5,6 +5,7 @@ import time
 import random
 import os
 import smtplib
+import math
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from database_utils import get_connection
@@ -12,7 +13,7 @@ from database_utils import get_connection
 # --- DATABASE CONNECTION ---
 conn = get_connection()
 
-# --- UTILITIES ---
+# --- UTILITIES & HELPERS ---
 def save_chat_image(uploaded_file, booking_ref):
     """Saves chat images to a dedicated directory."""
     if uploaded_file:
@@ -27,6 +28,40 @@ def save_chat_image(uploaded_file, booking_ref):
             f.write(uploaded_file.getbuffer())
         return path
     return None
+
+def calculate_24h_rental(pickup_dt, return_dt, daily_rate, hourly_late_fee=300.0, grace_mins=59):
+    """Calculates rental cost based strictly on a 24-hour clock."""
+    diff = return_dt - pickup_dt
+    total_seconds = diff.total_seconds()
+    
+    # 1. Minimum rental is always 1 Full Day (24 hours)
+    if total_seconds <= 86400:
+        return 1, 0, daily_rate, 0.0, daily_rate
+        
+    # 2. Calculate full 24-hour blocks
+    full_days = int(total_seconds // 86400)
+    
+    # 3. Calculate leftover minutes
+    remainder_mins = (total_seconds % 86400) / 60.0
+    
+    billed_hours = 0
+    hourly_fee_total = 0.0
+    
+    # 4. Apply Grace Period & Hourly Fees
+    if remainder_mins > grace_mins:
+        billed_hours = math.ceil(remainder_mins / 60.0) # Round up to next hour
+        hourly_fee_total = billed_hours * hourly_late_fee
+        
+        # 5. The Extra Day Cap Protection
+        if hourly_fee_total >= daily_rate:
+            full_days += 1
+            billed_hours = 0
+            hourly_fee_total = 0.0
+            
+    base_cost = full_days * daily_rate
+    total_rental_cost = base_cost + hourly_fee_total
+    
+    return full_days, billed_hours, base_cost, hourly_fee_total, total_rental_cost
 
 def send_booking_confirmation_email(to_email, renter_name, car_display, b_ref, p_dt, r_dt, html_bill):
     """Sends a professional HTML receipt to the renter."""
@@ -200,8 +235,7 @@ with tabs[0]:
                             r_zone = c_loc2.selectbox("Return Zone", list(ZONES.keys()), key=f"rz_{car['id']}")
                             r_exact = c_loc2.text_input("Return Address", key=f"ra_{car['id']}")
 
-                           # --- 4. PRO 24-HOUR CALCULATION ENGINE ---
-                            # Combine the separate dates and times into exact datetime objects
+                            # --- 4. PRO 24-HOUR CALCULATION ENGINE ---
                             p_dt_obj = datetime.datetime.combine(d1, t1)
                             r_dt_obj = datetime.datetime.combine(d2, t2)
                             
@@ -223,7 +257,6 @@ with tabs[0]:
                                 grand_total = (subtotal - savings) + driver_fee + d_fee + c_fee
 
                                 st.markdown("#### 🧾 4. Cost Breakdown")
-                                # Build HTML rows (Now includes Hourly Extensions!)
                                 plural_days = "day" if full_days == 1 else "days"
                                 rows = [f'<tr><td class="bill-label">Base Rental (₱{base_rate:,.2f} x {full_days} {plural_days})</td><td style="text-align:right; font-weight:bold;">₱{base_cost:,.2f}</td></tr>']
                                 
@@ -242,42 +275,40 @@ with tabs[0]:
                                 bill_html = f'<div class="bill-box"><table class="table-bill">{bill_content}<tr style="border-top:2px solid #000; font-size:1.1em;"><td class="bill-label">GRAND TOTAL</td><td style="text-align:right; font-weight:900;">₱{grand_total:,.2f}</td></tr><tr><td style="color:#006600; font-size:0.9em; font-style:italic;">Security Deposit (Cash)</td><td style="text-align:right;">₱5,000.00</td></tr></table></div>'
                                 st.markdown(bill_html, unsafe_allow_html=True)
                                 
-                                # ... Keep your existing Payment and "Confirm Booking" button below this ...
-                            
-                            # --- 5. PAYMENT & EMAIL FIRING ---
-                            st.divider()
-                            st.markdown("#### 💳 5. Payment")
-                            qr_p = "gcash_qr.jpg" 
-                            if os.path.exists(qr_p): st.image(qr_p, caption=f"Scan to Pay: ₱{grand_total:,.2f}", width=300)
-                            
-                            ref_num = st.text_input("GCash Reference Number *", key=f"ref_{car['id']}")
+                                # --- 5. PAYMENT & EMAIL FIRING ---
+                                st.divider()
+                                st.markdown("#### 💳 5. Payment")
+                                qr_p = "gcash_qr.jpg" 
+                                if os.path.exists(qr_p): st.image(qr_p, caption=f"Scan to Pay: ₱{grand_total:,.2f}", width=300)
+                                
+                                ref_num = st.text_input("GCash Reference Number *", key=f"ref_{car['id']}")
 
-                            if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True):
-                                if dest and ref_num and p_exact and r_exact and luzon_agree:
-                                    b_ref = str(random.randint(100000, 999999))
-                                    p_dt_str = f"{d1} {t1.strftime('%H:%M')}"
-                                    r_dt_str = f"{d2} {t2.strftime('%H:%M')}"
-                                    
-                                    conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?)", 
-                                                 (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
-                                    conn.commit()
-                                    
-                                    # FETCH EMAIL & SEND RECEIPT
-                                    r_info = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(renter_user,))
-                                    if not r_info.empty and r_info.iloc[0]['email']:
-                                        r_email = r_info.iloc[0]['email']
-                                        r_name = r_info.iloc[0]['full_name']
-                                        car_display = f"{car['make']} {car['model']} ({car['plate']})"
+                                if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True):
+                                    if dest and ref_num and p_exact and r_exact and luzon_agree:
+                                        b_ref = str(random.randint(100000, 999999))
+                                        p_dt_str = f"{d1} {t1.strftime('%H:%M')}"
+                                        r_dt_str = f"{d2} {t2.strftime('%H:%M')}"
                                         
-                                        send_booking_confirmation_email(r_email, r_name, car_display, b_ref, p_dt_str, r_dt_str, bill_html)
-                                        st.toast("📧 Official receipt sent to your email!", icon="✅")
-                                    
-                                    st.success(f"✅ Confirmed! Ref: #{b_ref}")
-                                    time.sleep(2)
-                                    st.rerun()
-                                else:
-                                    st.warning("⚠️ Please fill all required fields.")
-                                    
+                                        conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?)", 
+                                                     (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
+                                        conn.commit()
+                                        
+                                        # FETCH EMAIL & SEND RECEIPT
+                                        r_info = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(renter_user,))
+                                        if not r_info.empty and r_info.iloc[0]['email']:
+                                            r_email = r_info.iloc[0]['email']
+                                            r_name = r_info.iloc[0]['full_name']
+                                            car_display = f"{car['make']} {car['model']} ({car['plate']})"
+                                            
+                                            send_booking_confirmation_email(r_email, r_name, car_display, b_ref, p_dt_str, r_dt_str, bill_html)
+                                            st.toast("📧 Official receipt sent to your email!", icon="✅")
+                                        
+                                        st.success(f"✅ Confirmed! Ref: #{b_ref}")
+                                        time.sleep(2)
+                                        st.rerun()
+                                    else:
+                                        st.warning("⚠️ Please fill all required fields.")
+                                        
 
 # --- TAB 1: MY BOOKINGS ---
 with tabs[1]:
