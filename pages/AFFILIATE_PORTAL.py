@@ -15,7 +15,7 @@ from streamlit_drawable_canvas import st_canvas
 # --- DATABASE CONNECTION ---
 conn = get_connection()
 
-# --- DB PATCH (Ensuring V2 Compliance) ---
+# --- DB PATCH (Ensuring V2 Compliance & Dispute Features) ---
 try: 
     conn.execute("ALTER TABLE platform_users ADD COLUMN document_url TEXT")
     conn.commit()
@@ -24,6 +24,14 @@ except Exception:
 
 try:
     conn.execute("ALTER TABLE vehicles ADD COLUMN admin_status TEXT DEFAULT 'PENDING'")
+    conn.commit()
+except:
+    pass
+
+try:
+    conn.execute("ALTER TABLE bookings ADD COLUMN handover_photos TEXT")
+    conn.execute("ALTER TABLE bookings ADD COLUMN handover_sig_renter TEXT")
+    conn.execute("ALTER TABLE bookings ADD COLUMN handover_sig_affiliate TEXT")
     conn.commit()
 except:
     pass
@@ -206,33 +214,71 @@ with tabs[0]:
                                 
                     st.divider()
 
-                    # --- PHASE 1: HANDOVER LOGIC ---
+                    # --- PHASE 1: TRIPLE-LOCK HANDOVER LOGIC ---
                     if b['status'] == 'PENDING' or b['status'] == 'CONFIRMED':
-                        st.info("🚨 **ACTION REQUIRED:** Complete the Handover Checklist to release the vehicle.")
+                        st.info("🚨 **ACTION REQUIRED:** You must complete the Digital Handover with the Renter present.")
                         
-                        with st.expander("📋 Official Handover Checklist", expanded=True):
-                            c_fuel = st.selectbox("Current Fuel Level", ["Full", "3/4", "1/2", "1/4", "Empty"], key=f"fuel_{b['id']}")
-                            c_ext = st.checkbox("Exterior inspected and documented (Photos taken)", value=True, key=f"ext_{b['id']}")
-                            c_int = st.checkbox("Interior is clean and odor-free", value=True, key=f"int_{b['id']}")
-                            c_tools = st.checkbox("Spare tire, jack, and tools are present", value=True, key=f"tools_{b['id']}")
+                        with st.expander("📋 Official Handover & Photo Evidence", expanded=True):
+                            st.write("### 1. Vehicle Checklist")
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                c_fuel = st.selectbox("Current Fuel Level", ["Full", "3/4", "1/2", "1/4", "Empty"], key=f"fuel_{b['id']}")
+                                c_deposit = st.checkbox("₱5,000 Cash Deposit Received", value=False, key=f"dep_{b['id']}")
+                            with c2:
+                                c_ext = st.checkbox("Exterior inspected (No new damage)", value=True, key=f"ext_{b['id']}")
+                                c_int = st.checkbox("Interior is clean/odor-free", value=True, key=f"int_{b['id']}")
+                                c_tools = st.checkbox("Tools/Spare tire verified", value=True, key=f"tools_{b['id']}")
                             
                             st.divider()
-                            r_sig = st.text_input("Renter's Digital Signature (Type Full Name to Agree)", key=f"sig_{b['id']}")
+                            st.write("### 📸 2. Photo Evidence (10 Photos Required)")
+                            st.caption("Upload: Front, Back, Left, Right, 4 Tires, Odometer, and Fuel Gauge.")
+                            h_photos = st.file_uploader("Dump 10 Photos here", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"photos_{b['id']}")
                             
-                            if st.button("🔑 LOG HANDOVER & EMAIL RECEIPT", key=f"start_{b['id']}", type="primary", use_container_width=True):
-                                if not r_sig:
-                                    st.error("⚠️ The Renter must type their name to electronically sign.")
+                            if h_photos and len(h_photos) < 10:
+                                st.warning(f"⚠️ You have only uploaded {len(h_photos)}/10 photos. Please upload all 10 to proceed.")
+
+                            st.divider()
+                            st.write("### 🖋️ 3. Dual Digital Signatures")
+                            col_sig1, col_sig2 = st.columns(2)
+                            with col_sig1:
+                                st.write("**Renter Signature**")
+                                r_name_sig = st.text_input("Renter Full Name", key=f"r_sig_txt_{b['id']}")
+                            with col_sig2:
+                                st.write("**Affiliate/Host Signature**")
+                                a_name_sig = st.text_input("Affiliate Full Name", key=f"a_sig_txt_{b['id']}")
+                            
+                            if st.button("🚀 FINAL LOG HANDOVER & DISPATCH", key=f"dispatch_{b['id']}", type="primary", use_container_width=True):
+                                # VALIDATION LOCKS
+                                if not h_photos or len(h_photos) < 10:
+                                    st.error("❌ DISPATCH BLOCKED: You must upload at least 10 photos of the vehicle condition.")
+                                elif not c_deposit:
+                                    st.error("❌ DISPATCH BLOCKED: You must verify receipt of the ₱5,000 Cash Deposit.")
+                                elif not (r_name_sig and a_name_sig):
+                                    st.error("❌ DISPATCH BLOCKED: Both parties must sign before the car is released.")
                                 else:
-                                    conn.execute("UPDATE bookings SET status = 'ONGOING' WHERE id = ?", (b['id'],))
+                                    # Save Photos
+                                    photo_paths = [save_file(img) for img in h_photos]
+                                    photo_string = ",".join(filter(None, photo_paths))
+                                    
+                                    # Update Database
+                                    conn.execute("""
+                                        UPDATE bookings 
+                                        SET status = 'ONGOING', 
+                                            handover_photos = ?, 
+                                            handover_sig_renter = ?, 
+                                            handover_sig_affiliate = ? 
+                                        WHERE id = ?
+                                    """, (photo_string, r_name_sig, a_name_sig, b['id']))
                                     conn.commit()
                                     
+                                    # Send Email
                                     if b['renter_email']:
-                                        chk_data = {'fuel': c_fuel, 'ext': c_ext, 'int': c_int, 'tools': c_tools}
+                                        chk_data = {'fuel': c_fuel, 'ext': c_ext, 'int': c_int, 'tools': c_tools, 'deposit': c_deposit}
                                         car_display = f"{b['make']} {b['model']} ({b['plate']})"
-                                        success, msg = send_handover_receipt(b['renter_email'], b['renter_name'], car_display, b['booking_ref'], chk_data, r_sig)
-                                        if success: st.toast("📧 Handover receipt sent to renter!", icon="✅")
-                                        
-                                    st.success("✅ Handover complete! Trip officially started. Drive safely.")
+                                        success, msg = send_handover_receipt(b['renter_email'], b['renter_name'], car_display, b['booking_ref'], chk_data, r_name_sig, a_name_sig)
+                                        if success: st.toast("📧 Secure Handover record sent to renter!", icon="✅")
+                                    
+                                    st.success("✅ Handover Secured! Photos and signatures archived. Trip started.")
                                     time.sleep(2)
                                     st.rerun()
 
@@ -334,7 +380,6 @@ with tabs[2]:
         if st.form_submit_button("SUBMIT FOR APPROVAL", type="primary"):
             if ma and mo and pl and bn and an and vi and orc and ins:
                 new_ref_no = str(random.randint(100000, 999999))
-                # Explicitly setting admin_status to 'PENDING' so the Admin can see it!
                 conn.execute("""
                     INSERT INTO vehicles (owner_username, make, model, year, plate, bank_name, account_no, vehicle_img, or_cr_img, insurance_img, category, approved_price, ref_no, admin_status, booking_status) 
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'PENDING','UNAVAILABLE')
