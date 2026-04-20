@@ -9,6 +9,9 @@ import datetime
 import os
 import random 
 import time
+from PIL import Image
+import numpy as np
+from fpdf import FPDF
 from database_utils import get_connection
 from streamlit_drawable_canvas import st_canvas
 
@@ -58,48 +61,94 @@ def save_chat_image(uploaded_file, booking_ref):
         return path
     return ""
 
-def send_handover_receipt(to_email, renter_name, car_name, ref_no, checklist, sig_renter, sig_affiliate):
-    """Generates and emails a comprehensive Handover Checklist receipt."""
-    import smtplib
-    from email.message import EmailMessage
-    
-    sender_email = "rdalbaojr@gmail.com" 
-    app_password = st.secrets["email_app_password"]
-        
-    msg = EmailMessage()
-    msg['Subject'] = f"DriveElite: Digital Handover Record (#{ref_no})"
-    msg['From'] = f"DriveElite Handover <{sender_email}>"
-    msg['To'] = to_email
-    
-    body = f"""Hello {renter_name},
-    
-Your vehicle handover for {car_name} is complete. A copy of this record has been sent to the Admin for dispute protection.
+def save_canvas_image(image_data, prefix):
+    """Converts drawable canvas data to a saved PNG image for the PDF."""
+    if image_data is not None:
+        img = Image.fromarray(image_data.astype('uint8'), 'RGBA')
+        # Convert transparent background to white for PDF compatibility
+        background = Image.new("RGB", img.size, (255, 255, 255))
+        background.paste(img, mask=img.split()[3])
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = os.path.join("uploads", f"{prefix}_{timestamp}.png")
+        background.save(filename)
+        return filename
+    return None
 
---- 📋 MANDATORY HANDOVER CHECKLIST ---
-💰 Cash Deposit Received (Php 5,000.00): {'✅ YES' if checklist['deposit'] else '❌ NO'}
-⛽ Fuel Level: {checklist['fuel']}
-🚘 Exterior Condition: {'✅ Inspected' if checklist['ext'] else '❌ Pending'}
-✨ Interior Condition: {'✅ Clean' if checklist['int'] else '❌ Pending'}
-🔧 Spare Tire & Tools: {'✅ Verified' if checklist['tools'] else '❌ Missing'}
-
---- 🖋️ DIGITAL SIGNATORIES ---
-Renter Signature: {sig_renter}
-Affiliate/Host Signature: {sig_affiliate}
----------------------------------------
-
-DISPUTE NOTE: 10 high-resolution photos of this vehicle were taken at the time of this signature and are stored in the DriveElite Secure Vault.
-
-Please drive safely!
-"""
-    msg.set_content(body)
+def generate_handover_pdf(ref_no, car_name, renter_name, travel_dates, checklist, r_sig_path, a_sig_path, affiliate_name):
+    """Generates the official Handover Record PDF with signatures."""
+    pdf = FPDF()
+    pdf.add_page()
     
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login(sender_email, app_password)
-            smtp.send_message(msg)
-        return True, "Email sent"
-    except Exception as e:
-        return False, str(e)
+        pdf.image("logo.png", x=80, y=10, w=50)
+        pdf.set_y(45) 
+    except Exception: 
+        pdf.set_y(20)
+        
+    pdf.set_font("Helvetica", 'B', 14)
+    pdf.cell(0, 10, "DRIVEELITE OFFICIAL HANDOVER RECORD", ln=True, align='C')
+    pdf.ln(5)
+    
+    pdf.set_font("Helvetica", '', 11)
+    pdf.cell(0, 8, f"Reference No: {ref_no}", ln=True)
+    pdf.cell(0, 8, f"Vehicle: {car_name}", ln=True)
+    pdf.cell(0, 8, f"Renter Name: {renter_name}", ln=True)
+    pdf.cell(0, 8, f"Travel Dates: {travel_dates}", ln=True)
+    pdf.ln(5)
+    
+    pdf.set_font("Helvetica", 'B', 12)
+    pdf.cell(0, 10, "CHECKLIST VERIFICATION:", ln=True)
+    pdf.set_font("Helvetica", '', 11)
+    pdf.cell(0, 8, f"1. Cash Deposit (Php 5,000): {'YES' if checklist['deposit'] else 'NO'}", ln=True)
+    pdf.cell(0, 8, f"2. Fuel Level: {checklist['fuel']}", ln=True)
+    pdf.cell(0, 8, f"3. Exterior Inspected: {'YES' if checklist['ext'] else 'NO'}", ln=True)
+    pdf.cell(0, 8, f"4. Interior Clean: {'YES' if checklist['int'] else 'NO'}", ln=True)
+    pdf.cell(0, 8, f"5. Tools/Spare Tire Verified: {'YES' if checklist['tools'] else 'NO'}", ln=True)
+    pdf.ln(10)
+    
+    pdf.set_font("Helvetica", 'B', 12)
+    pdf.cell(0, 10, "DIGITAL SIGNATORIES:", ln=True)
+    
+    y_sig = pdf.get_y()
+    if r_sig_path and os.path.exists(r_sig_path):
+        pdf.image(r_sig_path, x=30, y=y_sig, w=50)
+    if a_sig_path and os.path.exists(a_sig_path):
+        pdf.image(a_sig_path, x=120, y=y_sig, w=50)
+    
+    pdf.set_y(y_sig + 30)
+    pdf.set_font("Helvetica", 'U', 11)
+    pdf.cell(90, 8, renter_name, align='C')
+    pdf.cell(90, 8, affiliate_name, align='C', ln=True)
+    pdf.set_font("Helvetica", '', 10)
+    pdf.cell(90, 5, "Renter", align='C')
+    pdf.cell(90, 5, "Affiliate/Host", align='C', ln=True)
+    
+    return pdf.output(dest="S").encode("latin-1")
+
+def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
+    sender_email = "rdalbaojr@gmail.com" 
+    try: app_password = st.secrets["email_app_password"]
+    except: return False
+        
+    msg = MIMEMultipart()
+    msg['From'] = f"DriveElite Admin <{sender_email}>"
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+    
+    part = MIMEBase('application', 'octet-stream')
+    part.set_payload(pdf_bytes)
+    encoders.encode_base64(part)
+    part.add_header('Content-Disposition', f"attachment; filename= {filename}")
+    msg.attach(part)
+    
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(sender_email, app_password)
+            server.send_message(msg)
+        return True
+    except: 
+        return False
 
 # --- AUTHENTICATION ---
 st.set_page_config(page_title="DriveElite Affiliate Portal", layout="wide")
@@ -121,7 +170,6 @@ if not st.session_state.get('logged_in') or st.session_state.get('role') != 'AFF
                 st.error("❌ Invalid credentials.")
     st.stop()
 
-# Get Affiliate Full Name
 aff_info = pd.read_sql_query("SELECT full_name FROM platform_users WHERE username=?", conn, params=(st.session_state.username,))
 affiliate_full_name = aff_info.iloc[0]['full_name'] if not aff_info.empty else st.session_state.username
 
@@ -136,15 +184,12 @@ with top_col2:
         st.rerun()
 st.divider()
 
-# --- TABS ---
 tabs = st.tabs(["BOOKINGS & HANDOVER", "MY ASSETS", "ADD ASSET", "ADD DRIVER", "REVIEWS"])
 
 # --- TAB 0: BOOKINGS & HANDOVER ---
 with tabs[0]: 
     st.header("📦 Active Bookings & Handovers")
     st.write("Manage your upcoming deliveries, chat with renters, and log your handovers.")
-    
-    affiliate_user = st.session_state.username
     
     query = """
         SELECT b.*, v.make, v.model, v.plate, r.full_name as renter_name, r.contact_number as renter_contact, r.email as renter_email
@@ -156,7 +201,7 @@ with tabs[0]:
     """
     
     try:
-        my_bookings = pd.read_sql_query(query, conn, params=(affiliate_user,))
+        my_bookings = pd.read_sql_query(query, conn, params=(st.session_state.username,))
         
         if my_bookings.empty:
             st.info("You have no active bookings right now. Ensure your vehicles are marked 'AVAILABLE'.")
@@ -240,27 +285,49 @@ with tabs[0]:
                             st.divider()
                             st.write("### 🖋️ 3. Dual Digital Signatures")
                             col_sig1, col_sig2 = st.columns(2)
+                            
                             with col_sig1:
-                                st.write("**Renter Signature**")
-                                r_name_sig = st.text_input("Renter Full Name", key=f"r_sig_txt_{b['id']}")
+                                if f"clr_sr_{b['id']}" not in st.session_state: st.session_state[f"clr_sr_{b['id']}"] = 0
+                                s_r = st_canvas(stroke_width=2, stroke_color="#000", background_color="#eee", height=150, width=300, display_toolbar=False, key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}")
+                                if st.button("Clear Pad", key=f"btn_sr_{b['id']}", use_container_width=True): 
+                                    st.session_state[f"clr_sr_{b['id']}"] += 1
+                                    st.rerun()
+                                st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{b['renter_name']}</b></u><br>Renter</div>", unsafe_allow_html=True)
+                            
                             with col_sig2:
-                                st.write("**Affiliate/Host Signature**")
-                                a_name_sig = st.text_input("Affiliate Full Name", key=f"a_sig_txt_{b['id']}")
+                                if f"clr_sa_{b['id']}" not in st.session_state: st.session_state[f"clr_sa_{b['id']}"] = 0
+                                s_a = st_canvas(stroke_width=2, stroke_color="#000", background_color="#eee", height=150, width=300, display_toolbar=False, key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}")
+                                if st.button("Clear Pad", key=f"btn_sa_{b['id']}", use_container_width=True): 
+                                    st.session_state[f"clr_sa_{b['id']}"] += 1
+                                    st.rerun()
+                                st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
                             
                             if st.button("🚀 FINAL LOG HANDOVER & DISPATCH", key=f"dispatch_{b['id']}", type="primary", use_container_width=True):
+                                has_sr = s_r.image_data is not None and len(s_r.json_data.get("objects", [])) > 0
+                                has_sa = s_a.image_data is not None and len(s_a.json_data.get("objects", [])) > 0
+                                
                                 # VALIDATION LOCKS
                                 if not h_photos or len(h_photos) < 10:
                                     st.error("❌ DISPATCH BLOCKED: You must upload at least 10 photos of the vehicle condition.")
                                 elif not c_deposit:
                                     st.error("❌ DISPATCH BLOCKED: You must verify receipt of the ₱5,000 Cash Deposit.")
-                                elif not (r_name_sig and a_name_sig):
-                                    st.error("❌ DISPATCH BLOCKED: Both parties must sign before the car is released.")
+                                elif not (has_sr and has_sa):
+                                    st.error("❌ DISPATCH BLOCKED: Both parties must sign on the digital pads before the car is released.")
                                 else:
-                                    # Save Photos
+                                    # 1. Save Signatures
+                                    r_sig_path = save_canvas_image(s_r.image_data, f"sig_r_{b['booking_ref']}")
+                                    a_sig_path = save_canvas_image(s_a.image_data, f"sig_a_{b['booking_ref']}")
+                                    
+                                    # 2. Build Checklist Data & Generate PDF
+                                    chk_data = {'fuel': c_fuel, 'ext': c_ext, 'int': c_int, 'tools': c_tools, 'deposit': c_deposit}
+                                    travel_dates = f"{str(b.get('pickup_time'))[:10]} to {str(b.get('return_time'))[:10]}"
+                                    pdf_bytes = generate_handover_pdf(b['booking_ref'], f"{b['make']} {b['model']} ({b['plate']})", b['renter_name'], travel_dates, chk_data, r_sig_path, a_sig_path, affiliate_full_name)
+                                    
+                                    # 3. Save Photos
                                     photo_paths = [save_file(img) for img in h_photos]
                                     photo_string = ",".join(filter(None, photo_paths))
                                     
-                                    # Update Database
+                                    # 4. Update Database
                                     conn.execute("""
                                         UPDATE bookings 
                                         SET status = 'ONGOING', 
@@ -268,17 +335,15 @@ with tabs[0]:
                                             handover_sig_renter = ?, 
                                             handover_sig_affiliate = ? 
                                         WHERE id = ?
-                                    """, (photo_string, r_name_sig, a_name_sig, b['id']))
+                                    """, (photo_string, r_sig_path, a_sig_path, b['id']))
                                     conn.commit()
                                     
-                                    # Send Email
+                                    # 5. Email PDF to Renter
                                     if b['renter_email']:
-                                        chk_data = {'fuel': c_fuel, 'ext': c_ext, 'int': c_int, 'tools': c_tools, 'deposit': c_deposit}
-                                        car_display = f"{b['make']} {b['model']} ({b['plate']})"
-                                        success, msg = send_handover_receipt(b['renter_email'], b['renter_name'], car_display, b['booking_ref'], chk_data, r_name_sig, a_name_sig)
-                                        if success: st.toast("📧 Secure Handover record sent to renter!", icon="✅")
+                                        send_pdf_email(b['renter_email'], f"DriveElite: Digital Handover Record (#{b['booking_ref']})", "Attached is the official digital handover record with checklists and signatures. Please drive safely!", pdf_bytes, f"Handover_{b['booking_ref']}.pdf")
+                                        st.toast("📧 Secure PDF Handover record sent to renter!", icon="✅")
                                     
-                                    st.success("✅ Handover Secured! Photos and signatures archived. Trip started.")
+                                    st.success("✅ Handover Secured! PDF Generated and Trip started.")
                                     time.sleep(2)
                                     st.rerun()
 
