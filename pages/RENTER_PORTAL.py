@@ -126,7 +126,7 @@ with tabs[0]:
                         base_rate = car.get('approved_price', 2000.0)
                         st.write(f"**Rate:** ₱{base_rate:,.2f} / day")
 
-                        with st.popover(f"⚡ BOOK {car['model'].upper()}", use_container_width=True):
+                        with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
                             st.markdown("#### 📅 1. Choose Trip Dates")
                             c_d1, c_t1 = st.columns(2)
                             d1 = c_d1.date_input("Pickup Date", min_value=datetime.date.today(), key=f"d1_{car['id']}")
@@ -191,22 +191,23 @@ with tabs[0]:
                             # --- 💳 5. PAYMENT & QR CODE FETCH ---
                             st.divider()
                             st.markdown("#### 💳 5. Payment")
-                            
-                            qr_path = "gcash_qr.jpg" # Make sure your QR image is named exactly this
+                            qr_path = "gcash_qr.jpg" 
                             
                             if os.path.exists(qr_path):
-                                # This "fetches" and displays your QR code
                                 st.image(qr_path, caption=f"Scan to Pay: ₱{grand_total:,.2f}", width=300)
-                                st.info("💡 Scan the QR code above using your GCash app, then enter the Reference Number below.")
                             else:
-                                # Friendly reminder if the file is missing from GitHub
-                                st.warning("⚠️ **QR Code Missing:** Please upload your 'gcash_qr.jpg' file to your GitHub repository so it can be displayed here.")
+                                st.warning("⚠️ **QR Code Missing:** Please upload 'gcash_qr.jpg' to GitHub.")
                             
                             st.divider()
                             ref_num = st.text_input("GCash Reference Number *", key=f"ref_{car['id']}")
 
                             if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True):
-                                # ... (rest of your existing Confirm Booking logic)
+                                if dest and ref_num and p_exact and r_exact and luzon_agree:
+                                    b_ref = str(random.randint(100000, 999999))
+                                    p_dt = f"{d1} {t1.strftime('%H:%M')}"
+                                    r_dt = f"{d2} {t2.strftime('%H:%M')}"
+                                    p_full = f"{p_zone}: {p_exact}"
+                                    r_full = f"{r_zone}: {r_exact}"
                                     
                                     conn.execute("""
                                         INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) 
@@ -236,7 +237,6 @@ with tabs[1]:
             st.info("No active trips. Visit the Showroom to book your next ride!")
         else:
             for _, t in active.iterrows():
-                status_color = "orange" if t['status'] == 'CONFIRMED' else "green"
                 with st.expander(f"🚗 {t['make']} {t['model']} ({t['plate']}) | {t['status']}"):
                     st.write(f"**Booking Ref:** #{t['booking_ref']}")
                     st.write(f"**Total Paid:** ₱{t['amount']:,.2f}")
@@ -252,7 +252,7 @@ with tabs[1]:
                         try:
                             msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
                             if msgs.empty: 
-                                st.caption("No messages yet. Say hello to the vehicle owner!")
+                                st.caption("No messages yet.")
                             for _, m in msgs.iterrows():
                                 role = "user" if m['sender_username'] == st.session_state.username else "assistant"
                                 with st.chat_message(role):
@@ -275,24 +275,22 @@ with tabs[1]:
     with trip_tabs[1]:
         history = my_trips[my_trips['status'] == 'COMPLETED']
         if history.empty:
-            st.info("Your trip history will appear here once journeys are completed.")
+            st.info("No completed trips.")
         else:
             for _, t in history.iterrows():
                 with st.expander(f"✅ COMPLETED: {t['make']} {t['model']} | {str(t['pickup_time'])[:10]}"):
                     st.write(f"**Final Cost:** ₱{t['amount']:,.2f}")
                     
-                    # --- REVIEWS ---
                     if not t.get('rating'):
                         st.markdown("### ⭐ Rate Your Trip")
                         with st.form(f"rev_{t['id']}"):
                             s = st.slider("Rating", 1, 5, 5, key=f"s_{t['id']}")
-                            r = st.text_area("How was the car and service?", key=f"r_{t['id']}")
+                            r = st.text_area("Review", key=f"r_{t['id']}")
                             if st.form_submit_button("Submit Review"):
                                 conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (s, r, t['id']))
                                 conn.commit()
-                                st.success("Thank you for your feedback!")
+                                st.success("Thank you!")
                                 time.sleep(1)
                                 st.rerun()
                     else:
                         st.success(f"**Your Rating:** {'⭐' * int(t['rating'])}")
-                        if t['review']: st.info(f"💬 \"{t['review']}\"")
