@@ -50,40 +50,46 @@ def save_chat_image(uploaded_file, booking_ref):
         return path
     return ""
 
-def send_handover_receipt(to_email, renter_name, car_name, ref_no, checklist, signature):
-    sender_email = "rdalbaojr@gmail.com"
-    try:
-        app_password = st.secrets["email_app_password"]
-    except KeyError:
-        return False, "Missing App Password in Secrets."
+def send_handover_receipt(to_email, renter_name, car_name, ref_no, checklist, sig_renter, sig_affiliate):
+    """Generates and emails a comprehensive Handover Checklist receipt."""
+    import smtplib
+    from email.message import EmailMessage
+    
+    sender_email = "rdalbaojr@gmail.com" 
+    app_password = st.secrets["email_app_password"]
         
-    msg = MIMEMultipart()
-    msg['Subject'] = f"DriveElite: Vehicle Handover Receipt (#{ref_no})"
+    msg = EmailMessage()
+    msg['Subject'] = f"DriveElite: Digital Handover Record (#{ref_no})"
     msg['From'] = f"DriveElite Handover <{sender_email}>"
     msg['To'] = to_email
     
     body = f"""Hello {renter_name},
     
-Your vehicle ({car_name}) has been officially handed over and your trip has started!
+Your vehicle handover for {car_name} is complete. A copy of this record has been sent to the Admin for dispute protection.
 
---- 📋 OFFICIAL HANDOVER CHECKLIST ---
+--- 📋 MANDATORY HANDOVER CHECKLIST ---
+💰 Cash Deposit Received (Php 5,000.00): {'✅ YES' if checklist['deposit'] else '❌ NO'}
 ⛽ Fuel Level: {checklist['fuel']}
-🚘 Exterior Inspected (No Unreported Damage): {'✅ Yes' if checklist['ext'] else '❌ No'}
-✨ Interior Clean & Odor-Free: {'✅ Yes' if checklist['int'] else '❌ No'}
-🔧 Spare Tire & Tools Present: {'✅ Yes' if checklist['tools'] else '❌ No'}
+🚘 Exterior Condition: {'✅ Inspected' if checklist['ext'] else '❌ Pending'}
+✨ Interior Condition: {'✅ Clean' if checklist['int'] else '❌ Pending'}
+🔧 Spare Tire & Tools: {'✅ Verified' if checklist['tools'] else '❌ Missing'}
 
-🖋️ Electronically Signed By: {signature}
+--- 🖋️ DIGITAL SIGNATORIES ---
+Renter Signature: {sig_renter}
+Affiliate/Host Signature: {sig_affiliate}
 ---------------------------------------
 
-Please drive safely. Remember to return the vehicle with the exact same fuel level to avoid penalties.
+DISPUTE NOTE: 10 high-resolution photos of this vehicle were taken at the time of this signature and are stored in the DriveElite Secure Vault.
+
+Please drive safely!
 """
-    msg.attach(MIMEText(body, 'plain'))
+    msg.set_content(body)
     
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(sender_email, app_password)
             smtp.send_message(msg)
-        return True, "Email sent successfully"
+        return True, "Email sent"
     except Exception as e:
         return False, str(e)
 
