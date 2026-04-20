@@ -9,7 +9,7 @@ import math
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from database_utils import get_connection
-pip install streamlit-star-rating
+from streamlit_star_rating import st_star_rating
 
 # --- DATABASE CONNECTION ---
 conn = get_connection()
@@ -243,10 +243,8 @@ with tabs[0]:
                             if r_dt_obj <= p_dt_obj:
                                 st.error("⚠️ Return time must be strictly after the pickup time.")
                             else:
-                                # Run the 24-hour math! (Defaults to Php 300/hr late fee)
                                 full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
                                 
-                                # Driver is paid per day touching the road
                                 driver_days = full_days + (1 if billed_hrs > 0 else 0)
                                 driver_fee = (driver_days * 1000.0) if is_driver else 0.0
                                 
@@ -309,7 +307,6 @@ with tabs[0]:
                                         st.rerun()
                                     else:
                                         st.warning("⚠️ Please fill all required fields.")
-                                        
 
 # --- TAB 1: MY BOOKINGS ---
 with tabs[1]:
