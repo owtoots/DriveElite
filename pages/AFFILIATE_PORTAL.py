@@ -623,24 +623,42 @@ with tabs[0]:
                                 else:
                                     d_img_path = ",".join([save_file(img) for img in img_damage]) if img_damage else None
                                     
-                                    # Hardcoded to 'CLEAN' to completely decouple Admin from mediation
-                                    conn.execute("""
-                                        UPDATE bookings 
-                                        SET status = 'COMPLETED', payout_status = 'PENDING',
-                                            damage_img = ?, rfid_fee = ?, damage_fee = ?, late_fee = ?, fuel_fee = ?, cleaning_fee = ?, dispute_status = 'CLEAN' 
-                                        WHERE id = ?
-                                    """, (d_img_path, float(rfid_fee), float(damage_fee), float(late_fee), float(fuel_fee), float(cleaning_fee), b['id']))
-                                    
-                                    conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
-                                    conn.commit()
-                                    
-                                    st.success("Trip closed cleanly! Payout request sent to Admin.")
-                                        
-                                    time.sleep(2)
-                                    st.rerun()
-                                    
-    except Exception as e:
-        st.error(f"System Error loading bookings: {e}")
+                                    with st.spinner("Generating Settlement PDF and closing trip..."):
+                                        try:
+                                            # 1. Generate the PDF Document
+                                            pdf_bytes = generate_return_receipt(
+                                                b['booking_ref'], b['renter_name'], f"{b['make']} {b['model']}", b['plate'], 
+                                                float(fuel_fee), float(cleaning_fee), float(damage_fee), float(late_fee), 0.0, float(rfid_fee), 
+                                                float(total_deduct), float(refund_amount), s_ret.image_data, None
+                                            )
+                                            
+                                            # Save PDF Locally to Filing Cabinet
+                                            pdf_filepath = f"uploads/Settlement_{b['booking_ref']}.pdf"
+                                            with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
+                                            
+                                            # 2. Email the Renter automatically
+                                            if b.get('renter_email'):
+                                                subject = f"DriveElite: Return Settlement Receipt (#{b['booking_ref']})"
+                                                body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: ₱{total_deduct:,.2f}\nRefund Amount: ₱{refund_amount:,.2f}"
+                                                send_pdf_email(b['renter_email'], subject, body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
+                                            
+                                            # 3. Save everything to the Database
+                                            conn.execute("""
+                                                UPDATE bookings 
+                                                SET status = 'COMPLETED', payout_status = 'PENDING',
+                                                    damage_img = ?, rfid_fee = ?, damage_fee = ?, late_fee = ?, fuel_fee = ?, cleaning_fee = ?, dispute_status = 'CLEAN' 
+                                                WHERE id = ?
+                                            """, (d_img_path, float(rfid_fee), float(damage_fee), float(late_fee), float(fuel_fee), float(cleaning_fee), b['id']))
+                                            
+                                            conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
+                                            conn.commit()
+                                            
+                                            st.success("✅ Trip closed & Settlement Receipt emailed to Renter!")
+                                            time.sleep(3)
+                                            st.rerun()
+                                            
+                                        except Exception as e:
+                                            st.error(f"Error finalizing settlement: {e}"))
 
 # --- TAB 1: MY ASSETS ---
 with tabs[1]:
