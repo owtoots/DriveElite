@@ -367,12 +367,23 @@ with tabs[0]:
                                 setTimeout(function() {{
                                     var anchor = window.parent.document.getElementById('chat_anchor_{b_ref_str}');
                                     if (anchor) {{
-                                        anchor.scrollIntoView({{behavior: 'smooth', block: 'end'}});
+                                        // 1. Walk up the HTML tree to find Streamlit's scrollable 450px container
+                                        var parent = anchor.parentElement;
+                                        while (parent) {{
+                                            var style = window.parent.getComputedStyle(parent);
+                                            if (style.overflowY === 'auto' || style.overflowY === 'scroll') {{
+                                                // 2. Only scroll the internal chat box, leave the main page alone!
+                                                parent.scrollTop = parent.scrollHeight;
+                                                break;
+                                            }}
+                                            parent = parent.parentElement;
+                                        }}
                                     }}
                                 }}, 150);
                             </script>
                             """
                             st.components.v1.html(scroll_js, height=0)
+                            # ------------------------------
 
                         except: 
                             st.error("Could not load chat history.")
