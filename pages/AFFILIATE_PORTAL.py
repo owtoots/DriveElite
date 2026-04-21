@@ -54,21 +54,29 @@ def patch_database():
     except: pass
     try: conn.execute("ALTER TABLE vehicles ADD COLUMN admin_status TEXT DEFAULT 'PENDING'"); conn.commit()
     except: pass
-    try:
-        conn.execute("ALTER TABLE bookings ADD COLUMN handover_photos TEXT")
-        conn.execute("ALTER TABLE bookings ADD COLUMN handover_sig_renter TEXT")
-        conn.execute("ALTER TABLE bookings ADD COLUMN handover_sig_affiliate TEXT")
-        conn.commit()
+    
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN handover_photos TEXT"); conn.commit()
     except: pass
-    try:
-        conn.execute("ALTER TABLE bookings ADD COLUMN damage_fee REAL DEFAULT 0.0")
-        conn.execute("ALTER TABLE bookings ADD COLUMN late_fee REAL DEFAULT 0.0")
-        conn.execute("ALTER TABLE bookings ADD COLUMN fuel_fee REAL DEFAULT 0.0")
-        conn.execute("ALTER TABLE bookings ADD COLUMN cleaning_fee REAL DEFAULT 0.0")
-        conn.execute("ALTER TABLE bookings ADD COLUMN rfid_fee REAL DEFAULT 0.0") # ADDED RFID
-        conn.execute("ALTER TABLE bookings ADD COLUMN dispute_status TEXT DEFAULT 'CLEAN'")
-        conn.commit()
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN handover_sig_renter TEXT"); conn.commit()
     except: pass
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN handover_sig_affiliate TEXT"); conn.commit()
+    except: pass
+    
+    # --- ISOLATED FINANCIAL COLUMNS (THE FIX) ---
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN damage_fee REAL DEFAULT 0.0"); conn.commit()
+    except: pass
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN late_fee REAL DEFAULT 0.0"); conn.commit()
+    except: pass
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN fuel_fee REAL DEFAULT 0.0"); conn.commit()
+    except: pass
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN cleaning_fee REAL DEFAULT 0.0"); conn.commit()
+    except: pass
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN rfid_fee REAL DEFAULT 0.0"); conn.commit() # RFID WILL NOW CREATE
+    except: pass
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN dispute_status TEXT DEFAULT 'CLEAN'"); conn.commit()
+    except: pass
+    # ---------------------------------------------
+    
     try:
         conn.execute("CREATE TABLE IF NOT EXISTS admin_promos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, target TEXT DEFAULT 'ALL USERS', active INTEGER DEFAULT 1)")
         conn.commit()
