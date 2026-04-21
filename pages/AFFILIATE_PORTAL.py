@@ -65,6 +65,7 @@ def patch_database():
         conn.execute("ALTER TABLE bookings ADD COLUMN late_fee REAL DEFAULT 0.0")
         conn.execute("ALTER TABLE bookings ADD COLUMN fuel_fee REAL DEFAULT 0.0")
         conn.execute("ALTER TABLE bookings ADD COLUMN cleaning_fee REAL DEFAULT 0.0")
+        conn.execute("ALTER TABLE bookings ADD COLUMN rfid_fee REAL DEFAULT 0.0") # ADDED RFID
         conn.execute("ALTER TABLE bookings ADD COLUMN dispute_status TEXT DEFAULT 'CLEAN'")
         conn.commit()
     except: pass
@@ -383,7 +384,6 @@ with tabs[0]:
                             </script>
                             """
                             st.components.v1.html(scroll_js, height=0)
-                            # ------------------------------
 
                         except: 
                             st.error("Could not load chat history.")
@@ -549,13 +549,16 @@ with tabs[0]:
 
                         c1, c2 = st.columns(2)
                         with c1:
-                            st.write("#### 🛠️ Agreement Penalties")
+                            st.write("#### 🛠️ Agreement Penalties & Usage")
                             
                             l_ok = st.checkbox("Returned on Time", value=True, key=f"l_{b['id']}")
                             late_fee = st.number_input("Hours Late (Php 300/hr)", min_value=1, step=1, key=f"l_hrs_{b['id']}") * 300.0 if not l_ok else 0.0
                             
                             f_ok = st.checkbox("Fuel Full", value=True, key=f"f_{b['id']}")
                             fuel_fee = (st.number_input("Refuel Receipt (Php)", step=100.0, key=f"f_cost_{b['id']}") + 200.0) if not f_ok else 0.0
+                            
+                            r_ok = st.checkbox("No RFID / Toll Usage", value=True, key=f"r_{b['id']}")
+                            rfid_fee = st.number_input("Toll Amount Used (Php)", step=50.0, key=f"r_cost_{b['id']}") if not r_ok else 0.0
                             
                             c_ok = st.checkbox("Interior Clean & Odor-Free", value=True, key=f"c_{b['id']}")
                             if not c_ok:
@@ -577,7 +580,7 @@ with tabs[0]:
                                             
                                 damage_fee = st.number_input("Estimated Damage Amount (Php)", step=500.0, key=f"d_est_{b['id']}")
                                 
-                            total_deduct = late_fee + fuel_fee + cleaning_fee + damage_fee
+                            total_deduct = late_fee + fuel_fee + cleaning_fee + damage_fee + rfid_fee
                             refund_amount = max(0, 5000.0 - total_deduct)
                             
                             st.markdown(f"""
@@ -588,7 +591,7 @@ with tabs[0]:
                             """, unsafe_allow_html=True)
                             
                             if total_deduct > 5000.0: 
-                                st.error(f"🚨 RENTER OWES EXTRA: ₱{(total_deduct - 5000.0):,.2f}. (Admin will be notified to mediate/collect).")
+                                st.error(f"🚨 RENTER OWES EXTRA: ₱{(total_deduct - 5000.0):,.2f}. (Please collect this directly from the Renter before they leave).")
                                 st.markdown("</div>", unsafe_allow_html=True)
                             else: 
                                 st.success(f"✅ REFUND CASH TO RENTER NOW: ₱{refund_amount:,.2f}")
@@ -602,6 +605,7 @@ with tabs[0]:
                                 st.session_state[f"clr_sret_{b['id']}"] += 1
                                 st.rerun()
                                 
+                            # --- FIXED DATABASE UPDATE BLOCK (REVENUE PROTECTED & RFID LOGGED) ---
                             if st.button("✅ COMPLETE JOURNEY & CLOSE OUT", type="primary", use_container_width=True, key=f"fin_{b['id']}"):
                                 has_sig = s_ret.image_data is not None and len(s_ret.json_data.get("objects", [])) > 0
                                 if not has_sig:
@@ -611,26 +615,18 @@ with tabs[0]:
                                 else:
                                     d_img_path = ",".join([save_file(img) for img in img_damage]) if img_damage else None
                                     
-                                    # Trigger Admin Mediaton only if damage is logged or deductions exceed deposit
-                                    is_disputed = 'ACTION_REQUIRED' if (damage_fee > 0 or total_deduct > 5000.0) else 'CLEAN'
-                                    
+                                    # Hardcoded to 'CLEAN' to completely decouple Admin from mediation
                                     conn.execute("""
                                         UPDATE bookings 
-                                        SET status = 'COMPLETED', 
-                                            payout_status = 'PENDING', 
-                                            damage_img = ?, 
-                                            damage_fee = ?, late_fee = ?, fuel_fee = ?, cleaning_fee = ?,
-                                            dispute_status = ?
+                                        SET status = 'COMPLETED', payout_status = 'PENDING',
+                                            damage_img = ?, rfid_fee = ?, damage_fee = ?, late_fee = ?, fuel_fee = ?, cleaning_fee = ?, dispute_status = 'CLEAN' 
                                         WHERE id = ?
-                                    """, (d_img_path, float(damage_fee), float(late_fee), float(fuel_fee), float(cleaning_fee), is_disputed, b['id']))
+                                    """, (d_img_path, float(rfid_fee), float(damage_fee), float(late_fee), float(fuel_fee), float(cleaning_fee), b['id']))
                                     
                                     conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
                                     conn.commit()
                                     
-                                    if is_disputed == 'ACTION_REQUIRED':
-                                        st.warning("Trip closed! Admin has been notified of the damages for mediation.")
-                                    else:
-                                        st.success("Trip closed cleanly! Payout request sent to Admin.")
+                                    st.success("Trip closed cleanly! Payout request sent to Admin.")
                                         
                                     time.sleep(2)
                                     st.rerun()
