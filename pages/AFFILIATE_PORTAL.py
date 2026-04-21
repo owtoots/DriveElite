@@ -17,7 +17,14 @@ from streamlit_drawable_canvas import st_canvas
 
 # --- DATABASE CONNECTION & SELF-REPAIR ---
 conn = get_connection()
+# --- CHAT INPUT RESET LOGIC ---
+if "temp_msg" not in st.session_state:
+    st.session_state.temp_msg = ""
 
+def clear_chat_input():
+    # This grabs what's in the box, saves it, and wipes the box clean
+    st.session_state.temp_msg = st.session_state.chat_input
+    st.session_state.chat_input = ""
 def patch_database():
     """Ensures all new columns and tables exist to prevent operational crashes."""
     try: conn.execute("ALTER TABLE platform_users ADD COLUMN document_url TEXT"); conn.commit()
