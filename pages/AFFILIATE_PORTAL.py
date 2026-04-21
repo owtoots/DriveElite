@@ -25,7 +25,10 @@ def clear_affiliate_chat(b_ref):
     # Create the unique key name for this specific booking's chat box
     unique_key = f"chat_{b_ref}"
     if unique_key in st.session_state:
-        st.session_state.temp_msg_affiliate = st.session_state[unique_key]
+        # Only trigger if they actually typed something
+        if st.session_state[unique_key].strip():
+            st.session_state.temp_msg_affiliate = st.session_state[unique_key]
+            st.session_state[f"trigger_send_{b_ref}"] = True # THIS TELLS THE APP TO SEND!
         st.session_state[unique_key] = ""
 def patch_database():
     """Ensures all new columns and tables exist to prevent operational crashes."""
@@ -317,14 +320,16 @@ with tabs[0]:
                         a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"a_img_{b['id']}", label_visibility="collapsed")
                     
                     with c_msg: 
-                        # 1. UNIQUE KEY using b['booking_ref']
-                        # 2. ARGS passing the ref to the clear function
                         st.text_input("Reply...", key=f"chat_{b['booking_ref']}", on_change=clear_affiliate_chat, args=(b['booking_ref'],), placeholder="Type message and press Enter...")
 
-                    if st.button("Send", key=f"a_btn_{b['id']}", use_container_width=True):
-                        # Grab message from memory (if enter hit), OR from the box (if send clicked)
+                    # COMBINE BOTH ACTIONS: Did they click the button, OR did the Enter key set off the trigger?
+                    btn_clicked = st.button("Send", key=f"a_btn_{b['id']}", use_container_width=True)
+                    enter_pressed = st.session_state.get(f"trigger_send_{b['booking_ref']}", False)
+
+                    if btn_clicked or enter_pressed:
+                        # Get the message from either the Enter key memory OR the active text box
                         box_val = st.session_state.get(f"chat_{b['booking_ref']}", "")
-                        final_text = st.session_state.temp_msg_affiliate if st.session_state.temp_msg_affiliate else box_val
+                        final_text = st.session_state.temp_msg_affiliate if enter_pressed else box_val
                         
                         if final_text or a_img:
                             path = save_chat_image(a_img, b['booking_ref']) if a_img else ""
@@ -340,9 +345,10 @@ with tabs[0]:
                                     conn.commit()
                                     success = True
                                     
-                                    # Wipe BOTH memories after successful save
+                                    # Wipe ALL memories and reset the trigger after successful save
                                     st.session_state.temp_msg_affiliate = ""
                                     st.session_state[f"chat_{b['booking_ref']}"] = ""
+                                    st.session_state[f"trigger_send_{b['booking_ref']}"] = False
                                     break
                                 except Exception as e:
                                     error_msg = str(e)
