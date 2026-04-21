@@ -304,63 +304,83 @@ with tabs[0]:
                     st.divider()
                     
                     st.markdown("#### 💬 Message the Renter")
-                    chat_win = st.container(height=250, border=True)
-                    with chat_win:
-                        try:
-                            msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
-                            for _, m in msgs.iterrows():
-                                role = "user" if m['sender_username'] == renter_user else "assistant"
-                                with st.chat_message(role):
-                                    st.write(m['message_text'])
-                                    if m.get('image_path') and os.path.exists(m['image_path']): st.image(m['image_path'], width=200)
-                        except: st.caption("No messages.")
-
-                    c_img, c_msg = st.columns([1, 4])
-                    with c_img: 
-                        a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"a_img_{b['id']}", label_visibility="collapsed")
-                    
-                    with c_msg: 
-                        st.text_input("Reply...", key=f"chat_{b['booking_ref']}", on_change=clear_affiliate_chat, args=(b['booking_ref'],), placeholder="Type message and press Enter...")
-
-                    # COMBINE BOTH ACTIONS: Did they click the button, OR did the Enter key set off the trigger?
-                    btn_clicked = st.button("Send", key=f"a_btn_{b['id']}", use_container_width=True)
-                    enter_pressed = st.session_state.get(f"trigger_send_{b['booking_ref']}", False)
-
-                    if btn_clicked or enter_pressed:
-                        # Get the message from either the Enter key memory OR the active text box
-                        box_val = st.session_state.get(f"chat_{b['booking_ref']}", "")
-                        final_text = st.session_state.temp_msg_affiliate if enter_pressed else box_val
-                        
-                        if final_text or a_img:
-                            path = save_chat_image(a_img, b['booking_ref']) if a_img else ""
-                            text_to_save = final_text if final_text else "📸 Sent a photo."
-                            
-                            # --- ANTI-LOCK & ERROR CATCHER ---
-                            success = False
-                            error_msg = ""
-                            for attempt in range(3):
-                                try:
-                                    conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                                (b['booking_ref'], st.session_state.username, b['renter_username'], text_to_save, path))
-                                    conn.commit()
-                                    success = True
-                                    
-                                    # Wipe ALL memories and reset the trigger after successful save
-                                    st.session_state.temp_msg_affiliate = ""
-                                    st.session_state[f"chat_{b['booking_ref']}"] = ""
-                                    st.session_state[f"trigger_send_{b['booking_ref']}"] = False
-                                    break
-                                except Exception as e:
-                                    error_msg = str(e)
-                                    if "locked" in error_msg.lower():
-                                        time.sleep(0.5)
-                                    else:
-                                        break
-                                        
-                            if success:
-                                st.rerun()
+                b_ref_str = str(b['booking_ref']) # Safely lock as string
+                
+                chat_win = st.container(height=300, border=True)
+                with chat_win:
+                    try:
+                        msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref_str,))
+                        for _, m in msgs.iterrows():
+                            # SENDER IS AFFILIATE (Green bubble on Right)
+                            if m['sender_username'] == st.session_state.username:
+                                spacer, msg_col = st.columns([1, 4])
+                                with msg_col:
+                                    st.markdown(f"""
+                                    <div style="background-color: #2c8c80; color: white; padding: 10px 15px; border-radius: 15px 15px 0px 15px; margin-bottom: 5px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); text-align: right;">
+                                        {m['message_text']}
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    if m.get('image_path') and os.path.exists(m['image_path']): 
+                                        st.image(m['image_path'], width=200)
+                            # RECEIVER IS RENTER (Grey bubble on Left)
                             else:
-                                st.warning(f"🚨 **DATABASE ERROR:** {error_msg}")
+                                msg_col, spacer = st.columns([4, 1])
+                                with msg_col:
+                                    st.markdown(f"""
+                                    <div style="background-color: #2b2b2b; color: white; padding: 10px 15px; border-radius: 15px 15px 15px 0px; margin-bottom: 5px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); border: 1px solid #444;">
+                                        {m['message_text']}
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    if m.get('image_path') and os.path.exists(m['image_path']): 
+                                        st.image(m['image_path'], width=200)
+                    except: 
+                        st.caption("No messages yet. Start the conversation!")
+
+                # --- INPUT AREA ---
+                c_img, c_msg = st.columns([1, 4])
+                with c_img: 
+                    a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"a_img_{b_ref_str}", label_visibility="collapsed")
+                
+                with c_msg: 
+                    st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_affiliate_chat, args=(b_ref_str,), placeholder="Type message and press Enter...")
+
+                # --- TRIGGER LOGIC ---
+                btn_clicked = st.button("Send", key=f"a_btn_{b_ref_str}", use_container_width=True)
+                enter_pressed = st.session_state.get(f"trigger_send_{b_ref_str}", False)
+
+                if btn_clicked or enter_pressed:
+                    box_val = st.session_state.get(f"chat_{b_ref_str}", "")
+                    final_text = st.session_state.temp_msg_affiliate if enter_pressed else box_val
+                    
+                    if final_text or a_img:
+                        path = save_chat_image(a_img, b_ref_str) if a_img else ""
+                        text_to_save = final_text if final_text else "📸 Sent a photo."
+                        
+                        success = False
+                        error_msg = ""
+                        for attempt in range(3):
+                            try:
+                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                            (b_ref_str, st.session_state.username, b['renter_username'], text_to_save, path))
+                                conn.commit()
+                                success = True
+                                
+                                # Reset memories and flags
+                                st.session_state.temp_msg_affiliate = ""
+                                st.session_state[f"chat_{b_ref_str}"] = ""
+                                st.session_state[f"trigger_send_{b_ref_str}"] = False
+                                break
+                            except Exception as e:
+                                error_msg = str(e)
+                                if "locked" in error_msg.lower():
+                                    time.sleep(0.5)
+                                else:
+                                    break
+                                    
+                        if success:
+                            st.rerun()
+                        else:
+                            st.warning(f"🚨 **DATABASE ERROR:** {error_msg}")
                             # ---------------------------------
                                 
                     st.divider()
