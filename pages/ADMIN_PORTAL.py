@@ -112,7 +112,8 @@ with head_col2:
         st.session_state.clear()
         st.rerun()
 
-tabs = st.tabs(["PENDING APPROVALS", "ASSETS", "LOGISTICS", "FINANCIALS", "🗄️ FILING CABINET", "PROMOS & DB", "⭐ REVIEWS", "❌ CANCELLATIONS"])
+# NEW TAB ADDED: DISPUTE CENTER
+tabs = st.tabs(["PENDING APPROVALS", "ASSETS", "LOGISTICS", "FINANCIALS", "🗄️ FILING CABINET", "PROMOS & DB", "⭐ REVIEWS", "❌ CANCELLATIONS", "⚖️ DISPUTES"])
 
 # --- TAB 0: PENDING APPROVALS ---
 with tabs[0]:
@@ -165,7 +166,6 @@ with tabs[0]:
 
 # --- TAB 1: ASSETS (ADMIN PORTAL) ---
 with tabs[1]:
-    # We look for vehicles the Affiliate added that haven't been reviewed yet
     pv = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'PENDING'", conn)
     
     if pv.empty: 
@@ -173,12 +173,8 @@ with tabs[1]:
     else:
         for i, r in pv.iterrows():
             with st.expander(f"🚗 {r['make']} {r['model']} ({r['plate']})"):
-                # ... (Display images for OR/CR, Insurance, etc. as you have them) ...
                 
                 if st.button("✅ APPROVE & ACTIVATE", key=f"v_app_{r['id']}", type="primary", use_container_width=True):
-                    # THIS IS THE CRITICAL SYNC:
-                    # admin_status = 'APPROVED' (Satisfies the first half of the Renter's query)
-                    # booking_status = 'AVAILABLE' (Satisfies the second half)
                     conn.execute("""
                         UPDATE vehicles 
                         SET admin_status = 'APPROVED', 
@@ -552,3 +548,76 @@ with tabs[7]:
 
     except Exception as e:
         st.error(f"Database connection error: {e}")
+
+# --- TAB 8: DISPUTE CENTER & EVIDENCE VIEWER ---
+with tabs[8]:
+    st.header("⚖️ Master Dispute & Evidence Center")
+    st.write("Review Before & After photos for completed trips to mediate disputes.")
+    
+    try:
+        q_completed = """
+            SELECT b.id, b.booking_ref, b.handover_photos, b.damage_img, 
+                   r.full_name as renter_name, r.contact_number as r_phone, r.email as r_email,
+                   a.full_name as affiliate_name, a.contact_number as a_phone, a.email as a_email,
+                   v.make, v.model, v.plate
+            FROM bookings b
+            JOIN vehicles v ON b.vehicle_id = v.id
+            JOIN platform_users r ON b.renter_username = r.username
+            JOIN platform_users a ON v.owner_username = a.username
+            WHERE b.status = 'COMPLETED'
+            ORDER BY b.id DESC
+        """
+        completed_trips = pd.read_sql_query(q_completed, conn)
+        
+        if completed_trips.empty:
+            st.info("No completed trips available for review.")
+        else:
+            # Dropdown to select a trip
+            dispute_opts = ["-- Select a Trip to Audit --"] + completed_trips['booking_ref'].astype(str).tolist()
+            selected_trip = st.selectbox("Select Trip Ref:", dispute_opts)
+            
+            if selected_trip != "-- Select a Trip to Audit --":
+                d_data = completed_trips[completed_trips['booking_ref'].astype(str) == selected_trip].iloc[0]
+                
+                st.divider()
+                # 1. Contact Information Block
+                st.markdown(f"### 📋 Audit File: #{d_data['booking_ref']} | {d_data['make']} {d_data['model']} ({d_data['plate']})")
+                c_rent, c_aff = st.columns(2)
+                with c_rent:
+                    st.info(f"**Renter:** {d_data['renter_name']}\n\n📞 {d_data['r_phone']}\n\n✉️ {d_data['r_email']}")
+                with c_aff:
+                    st.info(f"**Affiliate:** {d_data['affiliate_name']}\n\n📞 {d_data['a_phone']}\n\n✉️ {d_data['a_email']}")
+                
+                st.divider()
+                st.markdown("<h3 style='text-align: center;'>📸 Visual Evidence Comparison</h3>", unsafe_allow_html=True)
+                
+                # 2. Side-by-Side Photo Comparison
+                col_before, col_after = st.columns(2)
+                
+                with col_before:
+                    st.markdown("#### 🟢 BEFORE (Handover Photos)")
+                    if pd.notna(d_data.get('handover_photos')) and str(d_data['handover_photos']).strip():
+                        # Split the comma-separated string back into a list of file paths
+                        h_photos = str(d_data['handover_photos']).split(',')
+                        for img_path in h_photos:
+                            if os.path.exists(img_path.strip()):
+                                st.image(img_path.strip(), use_container_width=True)
+                    else:
+                        st.warning("No handover photos were logged for this trip.")
+                
+                with col_after:
+                    st.markdown("#### 🔴 AFTER (Reported Damage)")
+                    if pd.notna(d_data.get('damage_img')) and str(d_data['damage_img']).strip():
+                        # Split the comma-separated string back into a list of file paths
+                        d_photos = str(d_data['damage_img']).split(',')
+                        for img_path in d_photos:
+                            if os.path.exists(img_path.strip()):
+                                st.image(img_path.strip(), use_container_width=True)
+                    else:
+                        st.success("✅ No damage was reported upon return.")
+                        
+                st.divider()
+                st.write("*Admin Note: If a penalty or deduction is required from the security deposit, please contact both parties directly using the phone numbers provided above to finalize mediation.*")
+                
+    except Exception as e:
+        st.error(f"Error loading evidence center: {e}")
