@@ -18,13 +18,15 @@ from streamlit_drawable_canvas import st_canvas
 # --- DATABASE CONNECTION & SELF-REPAIR ---
 conn = get_connection()
 # --- CHAT INPUT RESET LOGIC ---
-if "temp_msg" not in st.session_state:
-    st.session_state.temp_msg = ""
+if "temp_msg_affiliate" not in st.session_state:
+    st.session_state.temp_msg_affiliate = ""
 
-def clear_chat_input():
-    # This grabs what's in the box, saves it, and wipes the box clean
-    st.session_state.temp_msg = st.session_state.chat_input
-    st.session_state.chat_input = ""
+def clear_affiliate_chat(b_ref):
+    # Create the unique key name for this specific booking's chat box
+    unique_key = f"chat_{b_ref}"
+    if unique_key in st.session_state:
+        st.session_state.temp_msg_affiliate = st.session_state[unique_key]
+        st.session_state[unique_key] = ""
 def patch_database():
     """Ensures all new columns and tables exist to prevent operational crashes."""
     try: conn.execute("ALTER TABLE platform_users ADD COLUMN document_url TEXT"); conn.commit()
@@ -311,27 +313,41 @@ with tabs[0]:
                         except: st.caption("No messages yet.")
 
                     c_img, c_msg = st.columns([1, 4])
-                    with c_img: a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"a_img_{b['id']}", label_visibility="collapsed")
-                    with c_msg: a_input = st.text_input("Reply...", key=f"a_in_{b['id']}")
+                    with c_img: 
+                        a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"a_img_{b['id']}", label_visibility="collapsed")
+                    
+                    with c_msg: 
+                        # 1. UNIQUE KEY using b['booking_ref']
+                        # 2. ARGS passing the ref to the clear function
+                        st.text_input("Reply...", key=f"chat_{b['booking_ref']}", on_change=clear_affiliate_chat, args=(b['booking_ref'],), placeholder="Type message and press Enter...")
 
                     if st.button("Send", key=f"a_btn_{b['id']}", use_container_width=True):
-                        if a_input or a_img:
+                        # Grab message from memory (if enter hit), OR from the box (if send clicked)
+                        box_val = st.session_state.get(f"chat_{b['booking_ref']}", "")
+                        final_text = st.session_state.temp_msg_affiliate if st.session_state.temp_msg_affiliate else box_val
+                        
+                        if final_text or a_img:
                             path = save_chat_image(a_img, b['booking_ref']) if a_img else ""
-                            text = a_input if a_input else "📸 Sent a photo."
+                            text_to_save = final_text if final_text else "📸 Sent a photo."
                             
                             # --- ANTI-LOCK & ERROR CATCHER ---
                             success = False
                             error_msg = ""
                             for attempt in range(3):
                                 try:
-                                    conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", (b['booking_ref'], st.session_state.username, b['renter_username'], text, path))
+                                    conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                                (b['booking_ref'], st.session_state.username, b['renter_username'], text_to_save, path))
                                     conn.commit()
                                     success = True
+                                    
+                                    # Wipe BOTH memories after successful save
+                                    st.session_state.temp_msg_affiliate = ""
+                                    st.session_state[f"chat_{b['booking_ref']}"] = ""
                                     break
                                 except Exception as e:
                                     error_msg = str(e)
                                     if "locked" in error_msg.lower():
-                                        time.sleep(0.5) # Wait and retry if locked
+                                        time.sleep(0.5)
                                     else:
                                         break
                                         
