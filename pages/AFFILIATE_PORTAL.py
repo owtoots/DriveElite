@@ -311,28 +311,36 @@ with tabs[0]:
                     try:
                         msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref_str,))
                         for _, m in msgs.iterrows():
-                            # SENDER IS AFFILIATE (Green bubble on Right)
+                            # SENDER (Green Bubble)
                             if m['sender_username'] == st.session_state.username:
                                 spacer, msg_col = st.columns([1, 4])
                                 with msg_col:
-                                    st.markdown(f"""
-                                    <div style="background-color: #2c8c80; color: white; padding: 10px 15px; border-radius: 15px 15px 0px 15px; margin-bottom: 5px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); text-align: right;">
-                                        {m['message_text']}
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                    st.markdown(f'<div class="bubble-right">{m["message_text"]}</div>', unsafe_allow_html=True)
                                     if m.get('image_path') and os.path.exists(m['image_path']): 
                                         st.image(m['image_path'], width=200)
-                            # RECEIVER IS RENTER (Grey bubble on Left)
+                            # RECEIVER (Grey Bubble)
                             else:
                                 msg_col, spacer = st.columns([4, 1])
                                 with msg_col:
-                                    st.markdown(f"""
-                                    <div style="background-color: #2b2b2b; color: white; padding: 10px 15px; border-radius: 15px 15px 15px 0px; margin-bottom: 5px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); border: 1px solid #444;">
-                                        {m['message_text']}
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                    st.markdown(f'<div class="bubble-left">{m["message_text"]}</div>', unsafe_allow_html=True)
                                     if m.get('image_path') and os.path.exists(m['image_path']): 
                                         st.image(m['image_path'], width=200)
+
+                        # --- NEW: AUTO-SCROLL MAGIC ---
+                        # 1. Create an invisible anchor at the very bottom of the messages
+                        st.markdown(f'<div id="chat_anchor_{b_ref_str}"></div>', unsafe_allow_html=True)
+                        
+                        # 2. Use a tiny script to force the container to scroll down to that anchor
+                        st.components.v1.html(f"""
+                            <script>
+                                var anchor = window.parent.document.getElementById('chat_anchor_{b_ref_str}');
+                                if (anchor) {{
+                                    anchor.scrollIntoView({{behavior: 'smooth', block: 'end'}});
+                                }}
+                            </script>
+                        """, height=0)
+                        # ------------------------------
+
                     except: 
                         st.caption("No messages yet. Start the conversation!")
 
