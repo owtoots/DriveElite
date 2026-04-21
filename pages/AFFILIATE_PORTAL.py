@@ -36,7 +36,25 @@ try:
     conn.execute("CREATE TABLE IF NOT EXISTS admin_promos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, target TEXT DEFAULT 'ALL USERS', active INTEGER DEFAULT 1)")
     conn.commit()
 except: pass
-
+# --- CHAT TABLE PATCH (ADD THIS HERE) ---
+try:
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            booking_ref TEXT,
+            sender_username TEXT,
+            receiver_username TEXT,
+            message_text TEXT,
+            image_path TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+except: pass
+try: conn.execute("ALTER TABLE chat_messages ADD COLUMN image_path TEXT"); conn.commit()
+except: pass
+try: conn.execute("ALTER TABLE chat_messages ADD COLUMN receiver_username TEXT"); conn.commit()
+except: pass
 if not os.path.exists("uploads"): os.makedirs("uploads")
 
 # --- UTILITIES & HELPERS ---
@@ -291,13 +309,32 @@ with tabs[0]:
                     with c_img: a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"a_img_{b['id']}", label_visibility="collapsed")
                     with c_msg: a_input = st.text_input("Reply...", key=f"a_in_{b['id']}")
 
-                    if st.button("Send", key=f"a_btn_{b['id']}", use_container_width=True):
+                    if st.bif st.button("Send", key=f"a_btn_{b['id']}", use_container_width=True):
                         if a_input or a_img:
                             path = save_chat_image(a_img, b['booking_ref']) if a_img else ""
                             text = a_input if a_input else "📸 Sent a photo."
-                            conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", (b['booking_ref'], st.session_state.username, b['renter_username'], text, path))
-                            conn.commit()
-                            st.rerun()
+                            
+                            # --- ANTI-LOCK & ERROR CATCHER ---
+                            success = False
+                            error_msg = ""
+                            for attempt in range(3):
+                                try:
+                                    conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", (b['booking_ref'], st.session_state.username, b['renter_username'], text, path))
+                                    conn.commit()
+                                    success = True
+                                    break
+                                except Exception as e:
+                                    error_msg = str(e)
+                                    if "locked" in error_msg.lower():
+                                        time.sleep(0.5) # Wait and retry if locked
+                                    else:
+                                        break
+                                        
+                            if success:
+                                st.rerun()
+                            else:
+                                st.warning(f"🚨 **DATABASE ERROR:** {error_msg}")
+                            # ---------------------------------
                                 
                     st.divider()
 
