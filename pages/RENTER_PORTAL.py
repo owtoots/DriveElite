@@ -347,14 +347,16 @@ with tabs[1]:
                     r_img = st.file_uploader("📷", type=['jpg','png'], key=f"img_{b_ref}", label_visibility="collapsed")
                 
                 with c_t: 
-                    # 1. UNIQUE KEY: We add b_ref to the key so Streamlit knows which box this is.
-                    # 2. ARGS: We pass b_ref to the function so it knows which box to clear.
                     st.text_input("Reply...", key=f"chat_{b_ref}", on_change=clear_renter_chat, args=(b_ref,), placeholder="Type and press Enter...")
 
-                if st.button("Send Message", key=f"btn_{b_ref}", use_container_width=True):
-                    # Grab message from memory (if they hit enter), OR directly from the box (if they just clicked send)
+                # COMBINE BOTH ACTIONS: Did they click the button, OR did the Enter key set off the trigger?
+                btn_clicked = st.button("Send Message", key=f"btn_{b_ref}", use_container_width=True)
+                enter_pressed = st.session_state.get(f"trigger_send_{b_ref}", False)
+
+                if btn_clicked or enter_pressed:
+                    # Get the message from either the Enter key memory OR the active text box
                     box_val = st.session_state.get(f"chat_{b_ref}", "")
-                    final_msg = st.session_state.temp_msg_renter if st.session_state.temp_msg_renter else box_val
+                    final_msg = st.session_state.temp_msg_renter if enter_pressed else box_val
                     
                     if final_msg or r_img:
                         path = save_chat_image(r_img, b_ref) if r_img else ""
@@ -370,9 +372,10 @@ with tabs[1]:
                                 conn.commit()
                                 success = True
                                 
-                                # Wipe BOTH memories after successful save
+                                # Wipe ALL memories and reset the trigger after successful save
                                 st.session_state.temp_msg_renter = ""
                                 st.session_state[f"chat_{b_ref}"] = ""
+                                st.session_state[f"trigger_send_{b_ref}"] = False
                                 break
                             except Exception as e:
                                 error_msg = str(e)
