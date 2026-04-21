@@ -232,7 +232,9 @@ with tabs[3]:
             df['Platform_Net_Profit'] = df['Platform_Gross'] - (df['Gross_Revenue'] * TAX_RATE * 0.18)
 
             df['Affiliate_Gross_Share'] = df['Gross_Revenue'] * 0.82
-            df['Affiliate_Net_Payout'] = (df['Affiliate_Gross_Share'] - (df['Gross_Revenue'] * TAX_RATE * 0.82)) - df['gateway_fee']
+            # --- NEW: ISOLATED EWT COLUMN ---
+            df['EWT_Deduction'] = df['Gross_Revenue'] * TAX_RATE * 0.82
+            df['Affiliate_Net_Payout'] = (df['Affiliate_Gross_Share'] - df['EWT_Deduction']) - df['gateway_fee']
 
             df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
             
@@ -246,17 +248,19 @@ with tabs[3]:
             f_tabs = st.tabs(["📑 MASTER LEDGER", "📤 PROCESS PAYOUTS"])
             
             with f_tabs[0]: 
-                display_cols = ['Ref', 'Date', 'Affiliate', 'Gross_Revenue', 'gateway_fee', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
+                # --- NEW: ADDED EWT TO DISPLAY COLS ---
+                display_cols = ['Ref', 'Date', 'Affiliate', 'Gross_Revenue', 'gateway_fee', 'EWT_Deduction', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
                 
-                # Force strict 2-decimal accounting format with commas and Peso signs
                 styled_ledger = df[display_cols].style.format({
                     'Gross_Revenue': '{:,.2f}',
                     'gateway_fee': '{:,.2f}',
+                    'EWT_Deduction': '{:,.2f}',
                     'Affiliate_Net_Payout': '{:,.2f}',
                     'Platform_Net_Profit': '{:,.2f}'
                 })
                 
                 st.dataframe(styled_ledger, use_container_width=True, hide_index=True)
+            
             with f_tabs[1]:
                 pending_p = df[(df['Trip_Status'] == 'COMPLETED') & (df['Payout_Status'] == 'PENDING')]
                 if pending_p.empty:
@@ -264,7 +268,7 @@ with tabs[3]:
                 for _, p in pending_p.iterrows():
                     with st.expander(f"{p['Ref']} | {p['Affiliate']} | Net: ₱{p['Affiliate_Net_Payout']:,.2f}"):
                         st.write(f"**Gross Affiliate Share (82%):** ₱{p['Affiliate_Gross_Share']:,.2f}")
-                        st.write(f"**Tax Deduction (EWT):** -₱{p['Gross_Revenue'] * TAX_RATE * 0.82:,.2f}")
+                        st.write(f"**Tax Deduction (EWT):** -₱{p['EWT_Deduction']:,.2f}")
                         st.write(f"**CC Gateway Fee (Owner Absorbed):** -₱{p['gateway_fee']:,.2f}")
                         st.divider()
                         st.write(f"**Final Remittance:** ₱{p['Affiliate_Net_Payout']:,.2f}")
