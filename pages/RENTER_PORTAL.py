@@ -18,13 +18,15 @@ if "temp_msg_renter" not in st.session_state:
     st.session_state.temp_msg_renter = ""
 
 def clear_renter_chat(b_ref):
-    # Create the unique key name for this specific booking's chat box
-    unique_key = f"chat_{b_ref}"
+    # Safely lock the reference as a string
+    b_ref_str = str(b_ref)
+    unique_key = f"chat_{b_ref_str}"
+    
     if unique_key in st.session_state:
         # Only trigger if they actually typed something
         if st.session_state[unique_key].strip():
             st.session_state.temp_msg_renter = st.session_state[unique_key]
-            st.session_state[f"trigger_send_{b_ref}"] = True # THIS TELLS THE APP TO SEND!
+            st.session_state[f"trigger_send_{b_ref_str}"] = True # THIS TELLS THE APP TO SEND!
         st.session_state[unique_key] = ""
 
 def patch_chat_table():
@@ -165,6 +167,47 @@ st.markdown("""
     .table-bill { width:100%; font-family: monospace; font-size: 1.05em; border-collapse: collapse; color: #1a1a1a; }
     .table-bill td { padding: 6px 0; }
     .bill-label { font-weight: 700; color: #000000; }
+    
+    /* TRUE CHAT BUBBLES */
+    .bubble-right {
+        background-color: #2c8c80;
+        color: white;
+        padding: 12px 18px;
+        border-radius: 20px 20px 2px 20px;
+        position: relative;
+        box-shadow: 1px 2px 5px rgba(0,0,0,0.2);
+        margin-bottom: 10px;
+        text-align: right;
+    }
+    .bubble-right::after {
+        content: ''; position: absolute; bottom: 0; right: -10px;
+        border: 10px solid transparent; border-top-color: #2c8c80;
+        border-bottom: 0; border-right: 0; margin-left: -5px;
+    }
+    .bubble-left {
+        background-color: #2b2b2b;
+        color: white;
+        padding: 12px 18px;
+        border-radius: 20px 20px 20px 2px;
+        position: relative;
+        box-shadow: 1px 2px 5px rgba(0,0,0,0.2);
+        border: 1px solid #444;
+        margin-bottom: 10px;
+        text-align: left;
+    }
+    .bubble-left::after {
+        content: ''; position: absolute; bottom: 0; left: -10px;
+        border: 10px solid transparent; border-top-color: #2b2b2b;
+        border-bottom: 0; border-left: 0; margin-right: -5px;
+    }
+    .sender-tag {
+        font-size: 0.75em;
+        color: #aaaaaa;
+        margin-bottom: 4px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -333,52 +376,86 @@ with tabs[1]:
                 
                 st.divider()
                 st.markdown("#### 💬 Message the Owner")
-                b_ref = t['booking_ref']
-                chat_win = st.container(height=200, border=True)
+                b_ref_str = str(t['booking_ref']) # Safely lock as string
+                
+                # UPGRADE 2: Expanded Viewport (450px)
+                chat_win = st.container(height=450, border=True)
                 with chat_win:
                     try:
-                        msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
-                        for _, m in msgs.iterrows():
-                            role = "user" if m['sender_username'] == renter_user else "assistant"
-                            with st.chat_message(role):
-                                st.write(m['message_text'])
-                                if m.get('image_path') and os.path.exists(m['image_path']): st.image(m['image_path'], width=200)
-                    except: st.caption("No messages.")
+                        msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref_str,))
+                        
+                        # UPGRADE 3: The "Empty State" Welcome
+                        if msgs.empty:
+                            st.info("👋 Chat is empty. Say hello to start coordinating your trip!")
+                        else:
+                            for _, m in msgs.iterrows():
+                                # SENDER (Green Bubble)
+                                if m['sender_username'] == renter_user:
+                                    spacer, msg_col = st.columns([1, 4])
+                                    with msg_col:
+                                        st.markdown(f'<div class="bubble-right">{m["message_text"]}</div>', unsafe_allow_html=True)
+                                        if m.get('image_path') and os.path.exists(m['image_path']): 
+                                            st.image(m['image_path'], width=200)
+                                # RECEIVER (Grey Bubble)
+                                else:
+                                    msg_col, spacer = st.columns([4, 1])
+                                    with msg_col:
+                                        # UPGRADE 1: Sender ID Tags
+                                        st.markdown(f'<div class="bubble-left"><div class="sender-tag">@{m["sender_username"]}</div>{m["message_text"]}</div>', unsafe_allow_html=True)
+                                        if m.get('image_path') and os.path.exists(m['image_path']): 
+                                            st.image(m['image_path'], width=200)
 
+                        # --- AUTO-SCROLL MAGIC ---
+                        st.markdown(f'<div id="chat_anchor_{b_ref_str}" style="height: 1px; margin-top: 10px;"></div>', unsafe_allow_html=True)
+                        scroll_js = f"""
+                        <script>
+                            setTimeout(function() {{
+                                var anchor = window.parent.document.getElementById('chat_anchor_{b_ref_str}');
+                                if (anchor) {{
+                                    anchor.scrollIntoView({{behavior: 'smooth', block: 'end'}});
+                                }}
+                            }}, 150);
+                        </script>
+                        """
+                        st.components.v1.html(scroll_js, height=0)
+                        # ------------------------------
+
+                    except Exception as e: 
+                        st.error("Could not load chat history.")
+
+                # --- INPUT AREA ---
                 c_i, c_t = st.columns([1, 4])
                 with c_i: 
-                    r_img = st.file_uploader("📷", type=['jpg','png'], key=f"img_{b_ref}", label_visibility="collapsed")
+                    r_img = st.file_uploader("📷", type=['jpg','png'], key=f"img_{b_ref_str}", label_visibility="collapsed")
                 
                 with c_t: 
-                    st.text_input("Reply...", key=f"chat_{b_ref}", on_change=clear_renter_chat, args=(b_ref,), placeholder="Type and press Enter...")
+                    st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_renter_chat, args=(b_ref_str,), placeholder="Type and press Enter...")
 
-                # COMBINE BOTH ACTIONS: Did they click the button, OR did the Enter key set off the trigger?
-                btn_clicked = st.button("Send Message", key=f"btn_{b_ref}", use_container_width=True)
-                enter_pressed = st.session_state.get(f"trigger_send_{b_ref}", False)
+                # --- TRIGGER LOGIC ---
+                btn_clicked = st.button("Send Message", key=f"btn_{b_ref_str}", use_container_width=True)
+                enter_pressed = st.session_state.get(f"trigger_send_{b_ref_str}", False)
 
                 if btn_clicked or enter_pressed:
-                    # Get the message from either the Enter key memory OR the active text box
-                    box_val = st.session_state.get(f"chat_{b_ref}", "")
+                    box_val = st.session_state.get(f"chat_{b_ref_str}", "")
                     final_msg = st.session_state.temp_msg_renter if enter_pressed else box_val
                     
                     if final_msg or r_img:
-                        path = save_chat_image(r_img, b_ref) if r_img else ""
+                        path = save_chat_image(r_img, b_ref_str) if r_img else ""
                         text_to_save = final_msg if final_msg else "📸 Sent a photo."
                         
-                        # --- ANTI-LOCK SENDER BLOCK ---
                         success = False
                         error_msg = ""
                         for attempt in range(3):
                             try:
                                 conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                            (b_ref, renter_user, t['owner_username'], text_to_save, path))
+                                            (b_ref_str, renter_user, t['owner_username'], text_to_save, path))
                                 conn.commit()
                                 success = True
                                 
-                                # Wipe ALL memories and reset the trigger after successful save
+                                # Reset memories and flags
                                 st.session_state.temp_msg_renter = ""
-                                st.session_state[f"chat_{b_ref}"] = ""
-                                st.session_state[f"trigger_send_{b_ref}"] = False
+                                st.session_state[f"chat_{b_ref_str}"] = ""
+                                st.session_state[f"trigger_send_{b_ref_str}"] = False
                                 break
                             except Exception as e:
                                 error_msg = str(e)
