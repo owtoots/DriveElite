@@ -22,13 +22,14 @@ if "temp_msg_affiliate" not in st.session_state:
     st.session_state.temp_msg_affiliate = ""
 
 def clear_affiliate_chat(b_ref):
-    # Create the unique key name for this specific booking's chat box
-    unique_key = f"chat_{b_ref}"
+    b_ref_str = str(b_ref) # Force to string for exact key matching
+    unique_key = f"chat_{b_ref_str}"
+    
     if unique_key in st.session_state:
         # Only trigger if they actually typed something
         if st.session_state[unique_key].strip():
             st.session_state.temp_msg_affiliate = st.session_state[unique_key]
-            st.session_state[f"trigger_send_{b_ref}"] = True # THIS TELLS THE APP TO SEND!
+            st.session_state[f"trigger_send_{b_ref_str}"] = True # THE SEND FLAG
         st.session_state[unique_key] = ""
 def patch_database():
     """Ensures all new columns and tables exist to prevent operational crashes."""
