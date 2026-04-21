@@ -46,6 +46,6 @@ def calculate_moa_cancellation_40_60(gross_rental_paid, logistics_paid, exact_ga
     return {
         "penalty_applied": penalty_amount,
         "renter_refund": renter_refund,
-        "nucleuz_platform_fee": platform_fee,
+        "DriveElite_platform_fee": platform_fee,
         "affiliate_compensation": affiliate_net_payout
     }
