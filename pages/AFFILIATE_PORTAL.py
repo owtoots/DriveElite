@@ -628,16 +628,32 @@ with tabs[0]:
 
                         with c2:
                             st.write("#### 🖊️ Final Sign-off")
-                            if f"clr_sret_{b['id']}" not in st.session_state: st.session_state[f"clr_sret_{b['id']}"] = 0
-                            s_ret = st_canvas(stroke_width=2, stroke_color="#000", background_color="#eee", height=150, width=200, key=f"sret_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}")
-                            if st.button("Clear Pad", key=f"btn_sret_{b['id']}"): 
-                                st.session_state[f"clr_sret_{b['id']}"] += 1
-                                st.rerun()
+                            c_sig1, c_sig2 = st.columns(2)
+                            
+                            with c_sig1:
+                                if f"clr_sret_{b['id']}" not in st.session_state: st.session_state[f"clr_sret_{b['id']}"] = 0
+                                s_ret = st_canvas(stroke_width=2, stroke_color="#000", background_color="#eee", height=150, width=180, key=f"sret_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}")
+                                if st.button("Clear Renter", key=f"btn_sret_{b['id']}", use_container_width=True): 
+                                    st.session_state[f"clr_sret_{b['id']}"] += 1
+                                    st.rerun()
+                                st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{b['renter_name']}</b></u><br>Renter</div>", unsafe_allow_html=True)
                                 
+                            with c_sig2:
+                                if f"clr_sreta_{b['id']}" not in st.session_state: st.session_state[f"clr_sreta_{b['id']}"] = 0
+                                s_reta = st_canvas(stroke_width=2, stroke_color="#000", background_color="#eee", height=150, width=180, key=f"sreta_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}")
+                                if st.button("Clear Host", key=f"btn_sreta_{b['id']}", use_container_width=True): 
+                                    st.session_state[f"clr_sreta_{b['id']}"] += 1
+                                    st.rerun()
+                                st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
+
+                            st.write("") # Spacer
+                            
                             if st.button("✅ COMPLETE JOURNEY & CLOSE OUT", type="primary", use_container_width=True, key=f"fin_{b['id']}"):
                                 has_sig = s_ret.image_data is not None and len(s_ret.json_data.get("objects", [])) > 0
-                                if not has_sig:
-                                    st.error("Renter signature is required to close the trip.")
+                                has_sig_a = s_reta.image_data is not None and len(s_reta.json_data.get("objects", [])) > 0
+                                
+                                if not has_sig or not has_sig_a:
+                                    st.error("Both Renter and Affiliate signatures are required to close the trip.")
                                 elif not d_ok and not img_damage:
                                     st.error("Upload damage photos to proceed.")
                                 else:
@@ -645,10 +661,11 @@ with tabs[0]:
                                     
                                     with st.spinner("Generating Settlement PDF and closing trip..."):
                                         try:
+                                            # PASSING BOTH SIGNATURES TO THE PDF
                                             pdf_bytes = generate_return_receipt(
                                                 b['booking_ref'], b['renter_name'], f"{b['make']} {b['model']}", b['plate'], 
                                                 float(fuel_fee), float(cleaning_fee), float(damage_fee), float(late_fee), 0.0, float(rfid_fee), 
-                                                float(total_deduct), float(refund_amount), s_ret.image_data, None
+                                                float(total_deduct), float(refund_amount), s_ret.image_data, s_reta.image_data
                                             )
                                             
                                             pdf_filepath = f"uploads/Settlement_{b['booking_ref']}.pdf"
@@ -675,9 +692,6 @@ with tabs[0]:
                                             
                                         except Exception as e:
                                             st.error(f"Error finalizing settlement: {e}")
-                                    
-    except Exception as e:
-        st.error(f"System Error loading bookings: {e}")
 
 # --- TAB 1: MY ASSETS ---
 with tabs[1]:
