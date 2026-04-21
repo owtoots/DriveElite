@@ -40,7 +40,7 @@ if "temp_msg_affiliate" not in st.session_state:
     st.session_state.temp_msg_affiliate = ""
 
 def clear_affiliate_chat(b_ref):
-    b_ref_str = str(b_ref) 
+    b_ref_str = str(b_ref)
     unique_key = f"chat_{b_ref_str}"
     
     if unique_key in st.session_state:
@@ -661,7 +661,6 @@ with tabs[0]:
                                     
                                     with st.spinner("Generating Settlement PDF and closing trip..."):
                                         try:
-                                            # PASSING BOTH SIGNATURES TO THE PDF
                                             pdf_bytes = generate_return_receipt(
                                                 b['booking_ref'], b['renter_name'], f"{b['make']} {b['model']}", b['plate'], 
                                                 float(fuel_fee), float(cleaning_fee), float(damage_fee), float(late_fee), 0.0, float(rfid_fee), 
@@ -692,6 +691,9 @@ with tabs[0]:
                                             
                                         except Exception as e:
                                             st.error(f"Error finalizing settlement: {e}")
+                                    
+    except Exception as e:
+        st.error(f"System Error loading bookings: {e}")
 
 # --- TAB 1: MY ASSETS ---
 with tabs[1]:
