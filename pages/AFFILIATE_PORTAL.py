@@ -306,14 +306,13 @@ with tabs[0]:
                     chat_win = st.container(height=250, border=True)
                     with chat_win:
                         try:
-                            history = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b['booking_ref'],))
-                            for _, msg in history.iterrows():
-                                role = "user" if msg['sender_username'] == st.session_state.username else "assistant"
-                                with st.chat_message(role):
-                                    st.write(msg['message_text'])
-                                    if pd.notna(msg.get('image_path')) and msg['image_path'] and os.path.exists(msg['image_path']):
-                                        st.image(msg['image_path'], width=200)
-                        except: st.caption("No messages yet.")
+                        msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref,))
+                        for _, m in msgs.iterrows():
+                            role = "user" if m['sender_username'] == renter_user else "assistant"
+                            with st.chat_message(role):
+                                st.write(m['message_text'])
+                                if m.get('image_path') and os.path.exists(m['image_path']): st.image(m['image_path'], width=200)
+                    except: st.caption("No messages.")
 
                     c_img, c_msg = st.columns([1, 4])
                     with c_img: 
