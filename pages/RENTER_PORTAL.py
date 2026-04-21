@@ -17,10 +17,12 @@ conn = get_connection()
 if "temp_msg_renter" not in st.session_state:
     st.session_state.temp_msg_renter = ""
 
-def clear_renter_chat():
-    # This must be defined BEFORE the text_input calls it
-    st.session_state.temp_msg_renter = st.session_state.chat_input_renter
-    st.session_state.chat_input_renter = ""
+def clear_renter_chat(b_ref):
+    # Create the unique key name for this specific booking's chat box
+    unique_key = f"chat_{b_ref}"
+    if unique_key in st.session_state:
+        st.session_state.temp_msg_renter = st.session_state[unique_key]
+        st.session_state[unique_key] = ""
 
 def patch_chat_table():
     """Forces the database to add missing chat columns if they don't exist."""
@@ -345,12 +347,14 @@ with tabs[1]:
                     r_img = st.file_uploader("📷", type=['jpg','png'], key=f"img_{b_ref}", label_visibility="collapsed")
                 
                 with c_t: 
-                    # We link this to the 'clear_renter_chat' function defined at the top
-                    st.text_input("Reply...", key="chat_input_renter", on_change=clear_renter_chat, placeholder="Type and press Enter...")
+                    # 1. UNIQUE KEY: We add b_ref to the key so Streamlit knows which box this is.
+                    # 2. ARGS: We pass b_ref to the function so it knows which box to clear.
+                    st.text_input("Reply...", key=f"chat_{b_ref}", on_change=clear_renter_chat, args=(b_ref,), placeholder="Type and press Enter...")
 
                 if st.button("Send Message", key=f"btn_{b_ref}", use_container_width=True):
-                    # Use the message we stored in memory via clear_renter_chat
-                    final_msg = st.session_state.temp_msg_renter
+                    # Grab message from memory (if they hit enter), OR directly from the box (if they just clicked send)
+                    box_val = st.session_state.get(f"chat_{b_ref}", "")
+                    final_msg = st.session_state.temp_msg_renter if st.session_state.temp_msg_renter else box_val
                     
                     if final_msg or r_img:
                         path = save_chat_image(r_img, b_ref) if r_img else ""
@@ -365,8 +369,10 @@ with tabs[1]:
                                             (b_ref, renter_user, t['owner_username'], text_to_save, path))
                                 conn.commit()
                                 success = True
-                                # Wipe the memory after successful save
+                                
+                                # Wipe BOTH memories after successful save
                                 st.session_state.temp_msg_renter = ""
+                                st.session_state[f"chat_{b_ref}"] = ""
                                 break
                             except Exception as e:
                                 error_msg = str(e)
