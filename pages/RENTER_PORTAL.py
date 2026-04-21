@@ -17,11 +17,14 @@ conn = get_connection()
 if "temp_msg_renter" not in st.session_state:
     st.session_state.temp_msg_renter = ""
 
-def trigger_send(b_ref):
+def clear_renter_chat(b_ref):
     # Create the unique key name for this specific booking's chat box
     unique_key = f"chat_{b_ref}"
     if unique_key in st.session_state:
-        st.session_state.temp_msg_renter = st.session_state[unique_key]
+        # Only trigger if they actually typed something
+        if st.session_state[unique_key].strip():
+            st.session_state.temp_msg_renter = st.session_state[unique_key]
+            st.session_state[f"trigger_send_{b_ref}"] = True # THIS TELLS THE APP TO SEND!
         st.session_state[unique_key] = ""
 
 def patch_chat_table():
@@ -342,7 +345,7 @@ with tabs[1]:
                                 if m.get('image_path') and os.path.exists(m['image_path']): st.image(m['image_path'], width=200)
                     except: st.caption("No messages.")
 
-               c_i, c_t = st.columns([1, 4])
+                c_i, c_t = st.columns([1, 4])
                 with c_i: 
                     r_img = st.file_uploader("📷", type=['jpg','png'], key=f"img_{b_ref}", label_visibility="collapsed")
                 
