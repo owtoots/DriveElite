@@ -17,7 +17,7 @@ conn = get_connection()
 if "temp_msg_renter" not in st.session_state:
     st.session_state.temp_msg_renter = ""
 
-def clear_renter_chat(b_ref):
+def trigger_send(b_ref):
     # Create the unique key name for this specific booking's chat box
     unique_key = f"chat_{b_ref}"
     if unique_key in st.session_state:
