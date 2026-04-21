@@ -247,8 +247,16 @@ with tabs[3]:
             
             with f_tabs[0]: 
                 display_cols = ['Ref', 'Date', 'Affiliate', 'Gross_Revenue', 'gateway_fee', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
-                st.dataframe(df[display_cols], use_container_width=True, hide_index=True)
-            
+                
+                # Force strict 2-decimal accounting format with commas and Peso signs
+                styled_ledger = df[display_cols].style.format({
+                    'Gross_Revenue': '{:,.2f}',
+                    'gateway_fee': '{:,.2f}',
+                    'Affiliate_Net_Payout': '{:,.2f}',
+                    'Platform_Net_Profit': '{:,.2f}'
+                })
+                
+                st.dataframe(styled_ledger, use_container_width=True, hide_index=True)
             with f_tabs[1]:
                 pending_p = df[(df['Trip_Status'] == 'COMPLETED') & (df['Payout_Status'] == 'PENDING')]
                 if pending_p.empty:
