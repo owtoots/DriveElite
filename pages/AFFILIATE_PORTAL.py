@@ -21,38 +21,6 @@ st.set_page_config(page_title="DriveElite Affiliate Portal", layout="wide")
 # --- UI CSS FOR CHAT BUBBLES ---
 st.markdown("""
 <style>
-    /* TRUE CHAT BUBBLES */
-    .bubble-right {
-        background-color: #2c8c80;
-        color: white;
-        padding: 12px 18px;
-        border-radius: 20px 20px 2px 20px;
-        position: relative;
-        box-shadow: 1px 2px 5px rgba(0,0,0,0.2);
-        margin-bottom: 10px;
-        text-align: right;
-    }
-    .bubble-right::after {
-        content: ''; position: absolute; bottom: 0; right: -10px;
-        border: 10px solid transparent; border-top-color: #2c8c80;
-        border-bottom: 0; border-right: 0; margin-left: -5px;
-    }
-    .bubble-left {
-        background-color: #2b2b2b;
-        color: white;
-        padding: 12px 18px;
-        border-radius: 20px 20px 20px 2px;
-        position: relative;
-        box-shadow: 1px 2px 5px rgba(0,0,0,0.2);
-        border: 1px solid #444;
-        margin-bottom: 10px;
-        text-align: left;
-    }
-    .bubble-left::after {
-        content: ''; position: absolute; bottom: 0; left: -10px;
-        border: 10px solid transparent; border-top-color: #2b2b2b;
-        border-bottom: 0; border-left: 0; margin-right: -5px;
-    }
     .sender-tag {
         font-size: 0.75em;
         color: #aaaaaa;
@@ -76,14 +44,12 @@ def clear_affiliate_chat(b_ref):
     unique_key = f"chat_{b_ref_str}"
     
     if unique_key in st.session_state:
-        # Only trigger if they actually typed something
         if st.session_state[unique_key].strip():
             st.session_state.temp_msg_affiliate = st.session_state[unique_key]
-            st.session_state[f"trigger_send_{b_ref_str}"] = True # THE SEND FLAG
+            st.session_state[f"trigger_send_{b_ref_str}"] = True 
         st.session_state[unique_key] = ""
 
 def patch_database():
-    """Ensures all new columns and tables exist to prevent operational crashes."""
     try: conn.execute("ALTER TABLE platform_users ADD COLUMN document_url TEXT"); conn.commit()
     except: pass
     try: conn.execute("ALTER TABLE vehicles ADD COLUMN admin_status TEXT DEFAULT 'PENDING'"); conn.commit()
@@ -92,6 +58,14 @@ def patch_database():
         conn.execute("ALTER TABLE bookings ADD COLUMN handover_photos TEXT")
         conn.execute("ALTER TABLE bookings ADD COLUMN handover_sig_renter TEXT")
         conn.execute("ALTER TABLE bookings ADD COLUMN handover_sig_affiliate TEXT")
+        conn.commit()
+    except: pass
+    try:
+        conn.execute("ALTER TABLE bookings ADD COLUMN damage_fee REAL DEFAULT 0.0")
+        conn.execute("ALTER TABLE bookings ADD COLUMN late_fee REAL DEFAULT 0.0")
+        conn.execute("ALTER TABLE bookings ADD COLUMN fuel_fee REAL DEFAULT 0.0")
+        conn.execute("ALTER TABLE bookings ADD COLUMN cleaning_fee REAL DEFAULT 0.0")
+        conn.execute("ALTER TABLE bookings ADD COLUMN dispute_status TEXT DEFAULT 'CLEAN'")
         conn.commit()
     except: pass
     try:
@@ -288,20 +262,14 @@ try:
             100% {{ box-shadow: 0 0 0 0 rgba(0,0,0,0); border-color: {primary_color}; }}
         }}
         .broadcast-banner-affiliate {{
-            background: {gradient};
-            color: white;
-            padding: 15px 20px;
-            border-radius: 8px;
-            border: 2px solid {primary_color};
-            text-align: center;
-            margin-bottom: 25px;
+            background: {gradient}; color: white; padding: 15px 20px; border-radius: 8px;
+            border: 2px solid {primary_color}; text-align: center; margin-bottom: 25px;
             animation: pulse_glow_affiliate 2s infinite;
         }}
         .broadcast-title-affiliate {{ font-size: 1.3em; font-weight: 900; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;}}
         .broadcast-msg-affiliate {{ font-size: 1.1em; font-weight: 500; }}
         </style>
         """
-        
         st.markdown(blink_css + f"""
         <div class="broadcast-banner-affiliate">
             <div class="broadcast-title-affiliate">📢 ADMIN BROADCAST: {latest_b['title']} 📢</div>
@@ -352,16 +320,15 @@ with tabs[0]:
                         st.write(f"**Total Revenue:** ₱{b['amount']:,.2f}")
                     st.divider()
                     
-                    # --- UPGRADED CHAT SECTION ---
+                    # --- UPGRADED FLEXBOX CHAT SECTION ---
                     st.markdown("#### 💬 Message the Renter")
-                    b_ref_str = str(b['booking_ref']) # Safely lock as string
+                    b_ref_str = str(b['booking_ref'])
                     
-                    # UPGRADE 2: Expanded Viewport
                     chat_win = st.container(height=450, border=True)
                     with chat_win:
                         try:
                             msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref_str,))
-                        
+                            
                             if msgs.empty:
                                 st.info("👋 Chat is empty. Say hello to start coordinating your trip!")
                             else:
@@ -375,22 +342,20 @@ with tabs[0]:
                                             </div>
                                         </div>
                                         """, unsafe_allow_html=True)
-                                        # Handle Image attachment
                                         if m.get('image_path') and os.path.exists(m['image_path']): 
                                             c_space, c_img = st.columns([2, 1])
                                             with c_img: st.image(m['image_path'], use_container_width=True)
-                                        
+                                            
                                     # RECEIVER (Dark Grey, Left-Aligned Flexbox)
                                     else:
                                         st.markdown(f"""
                                         <div style="display: flex; justify-content: flex-start; margin-bottom: 5px;">
                                             <div style="background-color: #2b2b2b; color: white; padding: 12px 16px; border-radius: 20px 20px 20px 4px; max-width: 75%; border: 1px solid #444; box-shadow: 1px 2px 5px rgba(0,0,0,0.2);">
-                                                <div style="font-size: 0.75em; color: #aaaaaa; margin-bottom: 4px; font-weight: bold; text-transform: uppercase;">@{m['sender_username']}</div>
+                                                <div class="sender-tag">@{m['sender_username']}</div>
                                                 {m['message_text']}
                                             </div>
                                         </div>
                                         """, unsafe_allow_html=True)
-                                        # Handle Image attachment
                                         if m.get('image_path') and os.path.exists(m['image_path']): 
                                             c_img, c_space = st.columns([1, 2])
                                             with c_img: st.image(m['image_path'], use_container_width=True)
@@ -409,18 +374,17 @@ with tabs[0]:
                             """
                             st.components.v1.html(scroll_js, height=0)
 
-                        except Exception as e: 
+                        except: 
                             st.error("Could not load chat history.")
 
-                    # --- INPUT AREA ---
+                    # --- BATCH IMAGE INPUT AREA & TRIGGER ---
                     c_img, c_msg = st.columns([1, 4])
                     with c_img: 
-                        a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"a_img_{b_ref_str}", label_visibility="collapsed")
+                        a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"a_img_{b_ref_str}", label_visibility="collapsed")
                     
                     with c_msg: 
                         st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_affiliate_chat, args=(b_ref_str,), placeholder="Type message and press Enter...")
 
-                    # --- TRIGGER LOGIC ---
                     btn_clicked = st.button("Send", key=f"a_btn_{b_ref_str}", use_container_width=True)
                     enter_pressed = st.session_state.get(f"trigger_send_{b_ref_str}", False)
 
@@ -428,36 +392,43 @@ with tabs[0]:
                         box_val = st.session_state.get(f"chat_{b_ref_str}", "")
                         final_text = st.session_state.temp_msg_affiliate if enter_pressed else box_val
                         
-                        if final_text or a_img:
-                            path = save_chat_image(a_img, b_ref_str) if a_img else ""
-                            text_to_save = final_text if final_text else "📸 Sent a photo."
-                            
+                        has_text = bool(final_text.strip())
+                        has_imgs = bool(a_img and len(a_img) > 0)
+                        
+                        if has_text or has_imgs:
                             success = False
                             error_msg = ""
+                            
                             for attempt in range(3):
                                 try:
-                                    conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                                (b_ref_str, st.session_state.username, b['renter_username'], text_to_save, path))
+                                    if has_imgs:
+                                        for idx, img_file in enumerate(a_img):
+                                            path = save_chat_image(img_file, b_ref_str)
+                                            text_to_save = final_text if idx == 0 else ""
+                                            if idx == 0 and not has_text:
+                                                text_to_save = "📸 Sent a photo."
+                                                
+                                            conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                                        (b_ref_str, st.session_state.username, b['renter_username'], text_to_save, path))
+                                    else:
+                                        conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                                    (b_ref_str, st.session_state.username, b['renter_username'], final_text, ""))
+                                    
                                     conn.commit()
                                     success = True
                                     
-                                    # Reset memories and flags
+                                    # Reset memories
                                     st.session_state.temp_msg_affiliate = ""
                                     st.session_state[f"chat_{b_ref_str}"] = ""
                                     st.session_state[f"trigger_send_{b_ref_str}"] = False
                                     break
                                 except Exception as e:
                                     error_msg = str(e)
-                                    if "locked" in error_msg.lower():
-                                        time.sleep(0.5)
-                                    else:
-                                        break
+                                    if "locked" in error_msg.lower(): time.sleep(0.5)
+                                    else: break
                                         
-                            if success:
-                                st.rerun()
-                            else:
-                                st.warning(f"🚨 **DATABASE ERROR:** {error_msg}")
-                    # ---------------------------------
+                            if success: st.rerun()
+                            else: st.warning(f"🚨 **DATABASE ERROR:** {error_msg}")
                                 
                     st.divider()
 
@@ -543,6 +514,7 @@ with tabs[0]:
                                     time.sleep(3)
                                     st.rerun()
 
+                    # --- ESCROW-FREE FINAL SETTLEMENT ---
                     elif b['status'] == 'ONGOING':
                         st.warning("⏱️ This trip is currently active. Coordinate the return below.")
                         
@@ -550,7 +522,19 @@ with tabs[0]:
                         if os.path.exists(pdf_filepath):
                             with open(pdf_filepath, "rb") as pdf_file:
                                 st.download_button("📄 DOWNLOAD SIGNED HANDOVER PDF", data=pdf_file.read(), file_name=f"Handover_{b['booking_ref']}.pdf", mime="application/pdf", type="secondary", use_container_width=True)
-                            st.divider()
+                        
+                        # --- BEFORE GALLERY ---
+                        if b.get('handover_photos'):
+                            with st.expander("📸 VIEW ORIGINAL HANDOVER PHOTOS (BEFORE TRIP)", expanded=False):
+                                st.write("Compare these original photos to the current condition of the vehicle.")
+                                h_paths = str(b['handover_photos']).split(",")
+                                h_cols = st.columns(3) 
+                                for idx, img_path in enumerate(h_paths):
+                                    clean_path = img_path.strip()
+                                    if clean_path and os.path.exists(clean_path):
+                                        with h_cols[idx % 3]:
+                                            st.image(clean_path, use_container_width=True, caption=f"Original Photo {idx+1}")
+                        st.divider()
 
                         c1, c2 = st.columns(2)
                         with c1:
@@ -570,18 +554,34 @@ with tabs[0]:
                             d_ok = st.checkbox("No Damage Found", value=True, key=f"d_{b['id']}")
                             damage_fee = 0.0
                             img_damage = None
+                            
+                            # --- AFTER GALLERY ---
                             if not d_ok:
-                                img_damage = st.file_uploader("Upload Damage Photos", type=['jpg','png'], accept_multiple_files=True, key=f"p_dam_{b['id']}")
-                                damage_fee = st.number_input("Estimated Damage Amount", step=500.0, key=f"d_est_{b['id']}")
+                                img_damage = st.file_uploader("Upload Damage Photos (Drag & Drop multiple)", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"p_dam_{b['id']}")
+                                if img_damage:
+                                    d_cols = st.columns(3)
+                                    for idx, dmg_file in enumerate(img_damage):
+                                        with d_cols[idx % 3]:
+                                            st.image(dmg_file, use_container_width=True, caption=f"New Damage {idx+1}")
+                                            
+                                damage_fee = st.number_input("Estimated Damage Amount (Php)", step=500.0, key=f"d_est_{b['id']}")
                                 
                             total_deduct = late_fee + fuel_fee + cleaning_fee + damage_fee
                             refund_amount = max(0, 5000.0 - total_deduct)
                             
-                            st.write(f"**Total Deductions:** -Php {total_deduct:,.2f}")
-                            if (5000.0 - total_deduct) < 0: 
-                                st.error(f"RENTER OWES EXTRA: Php {abs(5000.0 - total_deduct):,.2f}")
+                            st.markdown(f"""
+                            <div style='background-color: #2b2b2b; padding: 15px; border-radius: 8px; border: 1px solid #555;'>
+                                <b>Total Deductions:</b> ₱{total_deduct:,.2f}<br>
+                                <b>Deposit Held:</b> ₱5,000.00<br>
+                                <hr style='margin: 5px 0;'>
+                            """, unsafe_allow_html=True)
+                            
+                            if total_deduct > 5000.0: 
+                                st.error(f"🚨 RENTER OWES EXTRA: ₱{(total_deduct - 5000.0):,.2f}. (Admin will be notified to mediate/collect).")
+                                st.markdown("</div>", unsafe_allow_html=True)
                             else: 
-                                st.success(f"REFUND CASH TO RENTER: Php {refund_amount:,.2f}")
+                                st.success(f"✅ REFUND CASH TO RENTER NOW: ₱{refund_amount:,.2f}")
+                                st.markdown("</div>", unsafe_allow_html=True)
 
                         with c2:
                             st.write("#### 🖊️ Final Sign-off")
@@ -591,19 +591,36 @@ with tabs[0]:
                                 st.session_state[f"clr_sret_{b['id']}"] += 1
                                 st.rerun()
                                 
-                            if st.button("✅ COMPLETE JOURNEY & SEND TO ADMIN", type="primary", use_container_width=True):
+                            if st.button("✅ COMPLETE JOURNEY & CLOSE OUT", type="primary", use_container_width=True, key=f"fin_{b['id']}"):
                                 has_sig = s_ret.image_data is not None and len(s_ret.json_data.get("objects", [])) > 0
                                 if not has_sig:
                                     st.error("Renter signature is required to close the trip.")
                                 elif not d_ok and not img_damage:
-                                    st.error("Upload a damage photo to proceed.")
+                                    st.error("Upload damage photos to proceed.")
                                 else:
                                     d_img_path = ",".join([save_file(img) for img in img_damage]) if img_damage else None
-                                    conn.execute("UPDATE bookings SET status = 'COMPLETED', payout_status = 'PENDING', damage_img = ? WHERE id = ?", (d_img_path, b['id']))
+                                    
+                                    # Trigger Admin Mediaton only if damage is logged or deductions exceed deposit
+                                    is_disputed = 'ACTION_REQUIRED' if (damage_fee > 0 or total_deduct > 5000.0) else 'CLEAN'
+                                    
+                                    conn.execute("""
+                                        UPDATE bookings 
+                                        SET status = 'COMPLETED', 
+                                            payout_status = 'PENDING', 
+                                            damage_img = ?, 
+                                            damage_fee = ?, late_fee = ?, fuel_fee = ?, cleaning_fee = ?,
+                                            dispute_status = ?
+                                        WHERE id = ?
+                                    """, (d_img_path, float(damage_fee), float(late_fee), float(fuel_fee), float(cleaning_fee), is_disputed, b['id']))
+                                    
                                     conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
                                     conn.commit()
                                     
-                                    st.success("Car returned! Payout request sent to Admin.")
+                                    if is_disputed == 'ACTION_REQUIRED':
+                                        st.warning("Trip closed! Admin has been notified of the damages for mediation.")
+                                    else:
+                                        st.success("Trip closed cleanly! Payout request sent to Admin.")
+                                        
                                     time.sleep(2)
                                     st.rerun()
                                     
