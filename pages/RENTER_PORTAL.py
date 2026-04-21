@@ -342,7 +342,7 @@ with tabs[1]:
                                 if m.get('image_path') and os.path.exists(m['image_path']): st.image(m['image_path'], width=200)
                     except: st.caption("No messages.")
 
-                c_i, c_t = st.columns([1, 4])
+               c_i, c_t = st.columns([1, 4])
                 with c_i: 
                     r_img = st.file_uploader("📷", type=['jpg','png'], key=f"img_{b_ref}", label_visibility="collapsed")
                 
