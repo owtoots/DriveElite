@@ -13,6 +13,15 @@ from database_utils import get_connection
 # --- DATABASE CONNECTION & SELF-REPAIR ---
 conn = get_connection()
 
+# --- CHAT INPUT RESET LOGIC ---
+if "temp_msg_renter" not in st.session_state:
+    st.session_state.temp_msg_renter = ""
+
+def clear_renter_chat():
+    # This must be defined BEFORE the text_input calls it
+    st.session_state.temp_msg_renter = st.session_state.chat_input_renter
+    st.session_state.chat_input_renter = ""
+
 def patch_chat_table():
     """Forces the database to add missing chat columns if they don't exist."""
     try:
@@ -336,11 +345,11 @@ with tabs[1]:
                     r_img = st.file_uploader("📷", type=['jpg','png'], key=f"img_{b_ref}", label_visibility="collapsed")
                 
                 with c_t: 
-                    # We link this to the 'clear_renter_chat' function
+                    # We link this to the 'clear_renter_chat' function defined at the top
                     st.text_input("Reply...", key="chat_input_renter", on_change=clear_renter_chat, placeholder="Type and press Enter...")
 
                 if st.button("Send Message", key=f"btn_{b_ref}", use_container_width=True):
-                    # Use the message we stored in memory
+                    # Use the message we stored in memory via clear_renter_chat
                     final_msg = st.session_state.temp_msg_renter
                     
                     if final_msg or r_img:
@@ -356,7 +365,7 @@ with tabs[1]:
                                             (b_ref, renter_user, t['owner_username'], text_to_save, path))
                                 conn.commit()
                                 success = True
-                                # Wipe the memory after success
+                                # Wipe the memory after successful save
                                 st.session_state.temp_msg_renter = ""
                                 break
                             except Exception as e:
