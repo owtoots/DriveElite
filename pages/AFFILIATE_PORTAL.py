@@ -15,8 +15,58 @@ from fpdf import FPDF
 from database_utils import get_connection
 from streamlit_drawable_canvas import st_canvas
 
+# --- AUTHENTICATION & PAGE CONFIG ---
+st.set_page_config(page_title="DriveElite Affiliate Portal", layout="wide")
+
+# --- UI CSS FOR CHAT BUBBLES ---
+st.markdown("""
+<style>
+    /* TRUE CHAT BUBBLES */
+    .bubble-right {
+        background-color: #2c8c80;
+        color: white;
+        padding: 12px 18px;
+        border-radius: 20px 20px 2px 20px;
+        position: relative;
+        box-shadow: 1px 2px 5px rgba(0,0,0,0.2);
+        margin-bottom: 10px;
+        text-align: right;
+    }
+    .bubble-right::after {
+        content: ''; position: absolute; bottom: 0; right: -10px;
+        border: 10px solid transparent; border-top-color: #2c8c80;
+        border-bottom: 0; border-right: 0; margin-left: -5px;
+    }
+    .bubble-left {
+        background-color: #2b2b2b;
+        color: white;
+        padding: 12px 18px;
+        border-radius: 20px 20px 20px 2px;
+        position: relative;
+        box-shadow: 1px 2px 5px rgba(0,0,0,0.2);
+        border: 1px solid #444;
+        margin-bottom: 10px;
+        text-align: left;
+    }
+    .bubble-left::after {
+        content: ''; position: absolute; bottom: 0; left: -10px;
+        border: 10px solid transparent; border-top-color: #2b2b2b;
+        border-bottom: 0; border-left: 0; margin-right: -5px;
+    }
+    .sender-tag {
+        font-size: 0.75em;
+        color: #aaaaaa;
+        margin-bottom: 4px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # --- DATABASE CONNECTION & SELF-REPAIR ---
 conn = get_connection()
+
 # --- CHAT INPUT RESET LOGIC ---
 if "temp_msg_affiliate" not in st.session_state:
     st.session_state.temp_msg_affiliate = ""
@@ -31,6 +81,7 @@ def clear_affiliate_chat(b_ref):
             st.session_state.temp_msg_affiliate = st.session_state[unique_key]
             st.session_state[f"trigger_send_{b_ref_str}"] = True # THE SEND FLAG
         st.session_state[unique_key] = ""
+
 def patch_database():
     """Ensures all new columns and tables exist to prevent operational crashes."""
     try: conn.execute("ALTER TABLE platform_users ADD COLUMN document_url TEXT"); conn.commit()
@@ -176,9 +227,7 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
     except: 
         return False
 
-# --- AUTHENTICATION ---
-st.set_page_config(page_title="DriveElite Affiliate Portal", layout="wide")
-
+# --- LOGIN FLOW ---
 if not st.session_state.get('logged_in') or st.session_state.get('role') != 'AFFILIATE':
     st.markdown("<h2 style='text-align: center;'>💼 AFFILIATE LOGIN</h2>", unsafe_allow_html=True)
     with st.form("login", clear_on_submit=True):
@@ -303,93 +352,102 @@ with tabs[0]:
                         st.write(f"**Total Revenue:** ₱{b['amount']:,.2f}")
                     st.divider()
                     
+                    # --- UPGRADED CHAT SECTION ---
                     st.markdown("#### 💬 Message the Renter")
-                b_ref_str = str(b['booking_ref']) # Safely lock as string
-                
-                chat_win = st.container(height=300, border=True)
-                with chat_win:
-                    try:
-                        msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref_str,))
-                        for _, m in msgs.iterrows():
-                            # SENDER (Green Bubble)
-                            if m['sender_username'] == st.session_state.username:
-                                spacer, msg_col = st.columns([1, 4])
-                                with msg_col:
-                                    st.markdown(f'<div class="bubble-right">{m["message_text"]}</div>', unsafe_allow_html=True)
-                                    if m.get('image_path') and os.path.exists(m['image_path']): 
-                                        st.image(m['image_path'], width=200)
-                            # RECEIVER (Grey Bubble)
-                            else:
-                                msg_col, spacer = st.columns([4, 1])
-                                with msg_col:
-                                    st.markdown(f'<div class="bubble-left">{m["message_text"]}</div>', unsafe_allow_html=True)
-                                    if m.get('image_path') and os.path.exists(m['image_path']): 
-                                        st.image(m['image_path'], width=200)
-
-                        # --- NEW: AUTO-SCROLL MAGIC ---
-                        # 1. Create an invisible anchor at the very bottom of the messages
-                        st.markdown(f'<div id="chat_anchor_{b_ref_str}"></div>', unsafe_allow_html=True)
-                        
-                        # 2. Use a tiny script to force the container to scroll down to that anchor
-                        st.components.v1.html(f"""
-                            <script>
-                                var anchor = window.parent.document.getElementById('chat_anchor_{b_ref_str}');
-                                if (anchor) {{
-                                    anchor.scrollIntoView({{behavior: 'smooth', block: 'end'}});
-                                }}
-                            </script>
-                        """, height=0)
-                        # ------------------------------
-
-                    except: 
-                        st.caption("No messages yet. Start the conversation!")
-
-                # --- INPUT AREA ---
-                c_img, c_msg = st.columns([1, 4])
-                with c_img: 
-                    a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"a_img_{b_ref_str}", label_visibility="collapsed")
-                
-                with c_msg: 
-                    st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_affiliate_chat, args=(b_ref_str,), placeholder="Type message and press Enter...")
-
-                # --- TRIGGER LOGIC ---
-                btn_clicked = st.button("Send", key=f"a_btn_{b_ref_str}", use_container_width=True)
-                enter_pressed = st.session_state.get(f"trigger_send_{b_ref_str}", False)
-
-                if btn_clicked or enter_pressed:
-                    box_val = st.session_state.get(f"chat_{b_ref_str}", "")
-                    final_text = st.session_state.temp_msg_affiliate if enter_pressed else box_val
+                    b_ref_str = str(b['booking_ref']) # Safely lock as string
                     
-                    if final_text or a_img:
-                        path = save_chat_image(a_img, b_ref_str) if a_img else ""
-                        text_to_save = final_text if final_text else "📸 Sent a photo."
+                    # UPGRADE 2: Expanded Viewport
+                    chat_win = st.container(height=450, border=True)
+                    with chat_win:
+                        try:
+                            msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref_str,))
+                            
+                            # UPGRADE 3: The "Empty State" Welcome
+                            if msgs.empty:
+                                st.info("👋 Chat is empty. Say hello to start coordinating the handover!")
+                            else:
+                                for _, m in msgs.iterrows():
+                                    # SENDER (Green Bubble)
+                                    if m['sender_username'] == st.session_state.username:
+                                        spacer, msg_col = st.columns([1, 4])
+                                        with msg_col:
+                                            st.markdown(f'<div class="bubble-right">{m["message_text"]}</div>', unsafe_allow_html=True)
+                                            if m.get('image_path') and os.path.exists(m['image_path']): 
+                                                st.image(m['image_path'], width=200)
+                                    # RECEIVER (Grey Bubble)
+                                    else:
+                                        msg_col, spacer = st.columns([4, 1])
+                                        with msg_col:
+                                            # UPGRADE 1: Sender ID Tags
+                                            st.markdown(f'<div class="bubble-left"><div class="sender-tag">@{m["sender_username"]}</div>{m["message_text"]}</div>', unsafe_allow_html=True)
+                                            if m.get('image_path') and os.path.exists(m['image_path']): 
+                                                st.image(m['image_path'], width=200)
+
+                            # --- AUTO-SCROLL MAGIC ---
+                            st.markdown(f'<div id="chat_anchor_{b_ref_str}" style="height: 1px; margin-top: 10px;"></div>', unsafe_allow_html=True)
+                            
+                            scroll_js = f"""
+                            <script>
+                                setTimeout(function() {{
+                                    var anchor = window.parent.document.getElementById('chat_anchor_{b_ref_str}');
+                                    if (anchor) {{
+                                        anchor.scrollIntoView({{behavior: 'smooth', block: 'end'}});
+                                    }}
+                                }}, 150);
+                            </script>
+                            """
+                            st.components.v1.html(scroll_js, height=0)
+                            # ------------------------------
+
+                        except: 
+                            st.error("Could not load chat history.")
+
+                    # --- INPUT AREA ---
+                    c_img, c_msg = st.columns([1, 4])
+                    with c_img: 
+                        a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"a_img_{b_ref_str}", label_visibility="collapsed")
+                    
+                    with c_msg: 
+                        st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_affiliate_chat, args=(b_ref_str,), placeholder="Type message and press Enter...")
+
+                    # --- TRIGGER LOGIC ---
+                    btn_clicked = st.button("Send", key=f"a_btn_{b_ref_str}", use_container_width=True)
+                    enter_pressed = st.session_state.get(f"trigger_send_{b_ref_str}", False)
+
+                    if btn_clicked or enter_pressed:
+                        box_val = st.session_state.get(f"chat_{b_ref_str}", "")
+                        final_text = st.session_state.temp_msg_affiliate if enter_pressed else box_val
                         
-                        success = False
-                        error_msg = ""
-                        for attempt in range(3):
-                            try:
-                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                            (b_ref_str, st.session_state.username, b['renter_username'], text_to_save, path))
-                                conn.commit()
-                                success = True
-                                
-                                # Reset memories and flags
-                                st.session_state.temp_msg_affiliate = ""
-                                st.session_state[f"chat_{b_ref_str}"] = ""
-                                st.session_state[f"trigger_send_{b_ref_str}"] = False
-                                break
-                            except Exception as e:
-                                error_msg = str(e)
-                                if "locked" in error_msg.lower():
-                                    time.sleep(0.5)
-                                else:
-                                    break
+                        if final_text or a_img:
+                            path = save_chat_image(a_img, b_ref_str) if a_img else ""
+                            text_to_save = final_text if final_text else "📸 Sent a photo."
+                            
+                            success = False
+                            error_msg = ""
+                            for attempt in range(3):
+                                try:
+                                    conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                                (b_ref_str, st.session_state.username, b['renter_username'], text_to_save, path))
+                                    conn.commit()
+                                    success = True
                                     
-                        if success:
-                            st.rerun()
-                        else:
-                            st.warning(f"🚨 **DATABASE ERROR:** {error_msg}")
-                            # ---------------------------------
+                                    # Reset memories and flags
+                                    st.session_state.temp_msg_affiliate = ""
+                                    st.session_state[f"chat_{b_ref_str}"] = ""
+                                    st.session_state[f"trigger_send_{b_ref_str}"] = False
+                                    break
+                                except Exception as e:
+                                    error_msg = str(e)
+                                    if "locked" in error_msg.lower():
+                                        time.sleep(0.5)
+                                    else:
+                                        break
+                                        
+                            if success:
+                                st.rerun()
+                            else:
+                                st.warning(f"🚨 **DATABASE ERROR:** {error_msg}")
+                    # ---------------------------------
                                 
                     st.divider()
 
