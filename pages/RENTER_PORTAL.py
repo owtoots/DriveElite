@@ -384,26 +384,38 @@ with tabs[1]:
                     try:
                         msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref_str,))
                         
-                        # UPGRADE 3: The "Empty State" Welcome
                         if msgs.empty:
                             st.info("👋 Chat is empty. Say hello to start coordinating your trip!")
                         else:
                             for _, m in msgs.iterrows():
-                                # SENDER (Green Bubble)
-                                if m['sender_username'] == renter_user:
-                                    spacer, msg_col = st.columns([1, 4])
-                                    with msg_col:
-                                        st.markdown(f'<div class="bubble-right">{m["message_text"]}</div>', unsafe_allow_html=True)
-                                        if m.get('image_path') and os.path.exists(m['image_path']): 
-                                            st.image(m['image_path'], width=200)
-                                # RECEIVER (Grey Bubble)
+                                # SENDER (Green, Right-Aligned Flexbox)
+                                if m['sender_username'] == st.session_state.username:
+                                    st.markdown(f"""
+                                    <div style="display: flex; justify-content: flex-end; margin-bottom: 5px;">
+                                        <div style="background-color: #2c8c80; color: white; padding: 12px 16px; border-radius: 20px 20px 4px 20px; max-width: 75%; box-shadow: 1px 2px 5px rgba(0,0,0,0.2);">
+                                            {m['message_text']}
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    # Handle Image attachment
+                                    if m.get('image_path') and os.path.exists(m['image_path']): 
+                                        c_space, c_img = st.columns([2, 1])
+                                        with c_img: st.image(m['image_path'], use_container_width=True)
+                                        
+                                # RECEIVER (Dark Grey, Left-Aligned Flexbox)
                                 else:
-                                    msg_col, spacer = st.columns([4, 1])
-                                    with msg_col:
-                                        # UPGRADE 1: Sender ID Tags
-                                        st.markdown(f'<div class="bubble-left"><div class="sender-tag">@{m["sender_username"]}</div>{m["message_text"]}</div>', unsafe_allow_html=True)
-                                        if m.get('image_path') and os.path.exists(m['image_path']): 
-                                            st.image(m['image_path'], width=200)
+                                    st.markdown(f"""
+                                    <div style="display: flex; justify-content: flex-start; margin-bottom: 5px;">
+                                        <div style="background-color: #2b2b2b; color: white; padding: 12px 16px; border-radius: 20px 20px 20px 4px; max-width: 75%; border: 1px solid #444; box-shadow: 1px 2px 5px rgba(0,0,0,0.2);">
+                                            <div style="font-size: 0.75em; color: #aaaaaa; margin-bottom: 4px; font-weight: bold; text-transform: uppercase;">@{m['sender_username']}</div>
+                                            {m['message_text']}
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    # Handle Image attachment
+                                    if m.get('image_path') and os.path.exists(m['image_path']): 
+                                        c_img, c_space = st.columns([1, 2])
+                                        with c_img: st.image(m['image_path'], use_container_width=True)
 
                         # --- AUTO-SCROLL MAGIC ---
                         st.markdown(f'<div id="chat_anchor_{b_ref_str}" style="height: 1px; margin-top: 10px;"></div>', unsafe_allow_html=True)
@@ -418,7 +430,6 @@ with tabs[1]:
                         </script>
                         """
                         st.components.v1.html(scroll_js, height=0)
-                        # ------------------------------
 
                     except Exception as e: 
                         st.error("Could not load chat history.")
