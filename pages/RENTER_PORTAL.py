@@ -332,33 +332,44 @@ with tabs[1]:
                     except: st.caption("No messages.")
 
                 c_i, c_t = st.columns([1, 4])
-                with c_i: r_img = st.file_uploader("📷", type=['jpg','png'], key=f"img_{b_ref}", label_visibility="collapsed")
-                with c_t: r_txt = st.text_input("Reply...", key=f"txt_{b_ref}")
+                with c_i: 
+                    r_img = st.file_uploader("📷", type=['jpg','png'], key=f"img_{b_ref}", label_visibility="collapsed")
+                
+                with c_t: 
+                    # We link this to the 'clear_renter_chat' function
+                    st.text_input("Reply...", key="chat_input_renter", on_change=clear_renter_chat, placeholder="Type and press Enter...")
 
                 if st.button("Send Message", key=f"btn_{b_ref}", use_container_width=True):
-                    if r_txt or r_img:
+                    # Use the message we stored in memory
+                    final_msg = st.session_state.temp_msg_renter
+                    
+                    if final_msg or r_img:
                         path = save_chat_image(r_img, b_ref) if r_img else ""
+                        text_to_save = final_msg if final_msg else "📸 Sent a photo."
                         
-                        # --- ANTI-LOCK & UN-REDACTOR BLOCK ---
+                        # --- ANTI-LOCK SENDER BLOCK ---
                         success = False
                         error_msg = ""
                         for attempt in range(3):
                             try:
-                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", (b_ref, renter_user, t['owner_username'], r_txt or "📸 Photo", path))
+                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                            (b_ref, renter_user, t['owner_username'], text_to_save, path))
                                 conn.commit()
                                 success = True
+                                # Wipe the memory after success
+                                st.session_state.temp_msg_renter = ""
                                 break
                             except Exception as e:
                                 error_msg = str(e)
                                 if "locked" in error_msg.lower():
-                                    time.sleep(0.5) # Wait half a second and try again
+                                    time.sleep(0.5) 
                                 else:
-                                    break # If it's a structural error, stop trying
+                                    break
                                     
                         if success:
                             st.rerun()
                         else:
-                            st.warning(f"🚨 **RAW DATABASE ERROR:** {error_msg}")
+                            st.warning(f"🚨 **DATABASE ERROR:** {error_msg}")
                             st.info("Please screenshot this yellow box so we can see the exact cause!")
                         # -------------------------------------
 
