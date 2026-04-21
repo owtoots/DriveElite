@@ -255,8 +255,9 @@ with tabs[3]:
                     'Gross_Revenue': '{:,.2f}',
                     'gateway_fee': '{:,.2f}',
                     'EWT_Deduction': '{:,.2f}',
-                    'Affiliate_Net_Payout': '{:,.2f}',
                     'Platform_Net_Profit': '{:,.2f}'
+                    'Affiliate_Net_Payout': '{:,.2f}',
+                    
                 })
                 
                 st.dataframe(styled_ledger, use_container_width=True, hide_index=True)
