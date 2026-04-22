@@ -474,10 +474,16 @@ with tabs[5]:
                 import os, glob
                 import time
                 
-                with st.spinner("Nuking database and files..."):
-                    # 1. Delete Database
-                    if os.path.exists("driveelite.db"): # Change this if your DB name is different!
-                        os.remove("driveelite.db")
+                with st.spinner("Disconnecting and Nuking database..."):
+                    # Clear memory lock
+                    try: conn.close() 
+                    except: pass
+                    st.cache_resource.clear() 
+                    st.cache_data.clear() 
+
+                    # 1. Delete Database (Corrected to V2)
+                    if os.path.exists("driveelite_v2.db"): 
+                        os.remove("driveelite_v2.db")
                     
                     # 2. Delete Uploads
                     if os.path.exists("uploads"):
