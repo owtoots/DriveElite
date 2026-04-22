@@ -205,33 +205,33 @@ if st.session_state.get('otp_pending'):
         conn.commit()
             
             
-            # 2. THE AUTOMATION INJECTION (Vault + Email)
-            with st.spinner("Securing IDs to Vault and emailing your contract..."):
-                try:
-                    username = payload[0]
-                    role = payload[2]
-                    email_addr = payload[4]
-                    gov_id_bytes = payload[9]
-                    lic_id_bytes = payload[10]
+        # 2. THE AUTOMATION INJECTION (Vault + Email)
+        with st.spinner("Securing IDs to Vault and emailing your contract..."):
+            try:
+            username = payload[0]
+            role = payload[2]
+            email_addr = payload[4]
+            gov_id_bytes = payload[9]
+            lic_id_bytes = payload[10]
 
-                    # Upload IDs to the Vault
-                    VAULT_ID = "1Gc21xmpLvKHFB_0ta9vl-osySjLyrPD7"  
-                    upload_to_vault(gov_id_bytes, VAULT_ID, f"{username}_GovID.jpg")
-                    upload_to_vault(lic_id_bytes, VAULT_ID, f"{username}_License.jpg")
+            # Upload IDs to the Vault
+            VAULT_ID = "1Gc21xmpLvKHFB_0ta9vl-osySjLyrPD7"  
+            upload_to_vault(gov_id_bytes, VAULT_ID, f"{username}_GovID.jpg")
+            upload_to_vault(lic_id_bytes, VAULT_ID, f"{username}_License.jpg")
 
-                    # Decide which file to look for based on role
-                    pdf_prefix = "MOA" if role == "AFFILIATE" else "RENTER"
-                    pdf_path = f"uploads/{pdf_prefix}_{username}.pdf"
+            # Decide which file to look for based on role
+            pdf_prefix = "MOA" if role == "AFFILIATE" else "RENTER"
+            pdf_path = f"uploads/{pdf_prefix}_{username}.pdf"
                     
-                    # SEND THE EMAIL
-                    send_welcome_email(email_addr, role, username, pdf_path)
+            # SEND THE EMAIL
+            send_welcome_email(email_addr, role, username, pdf_path)
                     
-                    # Cleanup local server memory
-                    if os.path.exists(pdf_path):
-                        os.remove(pdf_path)
+            # Cleanup local server memory
+            if os.path.exists(pdf_path):
+            os.remove(pdf_path)
                         
-                except Exception as e:
-                    st.warning(f"Account created, but background tasks (Vault/Email) encountered an error: {e}")
+            except Exception as e:
+            st.warning(f"Account created, but background tasks (Vault/Email) encountered an error: {e}")
 
             st.success("✅ Verification successful! Your account is created and your contract has been emailed.")
             
