@@ -362,12 +362,35 @@ with tabs[5]:
     col_promo, col_cat = st.columns(2)
     with col_promo:
         st.subheader("📢 Broadcast Manager")
+        
+        # --- NEW: MASTER TOGGLE SWITCH ---
+        # Check if there is currently an active broadcast
+        current_active = pd.read_sql_query("SELECT id FROM admin_promos WHERE active = 1", conn)
+        banner_is_on = not current_active.empty
+        
+        # Display the sleek toggle bullet
+        turn_on = st.toggle("📡 Master Broadcast Switch (Turn ON / OFF)", value=banner_is_on)
+        
+        # If the toggle is clicked, update the database instantly
+        if turn_on != banner_is_on:
+            if turn_on:
+                # Turn back on the most recently created promo
+                conn.execute("UPDATE admin_promos SET active = 1 WHERE id = (SELECT MAX(id) FROM admin_promos)")
+                conn.commit()
+            else:
+                # Turn everything off (hide the banner)
+                conn.execute("UPDATE admin_promos SET active = 0")
+                conn.commit()
+            st.rerun()
+        st.divider()
+        # ---------------------------------
+
         with st.form("promo"):
             t = st.text_input("Broadcast Title")
             m = st.text_area("Broadcast Message")
             target = st.radio("Target Audience:", ["RENTERS", "AFFILIATES", "ALL USERS"], horizontal=True)
             
-            if st.form_submit_button("PUBLISH BROADCAST"):
+            if st.form_submit_button("PUBLISH NEW BROADCAST"):
                 if t and m:
                     try:
                         conn.execute("ALTER TABLE admin_promos ADD COLUMN target TEXT DEFAULT 'ALL USERS'")
@@ -378,6 +401,8 @@ with tabs[5]:
                     conn.execute("INSERT INTO admin_promos (title, message, target) VALUES (?, ?, ?)", (t, m, target))
                     conn.commit()
                     st.success(f"Live! Broadcast successfully published to {target}.")
+                    time.sleep(1)
+                    st.rerun()
                     
     with col_cat:
         st.subheader("📈 Category Manager")
