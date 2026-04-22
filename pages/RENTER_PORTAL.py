@@ -271,7 +271,7 @@ try:
         .broadcast-banner-renter {{
             background: {gradient}; color: white; padding: 15px 20px; border-radius: 8px;
             border: 2px solid {primary_color}; text-align: center; margin-bottom: 25px;
-            animation: pulse_glow_renter 2s infinite;
+            animation: pulse_glow_renter 2s 5; /* CHANGED FROM INFINITE TO 5 */
         }}
         .broadcast-title-renter {{ font-size: 1.3em; font-weight: 900; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;}}
         .broadcast-msg-renter {{ font-size: 1.1em; font-weight: 500; }}
