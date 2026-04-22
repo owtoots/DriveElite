@@ -182,27 +182,27 @@ if st.session_state.get('otp_pending'):
             
         
             # 1. SAVE TO DATABASE
-                        payload = (
-                            st.session_state.temp_affiliate_data["username"],
-                            st.session_state.temp_affiliate_data["password"],
-                            "AFFILIATE",
-                            st.session_state.temp_affiliate_data["full_name"],
-                            st.session_state.temp_affiliate_data["email"],
-                            st.session_state.temp_affiliate_data["age"],
-                            st.session_state.temp_affiliate_data["nationality"],
-                            st.session_state.temp_affiliate_data["address"],
-                            st.session_state.temp_affiliate_data["area_code"], # <--- The newly added area code
-                            st.session_state.temp_affiliate_data["contact"],
-                            st.session_state.temp_affiliate_data["gov_id_bytes"],
-                            st.session_state.temp_affiliate_data["lic_id_bytes"],
-                            image_data # <--- The signature from your canvas
-                        )
+            payload = (
+                st.session_state.temp_affiliate_data["username"],
+                st.session_state.temp_affiliate_data["password"],
+                "AFFILIATE",
+                st.session_state.temp_affiliate_data["full_name"],
+                st.session_state.temp_affiliate_data["email"],
+                st.session_state.temp_affiliate_data["age"],
+                st.session_state.temp_affiliate_data["nationality"],
+                st.session_state.temp_affiliate_data["address"],
+                st.session_state.temp_affiliate_data["area_code"], # <--- The newly added area code
+                st.session_state.temp_affiliate_data["contact"],
+                st.session_state.temp_affiliate_data["gov_id_bytes"],
+                st.session_state.temp_affiliate_data["lic_id_bytes"],
+                image_data # <--- The signature from your canvas
+             )
 
-                        cursor.execute('''INSERT INTO platform_users 
-                               (username, password, role, full_name, email, age, nationality, address, area_code, contact_number, govt_id_img, license_img, signature_img) 
-                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
+             cursor.execute('''INSERT INTO platform_users 
+             (username, password, role, full_name, email, age, nationality, address, area_code, contact_number, govt_id_img, license_img, signature_img) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
                         
-                        conn.commit()
+              conn.commit()
             
             
             # 2. THE AUTOMATION INJECTION (Vault + Email)
