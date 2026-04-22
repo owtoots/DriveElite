@@ -15,11 +15,7 @@ def init_db():
     """Initializes all required tables for DriveElite V2."""
     conn = get_connection()
     
-    # CHAT MESSAGES 
-    conn.execute('CREATE TABLE IF NOT EXISTS vehicle_categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, default_price REAL)')
-    conn.execute('CREATE TABLE IF NOT EXISTS admin_promos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, target TEXT DEFAULT "ALL USERS", active INTEGER DEFAULT 1)')
-
-    # --- DROP THE NEW MESSENGER CODE RIGHT HERE! ---
+    # SUPPORT CHATS 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS support_chats (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,7 +26,7 @@ def init_db():
         )
     """)
 
-    # PLATFORM USERS TABLE (The new V2 Structure)
+    # PLATFORM USERS TABLE
     conn.execute('''
         CREATE TABLE IF NOT EXISTS platform_users (
             id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -88,7 +84,7 @@ def patch_database():
     """Safely injects missing columns into the database without losing data."""
     conn = get_connection()
     
-    # 1. Patch for Financials (Gateway Fee)
+    # Patch for Financials (Gateway Fee)
     try:
         conn.execute("ALTER TABLE bookings ADD COLUMN gateway_fee REAL DEFAULT 0.0")
     except sqlite3.OperationalError:
