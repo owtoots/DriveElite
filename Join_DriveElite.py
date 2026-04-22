@@ -182,7 +182,7 @@ if st.session_state.get('otp_pending'):
             
             # 1. SAVE TO DATABASE
             cursor.execute('''INSERT INTO platform_users 
-                  (username, password, role, full_name, email, age, nationality, address, contact_number, govt_id_img, license_img, signature_img) 
+                  (username, password, role, , email, age, nationality, address, contact_number, govt_id_img, license_img, signature_img) 
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
             conn.commit()
             
@@ -408,13 +408,14 @@ else:
                             st.error("🚨 Username taken.")
                         else:
                             full_name = f"{first_name} {middle_name} {surname}".replace("  ", " ").strip()
-                            st.session_state.temp_renter_data = {
-                                "username": username, "password": password, "full_name": full_name, "email": email,
-                                "age": age, "nationality": nationality, "address": address, 
-                                "contact": contact, "gov_id_bytes": gov_id.read(), "lic_id_bytes": lic_id.read(),
-                                "first_name": first_name, "surname": surname 
+                            st.session_state.temp_affiliate_data = {
+                            "username": username, "password": password, "full_name": full_name, "email": email,
+                            "age": age, "nationality": nationality, "address": address,
+                            "area_code": a_code,  # <--- NEW: ADDED THIS HERE!
+                            "contact": contact, "gov_id_bytes": gov_id.read(), "lic_id_bytes": lic_id.read(),
+                            "first_name": first_name, "surname": surname
                             }
-                            st.session_state.renter_step = 2
+                            st.session_state.affiliate_step = 2
                             st.rerun()
 
         elif st.session_state.renter_step == 2:
