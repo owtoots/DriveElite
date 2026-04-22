@@ -16,7 +16,32 @@ conn = get_connection()
 # --- CHAT INPUT RESET LOGIC ---
 if "temp_msg_renter" not in st.session_state:
     st.session_state.temp_msg_renter = ""
-
+def get_booked_dates(vehicle_id, conn):
+    """Finds all dates a specific vehicle is already booked."""
+    import datetime
+    # We only care about active trips, pending trips, or confirmed trips. 
+    query = """
+        SELECT pickup_time, return_time 
+        FROM bookings 
+        WHERE vehicle_id = ? AND status NOT IN ('CANCELLED', 'COMPLETED', 'REJECTED')
+    """
+    df = pd.read_sql_query(query, conn, params=(vehicle_id,))
+    
+    booked_days = set()
+    for _, row in df.iterrows():
+        try:
+            # Convert database strings to actual Date objects
+            start = pd.to_datetime(row['pickup_time']).date()
+            end = pd.to_datetime(row['return_time']).date()
+            
+            # Add every single day of that trip to our 'booked' list
+            delta = end - start
+            for i in range(delta.days + 1):
+                booked_days.add(start + datetime.timedelta(days=i))
+        except Exception:
+            pass
+            
+    return booked_days
 def clear_renter_chat(b_ref):
     # Safely lock the reference as a string
     b_ref_str = str(b_ref)
@@ -313,10 +338,29 @@ with tabs[0]:
                         st.write(f"### {car['make']} {car['model']} ({car['year']})")
                         base_rate = car.get('approved_price', 2000.0)
                         with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
+                            # --- 1. FETCH TAKEN DATES ---
+                            unavailable_dates = get_booked_dates(car['id'], conn)
+
                             d1 = st.date_input("Pickup Date", min_value=datetime.date.today(), key=f"d1_{car['id']}")
                             t1 = st.time_input("Pickup Time", value=datetime.time(8, 0), key=f"t1_{car['id']}")
                             d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}")
                             t2 = st.time_input("Return Time", value=datetime.time(18, 0), key=f"t2_{car['id']}")
+                            
+                            # --- 2. DATE VALIDATION CHECKER ---
+                            can_book = True
+                            requested_days = set()
+                            delta = d2 - d1
+                            for j in range(delta.days + 1):
+                                requested_days.add(d1 + datetime.timedelta(days=j))
+                                
+                            clashes = requested_days.intersection(unavailable_dates)
+                            if clashes:
+                                can_book = False
+                                clash_list = sorted(list(clashes))
+                                clash_str = ", ".join([d.strftime('%b %d') for d in clash_list])
+                                st.error(f"🚨 **DATES UNAVAILABLE:** This vehicle is already booked on: **{clash_str}**. Please adjust your travel dates.")
+                            # ----------------------------------
+
                             drive_mode = st.radio("Mode", ["Self-Drive", "With Driver (+₱1k/day)"], key=f"dm_{car['id']}")
                             is_driver = 1 if "Driver" in drive_mode else 0
                             dest = st.text_input("Destination", key=f"dest_{car['id']}")
@@ -328,7 +372,9 @@ with tabs[0]:
                             r_exact = st.text_input("Return Address", key=f"ra_{car['id']}")
 
                             p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
-                            if r_dt_obj <= p_dt_obj: st.error("⚠️ Return time must be after pickup.")
+                            if r_dt_obj <= p_dt_obj: 
+                                st.error("⚠️ Return time must be after pickup.")
+                                can_book = False # Disable booking if time is backwards
                             else:
                                 full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
                                 driver_days = full_days + (1 if billed_hrs > 0 else 0)
@@ -352,14 +398,16 @@ with tabs[0]:
                                 if os.path.exists(qr_p): st.image(qr_p, caption=f"Scan to Pay: ₱{grand_total:,.2f}", width=300)
                                 ref_num = st.text_input("GCash Reference Number *", key=f"ref_{car['id']}")
 
-                                if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True):
+                                # --- 3. SMART BUTTON WITH DISABLE LOCK ---
+                                if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True, disabled=not can_book):
                                     if dest and ref_num and p_exact and r_exact and luzon_agree:
                                         b_ref = str(random.randint(100000, 999999))
                                         p_dt_str, r_dt_str = f"{d1} {t1.strftime('%H:%M')}", f"{d2} {t2.strftime('%H:%M')}"
                                         conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?)", (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
                                         conn.commit()
                                         st.success(f"✅ Confirmed! Ref: #{b_ref}"); time.sleep(2); st.rerun()
-                                    else: st.warning("⚠️ Fill all fields.")
+                                    else: 
+                                        st.warning("⚠️ Fill all fields.")
 
 # --- TAB 1: MY BOOKINGS ---
 with tabs[1]:
