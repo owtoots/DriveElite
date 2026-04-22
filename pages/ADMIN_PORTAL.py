@@ -14,7 +14,6 @@ from database_utils import get_connection, init_db, patch_database
 init_db()
 patch_database()
 
-# --- 1. FINANCE LOGIC IMPORT ---
 
 # --- 1. FINANCE LOGIC IMPORT ---
 try:
@@ -180,7 +179,17 @@ with tabs[1]:
         for i, r in pv.iterrows():
             with st.expander(f"🚗 {r['make']} {r['model']} ({r['plate']})"):
                 
+                # --- NEW: SMART DOCUMENT VIEWER ---
+                st.write("### Vehicle Documents")
+                c_doc1, c_doc2, c_doc3 = st.columns(3)
+                with c_doc1: display_document(r.get('or_img'), "Official Receipt (OR)")
+                with c_doc2: display_document(r.get('cr_img'), "Certificate of Reg (CR)")
+                with c_doc3: display_document(r.get('insurance_img'), "Insurance Policy")
+                st.divider()
+                # ----------------------------------
+                
                 if st.button("✅ APPROVE & ACTIVATE", key=f"v_app_{r['id']}", type="primary", use_container_width=True):
+                    # ... your existing approval code ...
                     conn.execute("""
                         UPDATE vehicles 
                         SET admin_status = 'APPROVED', 
