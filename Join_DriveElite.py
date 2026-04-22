@@ -283,9 +283,10 @@ else:
                             full_name = f"{first_name} {middle_name} {surname}".replace("  ", " ").strip()
                             st.session_state.temp_affiliate_data = {
                                 "username": username, "password": password, "full_name": full_name, "email": email,
-                                "age": age, "nationality": nationality, "address": address, 
+                                "age": age, "nationality": nationality, "address": address,
+                                "area_code": a_code,  # <--- NEW: ADDED THIS HERE!
                                 "contact": contact, "gov_id_bytes": gov_id.read(), "lic_id_bytes": lic_id.read(),
-                                "first_name": first_name, "surname": surname 
+                                "first_name": first_name, "surname": surname
                             }
                             st.session_state.affiliate_step = 2
                             st.rerun()
