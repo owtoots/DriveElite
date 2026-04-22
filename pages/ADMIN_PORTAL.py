@@ -8,7 +8,13 @@ import numpy as np
 import time
 import random 
 from PIL import Image
-from database_utils import get_connection
+from database_utils import get_connection, init_db, patch_database
+
+# --- FORCE DATABASE REBUILD ON CLOUD WAKE-UP ---
+init_db()
+patch_database()
+
+# --- 1. FINANCE LOGIC IMPORT ---
 
 # --- 1. FINANCE LOGIC IMPORT ---
 try:
