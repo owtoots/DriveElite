@@ -38,6 +38,7 @@ cursor.execute('''
         age TEXT,
         nationality TEXT,
         address TEXT,
+        area_code TEXT DEFAULT '+63',
         contact_number TEXT,
         govt_id_img BLOB,
         license_img BLOB,
@@ -122,6 +123,7 @@ def generate_legal_doc_from_drive(role, username, full_name, address, doc_id, si
     drive_service.files().delete(fileId=sig_id).execute()
 
     return pdf_bytes
+
 # ==========================================
 # DRIVEELITE VAULT & MAILROOM FUNCTIONS
 # ==========================================
@@ -180,58 +182,40 @@ if st.session_state.get('otp_pending'):
             payload = st.session_state.reg_payload
             cursor = conn.cursor()
             
-        
-        # 1. SAVE TO DATABASE
-        payload = (
-            st.session_state.temp_affiliate_data["username"],
-            st.session_state.temp_affiliate_data["password"],
-            "AFFILIATE",
-            st.session_state.temp_affiliate_data["full_name"],
-            st.session_state.temp_affiliate_data["email"],
-            st.session_state.temp_affiliate_data["age"],
-            st.session_state.temp_affiliate_data["nationality"],
-            st.session_state.temp_affiliate_data["address"],
-            st.session_state.temp_affiliate_data["area_code"], # <--- The newly added area code
-            st.session_state.temp_affiliate_data["contact"],
-            st.session_state.temp_affiliate_data["gov_id_bytes"],
-            st.session_state.temp_affiliate_data["lic_id_bytes"],
-            image_data # <--- The signature from your canvas
-        )
-
-        cursor.execute('''INSERT INTO platform_users 
-        (username, password, role, full_name, email, age, nationality, address, area_code, contact_number, govt_id_img, license_img, signature_img) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
-                        
-        conn.commit()
+            # 1. SAVE TO DATABASE
+            cursor.execute('''INSERT INTO platform_users 
+            (username, password, role, full_name, email, age, nationality, address, area_code, contact_number, govt_id_img, license_img, signature_img) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
             
+            conn.commit()
             
-        # 2. THE AUTOMATION INJECTION (Vault + Email)
-        with st.spinner("Securing IDs to Vault and emailing your contract..."):
-            try:
-            username = payload[0]
-            role = payload[2]
-            email_addr = payload[4]
-            gov_id_bytes = payload[9]
-            lic_id_bytes = payload[10]
+            # 2. THE AUTOMATION INJECTION (Vault + Email)
+            with st.spinner("Securing IDs to Vault and emailing your contract..."):
+                try:
+                    username = payload[0]
+                    role = payload[2]
+                    email_addr = payload[4]
+                    gov_id_bytes = payload[10]
+                    lic_id_bytes = payload[11]
 
-            # Upload IDs to the Vault
-            VAULT_ID = "1Gc21xmpLvKHFB_0ta9vl-osySjLyrPD7"  
-            upload_to_vault(gov_id_bytes, VAULT_ID, f"{username}_GovID.jpg")
-            upload_to_vault(lic_id_bytes, VAULT_ID, f"{username}_License.jpg")
+                    # Upload IDs to the Vault
+                    VAULT_ID = "1Gc21xmpLvKHFB_0ta9vl-osySjLyrPD7"  
+                    upload_to_vault(gov_id_bytes, VAULT_ID, f"{username}_GovID.jpg")
+                    upload_to_vault(lic_id_bytes, VAULT_ID, f"{username}_License.jpg")
 
-            # Decide which file to look for based on role
-            pdf_prefix = "MOA" if role == "AFFILIATE" else "RENTER"
-            pdf_path = f"uploads/{pdf_prefix}_{username}.pdf"
-                    
-            # SEND THE EMAIL
-            send_welcome_email(email_addr, role, username, pdf_path)
-                    
-            # Cleanup local server memory
-            if os.path.exists(pdf_path):
-            os.remove(pdf_path)
-                        
-            except Exception as e:
-            st.warning(f"Account created, but background tasks (Vault/Email) encountered an error: {e}")
+                    # Decide which file to look for based on role
+                    pdf_prefix = "MOA" if role == "AFFILIATE" else "RENTER"
+                    pdf_path = f"uploads/{pdf_prefix}_{username}.pdf"
+                            
+                    # SEND THE EMAIL
+                    send_welcome_email(email_addr, role, username, pdf_path)
+                            
+                    # Cleanup local server memory
+                    if os.path.exists(pdf_path):
+                        os.remove(pdf_path)
+                                
+                except Exception as e:
+                    st.warning(f"Account created, but background tasks (Vault/Email) encountered an error: {e}")
 
             st.success("✅ Verification successful! Your account is created and your contract has been emailed.")
             
@@ -276,7 +260,15 @@ else:
                 dob = c4.date_input("Date of Birth", min_value=datetime.date(1920, 1, 1), max_value=datetime.date.today())
                 age = c5.text_input("Age", max_chars=2) 
                 nationality = c6.text_input("Nat.", max_chars=3).upper() 
-                contact = c7.text_input("Contact Number")
+                
+                # --- NEW AREA CODE SELECTION ---
+                st.write("Mobile Number *")
+                c_area, c_num = st.columns([1, 3])
+                with c_area:
+                    a_code = st.selectbox("Code", ["+63", "+1", "+44", "+61", "+81", "+65"], label_visibility="collapsed")
+                with c_num:
+                    contact = st.text_input("Number", placeholder="917 123 4567", label_visibility="collapsed")
+                # -------------------------------
                 
                 email = st.text_input("Email Address *")
                 address = st.text_area("Complete Home Address")
@@ -303,7 +295,7 @@ else:
                             st.session_state.temp_affiliate_data = {
                                 "username": username, "password": password, "full_name": full_name, "email": email,
                                 "age": age, "nationality": nationality, "address": address,
-                                "area_code": a_code,  # <--- NEW: ADDED THIS HERE!
+                                "area_code": a_code,
                                 "contact": contact, "gov_id_bytes": gov_id.read(), "lic_id_bytes": lic_id.read(),
                                 "first_name": first_name, "surname": surname
                             }
@@ -321,7 +313,6 @@ else:
             
             display_moa = raw_moa_html.replace("{{AFFILIATE_FULLNAME}}", affiliate_name.upper())
             display_moa = display_moa.replace("{affiliate_fullname}", affiliate_name.upper()) 
-            
             display_moa = display_moa.replace("{{DATE_SIGNED}}", current_date)
             display_moa = display_moa.replace("{date_signed}", current_date) 
 
@@ -366,7 +357,7 @@ else:
                             # 4. Set Payload and Move to OTP
                             st.session_state.reg_payload = (
                                 data["username"], data["password"], 'AFFILIATE', data["full_name"], data["email"],
-                                data["age"], data["nationality"], data["address"], data["contact"], 
+                                data["age"], data["nationality"], data["address"], data["area_code"], data["contact"], 
                                 data["gov_id_bytes"], data["lic_id_bytes"], signature_bytes 
                             )
                             
@@ -382,7 +373,7 @@ else:
                 else:
                     st.error("🚨 Digital signature required to proceed.")
 
-   # ---------------------------------------------------------
+    # ---------------------------------------------------------
     # RENTER REGISTRATION BLOCK
     # ---------------------------------------------------------
     elif reg_type == "Renter":
@@ -403,7 +394,15 @@ else:
                 dob = c4.date_input("Date of Birth", min_value=datetime.date(1920, 1, 1), max_value=datetime.date.today())
                 age = c5.text_input("Age", max_chars=2) 
                 nationality = c6.text_input("Nat.", max_chars=3, value="PH").upper() 
-                contact = c7.text_input("Contact Number")
+                
+                # --- NEW AREA CODE SELECTION ---
+                st.write("Mobile Number *")
+                c_area, c_num = st.columns([1, 3])
+                with c_area:
+                    a_code = st.selectbox("Code", ["+63", "+1", "+44", "+61", "+81", "+65"], label_visibility="collapsed")
+                with c_num:
+                    contact = st.text_input("Number", placeholder="917 123 4567", label_visibility="collapsed")
+                # -------------------------------
                 
                 email = st.text_input("Email Address *")
                 address = st.text_area("Complete Home Address")
@@ -427,14 +426,15 @@ else:
                             st.error("🚨 Username taken.")
                         else:
                             full_name = f"{first_name} {middle_name} {surname}".replace("  ", " ").strip()
-                            st.session_state.temp_affiliate_data = {
-                            "username": username, "password": password, "full_name": full_name, "email": email,
-                            "age": age, "nationality": nationality, "address": address,
-                            "area_code": a_code,  # <--- NEW: ADDED THIS HERE!
-                            "contact": contact, "gov_id_bytes": gov_id.read(), "lic_id_bytes": lic_id.read(),
-                            "first_name": first_name, "surname": surname
+                            # FIXED COPY-PASTE BUG HERE (temp_renter_data)
+                            st.session_state.temp_renter_data = {
+                                "username": username, "password": password, "full_name": full_name, "email": email,
+                                "age": age, "nationality": nationality, "address": address,
+                                "area_code": a_code,
+                                "contact": contact, "gov_id_bytes": gov_id.read(), "lic_id_bytes": lic_id.read(),
+                                "first_name": first_name, "surname": surname
                             }
-                            st.session_state.affiliate_step = 2
+                            st.session_state.renter_step = 2
                             st.rerun()
 
         elif st.session_state.renter_step == 2:
@@ -447,12 +447,10 @@ else:
             current_date = datetime.date.today().strftime("%B %d, %Y")
             renter_name = data['full_name']
 
-            # --- UPDATE THESE EXACT LINES ---
             display_renter = raw_renter_html.replace("{{renter_fullname}}", renter_name.upper())
             display_renter = display_renter.replace("{{renter_nationality}}", "FILIPINO")
             display_renter = display_renter.replace("{{renter_address}}", "METRO MANILA")
             display_renter = display_renter.replace("{{date_signed}}", current_date)
-            # --------------------------------
 
             with st.container(border=True):
                 components.html(display_renter, height=400, scrolling=True)
@@ -488,12 +486,12 @@ else:
                             # 3. Save PDF to uploads folder
                             pdf_filename = f"uploads/RENTER_{data['username']}.pdf"
                             with open(pdf_filename, "wb") as f:
-                                f.write(pdf_bytes) # <--- THIS IS FIXED!
+                                f.write(pdf_bytes)
                                 
                             # 4. Set Payload and Move to OTP
                             st.session_state.reg_payload = (
                                 data["username"], data["password"], 'RENTER', data["full_name"], data["email"],
-                                data["age"], data["nationality"], data["address"], data["contact"], 
+                                data["age"], data["nationality"], data["address"], data["area_code"], data["contact"], 
                                 data["gov_id_bytes"], data["lic_id_bytes"], signature_bytes 
                             )
                             
