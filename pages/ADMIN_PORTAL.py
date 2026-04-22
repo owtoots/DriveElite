@@ -460,7 +460,37 @@ with tabs[5]:
         with db_tabs[2]: st.dataframe(pd.read_sql_query(q_drivers, conn), hide_index=True, use_container_width=True)
     except: 
         pass
-
+        # --- DANGER ZONE: FACTORY RESET ---
+    st.divider()
+    st.markdown("<h3 style='text-align: center; color: #e74c3c;'>⚠️ DANGER ZONE</h3>", unsafe_allow_html=True)
+    
+    with st.expander("🧨 CLOUD FACTORY RESET (Wipe All Data)"):
+        st.warning("WARNING: This will permanently delete the live database and all uploaded files (photos, PDFs, signatures). The platform will revert to Day 1.")
+        
+        confirm_text = st.text_input("Type 'DELETE EVERYTHING' to confirm:")
+        
+        if st.button("🔥 INITIATE FACTORY RESET", type="primary", use_container_width=True):
+            if confirm_text == "DELETE EVERYTHING":
+                import os, glob
+                import time
+                
+                with st.spinner("Nuking database and files..."):
+                    # 1. Delete Database
+                    if os.path.exists("driveelite.db"): # Change this if your DB name is different!
+                        os.remove("driveelite.db")
+                    
+                    # 2. Delete Uploads
+                    if os.path.exists("uploads"):
+                        files = glob.glob("uploads/*")
+                        for f in files:
+                            try: os.remove(f)
+                            except: pass
+                    
+                    st.success("✅ FACTORY RESET COMPLETE! Rebooting system...")
+                    time.sleep(3)
+                    st.rerun()
+            else:
+                st.error("You must type exactly 'DELETE EVERYTHING' to unlock the reset button.")
 # --- TAB 6: GLOBAL REVIEWS ---
 with tabs[6]:
     st.markdown("<h3 style='text-align: center;'>⭐ MASTER PLATFORM REVIEWS</h3>", unsafe_allow_html=True)
