@@ -26,6 +26,21 @@ st.set_page_config(page_title="DriveElite Admin", layout="wide")
 conn = get_connection()
 
 # --- 3. UTILITY FUNCTIONS ---
+def display_document(file_path, title):
+    """Smart viewer: shows images natively, but gives a download button for PDFs."""
+    import os
+    import streamlit as st
+    
+    if file_path and str(file_path).strip() and os.path.exists(file_path):
+        if str(file_path).lower().endswith('.pdf'):
+            with open(file_path, "rb") as f:
+                # Give every download button a unique key to prevent Streamlit errors
+                safe_key = f"dl_{str(file_path).replace('/', '_').replace('.', '_')}_{title.replace(' ', '')}"
+                st.download_button(f"📄 Download {title} (PDF)", f.read(), file_name=os.path.basename(file_path), mime="application/pdf", key=safe_key)
+        else:
+            st.image(file_path, caption=title, use_container_width=True)
+    else:
+        st.warning(f"No {title} provided.")
 def email_receipt_to_affiliate(affiliate_email, receipt_text, transaction_ref):
     """Sends a cancellation compensation summary to the Affiliate."""
     sender_email = "rdalbaojr@gmail.com" 
