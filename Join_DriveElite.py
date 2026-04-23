@@ -26,34 +26,39 @@ st.set_page_config(page_title="Join DriveElite", layout="wide")
 conn = get_connection()
 
 # --- NEW: AUTO-BUILD THE DATABASE TABLE ---
-cursor = conn.cursor()
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS platform_users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE,
-        password TEXT,
-        role TEXT,
-        full_name TEXT,
-        email TEXT,
-        age TEXT,
-        nationality TEXT,
-        address TEXT,
-        area_code TEXT DEFAULT '+63',
-        contact_number TEXT,
-        govt_id_img BLOB,
-        license_img BLOB,
-        signature_img BLOB
+try:
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS platform_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT,
+            role TEXT,
+            full_name TEXT,
+            email TEXT,
+            age TEXT,
+            nationality TEXT,
+            address TEXT,
+            area_code TEXT DEFAULT '+63',
+            contact_number TEXT,
+            govt_id_img BLOB,
+            license_img BLOB,
+            signature_img BLOB
+        )
+    ''')
+    conn.commit()
+except:
+    pass
 
-# -----------------------------------------------------------------    
-    )
-''')
-conn.commit()
 # --- SAFE PATCH: Force add the missing column to old databases ---
 try:
     conn.execute("ALTER TABLE platform_users ADD COLUMN area_code TEXT DEFAULT '+63'")
     conn.commit()
 except:
     pass
+# -----------------------------------------------------------------
+
+if not os.path.exists("uploads"): 
+    os.makedirs("uploads")
 # ------------------------------------------
 
 if not os.path.exists("uploads"): 
