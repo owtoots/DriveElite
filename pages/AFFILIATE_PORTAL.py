@@ -803,6 +803,7 @@ with tabs[2]:
         bn = c1.text_input("PAYOUT BANK")
         an = c2.text_input("ACCOUNT NUMBER")
     
+        # --- UPGRADED UPLOADERS ---
         vi = st.file_uploader("Vehicle Photo", type=['jpg','png'])
         
         # 1. Multi-File Dropzone for OR & CR
