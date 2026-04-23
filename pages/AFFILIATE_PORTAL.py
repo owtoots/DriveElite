@@ -802,21 +802,32 @@ with tabs[2]:
         pl = c2.text_input("PLATE")
         bn = c1.text_input("PAYOUT BANK")
         an = c2.text_input("ACCOUNT NUMBER")
+    
         vi = st.file_uploader("Vehicle Photo", type=['jpg','png'])
-        orc = st.file_uploader("OR/CR Doc", type=['jpg','png'])
-        ins = st.file_uploader("Comprehensive Insurance", type=['jpg','png'])
+        
+        # 1. Multi-File Dropzone for OR & CR
+        or_cr_files = st.file_uploader("Upload OR & CR (Drop 2 files here)", type=['jpg','png','pdf'], accept_multiple_files=True)
+        
+        # 2. Insurance Policy (Explicitly prioritizes PDFs)
+        ins = st.file_uploader("Comprehensive Insurance Policy", type=['pdf','jpg','png'])
         
         if st.form_submit_button("SUBMIT FOR APPROVAL", type="primary"):
-            if ma and mo and pl and bn and an and vi and orc and ins:
+            # Check that they uploaded the files (at least 1 OR/CR file, in case they scanned both onto one PDF)
+            if ma and mo and pl and bn and an and vi and len(or_cr_files) >= 1 and ins:
                 new_ref_no = str(random.randint(100000, 999999))
+                
+                # Safely sort the dumped files. If they uploaded 2, assign them. If they uploaded 1 combo file, duplicate the path.
+                or_path = save_file(or_cr_files[0]) if len(or_cr_files) > 0 else ""
+                cr_path = save_file(or_cr_files[1]) if len(or_cr_files) > 1 else or_path
+                
                 conn.execute("""
-                    INSERT INTO vehicles (owner_username, make, model, year, plate, bank_name, account_no, vehicle_img, or_cr_img, insurance_img, category, approved_price, ref_no, admin_status, booking_status) 
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'PENDING','UNAVAILABLE')
-                """, (st.session_state.username, ma.title(), mo.title(), ye, pl.upper(), bn, an, save_file(vi), save_file(orc), save_file(ins), cat, FIXED_RATES.get(cat,0), new_ref_no))
+                    INSERT INTO vehicles (owner_username, make, model, year, plate, bank_name, account_no, vehicle_img, or_img, cr_img, insurance_img, category, approved_price, ref_no, admin_status, booking_status) 
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'PENDING','UNAVAILABLE')
+                """, (st.session_state.username, ma.title(), mo.title(), ye, pl.upper(), bn, an, save_file(vi), or_path, cr_path, save_file(ins), cat, FIXED_RATES.get(cat,0), new_ref_no))
                 conn.commit()
                 st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
             else: 
-                st.error("Please fill all required fields.")
+                st.error("Please fill all required fields and upload all documents (At least 1 OR/CR file is required).")
 
 # --- TAB 3: ADD DRIVER ---
 with tabs[3]:
