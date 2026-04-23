@@ -261,13 +261,14 @@ else:
                 age = c5.text_input("Age", max_chars=2) 
                 nationality = c6.text_input("Nat.", max_chars=3).upper() 
                 
-                # --- NEW AREA CODE SELECTION ---
+                # --- UPGRADED AREA CODE SELECTION ---
                 st.write("Mobile Number *")
-                c_area, c_num = st.columns([1, 3])
+                c_area, c_num = st.columns([1, 4]) # <--- Made the prefix box much smaller!
                 with c_area:
-                    a_code = st.selectbox("Code", ["+63", "+1", "+44", "+61", "+81", "+65"], label_visibility="collapsed")
+                    a_code = st.text_input("Code", value="+63", label_visibility="collapsed")
                 with c_num:
                     contact = st.text_input("Number", placeholder="917 123 4567", label_visibility="collapsed")
+                # ------------------------------------
                 # -------------------------------
                 
                 email = st.text_input("Email Address *")
@@ -395,13 +396,14 @@ else:
                 age = c5.text_input("Age", max_chars=2) 
                 nationality = c6.text_input("Nat.", max_chars=3, value="PH").upper() 
                 
-                # --- NEW AREA CODE SELECTION ---
+                # --- UPGRADED AREA CODE SELECTION ---
                 st.write("Mobile Number *")
-                c_area, c_num = st.columns([1, 3])
+                c_area, c_num = st.columns([1, 4]) # <--- Made the prefix box much smaller!
                 with c_area:
-                    a_code = st.selectbox("Code", ["+63", "+1", "+44", "+61", "+81", "+65"], label_visibility="collapsed")
+                    a_code = st.text_input("Code", value="+63", label_visibility="collapsed")
                 with c_num:
                     contact = st.text_input("Number", placeholder="917 123 4567", label_visibility="collapsed")
+                # ------------------------------------
                 # -------------------------------
                 
                 email = st.text_input("Email Address *")
