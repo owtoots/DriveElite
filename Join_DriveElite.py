@@ -43,9 +43,17 @@ cursor.execute('''
         govt_id_img BLOB,
         license_img BLOB,
         signature_img BLOB
+
+# -----------------------------------------------------------------    
     )
 ''')
 conn.commit()
+# --- SAFE PATCH: Force add the missing column to old databases ---
+try:
+    conn.execute("ALTER TABLE platform_users ADD COLUMN area_code TEXT DEFAULT '+63'")
+    conn.commit()
+except:
+    pass
 # ------------------------------------------
 
 if not os.path.exists("uploads"): 
