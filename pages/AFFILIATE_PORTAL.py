@@ -34,7 +34,18 @@ st.markdown("""
 
 # --- DATABASE CONNECTION & SELF-REPAIR ---
 conn = get_connection()
+# --- SAFE PATCH: Force add missing columns to vehicles table ---
+try:
+    conn.execute("ALTER TABLE vehicles ADD COLUMN or_img TEXT")
+    conn.commit()
+except:
+    pass
 
+try:
+    conn.execute("ALTER TABLE vehicles ADD COLUMN cr_img TEXT")
+    conn.commit()
+except:
+    pass
 # --- CHAT INPUT RESET LOGIC ---
 if "temp_msg_affiliate" not in st.session_state:
     st.session_state.temp_msg_affiliate = ""
@@ -823,8 +834,9 @@ with tabs[2]:
                 
                 conn.execute("""
                     INSERT INTO vehicles (owner_username, make, model, year, plate, bank_name, account_no, vehicle_img, or_img, cr_img, insurance_img, category, approved_price, ref_no, admin_status, booking_status) 
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'PENDING','UNAVAILABLE')
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE')
                 """, (st.session_state.username, ma.title(), mo.title(), ye, pl.upper(), bn, an, save_file(vi), or_path, cr_path, save_file(ins), cat, FIXED_RATES.get(cat,0), new_ref_no))
+                
                 conn.commit()
                 st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
             else: 
