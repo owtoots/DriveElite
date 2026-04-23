@@ -358,7 +358,7 @@ with tabs[0]:
                                 can_book = False
                                 clash_list = sorted(list(clashes))
                                 clash_str = ", ".join([d.strftime('%b %d') for d in clash_list])
-                                st.error(f"🚨 **DATES UNAVAILABLE:** This vehicle is already booked on: **{clash_str}**. Please adjust your travel dates.")
+                                st.error(f"🚨 **UNAVAILABLE DATES UPDATE:** This vehicle is now booked on: **{clash_str}**. Please adjust your travel dates.")
                             # ----------------------------------
 
                             drive_mode = st.radio("Mode", ["Self-Drive", "With Driver (+₱1k/day)"], key=f"dm_{car['id']}")
