@@ -68,6 +68,9 @@ if not os.path.exists("uploads"):
 # UNIVERSAL GOOGLE DOC FETCH FUNCTION
 # ==========================================
 def generate_legal_doc_from_drive(role, username, full_name, address, nationality, doc_id, signature_bytes):
+# ==========================================
+# UNIVERSAL GOOGLE DOC FETCH FUNCTION
+# ==========================================
 def get_live_google_doc(doc_id):
     """Fetches the Google Doc as HTML so it keeps all bolding, paragraphs, and spacing."""
     url = f"https://docs.google.com/document/d/{doc_id}/export?format=html"
@@ -77,7 +80,7 @@ def get_live_google_doc(doc_id):
     except Exception as e:
         return f"<p>Agreement terms are temporarily unavailable. Error: {e}</p>"
 
-def generate_legal_doc_from_drive(role, username, full_name, address, doc_id, signature_bytes):
+def generate_legal_doc_from_drive(role, username, full_name, address, nationality, doc_id, signature_bytes):
     from google.oauth2.credentials import Credentials
     from googleapiclient.http import MediaIoBaseUpload
     from googleapiclient.discovery import build
@@ -108,7 +111,7 @@ def generate_legal_doc_from_drive(role, username, full_name, address, doc_id, si
     drive_service.permissions().create(fileId=sig_id, body={'type': 'anyone', 'role': 'reader'}).execute()
     sig_url = f"https://drive.google.com/uc?id={sig_id}"
 
-   # 3. Replace Text Tags
+    # 3. Replace Text Tags
     today_date = datetime.datetime.now().strftime("%B %d, %Y")
     text_requests = [
         {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
@@ -116,6 +119,7 @@ def generate_legal_doc_from_drive(role, username, full_name, address, doc_id, si
         {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
         {'replaceAllText': {'containsText': {'text': '{{ADDRESS}}', 'matchCase': False}, 'replaceText': address}},
         {'replaceAllText': {'containsText': {'text': '{{renter_address}}', 'matchCase': False}, 'replaceText': address}},
+        {'replaceAllText': {'containsText': {'text': '{{NATIONALITY}}', 'matchCase': False}, 'replaceText': nationality}},
         {'replaceAllText': {'containsText': {'text': '{{renter_nationality}}', 'matchCase': False}, 'replaceText': nationality}},
     ]
     docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': text_requests}).execute()
