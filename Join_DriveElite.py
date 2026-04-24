@@ -67,6 +67,7 @@ if not os.path.exists("uploads"):
 # ==========================================
 # UNIVERSAL GOOGLE DOC FETCH FUNCTION
 # ==========================================
+def generate_legal_doc_from_drive(role, username, full_name, address, nationality, doc_id, signature_bytes):
 def get_live_google_doc(doc_id):
     """Fetches the Google Doc as HTML so it keeps all bolding, paragraphs, and spacing."""
     url = f"https://docs.google.com/document/d/{doc_id}/export?format=html"
@@ -107,13 +108,15 @@ def generate_legal_doc_from_drive(role, username, full_name, address, doc_id, si
     drive_service.permissions().create(fileId=sig_id, body={'type': 'anyone', 'role': 'reader'}).execute()
     sig_url = f"https://drive.google.com/uc?id={sig_id}"
 
-    # 3. Replace Text Tags
+   # 3. Replace Text Tags
     today_date = datetime.datetime.now().strftime("%B %d, %Y")
     text_requests = [
         {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         {'replaceAllText': {'containsText': {'text': '{{RENTER_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
         {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
         {'replaceAllText': {'containsText': {'text': '{{ADDRESS}}', 'matchCase': False}, 'replaceText': address}},
+        {'replaceAllText': {'containsText': {'text': '{{renter_address}}', 'matchCase': False}, 'replaceText': address}},
+        {'replaceAllText': {'containsText': {'text': '{{renter_nationality}}', 'matchCase': False}, 'replaceText': nationality}},
     ]
     docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': text_requests}).execute()
 
@@ -361,7 +364,7 @@ else:
                             data = st.session_state.temp_affiliate_data
                             
                             # 2. Call Google Docs API
-                            pdf_bytes = generate_legal_doc_from_drive("AFFILIATE", data['username'], data['full_name'], data['address'], affiliate_doc_id, signature_bytes)
+                            pdf_bytes = generate_legal_doc_from_drive("AFFILIATE", data['username'], data['full_name'], data['address'], data['nationality'], affiliate_doc_id, signature_bytes)
                             
                             # 3. Save PDF to uploads folder
                             pdf_filename = f"uploads/MOA_{data['username']}.pdf"
@@ -496,7 +499,7 @@ else:
                             signature_bytes = img_byte_arr.getvalue() 
                             
                             # 2. Call Google Docs API
-                            pdf_bytes = generate_legal_doc_from_drive("RENTER", data['username'], data['full_name'], data['address'], renter_doc_id, signature_bytes)
+                            pdf_bytes = generate_legal_doc_from_drive("RENTER", data['username'], data['full_name'], data['address'], data['nationality'], renter_doc_id, signature_bytes)
                             
                             # 3. Save PDF to uploads folder
                             pdf_filename = f"uploads/RENTER_{data['username']}.pdf"
