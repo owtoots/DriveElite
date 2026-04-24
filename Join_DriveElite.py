@@ -59,15 +59,7 @@ except:
 
 if not os.path.exists("uploads"): 
     os.makedirs("uploads")
-# ------------------------------------------
 
-if not os.path.exists("uploads"): 
-    os.makedirs("uploads")
-
-# ==========================================
-# UNIVERSAL GOOGLE DOC FETCH FUNCTION
-# ==========================================
-def generate_legal_doc_from_drive(role, username, full_name, address, nationality, doc_id, signature_bytes):
 # ==========================================
 # UNIVERSAL GOOGLE DOC FETCH FUNCTION
 # ==========================================
@@ -283,13 +275,11 @@ else:
                 
                 # --- UPGRADED AREA CODE SELECTION ---
                 st.write("Mobile Number *")
-                c_area, c_num = st.columns([1, 4]) # <--- Made the prefix box much smaller!
+                c_area, c_num = st.columns([1, 4])
                 with c_area:
                     a_code = st.text_input("Code", value="+63", label_visibility="collapsed")
                 with c_num:
                     contact = st.text_input("Number", placeholder="917 123 4567", label_visibility="collapsed")
-                # ------------------------------------
-                # -------------------------------
                 
                 email = st.text_input("Email Address *")
                 address = st.text_area("Complete Home Address")
@@ -418,13 +408,11 @@ else:
                 
                 # --- UPGRADED AREA CODE SELECTION ---
                 st.write("Mobile Number *")
-                c_area, c_num = st.columns([1, 4]) # <--- Made the prefix box much smaller!
+                c_area, c_num = st.columns([1, 4])
                 with c_area:
                     a_code = st.text_input("Code", value="+63", label_visibility="collapsed")
                 with c_num:
                     contact = st.text_input("Number", placeholder="917 123 4567", label_visibility="collapsed")
-                # ------------------------------------
-                # -------------------------------
                 
                 email = st.text_input("Email Address *")
                 address = st.text_area("Complete Home Address")
@@ -448,7 +436,6 @@ else:
                             st.error("🚨 Username taken.")
                         else:
                             full_name = f"{first_name} {middle_name} {surname}".replace("  ", " ").strip()
-                            # FIXED COPY-PASTE BUG HERE (temp_renter_data)
                             st.session_state.temp_renter_data = {
                                 "username": username, "password": password, "full_name": full_name, "email": email,
                                 "age": age, "nationality": nationality, "address": address,
@@ -469,9 +456,13 @@ else:
             current_date = datetime.date.today().strftime("%B %d, %Y")
             renter_name = data['full_name']
 
+            # --- DYNAMIC PREVIEW DATA FIX ---
             display_renter = raw_renter_html.replace("{{renter_fullname}}", renter_name.upper())
-            display_renter = display_renter.replace("{{renter_nationality}}", "FILIPINO")
-            display_renter = display_renter.replace("{{renter_address}}", "METRO MANILA")
+            nat_data = data.get('nationality', 'FILIPINO')
+            display_renter = display_renter.replace("{{renter_nationality}}", nat_data)
+            display_renter = display_renter.replace("{{nationality}}", nat_data)
+            display_renter = display_renter.replace("{{renter_address}}", data['address'])
+            display_renter = display_renter.replace("{{address}}", data['address'])
             display_renter = display_renter.replace("{{date_signed}}", current_date)
 
             with st.container(border=True):
