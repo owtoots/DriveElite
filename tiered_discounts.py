@@ -1,38 +1,84 @@
 import streamlit as st
-import os
-import shutil
-from database_utils import get_connection
+import pandas as pd
 
-st.set_page_config(page_title="Factory Reset", layout="centered")
+def init_discount_db(conn):
+    """Creates the discount_tiers table and seeds it with default values if empty."""
+    try:
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS discount_tiers (
+                tier_name TEXT PRIMARY KEY,
+                min_days INTEGER,
+                discount_pct REAL
+            )
+        ''')
+        
+        cursor = conn.cursor()
+        cursor.execute("SELECT count(*) FROM discount_tiers")
+        if cursor.fetchone()[0] == 0:
+            conn.executemany("INSERT INTO discount_tiers VALUES (?, ?, ?)", [
+                ('3 Days to 6 Days', 3, 0.05),
+                ('1 Week (7+ Days)', 7, 0.10),
+                ('2 Weeks (14+ Days)', 14, 0.15),
+                ('1 Month (30+ Days)', 30, 0.20)
+            ])
+            conn.commit()
+    except Exception as e:
+        pass
 
-st.markdown("<h1 style='text-align: center;'>🧹 DriveElite Factory Reset</h1>", unsafe_allow_html=True)
-st.warning("⚠️ **WARNING:** This will permanently delete ALL test users, vehicles, bookings, chats, and uploaded photos. It will reset the system to Day 1.")
+def render_admin_discount_table(conn):
+    """Displays the interactive table in the Admin Dashboard to tweak pricing rules."""
+    st.subheader("⚙️ Dynamic Pricing & Discounts")
+    st.caption("Adjust the minimum days and discount percentages below. Changes apply instantly.")
 
-if st.button("🚨 WIPE ALL TEST DATA & GO LIVE 🚨", type="primary", use_container_width=True):
-    conn = get_connection()
+    df_tiers = pd.read_sql_query("SELECT * FROM discount_tiers ORDER BY min_days ASC", conn)
+
+    edited_tiers = st.data_editor(
+        df_tiers, 
+        num_rows="dynamic",
+        use_container_width=True,
+        column_config={
+            "tier_name": st.column_config.TextColumn("Tier Name"),
+            "min_days": st.column_config.NumberColumn("Minimum Days", min_value=1),
+            "discount_pct": st.column_config.NumberColumn("Discount % (e.g., 0.10 for 10%)", min_value=0.0, max_value=1.0, format="%.2f")
+        }
+    )
+
+    if st.button("Save Discount Rules", type="primary"):
+        conn.execute("DELETE FROM discount_tiers") 
+        for _, row in edited_tiers.iterrows():
+            conn.execute("INSERT INTO discount_tiers (tier_name, min_days, discount_pct) VALUES (?, ?, ?)", 
+                         (row['tier_name'], row['min_days'], row['discount_pct']))
+        conn.commit()
+        st.success("✅ Discount tiers successfully updated!")
+
+def calculate_tiered_pricing(base_daily_rate, total_days, conn):
+    """
+    Fetches live discount rules, applies them, and calculates the 
+    7% Renter markup and 18% Affiliate deduction.
+    """
+    # 1. Fetch live discounts from the database
+    tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
     
-    # 1. Clear all data from the tables
-    tables_to_wipe = ['platform_users', 'vehicles', 'bookings', 'chat_messages', 'drivers', 'admin_promos']
-    
-    for table in tables_to_wipe:
-        try:
-            conn.execute(f"DELETE FROM {table}")
-            # Reset the ID counters back to 1
-            conn.execute(f"DELETE FROM sqlite_sequence WHERE name='{table}'") 
-        except Exception as e:
-            pass # Ignores errors if a table happens to be empty
+    # 2. Find the correct discount tier
+    discount = 0.0
+    for _, row in tiers_df.iterrows():
+        if total_days >= row['min_days']:
+            discount = float(row['discount_pct'])
+            break
             
-    conn.commit()
-    st.success("✅ Database wiped clean. IDs reset to 1.")
+    # 3. Calculate Base Total
+    raw_base_total = base_daily_rate * total_days
+    discounted_base_total = raw_base_total * (1 - discount)
 
-    # 2. Delete all test photos and PDFs
-    if os.path.exists("uploads"):
-        try:
-            shutil.rmtree("uploads") # Deletes the folder and everything in it
-            os.makedirs("uploads")   # Recreates the empty folder
-            st.success("✅ Uploads vault cleared. All test IDs, car photos, and PDFs are gone.")
-        except Exception as e:
-            st.error(f"Could not clear uploads folder: {e}")
-
-    st.balloons()
-    st.info("🎉 **DriveElite is officially a clean slate!** You can now delete this RESET.py file from your GitHub.")
+    # 4. Split the Margins (7% Renter / 18% Affiliate)
+    renter_total = discounted_base_total * 1.07 
+    affiliate_total = discounted_base_total * 0.82 
+    platform_profit = renter_total - affiliate_total
+    
+    return {
+        "days": total_days,
+        "discount_percent": int(discount * 100),
+        "renter_total": renter_total,
+        "affiliate_total": affiliate_total,
+        "platform_profit": platform_profit
+    }
