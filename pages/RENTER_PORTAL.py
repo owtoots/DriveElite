@@ -9,8 +9,6 @@ import math
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from database_utils import get_connection
-import streamlit as st
-from database_utils import get_connection
 
 # --- DATABASE CONNECTION & SELF-REPAIR ---
 conn = get_connection()
@@ -18,6 +16,7 @@ conn = get_connection()
 # --- CHAT INPUT RESET LOGIC ---
 if "temp_msg_renter" not in st.session_state:
     st.session_state.temp_msg_renter = ""
+
 def get_booked_dates(vehicle_id, conn):
     """Finds all dates a specific vehicle is already booked."""
     import datetime
@@ -44,6 +43,7 @@ def get_booked_dates(vehicle_id, conn):
             pass
             
     return booked_days
+
 def clear_renter_chat(b_ref):
     # Safely lock the reference as a string
     b_ref_str = str(b_ref)
@@ -390,12 +390,22 @@ with tabs[0]:
                                     if full_days >= row['min_days']:
                                         discount_pct = float(row['discount_pct'])
                                         break
+                                        
+                                # --- NEW: FETCH DYNAMIC PLATFORM FEE DIRECTLY FROM DB ---
+                                try:
+                                    settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct FROM platform_settings WHERE id = 1", conn)
+                                    dynamic_renter_fee = float(settings_df.iloc[0]['renter_markup_pct'])
+                                    dynamic_affiliate_share = float(settings_df.iloc[0]['affiliate_share_pct'])
+                                except:
+                                    dynamic_renter_fee = 0.00  # Defaults to 0% if the database is busy
+                                    dynamic_affiliate_share = 0.82
                                 
-                                # --- 2. CALCULATE 7% MARGIN & NEW TOTALS ---
+                                # --- 2. CALCULATE DYNAMIC MARGINS & NEW TOTALS ---
                                 savings = subtotal * discount_pct
                                 discounted_subtotal = subtotal - savings
                                 
-                                platform_fee = discounted_subtotal * 0.07  # The 7% Renter Markup
+                                # Apply the Renter Service Fee based on what the Admin set!
+                                platform_fee = discounted_subtotal * dynamic_renter_fee  
                                 
                                 # Add external fees (Driver & Zones) to get final checkout price
                                 grand_total = discounted_subtotal + platform_fee + driver_fee + d_fee + c_fee
@@ -410,8 +420,9 @@ with tabs[0]:
                                 if savings > 0: 
                                     rows.append(f'<tr><td style="color:#cc0000; font-style:italic;">Duration Discount ({int(discount_pct*100)}%)</td><td style="text-align:right; color:#cc0000;">-₱{savings:,.2f}</td></tr>')
                                 
-                                # Explicitly show the platform fee
-                                rows.append(f'<tr><td style="color:#27ae60; font-weight:bold;">DriveElite Service Fee (7%)</td><td style="text-align:right; color:#27ae60; font-weight:bold;">+₱{platform_fee:,.2f}</td></tr>')
+                                # Explicitly show the platform fee WITH the dynamic percentage number
+                                display_fee_pct = int(dynamic_renter_fee * 100)
+                                rows.append(f'<tr><td style="color:#27ae60; font-weight:bold;">DriveElite Service Fee ({display_fee_pct}%)</td><td style="text-align:right; color:#27ae60; font-weight:bold;">+₱{platform_fee:,.2f}</td></tr>')
                                 
                                 if is_driver: 
                                     rows.append(f'<tr><td style="color:#003399;">Driver Fee</td><td style="text-align:right; color:#003399;">+₱{driver_fee:,.2f}</td></tr>')
@@ -434,8 +445,8 @@ with tabs[0]:
                                         b_ref = str(random.randint(100000, 999999))
                                         p_dt_str, r_dt_str = f"{d1} {t1.strftime('%H:%M')}", f"{d2} {t2.strftime('%H:%M')}"
                                         
-                                        # Calculate Affiliate Payout (18% deduction from the discounted base)
-                                        affiliate_payout = discounted_subtotal * 0.82
+                                        # Calculate Affiliate Payout (dynamic deduction from the discounted base)
+                                        affiliate_payout = discounted_subtotal * dynamic_affiliate_share
                                         
                                         conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?)", 
                                                      (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
