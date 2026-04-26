@@ -342,74 +342,182 @@ with tabs[4]:
     st.header("🗄️ Master Digital Filing Cabinet")
     st.write("View legally binding contracts, download them, or instantly email a copy to the user.")
     
-    if os.path.exists("uploads"):
-        all_files = os.listdir("uploads")
-        pdf_files = [f for f in all_files if f.endswith('.pdf')]
-        
-        if len(pdf_files) > 0:
-            st.divider()
-            role_filter = st.radio("Filter Contracts:", ["All", "💼 Affiliates (MOA)", "🚙 Renters (Agreements)"], horizontal=True)
-            st.divider()
+    # --- NEW: Master Navigation for Tab 4 ---
+    doc_type = st.radio("Select Document Type to View:", ["💼 Legal Contracts (PDFs)", "🧾 Service Booking Receipts"], horizontal=True)
+    st.divider()
+
+    # ==========================================
+    # ROUTE A: LEGAL CONTRACTS (MOAs & Agreements)
+    # ==========================================
+    if doc_type == "💼 Legal Contracts (PDFs)":
+        if os.path.exists("uploads"):
+            all_files = os.listdir("uploads")
+            pdf_files = [f for f in all_files if f.endswith('.pdf')]
             
-            if role_filter == "💼 Affiliates (MOA)":
-                filtered_files = [f for f in pdf_files if f.startswith("MOA_")]
-            elif role_filter == "🚙 Renters (Agreements)":
-                filtered_files = [f for f in pdf_files if f.startswith("RENTER_")]
+            if len(pdf_files) > 0:
+                role_filter = st.radio("Filter Contracts:", ["All", "💼 Affiliates (MOA)", "🚙 Renters (Agreements)"], horizontal=True)
+                st.divider()
+                
+                if role_filter == "💼 Affiliates (MOA)":
+                    filtered_files = [f for f in pdf_files if f.startswith("MOA_")]
+                elif role_filter == "🚙 Renters (Agreements)":
+                    filtered_files = [f for f in pdf_files if f.startswith("RENTER_")]
+                else:
+                    filtered_files = pdf_files
+                
+                if not filtered_files:
+                    st.info(f"No documents found matching the filter: {role_filter}")
+                else:
+                    cols = st.columns(4)
+                    for i, file_name in enumerate(filtered_files):
+                        file_path = os.path.join("uploads", file_name)
+                        
+                        display_card_text = file_name 
+                        uname = ""
+                        target_email = ""
+                        
+                        if file_name.startswith("MOA_") or file_name.startswith("RENTER_"):
+                            uname = file_name.replace("MOA_", "").replace("RENTER_", "").replace(".pdf", "")
+                            try:
+                                user_df = pd.read_sql_query("SELECT full_name, email FROM platform_users WHERE username=?", conn, params=(uname,))
+                                if not user_df.empty:
+                                    target_email = user_df.iloc[0]['email']
+                                    full_name = user_df.iloc[0]['full_name']
+                                    display_card_text = f"{full_name} / {uname}" if full_name else f"(@{uname})"
+                            except:
+                                pass 
+                        
+                        with cols[i % 4]:
+                            with st.container(border=True):
+                                st.write(f"📄 **{display_card_text}**")
+                                
+                                btn_col1, btn_col2 = st.columns(2)
+                                with btn_col1:
+                                    with open(file_path, "rb") as pdf_file:
+                                        st.download_button(
+                                            label="⬇️ DL",
+                                            data=pdf_file.read(),
+                                            file_name=file_name,
+                                            mime="application/pdf",
+                                            key=f"dl_{file_name}",
+                                            use_container_width=True 
+                                        )
+                                with btn_col2:
+                                    if st.button("📧 Email", key=f"em_{file_name}", use_container_width=True):
+                                        if not target_email:
+                                            st.toast(f"❌ No email found in DB for @{uname}", icon="⚠️")
+                                        else:
+                                            with st.spinner("Sending..."):
+                                                success, msg = send_pdf_copy(target_email, file_path, file_name)
+                                                if success:
+                                                    st.toast(f"✅ Contract sent to {target_email}", icon="🚀")
+                                                else:
+                                                    st.error(f"Failed: {msg}")
             else:
-                filtered_files = pdf_files
-            
-            if not filtered_files:
-                st.info(f"No documents found matching the filter: {role_filter}")
-            else:
-                cols = st.columns(4)
-                for i, file_name in enumerate(filtered_files):
-                    file_path = os.path.join("uploads", file_name)
-                    
-                    display_card_text = file_name 
-                    uname = ""
-                    target_email = ""
-                    
-                    if file_name.startswith("MOA_") or file_name.startswith("RENTER_"):
-                        uname = file_name.replace("MOA_", "").replace("RENTER_", "").replace(".pdf", "")
-                        try:
-                            user_df = pd.read_sql_query("SELECT full_name, email FROM platform_users WHERE username=?", conn, params=(uname,))
-                            if not user_df.empty:
-                                target_email = user_df.iloc[0]['email']
-                                full_name = user_df.iloc[0]['full_name']
-                                display_card_text = f"{full_name} / {uname}" if full_name else f"(@{uname})"
-                        except:
-                            pass 
-                    
-                    with cols[i % 4]:
-                        with st.container(border=True):
-                            st.write(f"📄 **{display_card_text}**")
-                            
-                            btn_col1, btn_col2 = st.columns(2)
-                            with btn_col1:
-                                with open(file_path, "rb") as pdf_file:
-                                    st.download_button(
-                                        label="⬇️ DL",
-                                        data=pdf_file.read(),
-                                        file_name=file_name,
-                                        mime="application/pdf",
-                                        key=f"dl_{file_name}",
-                                        use_container_width=True 
-                                    )
-                            with btn_col2:
-                                if st.button("📧 Email", key=f"em_{file_name}", use_container_width=True):
-                                    if not target_email:
-                                        st.toast(f"❌ No email found in DB for @{uname}", icon="⚠️")
-                                    else:
-                                        with st.spinner("Sending..."):
-                                            success, msg = send_pdf_copy(target_email, file_path, file_name)
-                                            if success:
-                                                st.toast(f"✅ Contract sent to {target_email}", icon="🚀")
-                                            else:
-                                                st.error(f"Failed: {msg}")
+                st.info("No contracts have been signed yet.")
         else:
-            st.info("No contracts have been signed yet.")
-    else:
-        st.warning("The uploads folder does not exist yet. It will be created when the first user registers.")
+            st.warning("The uploads folder does not exist yet. It will be created when the first user registers.")
+
+    # ==========================================
+    # ROUTE B: ON-DEMAND BOOKING RECEIPTS
+    # ==========================================
+    elif doc_type == "🧾 Service Booking Receipts":
+        st.subheader("🧾 On-Demand Receipt Generator")
+        
+        # Query all bookings from the database
+        receipt_query = """
+            SELECT b.booking_ref, b.pickup_time, b.return_time, b.amount, b.status, 
+                   r.full_name as renter_name, r.email as renter_email, r.username as renter_user,
+                   v.make, v.model, v.plate,
+                   a.full_name as affiliate_name
+            FROM bookings b
+            JOIN vehicles v ON b.vehicle_id = v.id
+            JOIN platform_users r ON b.renter_username = r.username
+            JOIN platform_users a ON v.owner_username = a.username
+            ORDER BY b.id DESC
+        """
+        try:
+            receipt_df = pd.read_sql_query(receipt_query, conn)
+            if receipt_df.empty:
+                st.info("No bookings exist in the database yet to generate receipts for.")
+            else:
+                # Search dropdown
+                opts = ["-- Select a Booking Reference --"] + receipt_df['booking_ref'].astype(str).tolist()
+                selected_ref = st.selectbox("Search past and present bookings:", opts)
+
+                if selected_ref != "-- Select a Booking Reference --":
+                    b_data = receipt_df[receipt_df['booking_ref'].astype(str) == selected_ref].iloc[0]
+                    
+                    # Reverse-calculate the exact fees based on the 7% markup logic
+                    gross_paid = float(b_data['amount'])
+                    base_rate = gross_paid / 1.07
+                    platform_fee = gross_paid - base_rate
+                    
+                    # Construct the beautiful text receipt
+                    receipt_text = f"""======================================
+DRIVEELITE OFFICIAL RECEIPT
+======================================
+Booking Reference: #{b_data['booking_ref']}
+Status: {b_data['status']}
+Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+RENTER DETAILS:
+Name: {b_data['renter_name']} (@{b_data['renter_user']})
+Email: {b_data['renter_email']}
+
+VEHICLE DETAILS:
+Unit: {b_data['make']} {b_data['model']} ({b_data['plate']})
+Affiliate: {b_data['affiliate_name']}
+
+TRIP DURATION:
+Pickup: {b_data['pickup_time']}
+Return: {b_data['return_time']}
+
+FINANCIAL BREAKDOWN:
+Base Rental Rate:        PHP {base_rate:,.2f}
+Platform Fee (7%):       PHP {platform_fee:,.2f}
+--------------------------------------
+TOTAL AMOUNT PAID:       PHP {gross_paid:,.2f}
+======================================"""
+
+                    st.divider()
+                    col_receipt, col_actions = st.columns([2, 1])
+                    
+                    with col_receipt:
+                        st.code(receipt_text, language='text')
+                        
+                    with col_actions:
+                        st.write("### 🛠️ Quick Actions")
+                        
+                        # Action 1: Download instantly to your computer
+                        st.download_button(
+                            label="⬇️ Download (.txt file)",
+                            data=receipt_text,
+                            file_name=f"DriveElite_Receipt_{b_data['booking_ref']}.txt",
+                            use_container_width=True
+                        )
+                        
+                        # Action 2: Force-Email it to the Renter
+                        if st.button("📧 Email to Renter", type="primary", use_container_width=True):
+                            with st.spinner("Transmitting email..."):
+                                import smtplib
+                                from email.message import EmailMessage
+                                try:
+                                    msg = EmailMessage()
+                                    msg['Subject'] = f'DriveElite: Official Receipt #{b_data["booking_ref"]}'
+                                    msg['From'] = 'rdalbaojr@gmail.com'
+                                    msg['To'] = b_data['renter_email']
+                                    msg.set_content(receipt_text)
+                                    
+                                    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                                        smtp.login('rdalbaojr@gmail.com', st.secrets["email_app_password"])
+                                        smtp.send_message(msg)
+                                        
+                                    st.success(f"✅ Sent to {b_data['renter_email']}!")
+                                except Exception as e:
+                                    st.error(f"❌ Failed: {e}")
+        except Exception as e:
+            st.error(f"Error querying database: {e}")
 
 
 # --- TAB 5: PROMOS & DB ---
