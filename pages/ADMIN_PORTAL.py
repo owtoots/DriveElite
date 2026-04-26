@@ -1,45 +1,57 @@
+import sys
+import os
 import smtplib
 from email.message import EmailMessage
 import streamlit as st
 import pandas as pd
 import datetime
-import os
 import numpy as np
 import time
-import random 
+import random
 from PIL import Image
+
+# ==========================================
+# 1. PAGE CONFIG (MUST BE FIRST ST COMMAND)
+# ==========================================
+st.set_page_config(page_title="DriveElite Admin", layout="wide")
+
+# ==========================================
+# 2. FORCE ROOT DIRECTORY VISIBILITY
+# ==========================================
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
+# ==========================================
+# 3. IMPORT CUSTOM MODULES
+# ==========================================
 from database_utils import get_connection, init_db, patch_database
-import streamlit as st
-from database_utils import get_connection
+from tiered_discounts import render_admin_discount_table
 
-# 1. Import the admin function from your new file
-from tiered_discounts import render_admin_discount_table 
-
-conn = get_connection()
-
-# --- INSIDE YOUR ADMIN DASHBOARD TAB/PAGE ---
-st.title("👑 DriveElite Admin Portal")
-
-# ... (your other admin tools, like approving vehicles) ...
-
-st.divider()
-
-# 2. Summon the interactive table!
-render_admin_discount_table(conn)
-# --- FORCE DATABASE REBUILD ON CLOUD WAKE-UP ---
-init_db()
-patch_database()
-
-
-# --- 1. FINANCE LOGIC IMPORT ---
 try:
     from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
 except ImportError:
     st.error("Missing finance.py! Please ensure the finance script is in your root folder.")
 
-# --- 2. CONFIG & INITIALIZATION ---
-st.set_page_config(page_title="DriveElite Admin", layout="wide")
+# ==========================================
+# 4. INITIALIZE DATABASE
+# ==========================================
 conn = get_connection()
+init_db()
+patch_database()
+
+# ==========================================
+# 5. ADMIN UI STARTS HERE
+# ==========================================
+st.title("👑 DriveElite Admin Portal")
+
+st.divider()
+
+# Summon the interactive pricing table!
+render_admin_discount_table(conn)
+
+# ... (The rest of your admin tools, like approving vehicles, go below here) ...
 
 # --- 3. UTILITY FUNCTIONS ---
 def display_document(file_path, title):
