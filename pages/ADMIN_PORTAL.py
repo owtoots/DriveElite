@@ -11,12 +11,12 @@ import random
 from PIL import Image
 
 # ==========================================
-# 1. PAGE CONFIG (MUST BE FIRST ST COMMAND)
+# 1. PAGE CONFIG (MUST BE THE VERY FIRST ST COMMAND)
 # ==========================================
 st.set_page_config(page_title="DriveElite Admin", layout="wide")
 
 # ==========================================
-# 2. FORCE ROOT DIRECTORY VISIBILITY
+# 2. FORCE ROOT DIRECTORY VISIBILITY (THE PERISCOPE)
 # ==========================================
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
@@ -24,7 +24,7 @@ if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
 # ==========================================
-# 3. IMPORT CUSTOM MODULES
+# 3. IMPORT CUSTOM MODULES (NOW IT CAN FIND THEM)
 # ==========================================
 from database_utils import get_connection, init_db, patch_database
 from tiered_discounts import render_admin_discount_table
@@ -40,6 +40,18 @@ except ImportError:
 conn = get_connection()
 init_db()
 patch_database()
+
+# ==========================================
+# 5. ADMIN UI STARTS HERE
+# ==========================================
+st.title("👑 DriveElite Admin Portal")
+
+st.divider()
+
+# Summon the interactive pricing table!
+render_admin_discount_table(conn)
+
+# ... (The rest of your admin tools, like approving vehicles, go below here) ...
 
 # ==========================================
 # 5. ADMIN UI STARTS HERE
