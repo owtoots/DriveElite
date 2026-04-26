@@ -424,12 +424,12 @@ with tabs[4]:
     elif doc_type == "🧾 Service Booking Receipts":
         st.subheader("🧾 On-Demand Receipt Generator")
         
-        # Query all bookings from the database
+        # Query all bookings from the database (ADDED Affiliate Email)
         receipt_query = """
             SELECT b.booking_ref, b.pickup_time, b.return_time, b.amount, b.status, 
                    r.full_name as renter_name, r.email as renter_email, r.username as renter_user,
                    v.make, v.model, v.plate,
-                   a.full_name as affiliate_name
+                   a.full_name as affiliate_name, a.email as affiliate_email
             FROM bookings b
             JOIN vehicles v ON b.vehicle_id = v.id
             JOIN platform_users r ON b.renter_username = r.username
@@ -441,37 +441,33 @@ with tabs[4]:
             if receipt_df.empty:
                 st.info("No bookings exist in the database yet to generate receipts for.")
             else:
-                # Search dropdown
                 opts = ["-- Select a Booking Reference --"] + receipt_df['booking_ref'].astype(str).tolist()
                 selected_ref = st.selectbox("Search past and present bookings:", opts)
 
                 if selected_ref != "-- Select a Booking Reference --":
                     b_data = receipt_df[receipt_df['booking_ref'].astype(str) == selected_ref].iloc[0]
                     
-                    # Reverse-calculate the exact fees based on the 7% markup logic
+                    # --- MATH CALCULATIONS ---
                     gross_paid = float(b_data['amount'])
+                    # Renter Math (7% markup)
                     base_rate = gross_paid / 1.07
                     platform_fee = gross_paid - base_rate
+                    # Affiliate Math (18% deduction)
+                    affiliate_payout = gross_paid * 0.82
+                    platform_commission = gross_paid * 0.18
                     
-                    # Construct the beautiful text receipt
-                    receipt_text = f"""======================================
+                    # --- RENTER RECEIPT TEXT ---
+                    renter_receipt_text = f"""======================================
 DRIVEELITE OFFICIAL RECEIPT
 ======================================
 Booking Reference: #{b_data['booking_ref']}
-Status: {b_data['status']}
 Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}
 
 RENTER DETAILS:
 Name: {b_data['renter_name']} (@{b_data['renter_user']})
-Email: {b_data['renter_email']}
 
 VEHICLE DETAILS:
 Unit: {b_data['make']} {b_data['model']} ({b_data['plate']})
-Affiliate: {b_data['affiliate_name']}
-
-TRIP DURATION:
-Pickup: {b_data['pickup_time']}
-Return: {b_data['return_time']}
 
 FINANCIAL BREAKDOWN:
 Base Rental Rate:        PHP {base_rate:,.2f}
@@ -480,26 +476,37 @@ Platform Fee (7%):       PHP {platform_fee:,.2f}
 TOTAL AMOUNT PAID:       PHP {gross_paid:,.2f}
 ======================================"""
 
+                    # --- AFFILIATE RECEIPT TEXT ---
+                    affiliate_receipt_text = f"""======================================
+DRIVEELITE PARTNER PAYOUT SUMMARY
+======================================
+Booking Reference: #{b_data['booking_ref']}
+Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+AFFILIATE DETAILS:
+Name: {b_data['affiliate_name']}
+Unit: {b_data['make']} {b_data['model']} ({b_data['plate']})
+
+FINANCIAL BREAKDOWN:
+Gross Rental Amount:     PHP {gross_paid:,.2f}
+Platform Comm. (18%):   -PHP {platform_commission:,.2f}
+--------------------------------------
+NET PAYOUT DUE:          PHP {affiliate_payout:,.2f}
+======================================"""
+
                     st.divider()
                     col_receipt, col_actions = st.columns([2, 1])
                     
                     with col_receipt:
-                        st.code(receipt_text, language='text')
+                        st.write("👀 **Preview (Renter View)**")
+                        st.code(renter_receipt_text, language='text')
                         
                     with col_actions:
-                        st.write("### 🛠️ Quick Actions")
+                        st.write("### 🛠️ Transmit Receipts")
                         
-                        # Action 1: Download instantly to your computer
-                        st.download_button(
-                            label="⬇️ Download (.txt file)",
-                            data=receipt_text,
-                            file_name=f"DriveElite_Receipt_{b_data['booking_ref']}.txt",
-                            use_container_width=True
-                        )
-                        
-                        # Action 2: Force-Email it to the Renter
+                        # Email Renter
                         if st.button("📧 Email to Renter", type="primary", use_container_width=True):
-                            with st.spinner("Transmitting email..."):
+                            with st.spinner("Transmitting to Renter..."):
                                 import smtplib
                                 from email.message import EmailMessage
                                 try:
@@ -507,13 +514,29 @@ TOTAL AMOUNT PAID:       PHP {gross_paid:,.2f}
                                     msg['Subject'] = f'DriveElite: Official Receipt #{b_data["booking_ref"]}'
                                     msg['From'] = 'rdalbaojr@gmail.com'
                                     msg['To'] = b_data['renter_email']
-                                    msg.set_content(receipt_text)
-                                    
+                                    msg.set_content(renter_receipt_text)
                                     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
                                         smtp.login('rdalbaojr@gmail.com', st.secrets["email_app_password"])
                                         smtp.send_message(msg)
-                                        
-                                    st.success(f"✅ Sent to {b_data['renter_email']}!")
+                                    st.success(f"✅ Sent to Renter!")
+                                except Exception as e:
+                                    st.error(f"❌ Failed: {e}")
+                                    
+                        # Email Affiliate
+                        if st.button("📧 Email to Affiliate", use_container_width=True):
+                            with st.spinner("Transmitting to Affiliate..."):
+                                import smtplib
+                                from email.message import EmailMessage
+                                try:
+                                    msg = EmailMessage()
+                                    msg['Subject'] = f'DriveElite: Partner Payout #{b_data["booking_ref"]}'
+                                    msg['From'] = 'rdalbaojr@gmail.com'
+                                    msg['To'] = b_data['affiliate_email']
+                                    msg.set_content(affiliate_receipt_text)
+                                    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                                        smtp.login('rdalbaojr@gmail.com', st.secrets["email_app_password"])
+                                        smtp.send_message(msg)
+                                    st.success(f"✅ Sent to Affiliate!")
                                 except Exception as e:
                                     st.error(f"❌ Failed: {e}")
         except Exception as e:
