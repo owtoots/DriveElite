@@ -9,7 +9,23 @@ import time
 import random 
 from PIL import Image
 from database_utils import get_connection, init_db, patch_database
+import streamlit as st
+from database_utils import get_connection
 
+# 1. Import the admin function from your new file
+from tiered_discounts import render_admin_discount_table 
+
+conn = get_connection()
+
+# --- INSIDE YOUR ADMIN DASHBOARD TAB/PAGE ---
+st.title("👑 DriveElite Admin Portal")
+
+# ... (your other admin tools, like approving vehicles) ...
+
+st.divider()
+
+# 2. Summon the interactive table!
+render_admin_discount_table(conn)
 # --- FORCE DATABASE REBUILD ON CLOUD WAKE-UP ---
 init_db()
 patch_database()
