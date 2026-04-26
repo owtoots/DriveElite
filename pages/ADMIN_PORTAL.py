@@ -51,19 +51,8 @@ st.divider()
 # Summon the interactive pricing table!
 render_admin_discount_table(conn)
 
-# ... (The rest of your admin tools, like approving vehicles, go below here) ...
-
-# ==========================================
-# 5. ADMIN UI STARTS HERE
-# ==========================================
-st.title("👑 DriveElite Admin Portal")
-
-st.divider()
-
-# Summon the interactive pricing table!
-render_admin_discount_table(conn)
-
-# ... (The rest of your admin tools, like approving vehicles, go below here) ...
+# --- 3. UTILITY FUNCTIONS ---
+# (Your display_document and other functions continue normally below here...)
 
 # --- 3. UTILITY FUNCTIONS ---
 def display_document(file_path, title):
