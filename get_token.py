@@ -1,22 +1,17 @@
+import os.path
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-# The permissions your app needs
-SCOPES = [
-    'https://www.googleapis.com/auth/drive',
-    'https://www.googleapis.com/auth/documents'
-]
+# If modifying these scopes, delete the file token.json.
+SCOPES = ['https://www.googleapis.com/auth/documents', 'https://www.googleapis.com/auth/drive']
 
-def generate_token():
-    # This reads the file you just downloaded
-    flow = InstalledAppFlow.from_client_secrets_file('client_secret.json', SCOPES)
-    
-    # This will pop up a Google login window in your browser!
+def main():
+    flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
     creds = flow.run_local_server(port=0)
     
-    # Save the resulting secure credentials to a new file
+    # Save the credentials for the next run
     with open('token.json', 'w') as token:
         token.write(creds.to_json())
-    print("Success! Your token.json file has been created.")
+    print("✅ SUCCESS! New token.json has been generated.")
 
 if __name__ == '__main__':
-    generate_token()
+    main()
