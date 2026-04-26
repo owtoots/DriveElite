@@ -387,17 +387,45 @@ with tabs[0]:
                                 driver_days = full_days + (1 if billed_hrs > 0 else 0)
                                 driver_fee = (driver_days * 1000.0) if is_driver else 0.0
                                 d_fee, c_fee = ZONES[p_zone], ZONES[r_zone]
-                                discount_pct = 0.15 if full_days >= 15 else (0.10 if full_days >= 7 else (0.05 if full_days >= 3 else 0.0))
+                                
+                                # --- 1. FETCH LIVE DISCOUNTS FROM ADMIN DATABASE ---
+                                tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
+                                discount_pct = 0.0
+                                for _, row in tiers_df.iterrows():
+                                    if full_days >= row['min_days']:
+                                        discount_pct = float(row['discount_pct'])
+                                        break
+                                
+                                # --- 2. CALCULATE 7% MARGIN & NEW TOTALS ---
                                 savings = subtotal * discount_pct
-                                grand_total = (subtotal - savings) + driver_fee + d_fee + c_fee
+                                discounted_subtotal = subtotal - savings
+                                
+                                platform_fee = discounted_subtotal * 0.07  # The 7% Renter Markup
+                                
+                                # Add external fees (Driver & Zones) to get final checkout price
+                                grand_total = discounted_subtotal + platform_fee + driver_fee + d_fee + c_fee
 
+                                # --- 3. RENDER THE DYNAMIC HTML RECEIPT ---
                                 st.markdown("#### 🧾 Cost Breakdown")
                                 plural_days = "day" if full_days == 1 else "days"
                                 rows = [f'<tr><td class="bill-label">Base Rental (₱{base_rate:,.2f} x {full_days} {plural_days})</td><td style="text-align:right; font-weight:bold;">₱{base_cost:,.2f}</td></tr>']
-                                if billed_hrs > 0: rows.append(f'<tr><td style="color:#d35400; font-style:italic;">Hourly Extension ({billed_hrs} hrs @ ₱300/hr)</td><td style="text-align:right; color:#d35400;">+₱{ext_fee:,.2f}</td></tr>')
-                                if savings > 0: rows.append(f'<tr><td style="color:#cc0000; font-style:italic;">Discount ({int(discount_pct*100)}%)</td><td style="text-align:right; color:#cc0000;">-₱{savings:,.2f}</td></tr>')
-                                if is_driver: rows.append(f'<tr><td style="color:#003399;">Driver Fee</td><td style="text-align:right; color:#003399;">+₱{driver_fee:,.2f}</td></tr>')
-                                bill_html = f'<div class="bill-box"><table class="table-bill">{"".join(rows)}<tr style="border-top:2px solid #000;"><td class="bill-label">GRAND TOTAL</td><td style="text-align:right; font-weight:900;">₱{grand_total:,.2f}</td></tr></table></div>'
+                                
+                                if billed_hrs > 0: 
+                                    rows.append(f'<tr><td style="color:#d35400; font-style:italic;">Hourly Extension ({billed_hrs} hrs @ ₱300/hr)</td><td style="text-align:right; color:#d35400;">+₱{ext_fee:,.2f}</td></tr>')
+                                if savings > 0: 
+                                    rows.append(f'<tr><td style="color:#cc0000; font-style:italic;">Duration Discount ({int(discount_pct*100)}%)</td><td style="text-align:right; color:#cc0000;">-₱{savings:,.2f}</td></tr>')
+                                
+                                # Explicitly show the platform fee
+                                rows.append(f'<tr><td style="color:#27ae60; font-weight:bold;">DriveElite Service Fee (7%)</td><td style="text-align:right; color:#27ae60; font-weight:bold;">+₱{platform_fee:,.2f}</td></tr>')
+                                
+                                if is_driver: 
+                                    rows.append(f'<tr><td style="color:#003399;">Driver Fee</td><td style="text-align:right; color:#003399;">+₱{driver_fee:,.2f}</td></tr>')
+                                if d_fee > 0:
+                                    rows.append(f'<tr><td style="color:#555;">Pickup Zone Fee</td><td style="text-align:right; color:#555;">+₱{d_fee:,.2f}</td></tr>')
+                                if c_fee > 0:
+                                    rows.append(f'<tr><td style="color:#555;">Return Zone Fee</td><td style="text-align:right; color:#555;">+₱{c_fee:,.2f}</td></tr>')
+
+                                bill_html = f'<div class="bill-box"><table class="table-bill" style="width:100%;">{"".join(rows)}<tr style="border-top:2px solid #000;"><td class="bill-label" style="font-weight:900;">GRAND TOTAL</td><td style="text-align:right; font-weight:900; font-size:1.1em;">₱{grand_total:,.2f}</td></tr></table></div>'
                                 st.markdown(bill_html, unsafe_allow_html=True)
                                 
                                 st.divider()
@@ -405,12 +433,17 @@ with tabs[0]:
                                 if os.path.exists(qr_p): st.image(qr_p, caption=f"Scan to Pay: ₱{grand_total:,.2f}", width=300)
                                 ref_num = st.text_input("GCash Reference Number *", key=f"ref_{car['id']}")
 
-                                # --- 3. SMART BUTTON WITH DISABLE LOCK ---
+                                # --- 4. SMART BUTTON WITH DISABLE LOCK ---
                                 if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True, disabled=not can_book):
                                     if dest and ref_num and p_exact and r_exact and luzon_agree:
                                         b_ref = str(random.randint(100000, 999999))
                                         p_dt_str, r_dt_str = f"{d1} {t1.strftime('%H:%M')}", f"{d2} {t2.strftime('%H:%M')}"
-                                        conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?)", (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
+                                        
+                                        # Calculate Affiliate Payout (18% deduction from the discounted base)
+                                        affiliate_payout = discounted_subtotal * 0.82
+                                        
+                                        conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?)", 
+                                                     (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
                                         conn.commit()
                                         st.success(f"✅ Confirmed! Ref: #{b_ref}"); time.sleep(2); st.rerun()
                                     else: 
