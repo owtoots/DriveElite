@@ -44,19 +44,24 @@ def render_admin_discount_table(conn):
     )
 
     if st.button("Save Discount Rules", type="primary"):
-        conn.execute("DELETE FROM discount_tiers") 
-        for _, row in edited_tiers.iterrows():
+        try:
+            conn.execute("DELETE FROM discount_tiers") 
+            for _, row in edited_tiers.iterrows():
+                
+                # Force exact Python data types
+                t_name = str(row['tier_name'])
+                m_days = int(row['min_days'])
+                d_pct = float(row['discount_pct'])
+                
+                # Insert into database
+                conn.execute("INSERT INTO discount_tiers (tier_name, min_days, discount_pct) VALUES (?, ?, ?)", (t_name, m_days, d_pct))
+                
+            conn.commit()
+            st.success("✅ Discount tiers successfully updated!")
             
-            # 1. Force exact Python data types
-            t_name = str(row['tier_name'])
-            m_days = int(row['min_days'])
-            d_pct = float(row['discount_pct'])
-            
-            # 2. Insert into database (Combined into one unbroken line)
-            conn.execute("INSERT INTO discount_tiers (tier_name, min_days, discount_pct) VALUES (?, ?, ?)", (t_name, m_days, d_pct))
-            
-        conn.commit()
-        st.success("✅ Discount tiers successfully updated!")
+        except Exception as e:
+            # THIS FORCES THE HIDDEN ERROR TO APPEAR ON SCREEN!
+            st.error(f"🚨 HIDDEN ERROR REVEALED: {str(e)}")
 
 def calculate_tiered_pricing(base_daily_rate, total_days, conn):
     """
