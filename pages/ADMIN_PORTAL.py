@@ -40,7 +40,7 @@ except ImportError:
 conn = get_connection()
 init_db()
 patch_database()
-init_discount_db(conn)  # <--- ADD THIS NEW LINE!
+init_discount_db(conn)
 
 # ==========================================
 # 5. ADMIN UI STARTS HERE
@@ -48,11 +48,6 @@ init_discount_db(conn)  # <--- ADD THIS NEW LINE!
 st.title("👑 DriveElite Admin Portal")
 
 st.divider()
-
-# Summon the interactive pricing table!
-
-# --- 3. UTILITY FUNCTIONS ---
-# (Your display_document and other functions continue normally below here...)
 
 # --- 3. UTILITY FUNCTIONS ---
 def display_document(file_path, title):
@@ -70,6 +65,7 @@ def display_document(file_path, title):
             st.image(file_path, caption=title, use_container_width=True)
     else:
         st.warning(f"No {title} provided.")
+
 def email_receipt_to_affiliate(affiliate_email, receipt_text, transaction_ref):
     """Sends a cancellation compensation summary to the Affiliate."""
     sender_email = "rdalbaojr@gmail.com" 
@@ -418,6 +414,11 @@ with tabs[4]:
 
 # --- TAB 5: PROMOS & DB ---
 with tabs[5]:
+    # --- 1. DYNAMIC PRICING & DISCOUNTS TABLE ---
+    render_admin_discount_table(conn)
+    st.divider()
+
+    # --- 2. EXISTING PROMO & CATEGORY MANAGERS ---
     col_promo, col_cat = st.columns(2)
     with col_promo:
         st.subheader("📢 Broadcast Manager")
@@ -519,7 +520,8 @@ with tabs[5]:
         with db_tabs[2]: st.dataframe(pd.read_sql_query(q_drivers, conn), hide_index=True, use_container_width=True)
     except: 
         pass
-        # --- DANGER ZONE: FACTORY RESET ---
+        
+    # --- DANGER ZONE: FACTORY RESET ---
     st.divider()
     st.markdown("<h3 style='text-align: center; color: #e74c3c;'>⚠️ DANGER ZONE</h3>", unsafe_allow_html=True)
     
@@ -556,6 +558,7 @@ with tabs[5]:
                     st.rerun()
             else:
                 st.error("You must type exactly 'DELETE EVERYTHING' to unlock the reset button.")
+
 # --- TAB 6: GLOBAL REVIEWS ---
 with tabs[6]:
     st.markdown("<h3 style='text-align: center;'>⭐ MASTER PLATFORM REVIEWS</h3>", unsafe_allow_html=True)
