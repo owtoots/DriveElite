@@ -50,7 +50,6 @@ st.title("👑 DriveElite Admin Portal")
 st.divider()
 
 # Summon the interactive pricing table!
-render_admin_discount_table(conn)
 
 # --- 3. UTILITY FUNCTIONS ---
 # (Your display_document and other functions continue normally below here...)
