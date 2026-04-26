@@ -32,14 +32,13 @@ def render_admin_discount_table(conn):
 
     df_tiers = pd.read_sql_query("SELECT * FROM discount_tiers ORDER BY min_days ASC", conn)
 
-    ediedited_tiers = st.data_editor(
+    edited_tiers = st.data_editor(
         df_tiers, 
         num_rows="dynamic",
         use_container_width=True,
         column_config={
             "tier_name": st.column_config.TextColumn("Tier Name"),
             "min_days": st.column_config.NumberColumn("Minimum Days", min_value=1),
-            # Add step=0.01 right here! 👇
             "discount_pct": st.column_config.NumberColumn("Discount % (e.g., 0.10 for 10%)", min_value=0.0, max_value=1.0, step=0.01, format="%.2f")
         }
     )
