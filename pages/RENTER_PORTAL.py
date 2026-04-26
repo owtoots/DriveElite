@@ -12,11 +12,6 @@ from database_utils import get_connection
 import streamlit as st
 from database_utils import get_connection
 
-# IMPORT YOUR NEW CUSTOM MODULE
-from tiered_discounts import init_discount_db, render_admin_discount_table, calculate_tiered_pricing
-
-conn = get_connection()
-init_discount_db(conn) # Ensures the table is ready to go
 # --- DATABASE CONNECTION & SELF-REPAIR ---
 conn = get_connection()
 
