@@ -40,6 +40,7 @@ except ImportError:
 conn = get_connection()
 init_db()
 patch_database()
+init_discount_db(conn)  # <--- ADD THIS NEW LINE!
 
 # ==========================================
 # 5. ADMIN UI STARTS HERE
