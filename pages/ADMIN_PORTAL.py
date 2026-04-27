@@ -24,7 +24,7 @@ if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
 # ==========================================
-# 3. IMPORT CUSTOM MODULES (NOW IT CAN FIND THEM)
+# 3. IMPORT CUSTOM MODULES
 # ==========================================
 from database_utils import get_connection, init_db, patch_database
 from tiered_discounts import init_discount_db, render_admin_discount_table
@@ -51,14 +51,11 @@ st.divider()
 
 # --- 3. UTILITY FUNCTIONS ---
 def display_document(file_path, title):
-    """Smart viewer: shows images natively, but gives a download button for PDFs."""
     import os
     import streamlit as st
-    
     if file_path and str(file_path).strip() and os.path.exists(file_path):
         if str(file_path).lower().endswith('.pdf'):
             with open(file_path, "rb") as f:
-                # Give every download button a unique key to prevent Streamlit errors
                 safe_key = f"dl_{str(file_path).replace('/', '_').replace('.', '_')}_{title.replace(' ', '')}"
                 st.download_button(f"📄 Download {title} (PDF)", f.read(), file_name=os.path.basename(file_path), mime="application/pdf", key=safe_key)
         else:
@@ -67,7 +64,6 @@ def display_document(file_path, title):
         st.warning(f"No {title} provided.")
 
 def email_receipt_to_affiliate(affiliate_email, receipt_text, transaction_ref):
-    """Sends a cancellation compensation summary to the Affiliate."""
     sender_email = "rdalbaojr@gmail.com" 
     try:
         app_password = st.secrets["email_app_password"]
@@ -91,7 +87,6 @@ def email_receipt_to_affiliate(affiliate_email, receipt_text, transaction_ref):
         return False
 
 def send_pdf_copy(to_email, file_path, file_name):
-    """Attaches a PDF from the uploads folder and emails it to the user."""
     from email.mime.multipart import MIMEMultipart
     from email.mime.base import MIMEBase
     from email.mime.text import MIMEText
@@ -157,7 +152,6 @@ with head_col2:
         st.session_state.clear()
         st.rerun()
 
-# NEW TAB ADDED: DISPUTE CENTER
 tabs = st.tabs(["PENDING APPROVALS", "ASSETS", "LOGISTICS", "FINANCIALS", "🗄️ FILING CABINET", "PROMOS & DB", "⭐ REVIEWS", "❌ CANCELLATIONS", "⚖️ DISPUTES"])
 
 # --- TAB 0: PENDING APPROVALS ---
@@ -218,18 +212,14 @@ with tabs[1]:
     else:
         for i, r in pv.iterrows():
             with st.expander(f"🚗 {r['make']} {r['model']} ({r['plate']})"):
-                
-                # --- NEW: SMART DOCUMENT VIEWER ---
                 st.write("### Vehicle Documents")
                 c_doc1, c_doc2, c_doc3 = st.columns(3)
                 with c_doc1: display_document(r.get('or_img'), "Official Receipt (OR)")
                 with c_doc2: display_document(r.get('cr_img'), "Certificate of Reg (CR)")
                 with c_doc3: display_document(r.get('insurance_img'), "Insurance Policy")
                 st.divider()
-                # ----------------------------------
                 
                 if st.button("✅ APPROVE & ACTIVATE", key=f"v_app_{r['id']}", type="primary", use_container_width=True):
-                    # ... your existing approval code ...
                     conn.execute("""
                         UPDATE vehicles 
                         SET admin_status = 'APPROVED', 
@@ -243,7 +233,7 @@ with tabs[1]:
 
 # --- TAB 2: LOGISTICS ---
 with tabs[2]:
-    st.subheader("Active Logistics")
+    st.subheader("Vehicle Dispatch & Logistics")
     try:
         query = """
             SELECT b.*, u_renter.full_name as renter_name, u_owner.full_name as affiliate_name 
@@ -251,14 +241,33 @@ with tabs[2]:
             JOIN platform_users u_renter ON b.renter_username = u_renter.username 
             JOIN vehicles v ON b.vehicle_id = v.id 
             JOIN platform_users u_owner ON v.owner_username = u_owner.username 
-            WHERE b.status != 'COMPLETED'
+            WHERE b.status NOT IN ('COMPLETED', 'CANCELLED', 'REJECTED')
         """
         bookings = pd.read_sql_query(query, conn)
-        if bookings.empty: st.info("No active logistics.")
+        
+        if bookings.empty: 
+            st.info("No active logistics or pending payments.")
         else:
-            for i, r in bookings.iterrows():
-                with st.expander(f"🎫 #{r['id']} | {r['status']} | RENTER: {r['renter_name']} | AFFILIATE: {r['affiliate_name']}"):
-                    st.write(f"Amount: ₱{r['amount']:,.2f} | Destination: {r.get('destination')}")
+            col_pending, col_active = st.columns(2)
+            
+            with col_pending:
+                st.markdown("#### ⏳ Awaiting PayMongo Payment")
+                pending_trips = bookings[bookings['status'] == 'PENDING']
+                if pending_trips.empty: st.write("Clear.")
+                for i, r in pending_trips.iterrows():
+                    with st.container(border=True):
+                        st.write(f"**Ref #{r['booking_ref']}**")
+                        st.write(f"**Renter:** {r['renter_name']} | **Amount:** ₱{r['amount']:,.2f}")
+                        st.write("Status: Checkout link generated, awaiting payment capture.")
+            
+            with col_active:
+                st.markdown("#### 🚗 Active & Confirmed Trips")
+                active_trips = bookings[bookings['status'].isin(['CONFIRMED', 'ONGOING'])]
+                if active_trips.empty: st.write("Clear.")
+                for i, r in active_trips.iterrows():
+                    with st.expander(f"🎫 #{r['booking_ref']} | {r['status']} | {r['renter_name']}"):
+                        st.write(f"Amount Paid: ₱{r['amount']:,.2f} | Destination: {r.get('destination')}")
+                        st.write(f"Affiliate: {r['affiliate_name']}")
     except Exception as e: st.error(str(e))
 
 # --- TAB 3: FINANCIALS ---
@@ -273,37 +282,49 @@ with tabs[3]:
         JOIN vehicles v ON b.vehicle_id = v.id
         JOIN platform_users u_renter ON b.renter_username = u_renter.username
         JOIN platform_users u_owner ON v.owner_username = u_owner.username
+        WHERE b.status != 'PENDING'
         ORDER BY b.id DESC
         """
         df = pd.read_sql_query(query, conn)
         
+        # Dynamic Settings Fetcher
+        try:
+            settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct FROM platform_settings WHERE id = 1", conn)
+            r_markup = float(settings_df.iloc[0]['renter_markup_pct']) if not settings_df.empty else 0.00
+            a_share = float(settings_df.iloc[0]['affiliate_share_pct']) if not settings_df.empty else 0.82
+        except:
+            r_markup, a_share = 0.00, 0.82
+        
         if df.empty:
-            st.info("No financial transactions recorded yet.")
+            st.info("No confirmed financial transactions recorded yet.")
         else:
             TAX_RATE = 0.02
             df['gateway_fee'] = df['gateway_fee'].fillna(0)
 
-            df['Platform_Gross'] = df['Gross_Revenue'] * 0.18
-            df['Platform_Net_Profit'] = df['Platform_Gross'] - (df['Gross_Revenue'] * TAX_RATE * 0.18)
+            # REVERSE MATH based on PayMongo dynamic fees
+            df['Base_Rental'] = df['Gross_Revenue'] / (1 + r_markup)
+            df['Renter_Fee_Revenue'] = df['Gross_Revenue'] - df['Base_Rental']
+            df['Owner_Fee_Revenue'] = df['Base_Rental'] * (1 - a_share)
+            
+            df['Platform_Gross'] = df['Renter_Fee_Revenue'] + df['Owner_Fee_Revenue']
+            df['Platform_Net_Profit'] = df['Platform_Gross'] - (df['Platform_Gross'] * TAX_RATE)
 
-            df['Affiliate_Gross_Share'] = df['Gross_Revenue'] * 0.82
-            # --- NEW: ISOLATED EWT COLUMN ---
-            df['EWT_Deduction'] = df['Gross_Revenue'] * TAX_RATE * 0.82
+            df['Affiliate_Gross_Share'] = df['Base_Rental'] * a_share
+            df['EWT_Deduction'] = df['Base_Rental'] * TAX_RATE * a_share
             df['Affiliate_Net_Payout'] = (df['Affiliate_Gross_Share'] - df['EWT_Deduction']) - df['gateway_fee']
 
             df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
             
             c1, c2, c3 = st.columns(3)
-            c1.metric("💰 Total Gross", f"₱{df['Gross_Revenue'].sum():,.2f}")
-            c2.metric("🏢 Platform Net", f"₱{df['Platform_Net_Profit'].sum():,.2f}")
+            c1.metric("💰 Total Gross Processed", f"₱{df['Gross_Revenue'].sum():,.2f}")
+            c2.metric("🏢 Nucleuz Net Profit", f"₱{df['Platform_Net_Profit'].sum():,.2f}")
             
             payouts_due = df[(df['Payout_Status'] == 'PENDING') & (df['Trip_Status'] == 'COMPLETED')]['Affiliate_Net_Payout'].sum()
-            c3.metric("⏳ Payouts Due", f"₱{payouts_due:,.2f}")
+            c3.metric("⏳ Payouts Owed", f"₱{payouts_due:,.2f}")
             
             f_tabs = st.tabs(["📑 MASTER LEDGER", "📤 PROCESS PAYOUTS"])
             
             with f_tabs[0]: 
-                # --- NEW: ADDED EWT TO DISPLAY COLS ---
                 display_cols = ['Ref', 'Date', 'Affiliate', 'Gross_Revenue', 'gateway_fee', 'EWT_Deduction', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
                 
                 styled_ledger = df[display_cols].style.format({
@@ -322,14 +343,15 @@ with tabs[3]:
                     st.info("No pending payouts for completed trips.")
                 for _, p in pending_p.iterrows():
                     with st.expander(f"{p['Ref']} | {p['Affiliate']} | Net: ₱{p['Affiliate_Net_Payout']:,.2f}"):
-                        st.write(f"**Gross Affiliate Share (82%):** ₱{p['Affiliate_Gross_Share']:,.2f}")
+                        st.write(f"**Gross Amount Collected via PayMongo:** ₱{p['Gross_Revenue']:,.2f}")
+                        st.write(f"**Affiliate Gross Share ({int(a_share*100)}% of Base):** ₱{p['Affiliate_Gross_Share']:,.2f}")
                         st.write(f"**Tax Deduction (EWT):** -₱{p['EWT_Deduction']:,.2f}")
-                        st.write(f"**CC Gateway Fee (Owner Absorbed):** -₱{p['gateway_fee']:,.2f}")
+                        st.write(f"**PayMongo Gateway Fee (Owner Absorbed):** -₱{p['gateway_fee']:,.2f}")
                         st.divider()
-                        st.write(f"**Final Remittance:** ₱{p['Affiliate_Net_Payout']:,.2f}")
+                        st.write(f"**Final Remittance to Send:** ₱{p['Affiliate_Net_Payout']:,.2f}")
                         st.info(f"🏦 **Bank:** {p['bank_name']} | **Acc:** {p['account_no']}")
                         
-                        if st.button("MARK AS PAID", key=f"p_{p['id']}", type="primary", use_container_width=True):
+                        if st.button("MARK DISBURSED", key=f"p_{p['id']}", type="primary", use_container_width=True):
                             conn.execute("UPDATE bookings SET payout_status = 'PAID' WHERE id = ?", (p['id'],))
                             conn.commit()
                             st.rerun()
@@ -342,7 +364,6 @@ with tabs[4]:
     st.header("🗄️ Master Digital Filing Cabinet")
     st.write("View legally binding contracts, download them, or instantly email a copy to the user.")
     
-    # --- NEW: Master Navigation for Tab 4 ---
     doc_type = st.radio("Select Document Type to View:", ["💼 Legal Contracts (PDFs)", "🧾 Service Booking Receipts"], horizontal=True)
     st.divider()
 
@@ -384,8 +405,7 @@ with tabs[4]:
                                     target_email = user_df.iloc[0]['email']
                                     full_name = user_df.iloc[0]['full_name']
                                     display_card_text = f"{full_name} / {uname}" if full_name else f"(@{uname})"
-                            except:
-                                pass 
+                            except: pass 
                         
                         with cols[i % 4]:
                             with st.container(border=True):
@@ -394,14 +414,8 @@ with tabs[4]:
                                 btn_col1, btn_col2 = st.columns(2)
                                 with btn_col1:
                                     with open(file_path, "rb") as pdf_file:
-                                        st.download_button(
-                                            label="⬇️ DL",
-                                            data=pdf_file.read(),
-                                            file_name=file_name,
-                                            mime="application/pdf",
-                                            key=f"dl_{file_name}",
-                                            use_container_width=True 
-                                        )
+                                        st.download_button(label="⬇️ DL", data=pdf_file.read(), file_name=file_name, mime="application/pdf", key=f"dl_{file_name}", use_container_width=True)
+                                        
                                 with btn_col2:
                                     if st.button("📧 Email", key=f"em_{file_name}", use_container_width=True):
                                         if not target_email:
@@ -409,10 +423,8 @@ with tabs[4]:
                                         else:
                                             with st.spinner("Sending..."):
                                                 success, msg = send_pdf_copy(target_email, file_path, file_name)
-                                                if success:
-                                                    st.toast(f"✅ Contract sent to {target_email}", icon="🚀")
-                                                else:
-                                                    st.error(f"Failed: {msg}")
+                                                if success: st.toast(f"✅ Contract sent to {target_email}", icon="🚀")
+                                                else: st.error(f"Failed: {msg}")
             else:
                 st.info("No contracts have been signed yet.")
         else:
@@ -424,7 +436,13 @@ with tabs[4]:
     elif doc_type == "🧾 Service Booking Receipts":
         st.subheader("🧾 On-Demand Receipt Generator")
         
-        # Query all bookings from the database (ADDED Affiliate Email)
+        try:
+            settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct FROM platform_settings WHERE id = 1", conn)
+            r_markup = float(settings_df.iloc[0]['renter_markup_pct']) if not settings_df.empty else 0.00
+            a_share = float(settings_df.iloc[0]['affiliate_share_pct']) if not settings_df.empty else 0.82
+        except:
+            r_markup, a_share = 0.00, 0.82
+
         receipt_query = """
             SELECT b.booking_ref, b.pickup_time, b.return_time, b.amount, b.status, 
                    r.full_name as renter_name, r.email as renter_email, r.username as renter_user,
@@ -434,27 +452,27 @@ with tabs[4]:
             JOIN vehicles v ON b.vehicle_id = v.id
             JOIN platform_users r ON b.renter_username = r.username
             JOIN platform_users a ON v.owner_username = a.username
+            WHERE b.status != 'PENDING'
             ORDER BY b.id DESC
         """
         try:
             receipt_df = pd.read_sql_query(receipt_query, conn)
             if receipt_df.empty:
-                st.info("No bookings exist in the database yet to generate receipts for.")
+                st.info("No paid bookings exist in the database yet.")
             else:
                 opts = ["-- Select a Booking Reference --"] + receipt_df['booking_ref'].astype(str).tolist()
-                selected_ref = st.selectbox("Search past and present bookings:", opts)
+                selected_ref = st.selectbox("Search paid bookings:", opts)
 
                 if selected_ref != "-- Select a Booking Reference --":
                     b_data = receipt_df[receipt_df['booking_ref'].astype(str) == selected_ref].iloc[0]
                     
-                    # --- MATH CALCULATIONS ---
+                    # DYNAMIC MATH CALCULATIONS
                     gross_paid = float(b_data['amount'])
-                    # Renter Math (7% markup)
-                    base_rate = gross_paid / 1.07
-                    platform_fee = gross_paid - base_rate
-                    # Affiliate Math (18% deduction)
-                    affiliate_payout = gross_paid * 0.82
-                    platform_commission = gross_paid * 0.18
+                    base_rate = gross_paid / (1 + r_markup)
+                    platform_fee_renter = gross_paid - base_rate
+                    
+                    affiliate_payout = base_rate * a_share
+                    platform_commission_owner = base_rate * (1 - a_share)
                     
                     # --- RENTER RECEIPT TEXT ---
                     renter_receipt_text = f"""======================================
@@ -471,7 +489,7 @@ Unit: {b_data['make']} {b_data['model']} ({b_data['plate']})
 
 FINANCIAL BREAKDOWN:
 Base Rental Rate:        PHP {base_rate:,.2f}
-Platform Fee (7%):       PHP {platform_fee:,.2f}
+Platform Fee ({int(r_markup*100)}%):       PHP {platform_fee_renter:,.2f}
 --------------------------------------
 TOTAL AMOUNT PAID:       PHP {gross_paid:,.2f}
 ======================================"""
@@ -488,8 +506,8 @@ Name: {b_data['affiliate_name']}
 Unit: {b_data['make']} {b_data['model']} ({b_data['plate']})
 
 FINANCIAL BREAKDOWN:
-Gross Rental Amount:     PHP {gross_paid:,.2f}
-Platform Comm. (18%):   -PHP {platform_commission:,.2f}
+Base Rental Assessed:    PHP {base_rate:,.2f}
+Platform Comm. ({int((1-a_share)*100)}%):   -PHP {platform_commission_owner:,.2f}
 --------------------------------------
 NET PAYOUT DUE:          PHP {affiliate_payout:,.2f}
 ======================================"""
@@ -504,11 +522,8 @@ NET PAYOUT DUE:          PHP {affiliate_payout:,.2f}
                     with col_actions:
                         st.write("### 🛠️ Transmit Receipts")
                         
-                        # Email Renter
                         if st.button("📧 Email to Renter", type="primary", use_container_width=True):
                             with st.spinner("Transmitting to Renter..."):
-                                import smtplib
-                                from email.message import EmailMessage
                                 try:
                                     msg = EmailMessage()
                                     msg['Subject'] = f'DriveElite: Official Receipt #{b_data["booking_ref"]}'
@@ -522,11 +537,8 @@ NET PAYOUT DUE:          PHP {affiliate_payout:,.2f}
                                 except Exception as e:
                                     st.error(f"❌ Failed: {e}")
                                     
-                        # Email Affiliate
                         if st.button("📧 Email to Affiliate", use_container_width=True):
                             with st.spinner("Transmitting to Affiliate..."):
-                                import smtplib
-                                from email.message import EmailMessage
                                 try:
                                     msg = EmailMessage()
                                     msg['Subject'] = f'DriveElite: Partner Payout #{b_data["booking_ref"]}'
@@ -545,36 +557,26 @@ NET PAYOUT DUE:          PHP {affiliate_payout:,.2f}
 
 # --- TAB 5: PROMOS & DB ---
 with tabs[5]:
-    # --- 1. DYNAMIC PRICING & DISCOUNTS TABLE ---
     render_admin_discount_table(conn)
     st.divider()
 
-    # --- 2. EXISTING PROMO & CATEGORY MANAGERS ---
     col_promo, col_cat = st.columns(2)
     with col_promo:
         st.subheader("📢 Broadcast Manager")
         
-        # --- NEW: MASTER TOGGLE SWITCH ---
-        # Check if there is currently an active broadcast
         current_active = pd.read_sql_query("SELECT id FROM admin_promos WHERE active = 1", conn)
         banner_is_on = not current_active.empty
-        
-        # Display the sleek toggle bullet
         turn_on = st.toggle("📡 Master Broadcast Switch (Turn ON / OFF)", value=banner_is_on)
         
-        # If the toggle is clicked, update the database instantly
         if turn_on != banner_is_on:
             if turn_on:
-                # Turn back on the most recently created promo
                 conn.execute("UPDATE admin_promos SET active = 1 WHERE id = (SELECT MAX(id) FROM admin_promos)")
                 conn.commit()
             else:
-                # Turn everything off (hide the banner)
                 conn.execute("UPDATE admin_promos SET active = 0")
                 conn.commit()
             st.rerun()
         st.divider()
-        # ---------------------------------
 
         with st.form("promo"):
             t = st.text_input("Broadcast Title")
@@ -652,13 +654,11 @@ with tabs[5]:
     except: 
         pass
         
-    # --- DANGER ZONE: FACTORY RESET ---
     st.divider()
     st.markdown("<h3 style='text-align: center; color: #e74c3c;'>⚠️ DANGER ZONE</h3>", unsafe_allow_html=True)
     
     with st.expander("🧨 CLOUD FACTORY RESET (Wipe All Data)"):
         st.warning("WARNING: This will permanently delete the live database and all uploaded files (photos, PDFs, signatures). The platform will revert to Day 1.")
-        
         confirm_text = st.text_input("Type 'DELETE EVERYTHING' to confirm:")
         
         if st.button("🔥 INITIATE FACTORY RESET", type="primary", use_container_width=True):
@@ -667,17 +667,14 @@ with tabs[5]:
                 import time
                 
                 with st.spinner("Disconnecting and Nuking database..."):
-                    # Clear memory lock
                     try: conn.close() 
                     except: pass
                     st.cache_resource.clear() 
                     st.cache_data.clear() 
 
-                    # 1. Delete Database (Corrected to V2)
                     if os.path.exists("driveelite_v2.db"): 
                         os.remove("driveelite_v2.db")
                     
-                    # 2. Delete Uploads
                     if os.path.exists("uploads"):
                         files = glob.glob("uploads/*")
                         for f in files:
@@ -721,7 +718,7 @@ with tabs[7]:
         query = """
         SELECT id, booking_ref, renter_username, amount, pickup_time, status 
         FROM bookings 
-        WHERE status NOT IN ('COMPLETED', 'CANCELLED')
+        WHERE status NOT IN ('COMPLETED', 'CANCELLED', 'PENDING')
         """
         active_bookings = pd.read_sql_query(query, conn)
 
@@ -838,7 +835,6 @@ with tabs[8]:
         if completed_trips.empty:
             st.info("No completed trips available for review.")
         else:
-            # Dropdown to select a trip
             dispute_opts = ["-- Select a Trip to Audit --"] + completed_trips['booking_ref'].astype(str).tolist()
             selected_trip = st.selectbox("Select Trip Ref:", dispute_opts)
             
@@ -846,7 +842,6 @@ with tabs[8]:
                 d_data = completed_trips[completed_trips['booking_ref'].astype(str) == selected_trip].iloc[0]
                 
                 st.divider()
-                # 1. Contact Information Block
                 st.markdown(f"### 📋 Audit File: #{d_data['booking_ref']} | {d_data['make']} {d_data['model']} ({d_data['plate']})")
                 c_rent, c_aff = st.columns(2)
                 with c_rent:
@@ -857,13 +852,11 @@ with tabs[8]:
                 st.divider()
                 st.markdown("<h3 style='text-align: center;'>📸 Visual Evidence Comparison</h3>", unsafe_allow_html=True)
                 
-                # 2. Side-by-Side Photo Comparison
                 col_before, col_after = st.columns(2)
                 
                 with col_before:
                     st.markdown("#### 🟢 BEFORE (Handover Photos)")
                     if pd.notna(d_data.get('handover_photos')) and str(d_data['handover_photos']).strip():
-                        # Split the comma-separated string back into a list of file paths
                         h_photos = str(d_data['handover_photos']).split(',')
                         for img_path in h_photos:
                             if os.path.exists(img_path.strip()):
@@ -874,7 +867,6 @@ with tabs[8]:
                 with col_after:
                     st.markdown("#### 🔴 AFTER (Reported Damage)")
                     if pd.notna(d_data.get('damage_img')) and str(d_data['damage_img']).strip():
-                        # Split the comma-separated string back into a list of file paths
                         d_photos = str(d_data['damage_img']).split(',')
                         for img_path in d_photos:
                             if os.path.exists(img_path.strip()):
