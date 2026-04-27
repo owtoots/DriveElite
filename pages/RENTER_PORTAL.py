@@ -306,7 +306,7 @@ with tabs[0]:
                                             conn.commit()
                                             
                                             # PayMongo API Call
-                                            SECRET_KEY = 'sk_test_xz5tBvTwGkztmy1AnVQuqR6K'
+                                            SECRET_KEY = 'sk_test_YOUR_ACTUAL_KEY_HERE'
                                             pay_amount = int(grand_total * 100) # Centavos
                                             
                                             auth_string = f"{SECRET_KEY}:"
