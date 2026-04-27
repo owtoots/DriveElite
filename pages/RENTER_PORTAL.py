@@ -6,6 +6,10 @@ import random
 import os
 import smtplib
 import math
+import urllib.request
+import urllib.error
+import json
+import base64
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from database_utils import get_connection
@@ -129,52 +133,6 @@ def calculate_24h_rental(pickup_dt, return_dt, daily_rate, hourly_late_fee=300.0
     
     return full_days, billed_hours, base_cost, hourly_fee_total, total_rental_cost
 
-def send_booking_confirmation_email(to_email, renter_name, car_display, b_ref, p_dt, r_dt, html_bill):
-    sender_email = "rdalbaojr@gmail.com" 
-    try:
-        app_password = st.secrets["email_app_password"]
-    except KeyError:
-        return False
-        
-    msg = MIMEMultipart("alternative")
-    msg['Subject'] = f"DriveElite: Booking Confirmed (#{b_ref})"
-    msg['From'] = f"DriveElite Reservations <{sender_email}>"
-    msg['To'] = to_email
-    
-    html_body = f"""
-    <html>
-    <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; line-height: 1.6;">
-        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-            <h2 style="color: #2c8c80; text-align: center;">Booking Confirmed! 🚗</h2>
-            <p>Hi <b>{renter_name}</b>,</p>
-            <p>Your reservation for the <strong>{car_display}</strong> is officially locked in.</p>
-            
-            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 5px 0;"><strong>Reference Number:</strong> #{b_ref}</p>
-                <p style="margin: 5px 0;"><strong>Pickup:</strong> {p_dt}</p>
-                <p style="margin: 5px 0;"><strong>Return:</strong> {r_dt}</p>
-            </div>
-            
-            <h3 style="border-bottom: 2px solid #eee; padding-bottom: 5px;">Payment Summary</h3>
-            {html_bill}
-            
-            <p style="margin-top: 30px; font-size: 0.9em; color: #555;">
-                <i>Please prepare your payment and the refundable security deposit. The vehicle owner will contact you shortly via the DriveElite messenger to coordinate the handover.</i>
-            </p>
-        </div>
-    </body>
-    </html>
-    """
-    msg.attach(MIMEText(html_body, 'html'))
-    
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login(sender_email, app_password)
-            smtp.send_message(msg)
-        return True
-    except Exception:
-        return False
-
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="DriveElite Showroom", layout="wide")
 
@@ -194,58 +152,12 @@ st.markdown("""
     .table-bill { width:100%; font-family: monospace; font-size: 1.05em; border-collapse: collapse; color: #1a1a1a; }
     .table-bill td { padding: 6px 0; }
     .bill-label { font-weight: 700; color: #000000; }
-    
-    /* TRUE CHAT BUBBLES */
-    .bubble-right {
-        background-color: #2c8c80;
-        color: white;
-        padding: 12px 18px;
-        border-radius: 20px 20px 2px 20px;
-        position: relative;
-        box-shadow: 1px 2px 5px rgba(0,0,0,0.2);
-        margin-bottom: 10px;
-        text-align: right;
-    }
-    .bubble-right::after {
-        content: ''; position: absolute; bottom: 0; right: -10px;
-        border: 10px solid transparent; border-top-color: #2c8c80;
-        border-bottom: 0; border-right: 0; margin-left: -5px;
-    }
-    .bubble-left {
-        background-color: #2b2b2b;
-        color: white;
-        padding: 12px 18px;
-        border-radius: 20px 20px 20px 2px;
-        position: relative;
-        box-shadow: 1px 2px 5px rgba(0,0,0,0.2);
-        border: 1px solid #444;
-        margin-bottom: 10px;
-        text-align: left;
-    }
-    .bubble-left::after {
-        content: ''; position: absolute; bottom: 0; left: -10px;
-        border: 10px solid transparent; border-top-color: #2b2b2b;
-        border-bottom: 0; border-left: 0; margin-right: -5px;
-    }
-    .sender-tag {
-        font-size: 0.75em;
-        color: #aaaaaa;
-        margin-bottom: 4px;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
 # --- 1. AUTHENTICATION FLOW ---
 if not st.session_state.get('logged_in') or st.session_state.get('role') != 'RENTER':
-    logo_col1, logo_col2, logo_col3 = st.columns([1, 2, 1])
-    with logo_col2:
-        try: st.image("logo.png", use_container_width=True)
-        except: pass
     st.markdown("<h2 style='text-align: center;'>🚙 RENTER ACCESS</h2>", unsafe_allow_html=True)
-    
     with st.form("login_renter"):
         st.info("💡 Log in with your DriveElite credentials.")
         u = st.text_input("Username")
@@ -273,39 +185,6 @@ with col_r:
         st.session_state.clear()
         st.rerun()
 st.divider()
-
-# --- BROADCAST BANNER ---
-try:
-    query = "SELECT title, message, target FROM admin_promos WHERE active = 1 AND target IN ('ALL USERS', 'ALL', 'RENTER', 'RENTERS')"
-    broadcasts = pd.read_sql_query(query, conn)
-    
-    if not broadcasts.empty:
-        latest_b = broadcasts.iloc[-1]
-        target_group = str(latest_b['target']).upper()
-        
-        if target_group in ['ALL USERS', 'ALL']:
-            primary_color, gradient, glow_color = "#27ae60", "linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)", "rgba(39, 174, 96, 0.7)"
-        else:
-            primary_color, gradient, glow_color = "#2980b9", "linear-gradient(135deg, #3498db 0%, #2980b9 100%)", "rgba(41, 128, 185, 0.7)"
-            
-        blink_css = f"""
-        <style>
-        @keyframes pulse_glow_renter {{
-            0% {{ box-shadow: 0 0 0 0 {glow_color}; border-color: {primary_color}; }}
-            70% {{ box-shadow: 0 0 15px 15px rgba(0,0,0,0); border-color: #ffffff; }}
-            100% {{ box-shadow: 0 0 0 0 rgba(0,0,0,0); border-color: {primary_color}; }}
-        }}
-        .broadcast-banner-renter {{
-            background: {gradient}; color: white; padding: 15px 20px; border-radius: 8px;
-            border: 2px solid {primary_color}; text-align: center; margin-bottom: 25px;
-            animation: pulse_glow_renter 2s 5; /* CHANGED FROM INFINITE TO 5 */
-        }}
-        .broadcast-title-renter {{ font-size: 1.3em; font-weight: 900; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;}}
-        .broadcast-msg-renter {{ font-size: 1.1em; font-weight: 500; }}
-        </style>
-        """
-        st.markdown(blink_css + f"""<div class="broadcast-banner-renter"><div class="broadcast-title-renter">📢 ADMIN BROADCAST: {latest_b['title']} 📢</div><div class="broadcast-msg-renter">{latest_b['message']}</div></div>""", unsafe_allow_html=True)
-except: pass
 
 # --- 3. MAIN TABS ---
 tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
@@ -340,7 +219,7 @@ with tabs[0]:
                         st.write(f"### {car['make']} {car['model']} ({car['year']})")
                         base_rate = car.get('approved_price', 2000.0)
                         with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
-                            # --- 1. FETCH TAKEN DATES ---
+                            
                             unavailable_dates = get_booked_dates(car['id'], conn)
 
                             d1 = st.date_input("Pickup Date", min_value=datetime.date.today(), key=f"d1_{car['id']}")
@@ -348,7 +227,6 @@ with tabs[0]:
                             d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}")
                             t2 = st.time_input("Return Time", value=datetime.time(18, 0), key=f"t2_{car['id']}")
                             
-                            # --- 2. DATE VALIDATION CHECKER ---
                             can_book = True
                             requested_days = set()
                             delta = d2 - d1
@@ -358,10 +236,8 @@ with tabs[0]:
                             clashes = requested_days.intersection(unavailable_dates)
                             if clashes:
                                 can_book = False
-                                clash_list = sorted(list(clashes))
-                                clash_str = ", ".join([d.strftime('%b %d') for d in clash_list])
-                                st.error(f"🚨 **UNAVAILABLE DATES UPDATE:** This vehicle is now booked on: **{clash_str}**. Please adjust your travel dates or choose another similar vehicle.")
-                            # ----------------------------------
+                                clash_str = ", ".join([d.strftime('%b %d') for d in sorted(list(clashes))])
+                                st.error(f"🚨 This vehicle is booked on: **{clash_str}**")
 
                             drive_mode = st.radio("Mode", ["Self-Drive", "With Driver (+₱1k/day)"], key=f"dm_{car['id']}")
                             is_driver = 1 if "Driver" in drive_mode else 0
@@ -376,14 +252,13 @@ with tabs[0]:
                             p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
                             if r_dt_obj <= p_dt_obj: 
                                 st.error("⚠️ Return time must be after pickup.")
-                                can_book = False # Disable booking if time is backwards
+                                can_book = False
                             else:
                                 full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
                                 driver_days = full_days + (1 if billed_hrs > 0 else 0)
                                 driver_fee = (driver_days * 1000.0) if is_driver else 0.0
                                 d_fee, c_fee = ZONES[p_zone], ZONES[r_zone]
                                 
-                                # --- 1. FETCH LIVE DISCOUNTS FROM ADMIN DATABASE ---
                                 tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
                                 discount_pct = 0.0
                                 for _, row in tiers_df.iterrows():
@@ -391,69 +266,80 @@ with tabs[0]:
                                         discount_pct = float(row['discount_pct'])
                                         break
                                         
-                                # --- NEW: FETCH DYNAMIC PLATFORM FEE DIRECTLY FROM DB ---
                                 try:
                                     settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct FROM platform_settings WHERE id = 1", conn)
                                     dynamic_renter_fee = float(settings_df.iloc[0]['renter_markup_pct'])
                                     dynamic_affiliate_share = float(settings_df.iloc[0]['affiliate_share_pct'])
                                 except:
-                                    dynamic_renter_fee = 0.00  # Defaults to 0% if the database is busy
-                                    dynamic_affiliate_share = 0.82
+                                    dynamic_renter_fee, dynamic_affiliate_share = 0.00, 0.82
                                 
-                                # --- 2. CALCULATE DYNAMIC MARGINS & NEW TOTALS ---
                                 savings = subtotal * discount_pct
                                 discounted_subtotal = subtotal - savings
-                                
-                                # Apply the Renter Service Fee based on what the Admin set!
                                 platform_fee = discounted_subtotal * dynamic_renter_fee  
-                                
-                                # Add external fees (Driver & Zones) to get final checkout price
                                 grand_total = discounted_subtotal + platform_fee + driver_fee + d_fee + c_fee
 
-                                # --- 3. RENDER THE DYNAMIC HTML RECEIPT ---
                                 st.markdown("#### 🧾 Cost Breakdown")
                                 plural_days = "day" if full_days == 1 else "days"
                                 rows = [f'<tr><td class="bill-label">Base Rental (₱{base_rate:,.2f} x {full_days} {plural_days})</td><td style="text-align:right; font-weight:bold;">₱{base_cost:,.2f}</td></tr>']
-                                
-                                if billed_hrs > 0: 
-                                    rows.append(f'<tr><td style="color:#d35400; font-style:italic;">Hourly Extension ({billed_hrs} hrs @ ₱300/hr)</td><td style="text-align:right; color:#d35400;">+₱{ext_fee:,.2f}</td></tr>')
-                                if savings > 0: 
-                                    rows.append(f'<tr><td style="color:#cc0000; font-style:italic;">Duration Discount ({int(discount_pct*100)}%)</td><td style="text-align:right; color:#cc0000;">-₱{savings:,.2f}</td></tr>')
-                                
-                                # Explicitly show the platform fee WITH the dynamic percentage number
-                                display_fee_pct = int(dynamic_renter_fee * 100)
-                                rows.append(f'<tr><td style="color:#27ae60; font-weight:bold;">DriveElite Service Fee ({display_fee_pct}%)</td><td style="text-align:right; color:#27ae60; font-weight:bold;">+₱{platform_fee:,.2f}</td></tr>')
-                                
-                                if is_driver: 
-                                    rows.append(f'<tr><td style="color:#003399;">Driver Fee</td><td style="text-align:right; color:#003399;">+₱{driver_fee:,.2f}</td></tr>')
-                                if d_fee > 0:
-                                    rows.append(f'<tr><td style="color:#555;">Pickup Zone Fee</td><td style="text-align:right; color:#555;">+₱{d_fee:,.2f}</td></tr>')
-                                if c_fee > 0:
-                                    rows.append(f'<tr><td style="color:#555;">Return Zone Fee</td><td style="text-align:right; color:#555;">+₱{c_fee:,.2f}</td></tr>')
+                                if billed_hrs > 0: rows.append(f'<tr><td style="color:#d35400;">Hourly Extension</td><td style="text-align:right; color:#d35400;">+₱{ext_fee:,.2f}</td></tr>')
+                                if savings > 0: rows.append(f'<tr><td style="color:#cc0000;">Discount</td><td style="text-align:right; color:#cc0000;">-₱{savings:,.2f}</td></tr>')
+                                rows.append(f'<tr><td style="color:#27ae60;">DriveElite Fee ({int(dynamic_renter_fee * 100)}%)</td><td style="text-align:right; color:#27ae60;">+₱{platform_fee:,.2f}</td></tr>')
+                                if is_driver: rows.append(f'<tr><td style="color:#003399;">Driver Fee</td><td style="text-align:right; color:#003399;">+₱{driver_fee:,.2f}</td></tr>')
+                                if d_fee > 0: rows.append(f'<tr><td style="color:#555;">Pickup Fee</td><td style="text-align:right; color:#555;">+₱{d_fee:,.2f}</td></tr>')
+                                if c_fee > 0: rows.append(f'<tr><td style="color:#555;">Return Fee</td><td style="text-align:right; color:#555;">+₱{c_fee:,.2f}</td></tr>')
 
                                 bill_html = f'<div class="bill-box"><table class="table-bill" style="width:100%;">{"".join(rows)}<tr style="border-top:2px solid #000;"><td class="bill-label" style="font-weight:900;">GRAND TOTAL</td><td style="text-align:right; font-weight:900; font-size:1.1em;">₱{grand_total:,.2f}</td></tr></table></div>'
                                 st.markdown(bill_html, unsafe_allow_html=True)
                                 
                                 st.divider()
-                                qr_p = "gcash_qr.jpg" 
-                                if os.path.exists(qr_p): st.image(qr_p, caption=f"Scan to Pay: ₱{grand_total:,.2f}", width=300)
-                                ref_num = st.text_input("GCash Reference Number *", key=f"ref_{car['id']}")
 
-                                # --- 4. SMART BUTTON WITH DISABLE LOCK ---
-                                if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True, disabled=not can_book):
-                                    if dest and ref_num and p_exact and r_exact and luzon_agree:
-                                        b_ref = str(random.randint(100000, 999999))
-                                        p_dt_str, r_dt_str = f"{d1} {t1.strftime('%H:%M')}", f"{d2} {t2.strftime('%H:%M')}"
-                                        
-                                        # Calculate Affiliate Payout (dynamic deduction from the discounted base)
-                                        affiliate_payout = discounted_subtotal * dynamic_affiliate_share
-                                        
-                                        conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, ?, ?)", 
-                                                     (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
-                                        conn.commit()
-                                        st.success(f"✅ Confirmed! Ref: #{b_ref}"); time.sleep(2); st.rerun()
+                                # --- NEW SMART BUTTON WITH PAYMONGO ---
+                                if st.button("CONFIRM BOOKING & PAY", key=f"conf_{car['id']}", type="primary", use_container_width=True, disabled=not can_book):
+                                    if dest and p_exact and r_exact and luzon_agree:
+                                        with st.spinner("Generating secure checkout link..."):
+                                            b_ref = str(random.randint(100000, 999999))
+                                            p_dt_str, r_dt_str = f"{d1} {t1.strftime('%H:%M')}", f"{d2} {t2.strftime('%H:%M')}"
+                                            
+                                            # Save booking as 'PENDING'
+                                            conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
+                                                         (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
+                                            conn.commit()
+                                            
+                                            # PayMongo API Call
+                                            SECRET_KEY = 'sk_test_YOUR_ACTUAL_KEY_HERE'
+                                            pay_amount = int(grand_total * 100) # Centavos
+                                            
+                                            auth_string = f"{SECRET_KEY}:"
+                                            base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+                                            
+                                            url = "https://api.paymongo.com/v1/links"
+                                            payload = {
+                                                "data": {
+                                                    "attributes": {
+                                                        "amount": pay_amount, 
+                                                        "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})",
+                                                        "remarks": f"Renter: {renter_user}"
+                                                    }
+                                                }
+                                            }
+                                            data = json.dumps(payload).encode('utf-8')
+                                            req = urllib.request.Request(url, data=data)
+                                            req.add_header('accept', 'application/json')
+                                            req.add_header('content-type', 'application/json')
+                                            req.add_header('authorization', f'Basic {base64_auth}')
+                                            
+                                            try:
+                                                response = urllib.request.urlopen(req)
+                                                response_data = json.loads(response.read().decode('utf-8'))
+                                                checkout_url = response_data['data']['attributes']['checkout_url']
+                                                
+                                                st.success(f"✅ Booking Saved (Ref: #{b_ref})")
+                                                st.markdown(f"### 💳 [👉 CLICK HERE TO PAY ₱{grand_total:,.2f} VIA PAYMONGO]({checkout_url})")
+                                                st.info("Complete your payment using the link above to officially confirm your booking.")
+                                            except urllib.error.URLError as e:
+                                                st.error("Failed to generate payment link. Please contact admin.")
                                     else: 
-                                        st.warning("⚠️ Fill all fields.")
+                                        st.warning("⚠️ Please fill all required fields.")
 
 # --- TAB 1: MY BOOKINGS ---
 with tabs[1]:
@@ -470,9 +356,8 @@ with tabs[1]:
                 
                 st.divider()
                 st.markdown("#### 💬 Message the Owner")
-                b_ref_str = str(t['booking_ref']) # Safely lock as string
+                b_ref_str = str(t['booking_ref']) 
                 
-                # UPGRADE 2: Expanded Viewport (450px)
                 chat_win = st.container(height=450, border=True)
                 with chat_win:
                     try:
@@ -482,99 +367,31 @@ with tabs[1]:
                             st.info("👋 Chat is empty. Say hello to start coordinating your trip!")
                         else:
                             for _, m in msgs.iterrows():
-                                # SENDER (Green, Right-Aligned Flexbox)
                                 if m['sender_username'] == st.session_state.username:
-                                    st.markdown(f"""
-                                    <div style="display: flex; justify-content: flex-end; margin-bottom: 5px;">
-                                        <div style="background-color: #2c8c80; color: white; padding: 12px 16px; border-radius: 20px 20px 4px 20px; max-width: 75%; box-shadow: 1px 2px 5px rgba(0,0,0,0.2);">
-                                            {m['message_text']}
-                                        </div>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                                    # Handle Image attachment
-                                    if m.get('image_path') and os.path.exists(m['image_path']): 
-                                        c_space, c_img = st.columns([2, 1])
-                                        with c_img: st.image(m['image_path'], use_container_width=True)
-                                        
-                                # RECEIVER (Dark Grey, Left-Aligned Flexbox)
+                                    st.markdown(f'<div style="display: flex; justify-content: flex-end; margin-bottom: 5px;"><div style="background-color: #2c8c80; color: white; padding: 12px 16px; border-radius: 20px 20px 4px 20px; max-width: 75%;">{m["message_text"]}</div></div>', unsafe_allow_html=True)
                                 else:
-                                    st.markdown(f"""
-                                    <div style="display: flex; justify-content: flex-start; margin-bottom: 5px;">
-                                        <div style="background-color: #2b2b2b; color: white; padding: 12px 16px; border-radius: 20px 20px 20px 4px; max-width: 75%; border: 1px solid #444; box-shadow: 1px 2px 5px rgba(0,0,0,0.2);">
-                                            <div style="font-size: 0.75em; color: #aaaaaa; margin-bottom: 4px; font-weight: bold; text-transform: uppercase;">@{m['sender_username']}</div>
-                                            {m['message_text']}
-                                        </div>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                                    # Handle Image attachment
-                                    if m.get('image_path') and os.path.exists(m['image_path']): 
-                                        c_img, c_space = st.columns([1, 2])
-                                        with c_img: st.image(m['image_path'], use_container_width=True)
+                                    st.markdown(f'<div style="display: flex; justify-content: flex-start; margin-bottom: 5px;"><div style="background-color: #2b2b2b; color: white; padding: 12px 16px; border-radius: 20px 20px 20px 4px; max-width: 75%;"><b>@{m["sender_username"]}</b><br>{m["message_text"]}</div></div>', unsafe_allow_html=True)
+                    except: pass
 
-                        # --- AUTO-SCROLL MAGIC ---
-                        st.markdown(f'<div id="chat_anchor_{b_ref_str}" style="height: 1px; margin-top: 10px;"></div>', unsafe_allow_html=True)
-                        scroll_js = f"""
-                        <script>
-                            setTimeout(function() {{
-                                var anchor = window.parent.document.getElementById('chat_anchor_{b_ref_str}');
-                                if (anchor) {{
-                                    anchor.scrollIntoView({{behavior: 'smooth', block: 'end'}});
-                                }}
-                            }}, 150);
-                        </script>
-                        """
-                        st.components.v1.html(scroll_js, height=0)
-
-                    except Exception as e: 
-                        st.error("Could not load chat history.")
-
-                # --- INPUT AREA ---
                 c_i, c_t = st.columns([1, 4])
-                with c_i: 
-                    r_img = st.file_uploader("📷", type=['jpg','png'], key=f"img_{b_ref_str}", label_visibility="collapsed")
+                with c_i: r_img = st.file_uploader("📷", type=['jpg','png'], key=f"img_{b_ref_str}", label_visibility="collapsed")
+                with c_t: st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_renter_chat, args=(b_ref_str,))
                 
-                with c_t: 
-                    st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_renter_chat, args=(b_ref_str,), placeholder="Type and press Enter...")
-
-                # --- TRIGGER LOGIC ---
-                btn_clicked = st.button("Send Message", key=f"btn_{b_ref_str}", use_container_width=True)
-                enter_pressed = st.session_state.get(f"trigger_send_{b_ref_str}", False)
-
-                if btn_clicked or enter_pressed:
+                if st.button("Send Message", key=f"btn_{b_ref_str}", use_container_width=True) or st.session_state.get(f"trigger_send_{b_ref_str}", False):
                     box_val = st.session_state.get(f"chat_{b_ref_str}", "")
-                    final_msg = st.session_state.temp_msg_renter if enter_pressed else box_val
+                    final_msg = st.session_state.temp_msg_renter if st.session_state.get(f"trigger_send_{b_ref_str}", False) else box_val
                     
                     if final_msg or r_img:
                         path = save_chat_image(r_img, b_ref_str) if r_img else ""
                         text_to_save = final_msg if final_msg else "📸 Sent a photo."
-                        
-                        success = False
-                        error_msg = ""
-                        for attempt in range(3):
-                            try:
-                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                            (b_ref_str, renter_user, t['owner_username'], text_to_save, path))
-                                conn.commit()
-                                success = True
-                                
-                                # Reset memories and flags
-                                st.session_state.temp_msg_renter = ""
-                                st.session_state[f"chat_{b_ref_str}"] = ""
-                                st.session_state[f"trigger_send_{b_ref_str}"] = False
-                                break
-                            except Exception as e:
-                                error_msg = str(e)
-                                if "locked" in error_msg.lower():
-                                    time.sleep(0.5) 
-                                else:
-                                    break
-                                    
-                        if success:
+                        try:
+                            conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", (b_ref_str, renter_user, t['owner_username'], text_to_save, path))
+                            conn.commit()
+                            st.session_state.temp_msg_renter = ""
+                            st.session_state[f"chat_{b_ref_str}"] = ""
+                            st.session_state[f"trigger_send_{b_ref_str}"] = False
                             st.rerun()
-                        else:
-                            st.warning(f"🚨 **DATABASE ERROR:** {error_msg}")
-                            st.info("Please screenshot this yellow box so we can see the exact cause!")
-                        # -------------------------------------
+                        except: pass
 
     with trip_tabs[1]:
         history = my_trips[my_trips['status'] == 'COMPLETED']
@@ -589,7 +406,6 @@ with tabs[1]:
                         r = st.text_area("Review", key=f"r_{t['id']}")
                         if st.button("Submit", type="primary", use_container_width=True, key=f"btn_sub_{t['id']}"):
                             if raw_stars is not None:
-                                actual_stars = raw_stars + 1
-                                conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (actual_stars, r, t['id']))
+                                conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (raw_stars + 1, r, t['id']))
                                 conn.commit(); st.success("Submitted!"); time.sleep(1); st.rerun()
                 else: st.success(f"**Rating:** {'⭐' * int(float(t['rating']))}")
