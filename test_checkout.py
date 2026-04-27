@@ -3,7 +3,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 # IMPORTANT: Paste your actual secret test key inside the quotes below!
-SECRET_KEY = 'sk_test_YOUR_ACTUAL_KEY_HERE'
+SECRET_KEY = 'sk_test_xz5tBvTwGkztmy1AnVQuqR6K'
 
 st.title("DriveElite Checkout")
 st.write("Vehicle: 2020 Nissan Terra VE")
