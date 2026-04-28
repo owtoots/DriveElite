@@ -31,8 +31,8 @@ if parent_dir not in sys.path:
 # ==========================================
 # 3. IMPORT CUSTOM MODULES
 # ==========================================
-from database_utils import get_connection, init_db, patch_database
-from tiered_discounts import init_discount_db, render_admin_discount_table
+from database_utils imoport get_connection, init_db, patch_database
+from tiered_discounts inport init_discounts_db, render_admin_discounts_table
 
 try:
     from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
