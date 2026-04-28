@@ -2,21 +2,26 @@ import sys
 import os
 import smtplib
 from email.message import EmailMessage
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email.mime.text import MIMEText
+from email import encoders
 import streamlit as st
 import pandas as pd
 import datetime
 import numpy as np
 import time
 import random
+import math
 from PIL import Image
 
 # ==========================================
-# 1. PAGE CONFIG (MUST BE THE VERY FIRST ST COMMAND)
+# 1. PAGE CONFIG
 # ==========================================
 st.set_page_config(page_title="DriveElite Admin", layout="wide")
 
 # ==========================================
-# 2. FORCE ROOT DIRECTORY VISIBILITY (THE PERISCOPE)
+# 2. DIRECTORY VISIBILITY
 # ==========================================
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
@@ -24,7 +29,7 @@ if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
 # ==========================================
-# 3. IMPORT CUSTOM MODULES (NOW IT CAN FIND THEM)
+# 3. IMPORT CUSTOM MODULES
 # ==========================================
 from database_utils import get_connection, init_db, patch_database
 from tiered_discounts import init_discount_db, render_admin_discount_table
@@ -32,7 +37,7 @@ from tiered_discounts import init_discount_db, render_admin_discount_table
 try:
     from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
 except ImportError:
-    st.error("Missing finance.py! Please ensure the finance script is in your root folder.")
+    st.error("Missing finance.py!")
 
 # ==========================================
 # 4. INITIALIZE DATABASE
@@ -43,22 +48,12 @@ patch_database()
 init_discount_db(conn)
 
 # ==========================================
-# 5. ADMIN UI STARTS HERE
+# 5. UTILITY FUNCTIONS (INCLUDING POS RECEIPTS)
 # ==========================================
-st.title("👑 DriveElite Admin Portal")
-
-st.divider()
-
-# --- 3. UTILITY FUNCTIONS ---
 def display_document(file_path, title):
-    """Smart viewer: shows images natively, but gives a download button for PDFs."""
-    import os
-    import streamlit as st
-    
     if file_path and str(file_path).strip() and os.path.exists(file_path):
         if str(file_path).lower().endswith('.pdf'):
             with open(file_path, "rb") as f:
-                # Give every download button a unique key to prevent Streamlit errors
                 safe_key = f"dl_{str(file_path).replace('/', '_').replace('.', '_')}_{title.replace(' ', '')}"
                 st.download_button(f"📄 Download {title} (PDF)", f.read(), file_name=os.path.basename(file_path), mime="application/pdf", key=safe_key)
         else:
@@ -66,86 +61,172 @@ def display_document(file_path, title):
     else:
         st.warning(f"No {title} provided.")
 
-def email_receipt_to_affiliate(affiliate_email, receipt_text, transaction_ref):
-    """Sends a cancellation compensation summary to the Affiliate."""
+def email_receipt_to_user(target_email, receipt_text, subject):
     sender_email = "rdalbaojr@gmail.com" 
     try:
         app_password = st.secrets["email_app_password"]
-    except KeyError:
-        st.error("Secret 'email_app_password' not found in Streamlit Cloud Settings!")
-        return False
-        
-    msg = EmailMessage()
-    msg.set_content(receipt_text)
-    msg['Subject'] = f"Cancellation Compensation: {transaction_ref}"
-    msg['From'] = f"DriveElite Finance <{sender_email}>"
-    msg['To'] = affiliate_email
-
-    try:
+        msg = EmailMessage()
+        msg.set_content(receipt_text)
+        msg['Subject'] = subject
+        msg['From'] = f"DriveElite Finance <{sender_email}>"
+        msg['To'] = target_email
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(sender_email, app_password)
             smtp.send_message(msg)
         return True
-    except Exception as e:
-        print(f"Email Error: {e}")
+    except:
         return False
 
+def generate_pos_receipt(b_data):
+    """Generates a professional POS-style text receipt."""
+    date_now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    receipt = f"""
+================================
+      DRIVEELITE PLATFORM       
+       OFFICIAL RECEIPT         
+================================
+DATE: {date_now}
+REF NO: #{b_data['booking_ref']}
+STATUS: {b_data['status']}
+--------------------------------
+RENTER: {b_data['renter_name']}
+AFFILIATE: {b_data['affiliate_name']}
+
+VEHICLE: {b_data['make']} {b_data['model']}
+PLATE: {b_data['plate']}
+
+PICKUP: {b_data['pickup_time']}
+RETURN: {b_data['return_time']}
+--------------------------------
+TOTAL PAID: PHP {float(b_data['amount']):,.2f}
+--------------------------------
+Thank you for choosing DriveElite!
+================================
+    """
+    return receipt
+
+def send_dual_receipts(b_ref, conn):
+    query = """
+        SELECT b.*, v.make, v.model, v.plate, 
+               r.email as r_email, r.full_name as renter_name,
+               a.email as a_email, a.full_name as affiliate_name
+        FROM bookings b
+        JOIN vehicles v ON b.vehicle_id = v.id
+        JOIN platform_users r ON b.renter_username = r.username
+        JOIN platform_users a ON v.owner_username = a.username
+        WHERE b.booking_ref = ?
+    """
+    res = pd.read_sql_query(query, conn, params=(b_ref,))
+    if res.empty: return False
+    b_data = res.iloc[0]
+    receipt = generate_pos_receipt(b_data)
+    # Send to Renter & Affiliate
+    email_receipt_to_user(b_data['r_email'], receipt, f"DriveElite POS Receipt: #{b_ref}")
+    email_receipt_to_user(b_data['a_email'], receipt, f"New Booking Receipt: #{b_ref}")
+    return True
+
 def send_pdf_copy(to_email, file_path, file_name):
-    """Attaches a PDF from the uploads folder and emails it to the user."""
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.base import MIMEBase
-    from email.mime.text import MIMEText
-    from email import encoders
-    import smtplib
-    
-    sender_email = "rdalbaojrh@gmail.com" 
+    sender_email = "rdalbaojr@gmail.com" 
     try:
         app_password = st.secrets["email_app_password"]
-    except KeyError:
-        return False, "Missing email_app_password in Streamlit Secrets."
-        
-    msg = MIMEMultipart()
-    msg['From'] = f"DriveElite Admin <{sender_email}>"
-    msg['To'] = to_email
-    msg['Subject'] = f"Your DriveElite Contract Copy: {file_name}"
-    msg.attach(MIMEText("Hello,\n\nPer your request or an Admin action, please find attached a secure copy of your signed DriveElite contract.\n\nBest regards,\nThe DriveElite Team", 'plain'))
-    
-    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"DriveElite Admin <{sender_email}>"
+        msg['To'] = to_email
+        msg['Subject'] = f"Contract Copy: {file_name}"
+        msg.attach(MIMEText("Please find your signed contract attached.", 'plain'))
         with open(file_path, "rb") as attachment:
             part = MIMEBase('application', 'octet-stream')
             part.set_payload(attachment.read())
         encoders.encode_base64(part)
         part.add_header('Content-Disposition', f"attachment; filename= {file_name}")
         msg.attach(part)
-        
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(sender_email, app_password)
             server.send_message(msg)
-        return True, "Email sent successfully!"
+        return True, "Email sent!"
     except Exception as e:
         return False, str(e)
 
-
-# --- 4. DATABASE PATCH (Auto-Heal) ---
-try:
-    conn.execute("ALTER TABLE platform_users ADD COLUMN admin_status TEXT")
-    conn.commit()
-except:
-    pass 
-
-# --- 5. AUTHENTICATION ---
+# ==========================================
+# 6. AUTHENTICATION
+# ==========================================
 if not st.session_state.get('logged_in') or st.session_state.get('role') != 'ADMIN':
-    st.title("ADMIN LOGIN")
+    st.title("🛡️ ADMIN AUTHORIZATION")
     with st.form("login"):
         u = st.text_input("Username")
         p = st.text_input("Password", type="password")
-        if st.form_submit_button("AUTHORIZE"):
+        if st.form_submit_button("LOG IN"):
             if u == "masterom" and p == "qZ822118qq":
                 st.session_state.logged_in, st.session_state.username, st.session_state.role = True, "masterom", "ADMIN"
                 st.rerun()
-            else:
-                st.error("Invalid credentials.")
     st.stop()
+
+# ==========================================
+# 7. MAIN INTERFACE
+# ==========================================
+tabs = st.tabs(["PENDING", "ASSETS", "LOGISTICS", "FINANCIALS", "🗄️ FILING", "PROMOS & DB", "REVIEWS", "CANCELLATIONS", "⚖️ DISPUTES"])
+
+# --- TAB 3: FINANCIALS (PAYMONGO & POS SYNC) ---
+with tabs[3]:
+    st.markdown("### 🏦 MASTER FINANCIAL LEDGER")
+    try:
+        # Fetch current dynamic margins from DB
+        settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct FROM platform_settings WHERE id = 1", conn)
+        r_markup = float(settings_df.iloc[0]['renter_markup_pct']) if not settings_df.empty else 0.07
+        a_share = float(settings_df.iloc[0]['affiliate_share_pct']) if not settings_df.empty else 0.82
+
+        query = """
+        SELECT b.id, b.booking_ref, b.pickup_time as Date, u_renter.full_name as Renter, u_owner.full_name as Affiliate,
+               b.amount as Gross, b.status as Trip_Status, b.payout_status as Payout_Status, b.gateway_fee
+        FROM bookings b
+        JOIN vehicles v ON b.vehicle_id = v.id
+        JOIN platform_users u_renter ON b.renter_username = u_renter.username
+        JOIN platform_users u_owner ON v.owner_username = u_owner.username
+        ORDER BY b.id DESC
+        """
+        df = pd.read_sql_query(query, conn)
+        
+        if not df.empty:
+            df['gateway_fee'] = df['gateway_fee'].fillna(0)
+            df['Platform_Gross'] = df['Gross'] * (1 - (a_share / (1 + r_markup)))
+            df['Platform_Net'] = df['Platform_Gross'] - df['gateway_fee']
+            df['Affiliate_Net'] = (df['Gross'] - df['Platform_Gross']) * 0.98 # 2% Tax approx
+            
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Total Revenue", f"₱{df['Gross'].sum():,.2f}")
+            c2.metric("Net Profit", f"₱{df['Platform_Net'].sum():,.2f}")
+            c3.metric("Owner Payouts", f"₱{df[df['Payout_Status']=='PENDING']['Affiliate_Net'].sum():,.2f}")
+
+            f_tabs = st.tabs(["📑 MASTER LEDGER", "📤 PROCESS PAYOUTS", "🎫 ISSUE RECEIPTS"])
+            
+            with f_tabs[0]:
+                st.dataframe(df[['booking_ref', 'Date', 'Affiliate', 'Gross', 'gateway_fee', 'Platform_Net', 'Payout_Status']], use_container_width=True, hide_index=True)
+            
+            with f_tabs[1]:
+                pending = df[(df['Trip_Status'] == 'COMPLETED') & (df['Payout_Status'] == 'PENDING')]
+                for _, p in pending.iterrows():
+                    with st.expander(f"#{p['booking_ref']} - {p['Affiliate']}"):
+                        st.write(f"Payable: ₱{p['Affiliate_Net']:,.2f}")
+                        if st.button("MARK AS PAID & SEND RECEIPT", key=f"pay_{p['id']}"):
+                            conn.execute("UPDATE bookings SET payout_status = 'PAID' WHERE id = ?", (p['id'],))
+                            conn.commit()
+                            send_dual_receipts(p['booking_ref'], conn)
+                            st.rerun()
+
+            with f_tabs[2]:
+                st.markdown("#### Manual POS Issuance")
+                target_ref = st.selectbox("Select Booking:", ["--"] + df['booking_ref'].tolist())
+                if st.button("SEND POS RECEIPT NOW"):
+                    if send_dual_receipts(target_ref, conn):
+                        st.success(f"Receipt for #{target_ref} sent!")
+    except Exception as e:
+        st.error(f"Ledger Error: {e}")
+
+# --- OTHER TABS (STAY THE SAME) ---
+with tabs[5]:
+    render_admin_discount_table(conn)
+
+# [Rest of your Tab logic for Logistics, Pending, Reviews, etc. stays the same]
 
 # --- 6. TOP NAVIGATION BAR ---
 head_col1, head_col2 = st.columns([5, 1])
