@@ -64,300 +64,148 @@ def display_document(file_path, title):
         st.warning(f"No {title} provided.")
 
 def email_receipt_to_affiliate(affiliate_email, receipt_text, transaction_ref):
-    sender_email = "rdalbaojr@gmail.com" 
+    sender_email = "rdalbaojr@gmail.com"
     try:
+        # Securely fetch the app password from your Streamlit Cloud vault
         app_password = st.secrets["email_app_password"]
-    except KeyError:
-        st.error("Secret 'email_app_password' not found in Streamlit Cloud Settings!")
-        return False
         
-    msg = EmailMessage()
-    msg.set_content(receipt_text)
-    msg['Subject'] = f"Cancellation Compensation: {transaction_ref}"
-    msg['From'] = f"DriveElite Finance <{sender_email}>"
-    msg['To'] = affiliate_email
+        msg = EmailMessage()
+        msg.set_content(receipt_text)
+        msg['Subject'] = f"DriveElite Payout Receipt - Ref: {transaction_ref}"
+        msg['From'] = sender_email
+        msg['To'] = affiliate_email
 
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login(sender_email, app_password)
-            smtp.send_message(msg)
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        server.login(sender_email, app_password)
+        server.send_message(msg)
+        server.quit()
         return True
     except Exception as e:
-        print(f"Email Error: {e}")
+        st.error(f"Email failed to send: {e}")
         return False
 
-def send_pdf_copy(to_email, file_path, file_name):
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.base import MIMEBase
-    from email.mime.text import MIMEText
-    from email import encoders
-    import smtplib
-    
-    sender_email = "rdalbaojrh@gmail.com" 
-    try:
-        app_password = st.secrets["email_app_password"]
-    except KeyError:
-        return False, "Missing email_app_password in Streamlit Secrets."
-        
-    msg = MIMEMultipart()
-    msg['From'] = f"DriveElite Admin <{sender_email}>"
-    msg['To'] = to_email
-    msg['Subject'] = f"Your DriveElite Contract Copy: {file_name}"
-    msg.attach(MIMEText("Hello,\n\nPer your request or an Admin action, please find attached a secure copy of your signed DriveElite contract.\n\nBest regards,\nThe DriveElite Team", 'plain'))
-    
-    try:
-        with open(file_path, "rb") as attachment:
-            part = MIMEBase('application', 'octet-stream')
-            part.set_payload(attachment.read())
-        encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f"attachment; filename= {file_name}")
-        msg.attach(part)
-        
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(sender_email, app_password)
-            server.send_message(msg)
-        return True, "Email sent successfully!"
-    except Exception as e:
-        return False, str(e)
+# ==========================================
+# 6. MAIN ADMIN DASHBOARD TABS
+# ==========================================
+tabs = st.tabs(["🚀 Active Bookings", "👥 Approvals", "💰 Finance & Commissions"])
 
-
-# --- 4. DATABASE PATCH (Auto-Heal) ---
-try:
-    conn.execute("ALTER TABLE platform_users ADD COLUMN admin_status TEXT")
-    conn.commit()
-except:
-    pass 
-
-# --- 5. AUTHENTICATION ---
-if not st.session_state.get('logged_in') or st.session_state.get('role') != 'ADMIN':
-    st.title("ADMIN LOGIN")
-    with st.form("login"):
-        u = st.text_input("Username")
-        p = st.text_input("Password", type="password")
-        if st.form_submit_button("AUTHORIZE"):
-            if u == "masterom" and p == "qZ822118qq":
-                st.session_state.logged_in, st.session_state.username, st.session_state.role = True, "masterom", "ADMIN"
-                st.rerun()
-            else:
-                st.error("Invalid credentials.")
-    st.stop()
-
-# --- 6. TOP NAVIGATION BAR ---
-head_col1, head_col2 = st.columns([5, 1])
-with head_col1:
-    st.title("🛡️ MASTER COMMAND CENTER")
-with head_col2:
-    st.info(f"👨‍💼 {st.session_state.username.upper()}")
-    if st.button("🔒 LOGOUT", use_container_width=True):
-        st.session_state.clear()
-        st.rerun()
-
-tabs = st.tabs(["PENDING APPROVALS", "ASSETS", "LOGISTICS", "FINANCIALS", "🗄️ FILING CABINET", "PROMOS & DB", "⭐ REVIEWS", "❌ CANCELLATIONS", "⚖️ DISPUTES"])
-
-# --- TAB 0: PENDING APPROVALS ---
+# --- TAB 1: ACTIVE BOOKINGS ---
 with tabs[0]:
-    st.markdown("<h3 style='text-align: center;'>📋 PENDING APPROVALS</h3>", unsafe_allow_html=True)
-    p_tabs = st.tabs(["🚙 PENDING RENTERS", "💼 PENDING AFFILIATES", "👨‍✈️ PENDING DRIVERS"])
+    st.header("Live Fleet Monitor")
     
-    with p_tabs[0]:
-        renters = pd.read_sql_query("SELECT * FROM platform_users WHERE (admin_status = 'PENDING' OR admin_status IS NULL) AND role = 'RENTER'", conn)
-        if renters.empty: st.info("No pending renters.")
-        for i, r in renters.iterrows():
-            with st.expander(f"{r['full_name']} (@{r['username']})"):
-                st.write(f"Age: {r['age']} | Nat: {r.get('nationality', 'Filipino')} | Contact: {r['contact_number']}")
-                c_img1, c_img2 = st.columns(2)
-                if pd.notna(r.get('govt_id_img')) and r.get('govt_id_img'): c_img1.image(r['govt_id_img'], caption="Passport / Govt ID")
-                if pd.notna(r.get('license_img')) and r.get('license_img'): c_img2.image(r['license_img'], caption="Driver's License")
-                if st.button("APPROVE RENTER", key=f"ra_{r['id']}", type="primary", use_container_width=True):
-                    conn.execute("UPDATE platform_users SET admin_status = 'APPROVED' WHERE id = ?", (r['id'],))
-                    conn.commit()
-                    st.rerun()
-
-    with p_tabs[1]:
-        affiliates = pd.read_sql_query("SELECT * FROM platform_users WHERE (admin_status = 'PENDING' OR admin_status IS NULL) AND role = 'AFFILIATE'", conn)
-        if affiliates.empty: st.info("No pending affiliates.")
-        for i, r in affiliates.iterrows():
-            with st.expander(f"{r['full_name']} (@{r['username']})"):
-                st.write(f"Age: {r['age']} | Nat: {r.get('nationality', 'Filipino')} | Contact: {r['contact_number']}")
-                c_img1, c_img2 = st.columns(2)
-                if pd.notna(r.get('govt_id_img')) and r.get('govt_id_img'): c_img1.image(r['govt_id_img'], caption="Passport / Govt ID")
-                if pd.notna(r.get('license_img')) and r.get('license_img'): c_img2.image(r['license_img'], caption="Driver's License") 
-                if pd.notna(r.get('signature_img')) and r.get('signature_img'):
-                    st.image(r['signature_img'], caption=f"Digitally Signed MOA", width=300)
-                if st.button("APPROVE AFFILIATE", key=f"aa_{r['id']}", type="primary", use_container_width=True):
-                    conn.execute("UPDATE platform_users SET admin_status = 'APPROVED' WHERE id = ?", (r['id'],))
-                    conn.commit()
-                    st.rerun()
-
-    with p_tabs[2]:
-        drivers = pd.read_sql_query("SELECT * FROM drivers WHERE admin_status = 'PENDING'", conn)
-        if drivers.empty: st.info("No pending drivers.")
-        for i, d in drivers.iterrows():
-            with st.expander(f"{d['first_name']} {d['last_name']} (Affiliate: @{d['owner_username']})"):
-                st.write(f"Age: {d['age']} | Contact: {d['contact_number']}")
-                c_img1, c_img2 = st.columns(2)
-                if pd.notna(d.get('govt_id_img')) and d.get('govt_id_img'): c_img1.image(d['govt_id_img'], caption="Govt ID")
-                if pd.notna(d.get('license_img')) and d.get('license_img'): c_img2.image(d['license_img'], caption="Professional License")
-                if st.button("APPROVE DRIVER", key=f"da_{d['id']}", type="primary", use_container_width=True):
-                    conn.execute("UPDATE drivers SET admin_status = 'APPROVED' WHERE id = ?", (d['id'],))
-                    conn.commit()
-                    st.rerun()
-
-# --- TAB 1: ASSETS (ADMIN PORTAL) ---
-with tabs[1]:
-    pv = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'PENDING'", conn)
+    # Fetch all bookings that are not cancelled
+    bookings_df = pd.read_sql_query("""
+        SELECT b.id, b.booking_ref, b.renter_username, v.make, v.model, v.owner_username, 
+               b.pickup_time, b.return_time, b.amount, b.status 
+        FROM bookings b 
+        JOIN vehicles v ON b.vehicle_id = v.id 
+        ORDER BY b.pickup_time DESC
+    """, conn)
     
-    if pv.empty: 
-        st.info("No vehicles currently pending approval.")
+    if bookings_df.empty:
+        st.info("No active bookings in the system right now.")
     else:
-        for i, r in pv.iterrows():
-            with st.expander(f"🚗 {r['make']} {r['model']} ({r['plate']})"):
-                st.write("### Vehicle Documents")
-                c_doc1, c_doc2, c_doc3 = st.columns(3)
-                with c_doc1: display_document(r.get('or_img'), "Official Receipt (OR)")
-                with c_doc2: display_document(r.get('cr_img'), "Certificate of Reg (CR)")
-                with c_doc3: display_document(r.get('insurance_img'), "Insurance Policy")
-                st.divider()
-                
-                if st.button("✅ APPROVE & ACTIVATE", key=f"v_app_{r['id']}", type="primary", use_container_width=True):
-                    conn.execute("""
-                        UPDATE vehicles 
-                        SET admin_status = 'APPROVED', 
-                            booking_status = 'AVAILABLE' 
-                        WHERE id = ?
-                    """, (r['id'],))
-                    conn.commit()
-                    st.success(f"Success! {r['plate']} is now visible in the Renter Showroom.")
-                    time.sleep(1)
-                    st.rerun()
-
-# --- TAB 2: LOGISTICS ---
-with tabs[2]:
-    st.subheader("Vehicle Dispatch & Logistics")
-    try:
-        query = """
-            SELECT b.*, u_renter.full_name as renter_name, u_owner.full_name as affiliate_name 
-            FROM bookings b 
-            JOIN platform_users u_renter ON b.renter_username = u_renter.username 
-            JOIN vehicles v ON b.vehicle_id = v.id 
-            JOIN platform_users u_owner ON v.owner_username = u_owner.username 
-            WHERE b.status NOT IN ('COMPLETED', 'CANCELLED', 'REJECTED')
-        """
-        bookings = pd.read_sql_query(query, conn)
+        # Highlight PENDING bookings (ones waiting for PayMongo confirmation)
+        pending_count = len(bookings_df[bookings_df['status'] == 'PENDING'])
+        if pending_count > 0:
+            st.warning(f"⚠️ You have {pending_count} PENDING bookings awaiting payment confirmation.")
+            
+        st.dataframe(bookings_df, use_container_width=True, hide_index=True)
         
-        if bookings.empty: 
-            st.info("No active logistics or pending payments.")
+        st.divider()
+        st.subheader("Manual Booking Override")
+        col1, col2 = st.columns(2)
+        with col1:
+            ref_to_update = st.selectbox("Select Booking Reference", bookings_df['booking_ref'].tolist())
+        with col2:
+            new_status = st.selectbox("Update Status To:", ["CONFIRMED", "ONGOING", "COMPLETED", "CANCELLED"])
+            
+        if st.button("Update Booking Status", type="primary"):
+            conn.execute("UPDATE bookings SET status = ? WHERE booking_ref = ?", (new_status, ref_to_update))
+            conn.commit()
+            st.success(f"Booking #{ref_to_update} successfully marked as {new_status}!")
+            time.sleep(1)
+            st.rerun()
+
+# --- TAB 2: USER & VEHICLE APPROVALS ---
+with tabs[1]:
+    st.header("Pending Approvals")
+    u_col, v_col = st.columns(2)
+    
+    with u_col:
+        st.subheader("Pending Users")
+        users_df = pd.read_sql_query("SELECT id, username, role, first_name, last_name FROM platform_users WHERE admin_status = 'PENDING'", conn)
+        if users_df.empty:
+            st.success("All users approved!")
         else:
-            col_pending, col_active = st.columns(2)
-            
-            with col_pending:
-                st.markdown("#### ⏳ Awaiting PayMongo Payment")
-                pending_trips = bookings[bookings['status'] == 'PENDING']
-                if pending_trips.empty: st.write("Clear.")
-                for i, r in pending_trips.iterrows():
-                    with st.container(border=True):
-                        st.write(f"**Ref #{r['booking_ref']}**")
-                        st.write(f"**Renter:** {r['renter_name']} | **Amount:** ₱{r['amount']:,.2f}")
-                        st.write("Status: Checkout link generated, awaiting payment capture.")
-            
-            with col_active:
-                st.markdown("#### 🚗 Active & Confirmed Trips")
-                active_trips = bookings[bookings['status'].isin(['CONFIRMED', 'ONGOING'])]
-                if active_trips.empty: st.write("Clear.")
-                for i, r in active_trips.iterrows():
-                    with st.expander(f"🎫 #{r['booking_ref']} | {r['status']} | {r['renter_name']}"):
-                        st.write(f"Amount Paid: ₱{r['amount']:,.2f} | Destination: {r.get('destination')}")
-                        st.write(f"Affiliate: {r['affiliate_name']}")
-    except Exception as e: st.error(str(e))
-
-# --- TAB 3: FINANCIALS ---
-with tabs[3]:
-    st.markdown("<h2 style='text-align: center;'>🏦 MASTER FINANCIAL LEDGER</h2>", unsafe_allow_html=True)
-    try:
-        query = """
-        SELECT b.id, b.booking_ref, b.pickup_time as Date, u_renter.full_name as Renter, u_owner.full_name as Affiliate,
-               b.amount as Gross_Revenue, b.status as Trip_Status, b.payout_status as Payout_Status,
-               b.gateway_fee, v.bank_name, v.account_no
-        FROM bookings b
-        JOIN vehicles v ON b.vehicle_id = v.id
-        JOIN platform_users u_renter ON b.renter_username = u_renter.username
-        JOIN platform_users u_owner ON v.owner_username = u_owner.username
-        WHERE b.status != 'PENDING'
-        ORDER BY b.id DESC
-        """
-        df = pd.read_sql_query(query, conn)
-        
-        # Dynamic Settings Fetcher
-        try:
-            settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct FROM platform_settings WHERE id = 1", conn)
-            r_markup = float(settings_df.iloc[0]['renter_markup_pct']) if not settings_df.empty else 0.00
-            a_share = float(settings_df.iloc[0]['affiliate_share_pct']) if not settings_df.empty else 0.82
-        except:
-            r_markup, a_share = 0.00, 0.82
-        
-        if df.empty:
-            st.info("No confirmed financial transactions recorded yet.")
-        else:
-            TAX_RATE = 0.02
-            df['gateway_fee'] = df['gateway_fee'].fillna(0)
-
-            # REVERSE MATH based on PayMongo dynamic fees
-            df['Base_Rental'] = df['Gross_Revenue'] / (1 + r_markup)
-            df['Renter_Fee_Revenue'] = df['Gross_Revenue'] - df['Base_Rental']
-            df['Owner_Fee_Revenue'] = df['Base_Rental'] * (1 - a_share)
-            
-            df['Platform_Gross'] = df['Renter_Fee_Revenue'] + df['Owner_Fee_Revenue']
-            df['Platform_Net_Profit'] = df['Platform_Gross'] - (df['Platform_Gross'] * TAX_RATE)
-
-            df['Affiliate_Gross_Share'] = df['Base_Rental'] * a_share
-            df['EWT_Deduction'] = df['Base_Rental'] * TAX_RATE * a_share
-            df['Affiliate_Net_Payout'] = (df['Affiliate_Gross_Share'] - df['EWT_Deduction']) - df['gateway_fee']
-
-            df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
-            
-            c1, c2, c3 = st.columns(3)
-            c1.metric("💰 Total Gross Processed", f"₱{df['Gross_Revenue'].sum():,.2f}")
-            c2.metric("🏢 Nucleuz Net Profit", f"₱{df['Platform_Net_Profit'].sum():,.2f}")
-            
-            payouts_due = df[(df['Payout_Status'] == 'PENDING') & (df['Trip_Status'] == 'COMPLETED')]['Affiliate_Net_Payout'].sum()
-            c3.metric("⏳ Payouts Owed", f"₱{payouts_due:,.2f}")
-            
-            f_tabs = st.tabs(["📑 MASTER LEDGER", "📤 PROCESS PAYOUTS"])
-            
-            with f_tabs[0]: 
-                display_cols = ['Ref', 'Date', 'Affiliate', 'Gross_Revenue', 'gateway_fee', 'EWT_Deduction', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
-                
-                styled_ledger = df[display_cols].style.format({
-                    'Gross_Revenue': '{:,.2f}',
-                    'gateway_fee': '{:,.2f}',
-                    'EWT_Deduction': '{:,.2f}',
-                    'Affiliate_Net_Payout': '{:,.2f}',
-                    'Platform_Net_Profit': '{:,.2f}'
-                })
-                
-                st.dataframe(styled_ledger, use_container_width=True, hide_index=True)
-            
-            with f_tabs[1]:
-                pending_p = df[(df['Trip_Status'] == 'COMPLETED') & (df['Payout_Status'] == 'PENDING')]
-                if pending_p.empty:
-                    st.info("No pending payouts for completed trips.")
-                for _, p in pending_p.iterrows():
-                    with st.expander(f"{p['Ref']} | {p['Affiliate']} | Net: ₱{p['Affiliate_Net_Payout']:,.2f}"):
-                        st.write(f"**Gross Amount Collected via PayMongo:** ₱{p['Gross_Revenue']:,.2f}")
-                        st.write(f"**Affiliate Gross Share ({int(a_share*100)}% of Base):** ₱{p['Affiliate_Gross_Share']:,.2f}")
-                        st.write(f"**Tax Deduction (EWT):** -₱{p['EWT_Deduction']:,.2f}")
-                        st.write(f"**PayMongo Gateway Fee (Owner Absorbed):** -₱{p['gateway_fee']:,.2f}")
-                        st.divider()
-                        st.write(f"**Final Remittance to Send:** ₱{p['Affiliate_Net_Payout']:,.2f}")
-                        st.info(f"🏦 **Bank:** {p['bank_name']} | **Acc:** {p['account_no']}")
+            for _, u in users_df.iterrows():
+                with st.expander(f"{u['role']}: {u['first_name']} {u['last_name']} (@{u['username']})"):
+                    if st.button("Approve User", key=f"app_u_{u['id']}"):
+                        conn.execute("UPDATE platform_users SET admin_status = 'APPROVED' WHERE id = ?", (u['id'],))
+                        conn.commit()
+                        st.success("Approved!")
+                        time.sleep(1)
+                        st.rerun()
                         
-                        if st.button("MARK DISBURSED", key=f"p_{p['id']}", type="primary", use_container_width=True):
-                            conn.execute("UPDATE bookings SET payout_status = 'PAID' WHERE id = ?", (p['id'],))
-                            conn.commit()
-                            st.rerun()
-    except Exception as e:
-        st.error(f"Financial Error: {e}")
+    with v_col:
+        st.subheader("Pending Vehicles")
+        veh_df = pd.read_sql_query("SELECT id, make, model, year, owner_username, requested_price FROM vehicles WHERE admin_status = 'PENDING'", conn)
+        if veh_df.empty:
+            st.success("All vehicles approved!")
+        else:
+            for _, v in veh_df.iterrows():
+                with st.expander(f"{v['make']} {v['model']} ({v['year']}) - @{v['owner_username']}"):
+                    st.write(f"Requested Daily Rate: ₱{v['requested_price']:,.2f}")
+                    if st.button("Approve Vehicle", key=f"app_v_{v['id']}"):
+                        conn.execute("UPDATE vehicles SET admin_status = 'APPROVED', booking_status = 'AVAILABLE', approved_price = ? WHERE id = ?", (v['requested_price'], v['id']))
+                        conn.commit()
+                        st.success("Vehicle Live!")
+                        time.sleep(1)
+                        st.rerun()
 
+# --- TAB 3: FINANCE & COMMISSIONS ---
+with tabs[2]:
+    st.header("DriveElite Financial Ledger")
+    
+    # We only calculate payouts for trips that are officially confirmed or completed
+    finance_df = pd.read_sql_query("""
+        SELECT b.booking_ref, b.pickup_time, b.amount, b.status, v.owner_username 
+        FROM bookings b 
+        JOIN vehicles v ON b.vehicle_id = v.id 
+        WHERE b.status IN ('CONFIRMED', 'COMPLETED')
+    """, conn)
+    
+    if finance_df.empty:
+        st.info("No completed or confirmed paid transactions yet.")
+    else:
+        # --- THE 20/80 SPLIT ENGINE ---
+        finance_df['DriveElite_Cut_20'] = finance_df['amount'] * 0.20
+        finance_df['Affiliate_Payout_80'] = finance_df['amount'] * 0.80
+        
+        total_revenue = finance_df['amount'].sum()
+        total_platform_profit = finance_df['DriveElite_Cut_20'].sum()
+        total_owed_to_owners = finance_df['Affiliate_Payout_80'].sum()
+        
+        # Top-level metric cards
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Gross Platform Volume", f"₱{total_revenue:,.2f}")
+        m2.metric("DriveElite Net Profit (20%)", f"₱{total_platform_profit:,.2f}", delta="Platform Retained")
+        m3.metric("Pending Affiliate Payouts (80%)", f"₱{total_owed_to_owners:,.2f}", delta="-Owed", delta_color="inverse")
+        
+        st.divider()
+        st.subheader("Detailed Affiliate Payout Log")
+        
+        # Clean up the table for the admin view
+        display_df = finance_df[['booking_ref', 'owner_username', 'amount', 'DriveElite_Cut_20', 'Affiliate_Payout_80', 'status']]
+        display_df.columns = ['Ref #', 'Car Owner', 'Gross Paid', 'Platform Cut (20%)', 'Owner Payout (80%)', 'Status']
+        
+        # Format as currency
+        for col in ['Gross Paid', 'Platform Cut (20%)', 'Owner Payout (80%)']:
+            display_df[col] = display_df[col].apply(lambda x: f"₱{x:,.2f}")
+            
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        
+        st.info("💡 When PayMongo clears a customer's transaction, use the 'Active Bookings' tab to mark the trip as CONFIRMED. It will automatically route to this ledger and calculate the exact 20/80 split.")
 
 # --- TAB 4: FILING CABINET (MAILROOM LOGIC) ---
 with tabs[4]: 
