@@ -43,7 +43,7 @@ def get_booked_dates(vehicle_id, conn):
             delta = end - start
             for i in range(delta.days + 1):
                 booked_days.add(start + datetime.timedelta(days=i))
-        except Exception:3
+        except Exception:
             pass
             
     return booked_days
@@ -306,7 +306,7 @@ with tabs[0]:
                                             conn.commit()
                                             
                                             # PayMongo API Call
-                                            SECRET_KEY = "sk_test_xz5tBvTwGkztmy1AnVQuqR6K"
+                                            SECRET_KEY = 'sk_test_YOUR_ACTUAL_KEY_HERE'
                                             pay_amount = int(grand_total * 100) # Centavos
                                             
                                             auth_string = f"{SECRET_KEY}:"
