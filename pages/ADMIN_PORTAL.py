@@ -28,9 +28,11 @@ parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
+# ==========================================
 # 3. IMPORT CUSTOM MODULES
+# ==========================================
 from database_utils import get_connection, init_db, patch_database
-    from tiered_discounts import init_discount_db, render_admin_discount_table
+from tiered_discounts import init_discount_db, render_admin_discount_table
 
 try:
     from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
@@ -253,14 +255,12 @@ with tabs[2]:
         if bookings.empty: st.info("No active logistics.")
         else:
             for i, r in bookings.iterrows():
-                # Status formatting for PayMongo PENDING
                 status_color = "🔴 AWAITING PAYMENT" if r['status'] == 'PENDING' else f"🟢 {r['status']}"
                 
                 with st.expander(f"🎫 #{r['booking_ref']} | {status_color} | RENTER: {r['renter_name']}"):
                     st.write(f"**Amount:** ₱{r['amount']:,.2f} | **Destination:** {r.get('destination')}")
                     st.write(f"**Affiliate:** {r['affiliate_name']}")
                     
-                    # Manual Override for PayMongo
                     if r['status'] == 'PENDING':
                         st.warning("⏳ This renter is currently at the PayMongo checkout screen. If they paid via manual GCash transfer instead, you can override and confirm the booking below.")
                         if st.button("Verify Payment & Confirm Booking", key=f"force_conf_{r['id']}"):
