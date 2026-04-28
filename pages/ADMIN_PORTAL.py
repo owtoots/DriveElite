@@ -31,8 +31,6 @@ if parent_dir not in sys.path:
 # ==========================================
 # 3. IMPORT CUSTOM MODULES
 # ==========================================
-from tiered_discounts import init_discount_db, render_admin_discount_table
-
 from database_utils import get_connection, init_db, patch_database
 
 try:
