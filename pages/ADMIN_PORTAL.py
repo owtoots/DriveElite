@@ -27,9 +27,11 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
+
 # ==========================================
 # 3. IMPORT CUSTOM MODULES
 # =========================================
+
 from database_utils import get_connection, init_db, patch_database
 from tiered_discounts import init_discount_db, render_admin_discount_table
 
