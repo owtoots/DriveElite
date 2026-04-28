@@ -65,7 +65,7 @@ def render_admin_discount_table(conn):
     with st.container(border=True):
         col1, col2 = st.columns(2)
         with col1:
-            new_r_markup = st.number_input("Renter Platform Fee (%)", min_value=0.0, max_value=100.0, value=current_renter_markup * 100, step=1.0, help="E.g., 7% will add a 7% service fee to the base rental rate.") / 100.0
+            new_r_markup = st.number_input("Renter Platform Fee (%)", min_value=0.0, max_value=100.0, value=current_renter_markup * 100, step=1.0, help="E.g., 10...", key="admin_renter_markup_input")
             st.caption(f"*Multiplier applied to Renter: {1 + new_r_markup:.2f}x*")
         with col2:
             new_a_share = st.number_input("Affiliate Revenue Share (%)", min_value=0.0, max_value=100.0, value=current_affiliate_share * 100, step=1.0, help="E.g., 82% means the platform keeps 18%.") / 100.0
