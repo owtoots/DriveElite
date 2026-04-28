@@ -234,6 +234,12 @@ with tabs[5]:
 
 # [Rest of your Tab logic for Logistics, Pending, Reviews, etc. stays the same]
 
+# --- OTHER TABS (STAY THE SAME) ---
+with tabs[5]:
+    render_admin_discount_table(conn)
+
+# [Rest of your Tab logic for Logistics, Pending, Reviews, etc. stays the same]
+
 # --- 6. TOP NAVIGATION BAR ---
 head_col1, head_col2 = st.columns([5, 1])
 with head_col1:
