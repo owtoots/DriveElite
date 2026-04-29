@@ -109,7 +109,7 @@ def render_admin_discount_table(conn):
             st.error(f"Failed to save discounts: {e}")
 
 def calculate_tiered_pricing(base_daily_rate, total_days, conn):
-    """Core logic to calculate the Renter's total price and Affiliate share based on DB settings."""
+    """Calculates final totals, applying Renter Markup ONLY on day 4 and onward."""
     try:
         settings = pd.read_sql_query("SELECT * FROM platform_settings WHERE id = 1", conn)
         r_markup = float(settings.iloc[0]['renter_markup_pct'])
@@ -117,7 +117,7 @@ def calculate_tiered_pricing(base_daily_rate, total_days, conn):
     except:
         r_markup, a_share = 0.07, 0.82
 
-    # Find the highest applicable discount
+    # Find the highest applicable duration discount
     tiers = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
     discount = 0.0
     for _, row in tiers.iterrows():
@@ -125,11 +125,14 @@ def calculate_tiered_pricing(base_daily_rate, total_days, conn):
             discount = float(row['discount_pct'])
             break
             
-    # Calculations
+    # Base Calculations
     raw_total = base_daily_rate * total_days
     discounted_base = raw_total * (1 - discount)
     
-    renter_final = discounted_base * (1 + r_markup)
+    # 🚨 THE 4-DAY RULE: Renter only pays the platform fee if booking >= 4 days
+    applied_r_markup = r_markup if total_days >= 4 else 0.0
+    
+    renter_final = discounted_base * (1 + applied_r_markup)
     affiliate_final = discounted_base * a_share
     
     return {
