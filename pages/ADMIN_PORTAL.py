@@ -31,13 +31,10 @@ if parent_dir not in sys.path:
 # ==========================================
 # 3. MODULE VALIDATION & IMPORTS
 # ==========================================
+import importlib.util
+
 required_modules = ['database_utils', 'tiered_discounts', 'finance']
-missing = []
-for mod in required_modules:
-        try:
-            __import__(mod)
-        except ImportError:
-            missing.append(mod)
+missing = [mod for mod in required_modules if importlib.util.find_spec(mod) is None]
 
 if missing:
     st.error(f"🚨 Critical System Error: Missing required modules: {', '.join(missing)}")
