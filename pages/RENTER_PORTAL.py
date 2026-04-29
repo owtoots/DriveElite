@@ -239,10 +239,9 @@ with tabs[0]:
                                 full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
                                 driver_days = full_days + (1 if billed_hrs > 0 else 0)
                                 
-                                # 🚨 Add this exact line right here to fix the NameError!
                                 is_driver = 1 if "Driver" in drive_mode else 0
-                                
                                 driver_fee = (driver_days * 1000.0) if is_driver else 0.0
+                                
                                 # --- 1. DYNAMIC DURATION DISCOUNTS ---
                                 try:
                                     tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
@@ -269,8 +268,8 @@ with tabs[0]:
 
                                 platform_fee = discounted_subtotal * applied_renter_fee
                                 
-                                p_fee = ZONES[p_zone]
-                                r_fee = ZONES[r_zone]
+                                p_fee = ZONES.get(p_zone, 0.0)
+                                r_fee = ZONES.get(r_zone, 0.0)
                                 grand_total = discounted_subtotal + platform_fee + driver_fee + p_fee + r_fee
 
                                 # --- 3. THE COST BREAKDOWN RECEIPT ---
@@ -285,7 +284,7 @@ with tabs[0]:
                                 if savings > 0: 
                                     rows.append(f'<tr><td style="color:#cc0000;">Duration Discount ({int(discount_pct * 100)}%)</td><td style="text-align:right; color:#cc0000;">-₱{savings:,.2f}</td></tr>')
                                 
-                                    rows.append(f'<tr><td style="color:#27ae60;">DriveElite Fee ({int(applied_renter_fee * 100)}%)</td><td style="text-align:right; color:#27ae60;">+₱{platform_fee:,.2f}</td></tr>')
+                                rows.append(f'<tr><td style="color:#27ae60;">DriveElite Fee ({int(applied_renter_fee * 100)}%)</td><td style="text-align:right; color:#27ae60;">+₱{platform_fee:,.2f}</td></tr>')
                                 
                                 if is_driver: 
                                     rows.append(f'<tr><td style="color:#003399;">Driver Fee</td><td style="text-align:right; color:#003399;">+₱{driver_fee:,.2f}</td></tr>')
@@ -298,7 +297,54 @@ with tabs[0]:
                                 st.markdown(bill_html, unsafe_allow_html=True)
                                 
                                 st.divider()
-                                # ... (The "CONFIRM BOOKING & PAY" button comes exactly after this) ...
+
+                                # --- 4. NEW SMART BUTTON WITH PAYMONGO ---
+                                if st.button("CONFIRM BOOKING & PAY", key=f"conf_{car['id']}", type="primary", use_container_width=True, disabled=not can_book):
+                                    if dest and p_exact and r_exact and luzon_agree:
+                                        with st.spinner("Generating secure checkout link..."):
+                                            b_ref = str(random.randint(100000, 999999))
+                                            p_dt_str, r_dt_str = p_dt_obj.strftime("%Y-%m-%d %H:%M"), r_dt_obj.strftime("%Y-%m-%d %H:%M")
+                                            
+                                            # Save booking as 'PENDING'
+                                            conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
+                                                         (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
+                                            conn.commit()
+                                            
+                                            # PayMongo API Call
+                                            SECRET_KEY = st.secrets["paymongo_active_key"]
+                                            pay_amount = int(grand_total * 100) # Centavos
+                                            
+                                            auth_string = f"{SECRET_KEY}:"
+                                            base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+                                            
+                                            url = "https://api.paymongo.com/v1/links"
+                                            payload = {
+                                                "data": {
+                                                    "attributes": {
+                                                        "amount": pay_amount, 
+                                                        "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})",
+                                                        "remarks": f"Renter: {renter_user}"
+                                                    }
+                                                }
+                                            }
+                                            data = json.dumps(payload).encode('utf-8')
+                                            req = urllib.request.Request(url, data=data)
+                                            req.add_header('accept', 'application/json')
+                                            req.add_header('content-type', 'application/json')
+                                            req.add_header('authorization', f'Basic {base64_auth}')
+                                            
+                                            try:
+                                                response = urllib.request.urlopen(req)
+                                                response_data = json.loads(response.read().decode('utf-8'))
+                                                checkout_url = response_data['data']['attributes']['checkout_url']
+                                                
+                                                st.success(f"✅ Booking Saved (Ref: #{b_ref})")
+                                                st.markdown(f"### 💳 [👉 CLICK HERE TO PAY ₱{grand_total:,.2f} VIA PAYMONGO]({checkout_url})")
+                                                st.info("Complete your payment using the link above to officially confirm your booking.")
+                                            except urllib.error.URLError as e:
+                                                st.error("Failed to generate payment link. Please contact admin.")
+                                    else: 
+                                        st.warning("⚠️ Please fill all required fields.")
 
 # --- TAB 1: MY BOOKINGS ---
 with tabs[1]:
