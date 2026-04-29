@@ -13,7 +13,7 @@ def init_discount_db(conn):
             )
         ''')
         
-        # 2. NEW: Platform Settings Table (For Fees & Margins)
+        # 2. Platform Settings Table (For Fees & Margins)
         conn.execute('''
             CREATE TABLE IF NOT EXISTS platform_settings (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -34,22 +34,17 @@ def init_discount_db(conn):
                 ('1 Month (30+ Days)', 30, 0.20)
             ])
             
-        # Seed default margins if empty (7% Renter Fee, 82% Affiliate Share)
+        # Seed default margins if empty
         cursor.execute("SELECT count(*) FROM platform_settings")
         if cursor.fetchone()[0] == 0:
             conn.execute("INSERT INTO platform_settings (id, renter_markup_pct, affiliate_share_pct) VALUES (1, 0.07, 0.82)")
             
         conn.commit()
-    except Exception as e:
+    except Exception:
         pass
 
-def render_admin_discount_table(conn):
-    """Displays the interactive UI in the Admin Dashboard to tweak pricing rules."""
-    st.subheader("⚙️ Dynamic Pricing, Fees & Margins")
-    
-    # ==========================================
-    # PART 1: PLATFORM FEES & REVENUE SHARE
-    # ==========================================
+def render_platform_settings(conn):
+    """Standalone UI to tweak Platform Fees and Revenue Share."""
     st.markdown("#### 1. Platform Revenue Margins")
     st.caption("Set the service fee charged to RENTERS and the revenue share paid to AFFILIATES.")
     
@@ -64,7 +59,6 @@ def render_admin_discount_table(conn):
 
     with st.container(border=True):
         col1, col2 = st.columns(2)
-        
         with col1:
             new_r_markup_pct = st.number_input("Renter Platform Fee (%)", min_value=0.0, max_value=100.0, value=current_renter_markup * 100, step=1.0, help="E.g., 10%", key="admin_renter_fee_input_unique")
             new_r_markup = new_r_markup_pct / 100.0
@@ -81,15 +75,12 @@ def render_admin_discount_table(conn):
                 conn.commit()
                 st.success("✅ Platform margins successfully updated!")
             except Exception as e:
-                st.error(f"🚨 HIDDEN ERROR REVEALED: {str(e)}")
+                st.error(f"🚨 Update Error: {str(e)}")
 
-    st.divider()
-
-    # ==========================================
-    # PART 2: DURATION DISCOUNT TIERS
-    # ==========================================
+def render_admin_discount_table(conn):
+    """Displays the UI for Duration Discount Tiers."""
     st.markdown("#### 2. Duration Discount Tiers")
-    st.caption("Adjust the minimum days and discount percentages. Changes apply instantly to new bookings.")
+    st.caption("Adjust the minimum days and discount percentages.")
 
     df_tiers = pd.read_sql_query("SELECT * FROM discount_tiers ORDER BY min_days ASC", conn)
 
@@ -108,51 +99,38 @@ def render_admin_discount_table(conn):
         try:
             conn.execute("DELETE FROM discount_tiers") 
             for _, row in edited_tiers.iterrows():
-                t_name = str(row['tier_name'])
-                m_days = int(row['min_days'])
-                d_pct = float(row['discount_pct'])
-                conn.execute("INSERT INTO discount_tiers (tier_name, min_days, discount_pct) VALUES (?, ?, ?)", (t_name, m_days, d_pct))
+                conn.execute("INSERT INTO discount_tiers (tier_name, min_days, discount_pct) VALUES (?, ?, ?)", (str(row['tier_name']), int(row['min_days']), float(row['discount_pct'])))
             conn.commit()
             st.success("✅ Discount tiers successfully updated!")
         except Exception as e:
-            st.error(f"🚨 HIDDEN ERROR REVEALED: {str(e)}")
+            st.error(f"🚨 Save Error: {str(e)}")
 
 def calculate_tiered_pricing(base_daily_rate, total_days, conn):
-    """
-    Fetches live discount rules and dynamic platform margins to calculate the final totals.
-    """
-    # 1. Fetch live margins from the database
+    """Calculates final totals using live DB settings."""
     try:
         settings_df = pd.read_sql_query("SELECT * FROM platform_settings WHERE id = 1", conn)
         renter_markup = float(settings_df.iloc[0]['renter_markup_pct'])
         affiliate_share = float(settings_df.iloc[0]['affiliate_share_pct'])
     except:
-        renter_markup = 0.07  # Fallback to 7%
-        affiliate_share = 0.82 # Fallback to 82%
+        renter_markup, affiliate_share = 0.07, 0.82
 
-    # 2. Fetch live discounts from the database
     tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
     
-    # 3. Find the correct discount tier
     discount = 0.0
     for _, row in tiers_df.iterrows():
         if total_days >= row['min_days']:
             discount = float(row['discount_pct'])
             break
             
-    # 4. Calculate Base Total
     raw_base_total = base_daily_rate * total_days
     discounted_base_total = raw_base_total * (1 - discount)
-
-    # 5. Apply the Dynamic Margins
     renter_total = discounted_base_total * (1 + renter_markup) 
     affiliate_total = discounted_base_total * affiliate_share 
-    platform_profit = renter_total - affiliate_total
     
     return {
         "days": total_days,
         "discount_percent": int(discount * 100),
         "renter_total": renter_total,
         "affiliate_total": affiliate_total,
-        "platform_profit": platform_profit
+        "platform_profit": renter_total - affiliate_total
     }
