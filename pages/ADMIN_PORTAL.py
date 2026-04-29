@@ -34,10 +34,10 @@ if parent_dir not in sys.path:
 required_modules = ['database_utils', 'tiered_discounts', 'finance']
 missing = []
 for mod in required_modules:
-    try:
-        __import__(mod)
-    except ImportError:
-        missing.append(mod)
+        try:
+            __import__(mod)
+        except ImportError:
+            missing.append(mod)
 
 if missing:
     st.error(f"🚨 Critical System Error: Missing required modules: {', '.join(missing)}")
