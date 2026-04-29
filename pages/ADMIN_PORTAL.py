@@ -42,7 +42,12 @@ if missing:
 
 # If validation passes, safely import the required functions
 from database_utils import get_connection, init_db, patch_database
-from tiered_discounts import init_discount_db, render_admin_discount_table
+try:
+    from tiered_discounts import init_discount_db, render_admin_discount_table
+except ImportError:
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/..')
+    from tiered_discounts import init_discount_db, render_admin_discount_table
 from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
 
 # ==========================================
