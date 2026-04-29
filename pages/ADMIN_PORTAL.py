@@ -38,7 +38,7 @@ for mod in required_modules:
         __import__(mod)
     except ImportError:
         missing.append(mod)
-
+        
 if missing:
     st.error(f"🚨 Critical System Error: Missing required modules: {', '.join(missing)}")
     st.stop()
