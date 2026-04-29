@@ -35,7 +35,7 @@ required_modules = ['database_utils', 'tiered_discounts', 'finance']
 missing = []
 for mod in required_modules:
     try:
-                __import__(mod)
+        __import__(mod)
         except ImportError:
         missing.append(mod)
 
