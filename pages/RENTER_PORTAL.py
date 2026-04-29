@@ -45,8 +45,9 @@ return_time = st.time_input(
 booked_days = set()
 for _, row in df.iterrows():
     try:
-        # Fixed: Changed "to datetime" to "to_datetime"
+        # Fixed: Added the underscore and corrected the column name
         start = pd.to_datetime(row['pickup_time']).date()
+        # ... rest of your code
             end = pd.to_datetime(row['return_time']).date()
             
             # Add every single day of that trip to our 'booked' list
