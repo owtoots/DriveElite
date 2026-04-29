@@ -35,10 +35,10 @@ required_modules = ['database_utils', 'tiered_discounts', 'finance']
 missing = []
 for mod in required_modules:
     try:
-        __import__(mod)
-    except ImportError:
+                __import__(mod)
+        except ImportError:
         missing.append(mod)
-        
+
 if missing:
     st.error(f"🚨 Critical System Error: Missing required modules: {', '.join(missing)}")
     st.stop()
