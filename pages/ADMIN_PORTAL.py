@@ -57,7 +57,11 @@ except ImportError as e:
     sys.path.insert(0, os.path.join(current_dir, '..'))
     try:
         from database_utils import get_connection, init_db, patch_database
-        from tiered_discounts import init_discount_db, render_admin_discount_table, render_platform_settings
+        from tiered_discounts import (
+            init_discount_db, 
+            render_admin_discount_table, 
+            render_platform_settings
+        )
         from finance import (
             send_email, 
             generate_pos_receipt, 
@@ -66,7 +70,7 @@ except ImportError as e:
             calculate_moa_cancellation_40_60
         )
     except ImportError as e2:
-        st.error(f"🚨 Failed to import required modules even after path adjustment: {e2}")
+        st.error(f"🚨 Failed to import required modules: {e2}")
         st.stop()
 
 # ==========================================
