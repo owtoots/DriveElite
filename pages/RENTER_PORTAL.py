@@ -26,11 +26,21 @@ def get_booked_dates(vehicle_id, conn):
     import datetime
     # We only care about active trips, pending trips, or confirmed trips. 
     query = """
-        SELECT pickup_time, return_time 
-        FROM bookings 
-        WHERE vehicle_id = ? AND status NOT IN ('CANCELLED', 'COMPLETED', 'REJECTED')
-    """
-    df = pd.read_sql_query(query, conn, params=(vehicle_id,))
+        import datetime
+
+# ... inside your booking form ...
+
+pickup_time = st.time_input(
+    "Pickup Time", 
+    value=datetime.time(9, 0),             # Sets a default time (e.g., 9:00 AM)
+    step=datetime.timedelta(hours=1)       # 🚨 Forces 1-hour increments!
+)
+
+return_time = st.time_input(
+    "Return Time", 
+    value=datetime.time(9, 0), 
+    step=datetime.timedelta(hours=1)       # 🚨 Forces 1-hour increments!
+)
     
     booked_days = set()
     for _, row in df.iterrows():
