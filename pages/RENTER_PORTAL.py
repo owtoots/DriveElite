@@ -32,21 +32,21 @@ def get_booked_dates(vehicle_id, conn):
 
 pickup_time = st.time_input(
     "Pickup Time", 
-    value=datetime.time(9, 0),             # Sets a default time (e.g., 9:00 AM)
-    step=datetime.timedelta(hours=1)       # 🚨 Forces 1-hour increments!
+    value=datetime.time(9, 0), 
+    step=datetime.timedelta(hours=1)
 )
 
 return_time = st.time_input(
     "Return Time", 
     value=datetime.time(9, 0), 
-    step=datetime.timedelta(hours=1)       # 🚨 Forces 1-hour increments!
+    step=datetime.timedelta(hours=1)
 )
-    
-    booked_days = set()
-    for _, row in df.iterrows():
-        try:
-            # Convert database strings to actual Date objects
-            start = pd.to_datetime(row['pickup_time']).date()
+
+booked_days = set()
+for _, row in df.iterrows():
+    try:
+        # Fixed: Changed "to datetime" to "to_datetime"
+        start = pd.to_datetime(row['pickup_time']).date()
             end = pd.to_datetime(row['return_time']).date()
             
             # Add every single day of that trip to our 'booked' list
