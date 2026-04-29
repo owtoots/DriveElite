@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 
 def init_discount_db(conn):
-    """Creates the discount tiers and platform settings tables."""
+    """Initializes tables for discounts and platform settings with default values."""
     try:
-        # 1. Discount Tiers Table
+        # Create Discount Tiers Table
         conn.execute('''
             CREATE TABLE IF NOT EXISTS discount_tiers (
                 tier_name TEXT PRIMARY KEY,
@@ -13,7 +13,7 @@ def init_discount_db(conn):
             )
         ''')
         
-        # 2. Platform Settings Table (For Fees & Margins)
+        # Create Platform Settings Table (Fee & Revenue Share)
         conn.execute('''
             CREATE TABLE IF NOT EXISTS platform_settings (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -24,63 +24,65 @@ def init_discount_db(conn):
         
         cursor = conn.cursor()
         
-        # Seed default discounts if empty
+        # Seed default discounts if the table is empty
         cursor.execute("SELECT count(*) FROM discount_tiers")
         if cursor.fetchone()[0] == 0:
-            conn.executemany("INSERT INTO discount_tiers VALUES (?, ?, ?)", [
-                ('3 Days to 6 Days', 3, 0.05),
+            default_tiers = [
+                ('3-6 Days', 3, 0.05),
                 ('1 Week (7+ Days)', 7, 0.10),
                 ('2 Weeks (14+ Days)', 14, 0.15),
                 ('1 Month (30+ Days)', 30, 0.20)
-            ])
+            ]
+            conn.executemany("INSERT INTO discount_tiers VALUES (?, ?, ?)", default_tiers)
             
-        # Seed default margins if empty
+        # Seed default platform margins if empty (7% Renter Fee, 82% Affiliate Share)
         cursor.execute("SELECT count(*) FROM platform_settings")
         if cursor.fetchone()[0] == 0:
             conn.execute("INSERT INTO platform_settings (id, renter_markup_pct, affiliate_share_pct) VALUES (1, 0.07, 0.82)")
             
         conn.commit()
-    except Exception:
-        pass
+    except Exception as e:
+        st.error(f"Database Initialization Error: {e}")
 
 def render_platform_settings(conn):
-    """Standalone UI to tweak Platform Fees and Revenue Share."""
+    """UI for the Admin to adjust Renter Fees and Affiliate Payouts."""
     st.markdown("#### 1. Platform Revenue Margins")
-    st.caption("Set the service fee charged to RENTERS and the revenue share paid to AFFILIATES.")
+    st.caption("Adjust the service fee charged to Renters and the share given to Affiliates.")
     
     settings_df = pd.read_sql_query("SELECT * FROM platform_settings WHERE id = 1", conn)
     
+    # Fallback to defaults if DB query fails or is empty
     if not settings_df.empty:
-        current_renter_markup = float(settings_df.iloc[0]['renter_markup_pct'])
-        current_affiliate_share = float(settings_df.iloc[0]['affiliate_share_pct'])
+        curr_renter_markup = float(settings_df.iloc[0]['renter_markup_pct'])
+        curr_affiliate_share = float(settings_df.iloc[0]['affiliate_share_pct'])
     else:
-        current_renter_markup = 0.07
-        current_affiliate_share = 0.82
+        curr_renter_markup, curr_affiliate_share = 0.07, 0.82
 
     with st.container(border=True):
         col1, col2 = st.columns(2)
         with col1:
-            new_r_markup_pct = st.number_input("Renter Platform Fee (%)", min_value=0.0, max_value=100.0, value=current_renter_markup * 100, step=1.0, help="E.g., 10%", key="admin_renter_fee_input_unique")
-            new_r_markup = new_r_markup_pct / 100.0
-            st.caption(f"*Multiplier applied to Renter: {1 + new_r_markup:.2f}x*")
+            r_input = st.number_input("Renter Platform Fee (%)", 0.0, 100.0, curr_renter_markup * 100, step=1.0, key="fee_r")
+            new_r_markup = r_input / 100.0
+            st.caption(f"*Renter Multiplier: {1 + new_r_markup:.2f}x*")
         
         with col2:
-            new_a_share_pct = st.number_input("Affiliate Revenue Share (%)", min_value=0.0, max_value=100.0, value=current_affiliate_share * 100, step=1.0, help="E.g., 82% means the platform keeps 18%", key="admin_affiliate_share_unique")
-            new_a_share = new_a_share_pct / 100.0
-            st.caption(f"*Platform Cut: {100 - (new_a_share * 100):.0f}% | Affiliate Payout: {new_a_share * 100:.0f}%*")
+            a_input = st.number_input("Affiliate Revenue Share (%)", 0.0, 100.0, curr_affiliate_share * 100, step=1.0, key="share_a")
+            new_a_share = a_input / 100.0
+            st.caption(f"*Platform Cut: {100 - (new_a_share * 100):.0f}%*")
         
-        if st.button("Save Platform Margins", type="primary", key="save_margins", use_container_width=True):
+        if st.button("Save Platform Margins", type="primary", use_container_width=True):
             try:
-                conn.execute("UPDATE platform_settings SET renter_markup_pct = ?, affiliate_share_pct = ? WHERE id = 1", (new_r_markup, new_a_share))
+                conn.execute("UPDATE platform_settings SET renter_markup_pct = ?, affiliate_share_pct = ? WHERE id = 1", 
+                             (new_r_markup, new_a_share))
                 conn.commit()
-                st.success("✅ Platform margins successfully updated!")
+                st.success("✅ Platform margins updated!")
             except Exception as e:
-                st.error(f"🚨 Update Error: {str(e)}")
+                st.error(f"Failed to update margins: {e}")
 
 def render_admin_discount_table(conn):
-    """Displays the UI for Duration Discount Tiers."""
+    """UI for the Admin to manage duration-based discounts via an interactive table."""
     st.markdown("#### 2. Duration Discount Tiers")
-    st.caption("Adjust the minimum days and discount percentages.")
+    st.caption("Changes here reflect instantly on the Renter's final price calculation.")
 
     df_tiers = pd.read_sql_query("SELECT * FROM discount_tiers ORDER BY min_days ASC", conn)
 
@@ -89,48 +91,51 @@ def render_admin_discount_table(conn):
         num_rows="dynamic",
         use_container_width=True,
         column_config={
-            "tier_name": st.column_config.TextColumn("Tier Name"),
-            "min_days": st.column_config.NumberColumn("Minimum Days", min_value=1),
-            "discount_pct": st.column_config.NumberColumn("Discount % (e.g., 0.10 for 10%)", min_value=0.0, max_value=1.0, step=0.01, format="%.2f")
+            "tier_name": st.column_config.TextColumn("Tier Label"),
+            "min_days": st.column_config.NumberColumn("Min Days", min_value=1),
+            "discount_pct": st.column_config.NumberColumn("Discount (0.10 = 10%)", min_value=0.0, max_value=1.0, format="%.2f")
         }
     )
 
-    if st.button("Save Discount Rules", type="primary", key="save_discounts"):
+    if st.button("Save Discount Rules", type="primary"):
         try:
             conn.execute("DELETE FROM discount_tiers") 
             for _, row in edited_tiers.iterrows():
-                conn.execute("INSERT INTO discount_tiers (tier_name, min_days, discount_pct) VALUES (?, ?, ?)", (str(row['tier_name']), int(row['min_days']), float(row['discount_pct'])))
+                conn.execute("INSERT INTO discount_tiers (tier_name, min_days, discount_pct) VALUES (?, ?, ?)", 
+                             (str(row['tier_name']), int(row['min_days']), float(row['discount_pct'])))
             conn.commit()
-            st.success("✅ Discount tiers successfully updated!")
+            st.success("✅ Discount tiers updated!")
         except Exception as e:
-            st.error(f"🚨 Save Error: {str(e)}")
+            st.error(f"Failed to save discounts: {e}")
 
 def calculate_tiered_pricing(base_daily_rate, total_days, conn):
-    """Calculates final totals using live DB settings."""
+    """Core logic to calculate the Renter's total price and Affiliate share based on DB settings."""
     try:
-        settings_df = pd.read_sql_query("SELECT * FROM platform_settings WHERE id = 1", conn)
-        renter_markup = float(settings_df.iloc[0]['renter_markup_pct'])
-        affiliate_share = float(settings_df.iloc[0]['affiliate_share_pct'])
+        settings = pd.read_sql_query("SELECT * FROM platform_settings WHERE id = 1", conn)
+        r_markup = float(settings.iloc[0]['renter_markup_pct'])
+        a_share = float(settings.iloc[0]['affiliate_share_pct'])
     except:
-        renter_markup, affiliate_share = 0.07, 0.82
+        r_markup, a_share = 0.07, 0.82
 
-    tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
-    
+    # Find the highest applicable discount
+    tiers = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
     discount = 0.0
-    for _, row in tiers_df.iterrows():
+    for _, row in tiers.iterrows():
         if total_days >= row['min_days']:
             discount = float(row['discount_pct'])
             break
             
-    raw_base_total = base_daily_rate * total_days
-    discounted_base_total = raw_base_total * (1 - discount)
-    renter_total = discounted_base_total * (1 + renter_markup) 
-    affiliate_total = discounted_base_total * affiliate_share 
+    # Calculations
+    raw_total = base_daily_rate * total_days
+    discounted_base = raw_total * (1 - discount)
+    
+    renter_final = discounted_base * (1 + r_markup)
+    affiliate_final = discounted_base * a_share
     
     return {
         "days": total_days,
         "discount_percent": int(discount * 100),
-        "renter_total": renter_total,
-        "affiliate_total": affiliate_total,
-        "platform_profit": renter_total - affiliate_total
+        "renter_total": round(renter_final, 2),
+        "affiliate_total": round(affiliate_final, 2),
+        "platform_profit": round(renter_final - affiliate_final, 2)
     }
