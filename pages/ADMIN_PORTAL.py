@@ -311,7 +311,7 @@ with tabs[2]:
                             time.sleep(1); st.rerun()
     except Exception as e: st.error(f"Error loading logistics data: {e}")
 
-# --- TAB 3: FINANCIALS (PAYMONGO & DYNAMIC MARGINS) ---
+# --- TAB 3: FINANCIALS (PAYMONGO, DYNAMIC MARGINS & 4-DAY RULE) ---
 with tabs[3]:
     st.markdown("<h2 style='text-align: center;'>🏦 MASTER FINANCIAL LEDGER</h2>", unsafe_allow_html=True)
     try:
@@ -324,8 +324,9 @@ with tabs[3]:
             r_markup = DEFAULT_RENTER_MARKUP
             a_share = DEFAULT_AFFILIATE_SHARE
 
+        # 2. Fetch data (Notice we pull 'return_time' here to calculate days)
         query = """
-        SELECT b.id, b.booking_ref, b.pickup_time as Date, u_renter.full_name as Renter, u_owner.full_name as Affiliate,
+        SELECT b.id, b.booking_ref, b.pickup_time as Date, b.return_time, u_renter.full_name as Renter, u_owner.full_name as Affiliate,
                b.amount as Total_Paid_By_Renter, b.status as Trip_Status, b.payout_status as Payout_Status,
                b.gateway_fee, v.bank_name, v.account_no
         FROM bookings b
@@ -342,8 +343,17 @@ with tabs[3]:
         else:
             df['gateway_fee'] = df['gateway_fee'].fillna(0)
 
-            # 2. Financial Math incorporating dynamic margins and PayMongo fees
-            df['Platform_Gross_Cut'] = df['Total_Paid_By_Renter'] * (1 - (a_share / (1 + r_markup)))
+            # CALCULATE DAYS TO APPLY THE "4-DAY RULE"
+            df['pickup_dt'] = pd.to_datetime(df['Date'], errors='coerce')
+            df['return_dt'] = pd.to_datetime(df['return_time'], errors='coerce')
+            df['Total_Days'] = (df['return_dt'] - df['pickup_dt']).dt.ceil('D').dt.days
+            df['Total_Days'] = df['Total_Days'].fillna(1).clip(lower=1)
+            
+            # 🚨 The Renter Markup is only collected if Total_Days >= 4
+            df['Applied_Markup'] = np.where(df['Total_Days'] >= 4, r_markup, 0.0)
+
+            # 3. Financial Math incorporating dynamic margins, 4-Day Rule, and PayMongo fees
+            df['Platform_Gross_Cut'] = df['Total_Paid_By_Renter'] * (1 - (a_share / (1 + df['Applied_Markup'])))
             df['Platform_Net_Profit'] = df['Platform_Gross_Cut'] - df['gateway_fee'] - (df['Total_Paid_By_Renter'] * TAX_RATE * 0.18)
 
             df['Affiliate_Gross_Share'] = df['Total_Paid_By_Renter'] - df['Platform_Gross_Cut']
@@ -362,8 +372,9 @@ with tabs[3]:
             f_tabs = st.tabs(["📑 MASTER LEDGER", "📤 PROCESS PAYOUTS", "🎫 ISSUE RECEIPTS"])
             
             with f_tabs[0]: 
-                st.caption(f"Calculated based on Admin Margins: Renter Fee ({r_markup*100}%) | Owner Share ({a_share*100}%)")
-                display_cols = ['Ref', 'Date', 'Affiliate', 'Total_Paid_By_Renter', 'gateway_fee', 'EWT_Deduction', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
+                st.caption(f"Calculated based on Admin Margins: Renter Fee ({r_markup*100}% - Waived for <4 days) | Owner Share ({a_share*100}%)")
+                # Added 'Total_Days' to the display so you can verify the math easily
+                display_cols = ['Ref', 'Date', 'Total_Days', 'Affiliate', 'Total_Paid_By_Renter', 'gateway_fee', 'EWT_Deduction', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
                 styled_ledger = df[display_cols].style.format({
                     'Total_Paid_By_Renter': '{:,.2f}', 'gateway_fee': '{:,.2f}', 'EWT_Deduction': '{:,.2f}', 
                     'Affiliate_Net_Payout': '{:,.2f}', 'Platform_Net_Profit': '{:,.2f}'
