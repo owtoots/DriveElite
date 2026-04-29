@@ -42,13 +42,12 @@ if missing:
 
 # If validation passes, safely import the required functions
 from database_utils import get_connection, init_db, patch_database
-from tiered_discounts import init_discount_db, render_admin_discount_table
+from tiered_discounts import init_discount_db, render_admin_discount_table, render_platform_settings
 from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
 
 # ==========================================
 # 4. GLOBAL CONSTANTS & CONFIGURATION
 # ==========================================
-# ✅ RECOMMENDED: Centralized Configuration
 ADMIN_USERNAME = st.secrets.get("admin_username", "masterom")
 ADMIN_PASSWORD = st.secrets.get("admin_password")
 SENDER_EMAIL = st.secrets.get("email_sender")
@@ -112,7 +111,6 @@ def send_email(to_email, subject, body, attachment_path=None, attachment_name=No
             smtp.send_message(msg)
         return True, "Email sent successfully!"
     except Exception as e:
-        # ✅ SECURE: Proper error catching and logging
         error_msg = f"Failed to send email: {str(e)}"
         st.error(error_msg)
         return False, error_msg
@@ -144,29 +142,6 @@ Thank you for choosing DriveElite!
     """
     return receipt
 
-def send_dual_receipts(b_ref, conn):
-    query = """
-        SELECT b.*, v.make, v.model, v.plate, 
-               r.email as r_email, r.full_name as renter_name,
-               a.email as a_email, a.full_name as affiliate_name
-        FROM bookings b
-        JOIN vehicles v ON b.vehicle_id = v.id
-        JOIN platform_users r ON b.renter_username = r.username
-        JOIN platform_users a ON v.owner_username = a.username
-        WHERE b.booking_ref = ?
-    """
-    res = pd.read_sql_query(query, conn, params=(b_ref,))
-    if res.empty: 
-        return False
-    
-    b_data = res.iloc[0]
-    receipt = generate_pos_receipt(b_data)
-    
-    success_renter, msg1 = send_email(b_data['r_email'], f"DriveElite POS Receipt: #{b_ref}", receipt)
-    success_affiliate, msg2 = send_email(b_data['a_email'], f"New Booking Receipt: #{b_ref}", receipt)
-    
-    return success_renter and success_affiliate
-
 # ✅ PERFORMANCE: Cached Database Query for Reviews Tab
 @st.cache_data(ttl=300, show_spinner=False)
 def get_all_reviews(_conn):
@@ -190,7 +165,6 @@ def get_all_reviews(_conn):
 # ==========================================
 # 7. AUTHENTICATION & HEADER
 # ==========================================
-# ✅ RECOMMENDED: Clean, consolidated authentication check
 is_authenticated = (
     st.session_state.get('logged_in') and 
     st.session_state.get('role') == 'ADMIN' and
@@ -341,6 +315,7 @@ with tabs[2]:
 with tabs[3]:
     st.markdown("<h2 style='text-align: center;'>🏦 MASTER FINANCIAL LEDGER</h2>", unsafe_allow_html=True)
     try:
+        # 1. Pull dynamic settings from the DB
         settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct FROM platform_settings WHERE id = 1", conn)
         if not settings_df.empty:
             r_markup = float(settings_df.iloc[0]['renter_markup_pct'])
@@ -367,6 +342,7 @@ with tabs[3]:
         else:
             df['gateway_fee'] = df['gateway_fee'].fillna(0)
 
+            # 2. Financial Math incorporating dynamic margins and PayMongo fees
             df['Platform_Gross_Cut'] = df['Total_Paid_By_Renter'] * (1 - (a_share / (1 + r_markup)))
             df['Platform_Net_Profit'] = df['Platform_Gross_Cut'] - df['gateway_fee'] - (df['Total_Paid_By_Renter'] * TAX_RATE * 0.18)
 
@@ -410,13 +386,46 @@ with tabs[3]:
             with f_tabs[2]:
                 st.markdown("#### Manual POS Issuance")
                 target_ref = st.selectbox("Select Booking to Issue Receipt:", ["--"] + df['booking_ref'].astype(str).tolist())
-                if st.button("SEND POS RECEIPT NOW") and target_ref != "--":
-                    if send_dual_receipts(target_ref, conn):
-                        st.success(f"Receipt for #{target_ref} sent to both parties!")
+                if target_ref != "--":
+                    # Fetch detailed data for receipt
+                    preview_q = """
+                        SELECT b.*, v.make, v.model, v.plate, 
+                               r.email as r_email, r.full_name as renter_name,
+                               a.email as a_email, a.full_name as affiliate_name
+                        FROM bookings b
+                        JOIN vehicles v ON b.vehicle_id = v.id
+                        JOIN platform_users r ON b.renter_username = r.username
+                        JOIN platform_users a ON v.owner_username = a.username
+                        WHERE b.booking_ref = ?
+                    """
+                    preview_df = pd.read_sql_query(preview_q, conn, params=(target_ref,))
+                    
+                    if not preview_df.empty:
+                        p_data = preview_df.iloc[0]
+                        receipt_text = generate_pos_receipt(p_data)
+                        
+                        st.write("### 👁️ Live Email Preview")
+                        st.code(receipt_text, language="text")
+                        
+                        # 3. Two separate Send buttons
+                        col_btn1, col_btn2 = st.columns(2)
+                        with col_btn1:
+                            if st.button(f"📤 SEND TO RENTER\n({p_data['r_email']})", type="primary", use_container_width=True):
+                                with st.spinner("Transmitting..."):
+                                    success, msg = send_email(p_data['r_email'], f"DriveElite POS Receipt: #{target_ref}", receipt_text)
+                                    if success: st.success("✅ Renter Receipt Sent!")
+                                    else: st.error(f"⚠️ Failed: {msg}")
+                        with col_btn2:
+                            if st.button(f"📤 SEND TO AFFILIATE\n({p_data['a_email']})", type="secondary", use_container_width=True):
+                                with st.spinner("Transmitting..."):
+                                    success, msg = send_email(p_data['a_email'], f"New Booking Receipt: #{target_ref}", receipt_text)
+                                    if success: st.success("✅ Affiliate Receipt Sent!")
+                                    else: st.error(f"⚠️ Failed: {msg}")
+
     except Exception as e:
         st.error(f"Financial Error: {e}")
 
-# --- TAB 4: FILING CABINET (UPDATED TO USE UNIFIED send_email) ---
+# --- TAB 4: FILING CABINET ---
 with tabs[4]: 
     st.header("🗄️ Master Digital Filing Cabinet")
     st.write("View legally binding contracts, download them, or instantly email a copy to the user.")
@@ -476,6 +485,11 @@ with tabs[4]:
 
 # --- TAB 5: PROMOS & DB ---
 with tabs[5]:
+    # 1. ADDED: Render dynamic platform settings (Fee % / Share %)
+    render_platform_settings(conn)
+    st.divider()
+
+    # 2. Existing Duration Discounts
     render_admin_discount_table(conn)
     st.divider()
 
@@ -554,7 +568,7 @@ with tabs[5]:
                     time.sleep(3); st.rerun()
             else: st.error("You must type exactly 'DELETE EVERYTHING' to unlock the reset button.")
 
-# --- TAB 6: GLOBAL REVIEWS (UPDATED TO USE CACHE) ---
+# --- TAB 6: GLOBAL REVIEWS ---
 with tabs[6]:
     st.markdown("<h3 style='text-align: center;'>⭐ MASTER PLATFORM REVIEWS</h3>", unsafe_allow_html=True)
     all_rev_df = get_all_reviews(conn)
@@ -568,7 +582,7 @@ with tabs[6]:
                 st.write(f"Renter: {rev['renter_name']} | Affiliate: {rev['affiliate_name']}")
                 if rev['review']: st.info(rev['review'])
 
-# --- TAB 7: PROCESS CANCELLATIONS (UPDATED TO USE UNIFIED send_email) ---
+# --- TAB 7: PROCESS CANCELLATIONS ---
 with tabs[7]:
     st.header("Process Cancellations")
     st.write("Select an active booking to calculate cancellation penalties and process refunds.")
