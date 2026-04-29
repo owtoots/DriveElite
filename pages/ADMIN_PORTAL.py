@@ -1,6 +1,7 @@
 import sys
 import os
 import smtplib
+import sqlite3
 from email.message import EmailMessage
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -42,8 +43,9 @@ if missing:
 
 # If validation passes, safely import the required functions
 try:
-    from database_utils import get_connection, init_db, patch_database
-    from tiered_discounts import (
+    from database_utils import get_connection, init_db
+    from tiered_discounts import init_discount_db, render_admin_discount_table, render_platform_settings
+    from finance import send_email, generate_pos_receipt, send_dual_receipts
     init_discount_db, 
     render_admin_discount_table, 
     render_platform_settings
