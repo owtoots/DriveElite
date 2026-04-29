@@ -31,7 +31,6 @@ if parent_dir not in sys.path:
 # ==========================================
 # 3. MODULE VALIDATION & IMPORTS
 # ==========================================
-# ✅ SECURE: Fail-fast validation of required custom files
 required_modules = ['database_utils', 'tiered_discounts', 'finance']
 missing = []
 for mod in required_modules:
