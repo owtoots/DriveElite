@@ -18,16 +18,23 @@ from streamlit_drawable_canvas import st_canvas
 # --- AUTHENTICATION & PAGE CONFIG ---
 st.set_page_config(page_title="DriveElite Affiliate Portal", layout="wide")
 
-# --- UI CSS FOR CHAT BUBBLES ---
+# --- CUSTOM CSS ---
 st.markdown("""
 <style>
-    .sender-tag {
-        font-size: 0.75em;
-        color: #aaaaaa;
-        margin-bottom: 4px;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+    /* ... (keep whatever existing Affiliate styles you have here) ... */
+
+    /* 🚨 NEW: KILL THE STREAMLIT FADE/BLINK EFFECT 🚨 */
+    [data-testid="stAppViewContainer"] > .main {
+        transition: none !important;
+    }
+    .element-container, .stMarkdown, .stText {
+        transition: none !important;
+        animation: none !important;
+        opacity: 1 !important;
+    }
+    div[data-testid="stStaleElement"] {
+        opacity: 1 !important;
+        transition: none !important;
     }
 </style>
 """, unsafe_allow_html=True)
