@@ -64,15 +64,17 @@ def render_admin_discount_table(conn):
 
     with st.container(border=True):
         col1, col2 = st.columns(2)
-        # ✅ CORRECT - Line 68
+        
         with col1:
             new_r_markup_pct = st.number_input("Renter Platform Fee (%)", min_value=0.0, max_value=100.0, value=current_renter_markup * 100, step=1.0, help="E.g., 10%", key="admin_renter_fee_input_unique")
             new_r_markup = new_r_markup_pct / 100.0
             st.caption(f"*Multiplier applied to Renter: {1 + new_r_markup:.2f}x*")
+        
         with col2:
             new_a_share_pct = st.number_input("Affiliate Revenue Share (%)", min_value=0.0, max_value=100.0, value=current_affiliate_share * 100, step=1.0, help="E.g., 82% means the platform keeps 18%", key="admin_affiliate_share_unique")
             new_a_share = new_a_share_pct / 100.0
             st.caption(f"*Platform Cut: {100 - (new_a_share * 100):.0f}% | Affiliate Payout: {new_a_share * 100:.0f}%*")
+        
         if st.button("Save Platform Margins", type="primary", key="save_margins", use_container_width=True):
             try:
                 conn.execute("UPDATE platform_settings SET renter_markup_pct = ?, affiliate_share_pct = ? WHERE id = 1", (new_r_markup, new_a_share))
