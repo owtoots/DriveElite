@@ -420,11 +420,39 @@ with tabs[3]:
             with f_tabs[2]:
                 st.markdown("#### Manual POS Issuance")
                 target_ref = st.selectbox("Select Booking to Issue Receipt:", ["--"] + df['booking_ref'].astype(str).tolist())
-                if st.button("SEND POS RECEIPT NOW") and target_ref != "--":
-                    if send_dual_receipts(target_ref, conn):
-                        st.success(f"Receipt for #{target_ref} sent to both parties!")
-    except Exception as e:
-        st.error(f"Financial Error: {e}")
+                
+                if target_ref != "--":
+                    # Fetch live data just for the preview
+                    preview_q = """
+                        SELECT b.*, v.make, v.model, v.plate, 
+                               r.email as r_email, r.full_name as renter_name,
+                               a.email as a_email, a.full_name as affiliate_name
+                        FROM bookings b
+                        JOIN vehicles v ON b.vehicle_id = v.id
+                        JOIN platform_users r ON b.renter_username = r.username
+                        JOIN platform_users a ON v.owner_username = a.username
+                        WHERE b.booking_ref = ?
+                    """
+                    preview_df = pd.read_sql_query(preview_q, conn, params=(target_ref,))
+                    
+                    if not preview_df.empty:
+                        p_data = preview_df.iloc[0]
+                        receipt_text = generate_pos_receipt(p_data)
+                        
+                        # Display the email targets and the receipt preview
+                        st.write("### 👁️ Live Email Preview")
+                        col_e1, col_e2 = st.columns(2)
+                        col_e1.info(f"**✉️ To Renter:**\n{p_data['r_email']}")
+                        col_e2.info(f"**✉️ To Affiliate:**\n{p_data['a_email']}")
+                        
+                        st.code(receipt_text, language="text")
+                        
+                        if st.button("📤 SEND POS RECEIPT NOW", type="primary", use_container_width=True):
+                            with st.spinner("Transmitting encrypted emails to both parties..."):
+                                if send_dual_receipts(target_ref, conn):
+                                    st.success(f"✅ Success! Official Receipt for #{target_ref} sent to both parties.")
+                                else:
+                                    st.error("⚠️ Failed to send emails. Check your email credentials in the secrets file.")
 
 # --- TAB 4: FILING CABINET (UPDATED TO USE UNIFIED send_email) ---
 with tabs[4]: 
