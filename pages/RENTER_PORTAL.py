@@ -116,11 +116,34 @@ st.set_page_config(page_title="DriveElite Showroom", layout="wide")
 # --- CUSTOM CSS ---
 st.markdown("""
 <style>
+    /* Your existing styles */
     .stApp { background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); }
-    .bill-box { background-color: #ffffff; padding: 20px; border-radius: 10px; border: 2px solid #333333; margin-top: 10px; box-shadow: 4px 4px 10px rgba(0,0,0,0.1); color: #1a1a1a; }
+    .bill-box { 
+        background-color: #ffffff; 
+        padding: 20px; 
+        border-radius: 10px; 
+        border: 2px solid #333333; 
+        margin-top: 10px; 
+        box-shadow: 4px 4px 10px rgba(0,0,0,0.1); 
+        color: #1a1a1a; 
+    }
     .table-bill { width:100%; font-family: monospace; font-size: 1.05em; border-collapse: collapse; color: #1a1a1a; }
     .table-bill td { padding: 6px 0; }
     .bill-label { font-weight: 700; color: #000000; }
+
+    /* 🚨 NEW: KILL THE STREAMLIT FADE/BLINK EFFECT 🚨 */
+    [data-testid="stAppViewContainer"] > .main {
+        transition: none !important;
+    }
+    .element-container, .stMarkdown, .stText {
+        transition: none !important;
+        animation: none !important;
+        opacity: 1 !important;
+    }
+    div[data-testid="stStaleElement"] {
+        opacity: 1 !important;
+        transition: none !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
