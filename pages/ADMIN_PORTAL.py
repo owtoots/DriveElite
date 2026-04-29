@@ -339,7 +339,7 @@ with tabs[2]:
                     st.write(f"**Affiliate:** {r['affiliate_name']}")
                     
                     if r['status'] == 'PENDING':
-                        st.warning("⏳ This renter is currently at the PayMongo checkout screen. If they paid via manual GCash transfer instead, you can override and confirm the booking below.")
+                        st.warning("⏳ This renter is currently at the PayMongo checkout screen. If they paid via manual GCash transfer instead, you can override and confirm the booking below.")[...]
                         if st.button("Verify Payment & Confirm Booking", key=f"force_conf_{r['id']}"):
                             conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE id = ?", (r['id'],))
                             conn.commit()
@@ -738,6 +738,6 @@ with tabs[8]:
                     else: st.success("✅ No damage was reported upon return.")
                         
                 st.divider()
-                st.write("*Admin Note: If a penalty or deduction is required from the security deposit, please contact both parties directly using the phone numbers provided above to finalize mediation.*")
+                st.write("*Admin Note: If a penalty or deduction is required from the security deposit, please contact both parties directly using the phone numbers provided above to finalize med[...]
     except Exception as e:
         st.warning(f"Error loading evidence center: {e}")
