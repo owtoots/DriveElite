@@ -453,6 +453,9 @@ with tabs[3]:
                                     st.success(f"✅ Success! Official Receipt for #{target_ref} sent to both parties.")
                                 else:
                                     st.error("⚠️ Failed to send emails. Check your email credentials in the secrets file.")
+                                    
+    except Exception as e:
+        st.error(f"Financial Error: {e}")
 
 # --- TAB 4: FILING CABINET (UPDATED TO USE UNIFIED send_email) ---
 with tabs[4]: 
