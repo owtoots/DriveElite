@@ -36,7 +36,7 @@ missing = []
 for mod in required_modules:
     try:
         __import__(mod)
-        except ImportError:
+    except ImportError:
         missing.append(mod)
 
 if missing:
