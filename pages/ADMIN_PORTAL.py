@@ -41,14 +41,19 @@ if missing:
     st.stop()
 
 # If validation passes, safely import the required functions
-from database_utils import get_connection, init_db, patch_database
 try:
+    from database_utils import get_connection, init_db, patch_database
     from tiered_discounts import init_discount_db, render_admin_discount_table
-except ImportError:
-    import sys
+    from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
+except ImportError as e:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/..')
-    from tiered_discounts import init_discount_db, render_admin_discount_table
-from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
+    try:
+        from database_utils import get_connection, init_db, patch_database
+        from tiered_discounts import init_discount_db, render_admin_discount_table
+        from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
+    except ImportError as e2:
+        st.error(f"🚨 Failed to import required modules even after path adjustment: {e2}")
+        st.stop()
 
 # ==========================================
 # 4. GLOBAL CONSTANTS & CONFIGURATION
