@@ -61,7 +61,7 @@ except ImportError as e:
             init_discount_db, 
             render_admin_discount_table, 
             render_platform_settings
-        )
+    ) 
         from finance import (
             send_email, 
             generate_pos_receipt, 
