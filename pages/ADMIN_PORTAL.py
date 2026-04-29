@@ -43,7 +43,11 @@ if missing:
 # If validation passes, safely import the required functions
 try:
     from database_utils import get_connection, init_db, patch_database
-    from tiered_discounts import init_discount_db, render_admin_discount_table
+    from tiered_discounts import (
+    init_discount_db, 
+    render_admin_discount_table, 
+    render_platform_settings
+)
     from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
 except ImportError as e:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/..')
