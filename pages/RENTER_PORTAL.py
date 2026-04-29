@@ -238,8 +238,11 @@ with tabs[0]:
                             else:
                                 full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
                                 driver_days = full_days + (1 if billed_hrs > 0 else 0)
-                                driver_fee = (driver_days * 1000.0) if "Driver" in drive_mode else 0.0
                                 
+                                # 🚨 Add this exact line right here to fix the NameError!
+                                is_driver = 1 if "Driver" in drive_mode else 0
+                                
+                                driver_fee = (driver_days * 1000.0) if is_driver else 0.0
                                 # --- 1. DYNAMIC DURATION DISCOUNTS ---
                                 try:
                                     tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
