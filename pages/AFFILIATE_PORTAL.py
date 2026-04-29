@@ -373,47 +373,38 @@ st.divider()
 # ==========================================
 # 📢 SMART COLOR-CHANGING BROADCAST BANNER
 # ==========================================
+# --- OPTIMIZED GHOST-FREE BROADCAST (AFFILIATE) ---
 try:
-    query = "SELECT title, message, target FROM admin_promos WHERE active = 1 AND target IN ('ALL USERS', 'ALL', 'AFFILIATE', 'AFFILIATES')"
-    broadcasts = pd.read_sql_query(query, conn)
+    # Fetch active promos targeting Affiliates or Everyone
+    promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('AFFILIATES', 'ALL USERS') LIMIT 1", conn)
     
-    if not broadcasts.empty:
-        latest_b = broadcasts.iloc[-1]
-        target_group = str(latest_b['target']).upper()
+    if not promo_df.empty:
+        title = promo_df.iloc[0]['title']
+        msg = promo_df.iloc[0]['message']
         
-        if target_group in ['ALL USERS', 'ALL']:
-            primary_color = "#27ae60" 
-            gradient = "linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)"
-            glow_color = "rgba(39, 174, 96, 0.7)"
-        else:
-            primary_color = "#c0392b" 
-            gradient = "linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)"
-            glow_color = "rgba(231, 76, 60, 0.7)"
-            
-        blink_css = f"""
-        <style>
-        @keyframes pulse_glow_affiliate {{
-            0% {{ box-shadow: 0 0 0 0 {glow_color}; border-color: {primary_color}; }}
-            70% {{ box-shadow: 0 0 15px 15px rgba(0,0,0,0); border-color: #ffffff; }}
-            100% {{ box-shadow: 0 0 0 0 rgba(0,0,0,0); border-color: {primary_color}; }}
-        }}
-        .broadcast-banner-affiliate {{
-            background: {gradient}; color: white; padding: 15px 20px; border-radius: 8px;
-            border: 2px solid {primary_color}; text-align: center; margin-bottom: 25px;
-            animation: pulse_glow_affiliate 2s 5; /* CHANGED FROM INFINITE TO 5 */
-        }}
-        .broadcast-title-affiliate {{ font-size: 1.3em; font-weight: 900; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;}}
-        .broadcast-msg-affiliate {{ font-size: 1.1em; font-weight: 500; }}
-        </style>
-        """
-        st.markdown(blink_css + f"""
-        <div class="broadcast-banner-affiliate">
-            <div class="broadcast-title-affiliate">📢 ADMIN BROADCAST: {latest_b['title']} 📢</div>
-            <div class="broadcast-msg-affiliate">{latest_b['message']}</div>
-        </div>
+        st.markdown(f"""
+            <style>
+            @keyframes slow-prefix {{
+                0% {{ opacity: 0.8; }}
+                50% {{ opacity: 1; }}
+                100% {{ opacity: 0.8; }}
+            }}
+            .broadcast-box {{
+                padding: 15px;
+                background-color: #ff4b4b;
+                color: white;
+                border-radius: 10px;
+                margin-bottom: 20px;
+                border-left: 5px solid #800000;
+                animation: slow-prefix 3s infinite ease-in-out;
+            }}
+            </style>
+            <div class="broadcast-box">
+                <strong>📢 {title}:</strong> {msg}
+            </div>
         """, unsafe_allow_html=True)
-except Exception as e:
-    pass 
+except Exception:
+    pass # Fails silently, no empty boxes, no lag! 
 # ==========================================
 
 # --- TABS ---
