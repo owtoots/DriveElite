@@ -350,13 +350,37 @@ with tabs[1]:
                         align = "right" if m['sender_username'] == renter_user else "left"
                         st.markdown(f'<div style="text-align: {align};"><b>{m["sender_username"]}:</b> {m["message_text"]}</div>', unsafe_allow_html=True)
                 
-                c_i, c_t = st.columns([1, 4])
-                with c_t: st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_renter_chat, args=(b_ref_str,))
-                if st.button("Send", key=f"btn_{b_ref_str}"):
-                    final_msg = st.session_state.get(f"chat_{b_ref_str}", "")
-                    if final_msg:
-                        conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text) VALUES (?, ?, ?, ?)", (b_ref_str, renter_user, t['owner_username'], final_msg))
+                c_img, c_msg = st.columns([1, 4])
+                with c_img: 
+                    r_img = st.file_uploader("📷", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"r_img_{b_ref_str}", label_visibility="collapsed")
+                with c_msg: 
+                    st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_renter_chat, args=(b_ref_str,), placeholder="Upload BPI receipt or type a message...")
+
+                btn_clicked = st.button("Send", key=f"btn_{b_ref_str}", use_container_width=True)
+                enter_pressed = st.session_state.get(f"trigger_send_{b_ref_str}", False)
+
+                if btn_clicked or enter_pressed:
+                    box_val = st.session_state.get(f"chat_{b_ref_str}", "")
+                    final_msg = st.session_state.temp_msg_renter if enter_pressed else box_val
+                    
+                    has_text = bool(final_msg.strip())
+                    has_imgs = bool(r_img and len(r_img) > 0)
+                    
+                    if has_text or has_imgs:
+                        if has_imgs:
+                            for idx, img_file in enumerate(r_img):
+                                path = save_chat_image(img_file, b_ref_str)
+                                text_to_save = final_msg if idx == 0 else ""
+                                if idx == 0 and not has_text: text_to_save = "📸 Uploaded Payment/Photo."
+                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                             (b_ref_str, renter_user, t['owner_username'], text_to_save, path))
+                        else:
+                            conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                         (b_ref_str, renter_user, t['owner_username'], final_msg, ""))
                         conn.commit()
+                        st.session_state.temp_msg_renter = ""
+                        st.session_state[f"chat_{b_ref_str}"] = ""
+                        st.session_state[f"trigger_send_{b_ref_str}"] = False
                         st.rerun()
 
     with trip_tabs[1]:
