@@ -64,7 +64,11 @@ conn = get_connection()
 init_db()
 patch_database()
 init_discount_db(conn)
-
+try:
+    conn.execute("ALTER TABLE platform_settings ADD COLUMN payment_mode TEXT DEFAULT 'MANUAL_QR'")
+    conn.commit()
+except:
+    pass
 # ==========================================
 # 6. UTILITY FUNCTIONS (UNIFIED EMAILS, CACHE & POS)
 # ==========================================
@@ -200,7 +204,7 @@ with head_col2:
 # ==========================================
 # 8. MAIN INTERFACE TABS
 # ==========================================
-tabs = st.tabs(["📋 APPROVALS", "🚙 ASSETS", "🚚 LOGISTICS", "🏦 FINANCIALS", "🗄️ FILING CABINET", "📢 PROMOS & DB", "⭐ REVIEWS", "❌ CANCELLATIONS", "⚖️ DISPUTES"])
+tabs = st.tabs(["📋 APPROVALS", "🚙 ASSETS", "🚚 LOGISTICS", "🏦 FINANCIALS", "🗄️ FILING CABINET", "📢 PROMOS & DB", "⭐ REVIEWS", "❌ CANCELLATIONS", "⚖️ DISPUTES", "⚙️ SETTINGS"])
 
 # --- TAB 0: PENDING APPROVALS ---
 with tabs[0]:
@@ -734,3 +738,31 @@ with tabs[8]:
                 st.write("*Admin Note: If a penalty or deduction is required from the security deposit, please contact both parties directly using the phone numbers provided above to finalize mediation.*")
     except Exception as e:
         st.warning(f"Error loading evidence center: {e}")
+
+# --- TAB 9: SYSTEM SETTINGS (The Master Switch) ---
+with tabs[9]:
+    st.markdown("<h2 style='text-align: center;'>⚙️ SYSTEM SETTINGS</h2>", unsafe_allow_html=True)
+    
+    st.markdown("### 💳 Payment Gateway Control")
+    st.info("Toggle the payment system between automated PayMongo and manual BPI QR. This updates the Renter checkout experience instantly.")
+    
+    # Fetch current settings to see what is currently active
+    try:
+        settings_df = pd.read_sql_query("SELECT payment_mode FROM platform_settings WHERE id = 1", conn)
+        current_mode = settings_df.iloc[0]['payment_mode'] if not settings_df.empty else "MANUAL_QR"
+    except Exception:
+        current_mode = "MANUAL_QR"
+
+    new_mode = st.radio("Active Payment System:", 
+                        ["MANUAL_QR", "PAYMONGO"], 
+                        index=0 if current_mode == "MANUAL_QR" else 1)
+
+    if st.button("Save Payment Settings", type="primary"):
+        try:
+            conn.execute("UPDATE platform_settings SET payment_mode = ? WHERE id = 1", (new_mode,))
+            conn.commit()
+            st.success(f"✅ System successfully updated to use {new_mode}!")
+            time.sleep(1)
+            st.rerun()
+        except Exception as e:
+            st.error(f"Database error: {e}")
