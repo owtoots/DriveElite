@@ -77,7 +77,7 @@ st.markdown("""
     }
     /* 6. Force Sidebar to be Dark */
     [data-testid="stSidebar"] {
-        background-color: #1a1a1a !important;
+        background-color: #2a2a2a !important;
     }
 </style>
 """, unsafe_allow_html=True)
