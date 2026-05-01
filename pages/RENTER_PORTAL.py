@@ -314,8 +314,10 @@ with tabs[0]:
                                             st.markdown("### 📱 Scan to Pay via InstaPay / QR Ph")
                                             st.info("Scan the QR code below using GCash, Maya, or any banking app.")
                                             
-                                            # Your cropped QR code goes here
-                                            st.image("bpi_qr.png", width=250)
+                                            # Center the QR Code using columns
+                                            spacer1, col_img, spacer2 = st.columns([1, 1, 1])
+                                            with col_img:
+                                                st.image("bpi_qr.png", use_container_width=True)
                                             
                                             # 🚨 Add this big alert so they know to type the amount!
                                             st.error(f"**IMPORTANT: Please manually enter the exact amount: ₱{grand_total:,.2f}**")
