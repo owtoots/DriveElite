@@ -298,10 +298,10 @@ with tabs[0]:
                                 
                                 st.divider()
 
-                                # --- 4. NEW SMART BUTTON WITH PAYMONGO ---
-                                if st.button("CONFIRM BOOKING & PAY", key=f"conf_{car['id']}", type="primary", use_container_width=True, disabled=not can_book):
+                                # --- 4. MANUAL QR CODE PAYMENT ---
+                                if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True, disabled=not can_book):
                                     if dest and p_exact and r_exact and luzon_agree:
-                                        with st.spinner("Generating secure checkout link..."):
+                                        with st.spinner("Securing your booking..."):
                                             b_ref = str(random.randint(100000, 999999))
                                             p_dt_str, r_dt_str = p_dt_obj.strftime("%Y-%m-%d %H:%M"), r_dt_obj.strftime("%Y-%m-%d %H:%M")
                                             
@@ -310,42 +310,20 @@ with tabs[0]:
                                                          (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
                                             conn.commit()
                                             
-                                            # PayMongo API Call
-                                            SECRET_KEY = st.secrets["paymongo_active_key"]
-                                            pay_amount = int(grand_total * 100) # Centavos
+                                            # Display Success and QR Code
+                                            st.success(f"✅ Booking Saved (Ref: #{b_ref})")
                                             
-                                            auth_string = f"{SECRET_KEY}:"
-                                            base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+                                            st.markdown(f"### 📱 Pay ₱{grand_total:,.2f} via GCash/Maya")
+                                            st.info("Scan the QR code below to transfer your payment directly to DriveElite.")
                                             
-                                            url = "https://api.paymongo.com/v1/links"
-                                            payload = {
-                                                "data": {
-                                                    "attributes": {
-                                                        "amount": pay_amount, 
-                                                        "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})",
-                                                        "remarks": f"Renter: {renter_user}"
-                                                    }
-                                                }
-                                            }
-                                            data = json.dumps(payload).encode('utf-8')
-                                            req = urllib.request.Request(url, data=data)
-                                            req.add_header('accept', 'application/json')
-                                            req.add_header('content-type', 'application/json')
-                                            req.add_header('authorization', f'Basic {base64_auth}')
+                                            # --- ADD YOUR ACTUAL QR CODE IMAGE HERE ---
+                                            # Upload your QR code image to your project folder (e.g., inside an 'assets' folder)
+                                            # and change the path below to match, like "assets/gcash_qr.png"
+                                            st.image("https://placehold.co/300x300?text=Your+GCash+QR+Here", caption="DriveElite Official GCash", width=300)
                                             
-                                            try:
-                                                response = urllib.request.urlopen(req)
-                                                response_data = json.loads(response.read().decode('utf-8'))
-                                                checkout_url = response_data['data']['attributes']['checkout_url']
-                                                
-                                                st.success(f"✅ Booking Saved (Ref: #{b_ref})")
-                                                st.markdown(f"### 💳 [👉 CLICK HERE TO PAY ₱{grand_total:,.2f} VIA PAYMONGO]({checkout_url})")
-                                                st.info("Complete your payment using the link above to officially confirm your booking.")
-                                            except urllib.error.URLError as e:
-                                                st.error("Failed to generate payment link. Please contact admin.")
+                                            st.warning("⚠️ **Next Step:** Go to the 'My Bookings' tab and send a screenshot of your payment receipt in the chat. The admin will confirm your trip once verified!")
                                     else: 
-                                        st.warning("⚠️ Please fill all required fields.")
-
+                                        st.warning("⚠️ Please fill all required fields (Destination, Address, and Luzon Agreement).")
 # --- TAB 1: MY BOOKINGS ---
 with tabs[1]:
     trip_tabs = st.tabs(["🚀 Active Trips", "📜 History"])
