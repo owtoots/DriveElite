@@ -440,7 +440,7 @@ with tabs[0]:
             st.info("You have no active bookings right now. Ensure your vehicles are marked 'AVAILABLE'.")
         else:
             for _, b in my_bookings.iterrows():
-                status_icon = "🟡" if b['status'] in ['PENDING', 'CONFIRMED'] else "🟢"
+                status_icon = "🟡" if b['status'] == 'PENDING' else "🟢"
                 b_ref_display = f"#{b['booking_ref']}" if pd.notnull(b.get('booking_ref')) else f"DRV-{b['id']:05d}"
                 
                 with st.expander(f"{status_icon} {str(b['pickup_time'])[:16]} | {b['make']} {b['model']} ({b['plate']})"):
