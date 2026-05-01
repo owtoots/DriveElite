@@ -30,7 +30,6 @@ def get_booked_dates(vehicle_id, conn):
     booked_days = set()
     for _, row in df.iterrows():
         try:
-            # FIXED: Corrected column names and pd.to_datetime syntax
             start = pd.to_datetime(row['pickup_time']).date()
             end = pd.to_datetime(row['return_time']).date()
             
@@ -207,7 +206,6 @@ with tabs[0]:
                             unavailable_dates = get_booked_dates(car['id'], conn)
                             d1 = st.date_input("Pickup Date", min_value=datetime.date.today(), key=f"d1_{car['id']}")
                             
-                            # APPLIED: Hourly step logic
                             t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}", step=datetime.timedelta(hours=1))
                             d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}")
                             t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}", step=datetime.timedelta(hours=1))
@@ -314,17 +312,18 @@ with tabs[0]:
                                             st.success(f"✅ Booking Saved (Ref: #{b_ref})")
                                             
                                             st.markdown("### 📱 Scan to Pay via InstaPay / QR Ph")
-st.info("Scan the QR code below using GCash, Maya, or any banking app.")
-
-# Your cropped QR code goes here
-st.image("bpi_qr.png", width=250)
-
-# 🚨 Add this big alert so they know to type the amount!
-st.error(f"**IMPORTANT: Please manually enter the exact amount: ₱{grand_total:,.2f}**")
-
-st.warning("⚠️ After transferring, go to the 'My Bookings' tab and send a screenshot of your receipt in the chat. Your booking will remain PENDING until we verify the receipt.")
+                                            st.info("Scan the QR code below using GCash, Maya, or any banking app.")
+                                            
+                                            # Your cropped QR code goes here
+                                            st.image("bpi_qr.png", width=250)
+                                            
+                                            # 🚨 Add this big alert so they know to type the amount!
+                                            st.error(f"**IMPORTANT: Please manually enter the exact amount: ₱{grand_total:,.2f}**")
+                                            
+                                            st.warning("⚠️ After transferring, go to the 'My Bookings' tab and send a screenshot of your receipt in the chat. Your booking will remain PENDING until we verify the receipt.")
                                     else: 
                                         st.warning("⚠️ Please fill all required fields (Destination, Address, and Luzon Agreement).")
+
 # --- TAB 1: MY BOOKINGS ---
 with tabs[1]:
     trip_tabs = st.tabs(["🚀 Active Trips", "📜 History"])
