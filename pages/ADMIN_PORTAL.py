@@ -369,17 +369,49 @@ with tabs[3]:
             payouts_due = df[(df['Payout_Status'] == 'PENDING') & (df['Trip_Status'] == 'COMPLETED')]['Affiliate_Net_Payout'].sum()
             c3.metric("⏳ Payouts Due to Owners", f"₱{payouts_due:,.2f}")
             
-            f_tabs = st.tabs(["📑 MASTER LEDGER", "📤 PROCESS PAYOUTS", "🎫 ISSUE RECEIPTS"])
+            # --- UPDATED SUB-TABS ---
+            f_tabs = st.tabs(["💸 BPI VERIFICATION", "📑 MASTER LEDGER", "📤 PROCESS PAYOUTS", "🎫 ISSUE RECEIPTS"])
             
-            with f_tabs[0]: 
+            # --- NEW: BPI VERIFICATION TAB ---
+            with f_tabs[0]:
+                st.markdown("#### 🔍 Awaiting BPI Confirmation")
+                # Fetch only PENDING bookings for manual verification
+                pending_bpi = pd.read_sql_query("""
+                    SELECT b.*, u.full_name as Renter 
+                    FROM bookings b 
+                    JOIN platform_users u ON b.renter_username = u.username 
+                    WHERE b.status = 'PENDING' 
+                    ORDER BY b.id DESC
+                """, conn)
+                
+                if pending_bpi.empty:
+                    st.info("No bookings currently awaiting payment verification.")
+                else:
+                    for _, row in pending_bpi.iterrows():
+                        with st.container(border=True):
+                            c_info, c_acts = st.columns([2, 1])
+                            with c_info:
+                                st.write(f"**Ref:** #{row['booking_ref']} | **Renter:** {row['Renter']}")
+                                st.write(f"**Amount to Verify:** :green[₱{row['amount']:,.2f}]")
+                                st.caption(f"Pickup: {row['pickup_time']} | Destination: {row['destination']}")
+                            
+                            with c_acts:
+                                # This is your "Human PayMongo" button
+                                if st.button("✅ CONFIRM PAYMENT", key=f"verify_{row['booking_ref']}", type="primary", use_container_width=True):
+                                    conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE booking_ref = ?", (row['booking_ref'],))
+                                    conn.commit()
+                                    st.success(f"Verified! Booking #{row['booking_ref']} is now CONFIRMED.")
+                                    time.sleep(1)
+                                    st.rerun()
+                                
+                                if st.button("❌ REJECT / CANCEL", key=f"reject_{row['booking_ref']}", use_container_width=True):
+                                    conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE booking_ref = ?", (row['booking_ref'],))
+                                    conn.commit()
+                                    st.rerun()
+
+            with f_tabs[1]: # This is your existing MASTER LEDGER
                 st.caption(f"Calculated based on Admin Margins: Renter Fee ({r_markup*100}% - Waived for <4 days) | Owner Share ({a_share*100}%)")
-                # Added 'Total_Days' to the display so you can verify the math easily
-                display_cols = ['Ref', 'Date', 'Total_Days', 'Affiliate', 'Total_Paid_By_Renter', 'gateway_fee', 'EWT_Deduction', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
-                styled_ledger = df[display_cols].style.format({
-                    'Total_Paid_By_Renter': '{:,.2f}', 'gateway_fee': '{:,.2f}', 'EWT_Deduction': '{:,.2f}', 
-                    'Affiliate_Net_Payout': '{:,.2f}', 'Platform_Net_Profit': '{:,.2f}'
-                })
-                st.dataframe(styled_ledger, use_container_width=True, hide_index=True)
+                # ... (rest of your Master Ledger code continues here) ...
             
             with f_tabs[1]:
                 pending_p = df[(df['Trip_Status'] == 'COMPLETED') & (df['Payout_Status'] == 'PENDING')]
