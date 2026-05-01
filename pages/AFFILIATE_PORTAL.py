@@ -75,6 +75,10 @@ st.markdown("""
     h1, h2, h3, p, label, .stMarkdown p {
         color: #ffffff !important;
     }
+    /* 6. Force Sidebar to be Dark */
+    [data-testid="stSidebar"] {
+        background-color: #262626 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
