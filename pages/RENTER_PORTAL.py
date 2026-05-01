@@ -313,15 +313,16 @@ with tabs[0]:
                                             # Display Success and QR Code
                                             st.success(f"✅ Booking Saved (Ref: #{b_ref})")
                                             
-                                            st.markdown(f"### 📱 Pay ₱{grand_total:,.2f} via InstaPay / QR Ph")
-                                            st.info("Scan the QR code below to transfer your payment directly to DriveElite.")
-                                            
-                                           
-                                            # Upload your QR code image to your project folder (e.g., inside an 'assets' folder)
-                                            # and change the path below to match, like "assets/gcash_qr.png"
-                                            st.image("bpi_qr.png", caption="DriveElite Official BPI", width=300)
-                                            
-                                            st.warning("⚠️ **Next Step:** Go to the 'My Bookings' tab and send a screenshot of your payment receipt in the chat. The admin will confirm your trip once verified!")
+                                            st.markdown("### 📱 Scan to Pay via InstaPay / QR Ph")
+st.info("Scan the QR code below using GCash, Maya, or any banking app.")
+
+# Your cropped QR code goes here
+st.image("bpi_qr.png", width=250)
+
+# 🚨 Add this big alert so they know to type the amount!
+st.error(f"**IMPORTANT: Please manually enter the exact amount: ₱{grand_total:,.2f}**")
+
+st.warning("⚠️ After transferring, go to the 'My Bookings' tab and send a screenshot of your receipt in the chat. Your booking will remain PENDING until we verify the receipt.")
                                     else: 
                                         st.warning("⚠️ Please fill all required fields (Destination, Address, and Luzon Agreement).")
 # --- TAB 1: MY BOOKINGS ---
