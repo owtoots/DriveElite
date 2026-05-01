@@ -351,7 +351,15 @@ with tabs[3]:
                             st.write(f"**Vehicle:** {row['make']} {row['model']}")
                             st.write(f"**Amount to Verify:** :green[₱{row['amount']:,.2f}]")
                             st.caption(f"Pickup: {row['pickup_time']} | Destination: {row['destination']}")
-                        
+                        with st.expander("👁️ View Chat & Receipts"):
+                                msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(row['booking_ref'],))
+                                if msgs.empty:
+                                    st.info("No messages or receipts uploaded yet.")
+                                else:
+                                    for _, m in msgs.iterrows():
+                                        st.write(f"**{m['sender_username']}:** {m['message_text']}")
+                                        if m.get('image_path') and os.path.exists(m['image_path']):
+                                            st.image(m['image_path'], width=200)
                         with c_acts:
                             if st.button("✅ CONFIRM PAYMENT", key=f"verify_{row['booking_ref']}", type="primary", use_container_width=True):
                                 conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE booking_ref = ?", (row['booking_ref'],))
