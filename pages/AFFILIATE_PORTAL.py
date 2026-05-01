@@ -123,7 +123,16 @@ def patch_database():
 patch_database()
 
 if not os.path.exists("uploads"): os.makedirs("uploads")
-
+# --- FETCH DYNAMIC PLATFORM SETTINGS ---
+try:
+    settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct FROM platform_settings WHERE id = 1", conn)
+    if not settings_df.empty:
+        r_markup = float(settings_df.iloc[0]['renter_markup_pct'])
+        a_share_pct = float(settings_df.iloc[0]['affiliate_share_pct'])
+    else:
+        r_markup, a_share_pct = 0.07, 0.85 # Fallbacks if DB is empty
+except:
+    r_markup, a_share_pct = 0.07, 0.85
 # --- UTILITIES & HELPERS ---
 def save_file(uploaded_file):
     if uploaded_file:
@@ -436,26 +445,46 @@ with tabs[0]:
                 
                 with st.expander(f"{status_icon} {str(b['pickup_time'])[:16]} | {b['make']} {b['model']} ({b['plate']})"):
                     
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write(f"**Booking Ref:** {b_ref_display}")
-                        st.write(f"**Renter:** {b['renter_name']}")
-                        st.write(f"**Contact:** {b['renter_contact']}")
+                    # 🚨 1. STATUS WARNINGS (Safety First)
+                    if b['status'] == 'PENDING':
+                        st.warning("⚠️ **AWAITING PAYMENT VERIFICATION**")
+                        st.caption("Admin is verifying the BPI transfer. **DO NOT RELEASE THE VEHICLE.**")
+                    elif b['status'] == 'CONFIRMED':
+                        st.success("✅ **PAYMENT VERIFIED**")
+                        st.caption("Payment confirmed by Admin. You may proceed with the handover.")
+                    
+                    # 💰 2. DYNAMIC EARNINGS BREAKDOWN (Transparency)
+                    with st.container(border=True):
+                        # Calculate days for the 4-Day Rule
+                        p_dt = pd.to_datetime(b['pickup_time'])
+                        r_dt = pd.to_datetime(b['return_time'])
+                        days_count = (r_dt - p_dt).days
+                        days_count = max(1, days_count) # Minimum 1 day
                         
-                        # --- NEW: INSTANT RECEIPT GENERATOR ---
-                        travel_dates = f"{str(b.get('pickup_time'))[:10]} to {str(b.get('return_time'))[:10]}"
-                        receipt_pdf = generate_booking_receipt(
-                            b_ref_display, b['renter_name'], f"{b['make']} {b['model']}", b['plate'], 
-                            travel_dates, float(b['amount']), b.get('pickup_loc', 'N/A'), b.get('return_loc', 'N/A')
-                        )
-                        st.download_button("📥 DOWNLOAD BOOKING RECEIPT", data=receipt_pdf, file_name=f"Receipt_{b_ref_display}.pdf", mime="application/pdf")
-                        # --------------------------------------
+                        # Apply the 4-Day Rule markup
+                        active_markup = r_markup if days_count >= 4 else 0.0
                         
-                    with col2:
-                        st.write(f"**Pickup:** {b.get('pickup_loc', 'Not specified')}")
-                        st.write(f"**Return:** {b.get('return_loc', 'Not specified')}")
-                        st.write(f"**Total Revenue:** ₱{b['amount']:,.2f}")
+                        # Calculate Gross Share based on your Admin settings (a_share_pct)
+                        # We back out the markup to find the Base Rate
+                        base_est = b['amount'] / (1 + active_markup)
+                        affiliate_gross = base_est * a_share_pct
+                        
+                        # Apply 1% EWT Tax
+                        ewt_val = affiliate_gross * 0.01
+                        net_payout = affiliate_gross - ewt_val
+                        
+                        c_earn1, c_earn2, c_earn3 = st.columns(3)
+                        c_earn1.metric("Total Rental", f"₱{b['amount']:,.2f}")
+                        c_earn2.metric("Your Gross", f"₱{affiliate_gross:,.2f}")
+                        c_earn3.metric("Net Payout", f"₱{net_payout:,.2f}")
+                        
+                        if active_markup == 0:
+                            st.info("💡 **4-Day Rule:** Platform fee was waived for this short trip.")
+
                     st.divider()
+
+                    # Your existing col1, col2 contact info starts here...
+                    col1, col2 = st.columns(2)
                     
                     # --- UPGRADED FLEXBOX CHAT SECTION ---
                     st.markdown("#### 💬 Message the Renter")
