@@ -228,7 +228,7 @@ with tabs[0]:
                             drive_mode = st.radio("Mode", ["Self-Drive", "With Driver (+₱1k/day)"], key=f"dm_{car['id']}")
                             dest = st.text_input("Destination", key=f"dest_{car['id']}")
                             luzon_agree = st.checkbox("I agree to LUZON ONLY travel.", key=f"luzon_{car['id']}")
-                            ZONES = {"HQ: Pasig (Free)": 0.0, "Zone 1: Ortigas/BGC": 500.0, "Zone 2: Manila/QC": 1000.0, "Zone 3: Alabang/LP": 1500.0}
+                            ZONES = {"HQ: Pasig/Ortigas/BGC (Free)": 0.0, "Zone 1: Cubao/Sta. Mesa/Makati": 500.0, "Zone 2: Manila/QC/MOA": 1000.0, "Zone 3: Alabang/LP": 1500.0}
                             p_zone = st.selectbox("Pickup Zone", list(ZONES.keys()), key=f"pz_{car['id']}")
                             p_exact = st.text_input("Pickup Address", key=f"pa_{car['id']}")
                             r_zone = st.selectbox("Return Zone", list(ZONES.keys()), key=f"rz_{car['id']}")
