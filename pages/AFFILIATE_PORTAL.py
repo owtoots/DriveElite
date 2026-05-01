@@ -16,7 +16,67 @@ from database_utils import get_connection
 from streamlit_drawable_canvas import st_canvas
 
 # --- AUTHENTICATION & PAGE CONFIG ---
-st.set_page_config(page_title="DriveElite Affiliate Portal", layout="wide")
+st.set_page_config(page_title="DriveElite Renter Portal", layout="wide")
+
+# ==========================================
+# 🚨 PASTE THE NEW CSS RIGHT HERE 🚨
+# ==========================================
+st.markdown("""
+<style>
+    /* 1. Main Background and Page Theme */
+    [data-testid="stAppViewContainer"] {
+        background-color: #121212 !important;
+        color: #ffffff !important;
+        font-family: sans-serif !important;
+    }
+    
+    [data-testid="stHeader"] {
+        background-color: #121212 !important;
+    }
+
+    /* 2. Login Container (Streamlit Forms) */
+    [data-testid="stForm"] {
+        background-color: #1e1e1e !important;
+        padding: 30px !important;
+        border-radius: 8px !important;
+        border: 1px solid #333 !important;
+        max-width: 500px !important;
+        margin: 0 auto !important;
+    }
+
+    /* 3. Input Fields */
+    div[data-baseweb="input"] > div {
+        background-color: #2a2a2a !important;
+        border: 1px solid #444 !important;
+        border-radius: 4px !important;
+    }
+    
+    /* Make input text white */
+    div[data-baseweb="input"] input {
+        color: #ffffff !important;
+    }
+
+    /* 4. Login Button - Styled to match the green car emoji */
+    [data-testid="stFormSubmitButton"] > button {
+        background-color: #2c8c80 !important; 
+        color: #ffffff !important;
+        font-weight: bold !important;
+        border: none !important;
+        border-radius: 4px !important;
+        width: 100% !important;
+    }
+
+    [data-testid="stFormSubmitButton"] > button:hover {
+        background-color: #20685e !important;
+        color: #ffffff !important;
+    }
+
+    /* 5. Typography Fix (Ensures invisible text becomes visible) */
+    h1, h2, h3, p, label, .stMarkdown p {
+        color: #ffffff !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # --- CUSTOM CSS ---
 st.markdown("""
