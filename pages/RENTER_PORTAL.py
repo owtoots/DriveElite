@@ -16,7 +16,12 @@ from database_utils import get_connection
 
 # --- DATABASE CONNECTION ---
 conn = get_connection()
-
+# --- FETCH DYNAMIC PLATFORM SETTINGS (Including Payment Gateway) ---
+try:
+    settings_df = pd.read_sql_query("SELECT payment_mode FROM platform_settings WHERE id = 1", conn)
+    gateway_mode = settings_df.iloc[0]['payment_mode'] if not settings_df.empty else "MANUAL_QR"
+except Exception:
+    gateway_mode = "MANUAL_QR"
 # --- CHAT INPUT RESET LOGIC ---
 if "temp_msg_renter" not in st.session_state:
     st.session_state.temp_msg_renter = ""
@@ -296,36 +301,50 @@ with tabs[0]:
                                 
                                 st.divider()
 
-                                # --- 4. MANUAL QR CODE PAYMENT ---
+                                # --- 4. PAYMENT & CONFIRMATION FLOW ---
                                 if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True, disabled=not can_book):
                                     if dest and p_exact and r_exact and luzon_agree:
                                         with st.spinner("Securing your booking..."):
                                             b_ref = str(random.randint(100000, 999999))
                                             p_dt_str, r_dt_str = p_dt_obj.strftime("%Y-%m-%d %H:%M"), r_dt_obj.strftime("%Y-%m-%d %H:%M")
                                             
-                                            # Save booking as 'PENDING'
-                                            conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
-                                                         (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
-                                            conn.commit()
-                                            
-                                            # Display Success and QR Code
-                                            st.success(f"✅ Booking Saved (Ref: #{b_ref})")
-                                            
-                                            st.markdown("### 📱 Scan to Pay via InstaPay / QR Ph")
-                                            st.info("Scan the QR code below using GCash, Maya, or any banking app.")
-                                            
-                                            # Center the QR Code using columns
-                                            spacer1, col_img, spacer2 = st.columns([1, 1, 1])
-                                            with col_img:
-                                                st.image("bpi_qr.png", use_container_width=True)
-                                            
-                                            # 🚨 Add this big alert so they know to type the amount!
-                                            st.error(f"**IMPORTANT: Please manually enter the exact amount: ₱{grand_total:,.2f}**")
-                                            
-                                            st.warning("⚠️ After transferring, go to the 'My Bookings' tab and send a screenshot of your receipt in the chat. Your booking will remain PENDING until we verify the receipt.")
+                                            # ==========================================
+                                            # CHECK THE MASTER SWITCH
+                                            # ==========================================
+                                            if gateway_mode == "PAYMONGO":
+                                                # --- DOOR A: AUTOMATED PAYMONGO ---
+                                                
+                                                # 🚨 PASTE YOUR OLD PAYMONGO CODE HERE WHEN READY!
+                                                # (It should include saving the DB as 'PENDING_PAYMENT' 
+                                                # and generating the checkout URL link)
+                                                
+                                                st.info("PayMongo Automated Checkout goes here.")
+                                                
+                                            else:
+                                                # --- DOOR B: MANUAL BPI QR ---
+                                                
+                                                # Save booking as 'PENDING'
+                                                conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
+                                                             (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
+                                                conn.commit()
+                                                
+                                                # Display Success and QR Code
+                                                st.success(f"✅ Booking Saved (Ref: #{b_ref})")
+                                                
+                                                st.markdown("### 📱 Scan to Pay via InstaPay / QR Ph")
+                                                st.info("Scan the QR code below using GCash, Maya, or any banking app.")
+                                                
+                                                # Center the QR Code using columns
+                                                spacer1, col_img, spacer2 = st.columns([1, 1, 1])
+                                                with col_img:
+                                                    st.image("bpi_qr.png", use_container_width=True)
+                                                
+                                                # Alert them to type the amount
+                                                st.error(f"**IMPORTANT: Please manually enter the exact amount: ₱{grand_total:,.2f}**")
+                                                
+                                                st.warning("⚠️ After transferring, go to the 'My Bookings' tab and send a screenshot of your receipt in the chat. Your booking will remain PENDING until we verify the receipt.")
                                     else: 
                                         st.warning("⚠️ Please fill all required fields (Destination, Address, and Luzon Agreement).")
-
 # --- TAB 1: MY BOOKINGS ---
 with tabs[1]:
     trip_tabs = st.tabs(["🚀 Active Trips", "📜 History"])
