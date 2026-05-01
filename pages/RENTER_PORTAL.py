@@ -313,13 +313,13 @@ with tabs[0]:
                                             # Display Success and QR Code
                                             st.success(f"✅ Booking Saved (Ref: #{b_ref})")
                                             
-                                            st.markdown(f"### 📱 Pay ₱{grand_total:,.2f} via GCash/Maya")
+                                            st.markdown(f"### 📱 Pay ₱{grand_total:,.2f} via InstaPay / QR Ph")
                                             st.info("Scan the QR code below to transfer your payment directly to DriveElite.")
                                             
                                             # --- ADD YOUR ACTUAL QR CODE IMAGE HERE ---
                                             # Upload your QR code image to your project folder (e.g., inside an 'assets' folder)
                                             # and change the path below to match, like "assets/gcash_qr.png"
-                                            st.image("https://placehold.co/300x300?text=Your+GCash+QR+Here", caption="DriveElite Official GCash", width=300)
+                                            st.image("bpi_qr.png", caption="DriveElite Official BPI", width=300)
                                             
                                             st.warning("⚠️ **Next Step:** Go to the 'My Bookings' tab and send a screenshot of your payment receipt in the chat. The admin will confirm your trip once verified!")
                                     else: 
