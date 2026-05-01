@@ -350,19 +350,22 @@ with tabs[1]:
                         align = "right" if m['sender_username'] == renter_user else "left"
                         st.markdown(f'<div style="text-align: {align};"><b>{m["sender_username"]}:</b> {m["message_text"]}</div>', unsafe_allow_html=True)
                 
+                # --- UPGRADED CRASH-PROOF CHAT BLOCK ---
                 c_img, c_msg = st.columns([1, 4])
                 with c_img: 
                     r_img = st.file_uploader("📷", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"r_img_{b_ref_str}", label_visibility="collapsed")
                 with c_msg: 
                     st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_renter_chat, args=(b_ref_str,), placeholder="Upload BPI receipt or type a message...")
 
-                btn_clicked = st.button("Send", key=f"btn_{b_ref_str}", use_container_width=True)
+                # 🚨 FIX 1: Attach the callback directly to the Send button
+                st.button("Send", key=f"btn_{b_ref_str}", on_click=clear_renter_chat, args=(b_ref_str,), use_container_width=True)
+                
+                # Check if either Enter OR the Button triggered the send action
                 enter_pressed = st.session_state.get(f"trigger_send_{b_ref_str}", False)
 
-                if btn_clicked or enter_pressed:
-                    box_val = st.session_state.get(f"chat_{b_ref_str}", "")
-                    final_msg = st.session_state.temp_msg_renter if enter_pressed else box_val
-                    
+                # 🚨 FIX 2: Process the message safely
+                if enter_pressed:
+                    final_msg = st.session_state.temp_msg_renter
                     has_text = bool(final_msg.strip())
                     has_imgs = bool(r_img and len(r_img) > 0)
                     
@@ -378,8 +381,9 @@ with tabs[1]:
                             conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
                                          (b_ref_str, renter_user, t['owner_username'], final_msg, ""))
                         conn.commit()
+                        
+                        # 🚨 FIX 3: Removed the illegal code. Only clear the temp flags!
                         st.session_state.temp_msg_renter = ""
-                        st.session_state[f"chat_{b_ref_str}"] = ""
                         st.session_state[f"trigger_send_{b_ref_str}"] = False
                         st.rerun()
 
