@@ -313,35 +313,59 @@ with tabs[0]:
                                             # ==========================================
                                             if gateway_mode == "PAYMONGO":
                                                 # --- DOOR A: AUTOMATED PAYMONGO ---
-                                                
-                                                # 🚨 PASTE YOUR OLD PAYMONGO CODE HERE WHEN READY!
-                                                # (It should include saving the DB as 'PENDING_PAYMENT' 
-                                                # and generating the checkout URL link)
-                                                
-                                                st.info("PayMongo Automated Checkout goes here.")
-                                                
-                                            else:
-                                                # --- DOOR B: MANUAL BPI QR ---
-                                                
-                                                # Save booking as 'PENDING'
                                                 conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
                                                              (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
                                                 conn.commit()
                                                 
-                                                # Display Success and QR Code
-                                                st.success(f"✅ Booking Saved (Ref: #{b_ref})")
+                                                try:
+                                                    SECRET_KEY = st.secrets["paymongo_active_key"]
+                                                    pay_amount = int(grand_total * 100) # Centavos
+                                                    
+                                                    auth_string = f"{SECRET_KEY}:"
+                                                    base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+                                                    
+                                                    url = "https://api.paymongo.com/v1/links"
+                                                    payload = {
+                                                        "data": {
+                                                            "attributes": {
+                                                                "amount": pay_amount, 
+                                                                "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})",
+                                                                "remarks": f"Renter: {renter_user}"
+                                                            }
+                                                        }
+                                                    }
+                                                    data = json.dumps(payload).encode('utf-8')
+                                                    req = urllib.request.Request(url, data=data)
+                                                    req.add_header('accept', 'application/json')
+                                                    req.add_header('content-type', 'application/json')
+                                                    req.add_header('authorization', f'Basic {base64_auth}')
+                                                    
+                                                    response = urllib.request.urlopen(req)
+                                                    response_data = json.loads(response.read().decode('utf-8'))
+                                                    checkout_url = response_data['data']['attributes']['checkout_url']
+                                                    
+                                                    st.success(f"✅ Booking Saved (Ref: #{b_ref})")
+                                                    st.markdown(f"### 💳 [👉 CLICK HERE TO PAY ₱{grand_total:,.2f} VIA PAYMONGO]({checkout_url})")
+                                                    st.info("Complete your payment using the link above to officially confirm your booking.")
+                                                except Exception as e:
+                                                    st.error("Failed to generate payment link. Please contact admin.")
+                                                    st.write(e)
                                                 
+                                            else:
+                                                # --- DOOR B: MANUAL BPI QR ---
+                                                conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
+                                                             (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_driver, b_ref))
+                                                conn.commit()
+                                                
+                                                st.success(f"✅ Booking Saved (Ref: #{b_ref})")
                                                 st.markdown("### 📱 Scan to Pay via InstaPay / QR Ph")
                                                 st.info("Scan the QR code below using GCash, Maya, or any banking app.")
                                                 
-                                                # Center the QR Code using columns
                                                 spacer1, col_img, spacer2 = st.columns([1, 1, 1])
                                                 with col_img:
                                                     st.image("bpi_qr.png", use_container_width=True)
                                                 
-                                                # Alert them to type the amount
                                                 st.error(f"**IMPORTANT: Please manually enter the exact amount: ₱{grand_total:,.2f}**")
-                                                
                                                 st.warning("⚠️ After transferring, go to the 'My Bookings' tab and send a screenshot of your receipt in the chat. Your booking will remain PENDING until we verify the receipt.")
                                     else: 
                                         st.warning("⚠️ Please fill all required fields (Destination, Address, and Luzon Agreement).")
