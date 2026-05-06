@@ -15,7 +15,40 @@ from email.mime.text import MIMEText
 from database_utils import get_connection
 # --- AUTHENTICATION & PAGE CONFIG ---
 st.set_page_config(page_title="DriveElite Renter Portal", layout="wide")
+import calendar
+import datetime
 
+def render_availability_calendar(year, month, booked_dates_set):
+    cal = calendar.monthcalendar(year, month)
+    month_name = calendar.month_name[month]
+    
+    html = f"""
+    <style>
+        .cal-table {{ width: 100%; text-align: center; border-collapse: collapse; margin-bottom: 15px; font-family: sans-serif; }}
+        .cal-table th {{ background-color: #2a2a2a; padding: 8px; color: #2c8c80; font-size: 14px; border: 1px solid #444; }}
+        .cal-table td {{ padding: 10px; border: 1px solid #444; font-size: 14px; width: 14.28%; }}
+        .available-day {{ background-color: #1e1e1e; color: #ffffff; font-weight: bold; }}
+        .booked-day {{ background-color: #4a1c1c; color: #ff6666; text-decoration: line-through; opacity: 0.7; }}
+        .empty-day {{ background-color: #121212; border: 1px solid #121212; }}
+    </style>
+    <table class="cal-table">
+        <tr><th colspan="7" style="font-size: 16px; color: #ffffff;">📅 {month_name} {year} Availability</th></tr>
+        <tr><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr>
+    """
+    for week in cal:
+        html += "<tr>"
+        for day in week:
+            if day == 0:
+                html += "<td class='empty-day'></td>"
+            else:
+                date_str = f"{year}-{month:02d}-{day:02d}"
+                if date_str in booked_dates_set:
+                    html += f"<td class='booked-day'>{day}</td>"
+                else:
+                    html += f"<td class='available-day'>{day}</td>"
+        html += "</tr>"
+    html += "</table>"
+    return html
 # ==========================================
 # 🚨 PASTE THE NEW CSS RIGHT HERE 🚨
 # ==========================================
