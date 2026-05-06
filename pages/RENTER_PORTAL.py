@@ -307,6 +307,25 @@ with tabs[0]:
                         base_rate = car.get('approved_price', 2000.0)
                         with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
                             unavailable_dates = get_booked_dates(car['id'], conn)
+                            # --- SHOW VISUAL AVAILABILITY CALENDAR ---
+                                existing_bookings = pd.read_sql_query("SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status NOT IN ('CANCELLED', 'REJECTED')", conn, params=(car['id'],))
+                                booked_dates = set()
+                                for _, row in existing_bookings.iterrows():
+                                    try:
+                                        start_dt = pd.to_datetime(row['pickup_time']).date()
+                                        end_dt = pd.to_datetime(row['return_time']).date()
+                                        delta = end_dt - start_dt
+                                        for i in range(delta.days + 1):
+                                            day = start_dt + datetime.timedelta(days=i)
+                                            booked_dates.add(day.strftime("%Y-%m-%d"))
+                                    except: pass
+
+                                today = datetime.date.today()
+                                st.markdown(render_availability_calendar(today.year, today.month, booked_dates), unsafe_allow_html=True)
+                                # Show next month too if you want
+                                next_m = today.month + 1 if today.month < 12 else 1
+                                next_y = today.year if today.month < 12 else today.year + 1
+                                st.markdown(render_availability_calendar(next_y, next_m, booked_dates), unsafe_allow_html=True)
                             d1 = st.date_input("Pickup Date", min_value=datetime.date.today(), key=f"d1_{car['id']}")
                             
                             t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}", step=datetime.timedelta(hours=1))
