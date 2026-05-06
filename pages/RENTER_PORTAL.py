@@ -417,6 +417,36 @@ with tabs[0]:
                                 st.markdown(bill_html, unsafe_allow_html=True)
                                 
                                 st.divider()
+                                # ... (Cost breakdown calculations above this) ...
+                                
+                                bill_html = f'<div class="bill-box"><table class="table-bill" style="width:100%;">{"".join(rows)}<tr style="border-top:2px solid #000;"><td class="bill-label" style="font-weight:900;">GRAND TOTAL</td><td style="text-align:right; font-weight:900; font-size:1.1em;">₱{grand_total:,.2f}</td></tr></table></div>'
+                                st.markdown(bill_html, unsafe_allow_html=True)
+                                
+                                st.divider()
+
+                                # =========================================================
+                                # 🚨 PASTE STRICT OVERLAP CHECKER HERE 🚨
+                                # =========================================================
+                                overlap_check_df = pd.read_sql_query("SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status NOT IN ('CANCELLED', 'REJECTED')", conn, params=(car['id'],))
+                                is_overlapping = False
+                                
+                                for _, row in overlap_check_df.iterrows():
+                                    ex_start = pd.to_datetime(row['pickup_time'])
+                                    ex_end = pd.to_datetime(row['return_time'])
+                                    
+                                    # Overlap Formula
+                                    if p_dt_obj < ex_end and r_dt_obj > ex_start:
+                                        is_overlapping = True
+                                        break
+                                
+                                if is_overlapping:
+                                    st.error("🚨 **DATE UNAVAILABLE:** Your exact times overlap with an existing reservation. Please select different times or dates.")
+                                    can_book = False  # Kills the checkout button!
+                                # =========================================================
+
+                                # --- 4. PAYMENT & CONFIRMATION FLOW ---
+                                if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True, disabled=not can_book):
+                                    if dest and p_exact and r_exact and luzon_agree:
 
                                 # --- 4. PAYMENT & CONFIRMATION FLOW ---
                                 if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True, disabled=not can_book):
