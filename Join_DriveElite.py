@@ -10,7 +10,7 @@ from database_utils import get_connection
 from streamlit_drawable_canvas import st_canvas
 import smtplib
 from email.message import EmailMessage
-import subprocess # <-- NEW: Used to run the PDF conversion
+import subprocess 
 
 # --- THE MAGIC LIBRARY ---
 from docxtpl import DocxTemplate, InlineImage
@@ -53,9 +53,31 @@ try:
 except:
     pass
 # ----------------------------------
+
 # ==========================================
-# EMAIL FUNCTION (Handles both PDF and DOCX)
+# UTILITY & EMAIL FUNCTIONS
 # ==========================================
+def crop_signature(image_data):
+    """Acts as digital scissors to trim the blank space around the drawn ink."""
+    # Convert image to grayscale to find the dark ink
+    gray = np.dot(image_data[...,:3], [0.2989, 0.5870, 0.1140])
+    mask = gray < 200  # Target the black ink (ignore the light background)
+    
+    coords = np.argwhere(mask)
+    if coords.size > 0:
+        y0, x0 = coords.min(axis=0)
+        y1, x1 = coords.max(axis=0) + 1
+        
+        # Add a tiny 5-pixel padding so the edges aren't sliced off
+        y0, x0 = max(0, y0-5), max(0, x0-5)
+        y1, x1 = min(image_data.shape[0], y1+5), min(image_data.shape[1], x1+5)
+        
+        cropped = image_data[y0:y1, x0:x1]
+        return Image.fromarray(cropped.astype('uint8'), 'RGBA')
+    
+    # Fallback if no ink is detected
+    return Image.fromarray(image_data.astype('uint8'), 'RGBA')
+
 def send_welcome_email(recipient_email, role, username, filepath):
     """Emails the generated Document to the user and your backup inbox."""
     msg = EmailMessage()
@@ -121,26 +143,6 @@ if st.session_state.get('otp_pending'):
                     docx_path = f"uploads/{doc_prefix}_{username}.docx"
                     
                     final_path = pdf_path if os.path.exists(pdf_path) else docx_path
-                    def crop_signature(image_data):
-    """Acts as digital scissors to trim the blank space around the drawn ink."""
-    # Convert image to grayscale to find the dark ink
-    gray = np.dot(image_data[...,:3], [0.2989, 0.5870, 0.1140])
-    mask = gray < 200  # Target the black ink (ignore the light background)
-    
-    coords = np.argwhere(mask)
-    if coords.size > 0:
-        y0, x0 = coords.min(axis=0)
-        y1, x1 = coords.max(axis=0) + 1
-        
-        # Add a tiny 5-pixel padding so the edges aren't sliced off
-        y0, x0 = max(0, y0-5), max(0, x0-5)
-        y1, x1 = min(image_data.shape[0], y1+5), min(image_data.shape[1], x1+5)
-        
-        cropped = image_data[y0:y1, x0:x1]
-        return Image.fromarray(cropped.astype('uint8'), 'RGBA')
-    
-    # Fallback if no ink is detected
-    return Image.fromarray(image_data.astype('uint8'), 'RGBA')
                             
                     send_welcome_email(email_addr, role, username, final_path)
                     
@@ -267,10 +269,11 @@ else:
                         data = st.session_state.temp_affiliate_data
                         current_date = datetime.date.today().strftime("%B %d, %Y")
                         
-                        # 1. Save Signature Image into Memory
-                        sig_image = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+                        # 1. Save and Crop Signature Image into Memory
+                        sig_image = crop_signature(canvas_result.image_data)
                         img_byte_arr = io.BytesIO()
                         sig_image.save(img_byte_arr, format='PNG')
+                        signature_bytes = img_byte_arr.getvalue() 
                         
                         # 2. GENERATE LOCAL WORD DOC
                         doc = DocxTemplate("moa_affiliate.docx")
@@ -395,10 +398,11 @@ else:
                         data = st.session_state.temp_renter_data
                         current_date = datetime.date.today().strftime("%B %d, %Y")
                         
-                        # 1. Save Signature Image into Memory
-                        sig_image = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+                        # 1. Save and Crop Signature Image into Memory
+                        sig_image = crop_signature(r_canvas.image_data)
                         img_byte_arr = io.BytesIO()
                         sig_image.save(img_byte_arr, format='PNG')
+                        signature_bytes = img_byte_arr.getvalue() 
                         
                         # 2. GENERATE LOCAL WORD DOC
                         doc = DocxTemplate("MASTER RENTER AGREEMENT.docx")
