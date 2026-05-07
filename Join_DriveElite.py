@@ -16,19 +16,6 @@ import subprocess
 from docxtpl import DocxTemplate, InlineImage
 from docx.shared import Mm
 
-# ==========================================
-# 1. PAGE CONFIG & LOGO (Must be first!)
-# ==========================================
-st.set_page_config(page_title="Join DriveElite", layout="wide")
-
-# 🟢 THE NEW GUARANTEED LOGO METHOD
-st.sidebar.image("logo.png", use_container_width=True)
-st.sidebar.markdown("<br>", unsafe_allow_html=True) # Adds a clean gap below the logo
-
-# ==========================================
-# 💎 2. THE "CRYSTAL ELITE" CSS ENGINE
-# ==========================================
-st.markdown("""
 # 1. Page Config (Must be the first Streamlit command)
 st.set_page_config(page_title="DriveElite", layout="wide")
 
@@ -36,7 +23,6 @@ st.set_page_config(page_title="DriveElite", layout="wide")
 st.sidebar.image("logo.png", use_container_width=True)
 
 # 3. The Universal "Crystal Elite" CSS Engine
-# NOTICE THE st.markdown AND TRIPLE QUOTES BELOW! 👇
 st.markdown("""
 <style>
     /* --- GLOBAL THEME --- */
@@ -109,8 +95,7 @@ st.markdown("""
     h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
     label { color: #475569 !important; font-weight: 600 !important; }
 </style>
-""", unsafe_allow_html=True) 
-# 👆 NOTICE THE TRIPLE QUOTES ENDING IT HERE!
+""", unsafe_allow_html=True)
 # ==========================================
 # 3. DATABASE SETUP
 # ==========================================
