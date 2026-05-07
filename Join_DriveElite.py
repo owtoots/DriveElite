@@ -84,23 +84,24 @@ st.markdown("""
     h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
     label { color: #475569 !important; font-weight: 600 !important; }
 
-    /* 6. Make the Logo Bigger */
+    /* 1. Size the Logo and Center it Perfectly */
     [data-testid="stLogo"] {
-        height: 5rem !important; 
+        height: 6.5rem !important; /* Adjust this number to make it taller/shorter */
         width: auto !important;
-        margin-top: 1.5rem !important;
-        margin-left: 1rem !important;
+        max-width: 80% !important; /* Keeps it from hitting the sidebar edges */
+        
+        /* The Centering Engine */
+        display: block !important;
+        margin-top: 2rem !important;
+        margin-left: auto !important; 
+        margin-right: auto !important; 
+        
+        object-fit: contain !important; /* Ensures the image doesn't stretch weirdly */
     }
 
-    /* 7. Add breathing room to the Sidebar Menu */
+    /* 2. Push the Menu down so it doesn't overlap the new centered logo */
     [data-testid="stSidebarNav"] {
-        padding-top: 6rem !important; 
-    }
-
-    /* 8. Ensure the Sidebar background is clean */
-    [data-testid="stSidebar"] {
-        background-color: #FFFFFF !important;
-        border-right: 1px solid #E2E8F0 !important;
+        padding-top: 8.5rem !important; 
     }
 </style>
 """, unsafe_allow_html=True)
