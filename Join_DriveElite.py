@@ -29,64 +29,67 @@ st.sidebar.markdown("<br>", unsafe_allow_html=True) # Adds a clean gap below the
 # 💎 2. THE "CRYSTAL ELITE" CSS ENGINE
 # ==========================================
 st.markdown("""
+# 1. Page Config (Must be the first Streamlit command)
+st.set_page_config(page_title="DriveElite", layout="wide")
+
+# 2. Inject the Logo into the Sidebar
+st.sidebar.image("logo.png", use_container_width=True)
+
+# 3. The Universal "Crystal Elite" CSS Engine
+st.markdown("""
 <style>
-    /* 1. Page Background - Cool Ice White */
-    [data-testid="stAppViewContainer"] {
+    /* --- GLOBAL THEME --- */
+    [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background-color: #F8FAFC !important;
         color: #0F172A !important;
         font-family: 'Inter', -apple-system, sans-serif !important;
     }
-    [data-testid="stHeader"] { background-color: #F8FAFC !important; }
     
-    /* Ensure the Sidebar background is clean */
+    /* --- SIDEBAR & LOGO REORDER HACK --- */
     [data-testid="stSidebar"] {
         background-color: #FFFFFF !important;
         border-right: 1px solid #E2E8F0 !important;
     }
-
-    /* 2. Size the Logo and Center it Perfectly */
-    [data-testid="stLogo"] {
-        height: 6.5rem !important; /* Adjust this number to make it taller/shorter */
-        width: auto !important;
-        max-width: 80% !important; /* Keeps it from hitting the sidebar edges */
-        
-        /* The Centering Engine */
-        display: block !important;
-        margin-top: 2rem !important;
-        margin-left: auto !important; 
-        margin-right: auto !important; 
-        
-        object-fit: contain !important; /* Ensures the image doesn't stretch weirdly */
+    
+    [data-testid="stSidebarContent"] {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    
+    /* Force the Logo to the absolute TOP and kill the empty gap */
+    [data-testid="stSidebarUserContent"] {
+        order: 1 !important;
+        padding-top: 0rem !important;
+        margin-top: -1.5rem !important; 
+        padding-bottom: 1rem !important;
     }
 
-    /* Push the Menu down so it doesn't overlap the new centered logo */
+    /* Force the Navigation Links below the logo */
     [data-testid="stSidebarNav"] {
-        padding-top: 8.5rem !important; 
+        order: 2 !important;
+        padding-top: 0rem !important; 
     }
 
-    /* 3. Registration Cards - Pure White with Soft Shadow */
-    [data-testid="stForm"], .stForm {
+    /* --- CARDS & BUTTONS --- */
+    [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
         background-color: #FFFFFF !important;
-        padding: 40px !important;
+        padding: 20px !important;
         border-radius: 16px !important;
         border: 1px solid #E2E8F0 !important;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05) !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
     }
 
-    /* 4. Primary Action Buttons - Electric Blue (High Contrast) */
     div.stButton > button, [data-testid="stFormSubmitButton"] > button {
         background-color: #2563EB !important;
         color: #FFFFFF !important;
         border: none !important;
         font-weight: 700 !important;
         border-radius: 10px !important;
-        padding: 14px 28px !important;
+        padding: 10px 24px !important;
         text-transform: uppercase !important;
-        letter-spacing: 0.5px !important;
         transition: all 0.2s ease !important;
     }
     
-    /* Target the text specifically inside the button to prevent "Dark Text" bug */
     div.stButton > button p, [data-testid="stFormSubmitButton"] > button p {
         color: #FFFFFF !important;
     }
@@ -97,35 +100,15 @@ st.markdown("""
         transform: translateY(-1px) !important;
     }
 
-    /* 5. Cleaner Input Fields */
-    div[data-baseweb="input"] > div {
+    /* --- TYPOGRAPHY & INPUTS --- */
+    div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
         background-color: #FFFFFF !important;
         border: 1px solid #CBD5E1 !important;
-        border-radius: 10px !important;
+        border-radius: 8px !important;
     }
     input { color: #1E293B !important; }
-    
-    /* 6. Typography Fixes */
     h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
     label { color: #475569 !important; font-weight: 600 !important; }
-    /* 🚀 THE SIDEBAR REORDER HACK */
-    [data-testid="stSidebarContent"] {
-        display: flex !important;
-        flex-direction: column !important;
-    }
-    
-    /* 1. Force the Logo (User Content) to the TOP */
-    [data-testid="stSidebarUserContent"] {
-        order: 1 !important;
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
-    }
-
-    /* 2. Force the Navigation Links to the BOTTOM */
-    [data-testid="stSidebarNav"] {
-        order: 2 !important;
-        padding-top: 0rem !important; 
-    }
 </style>
 """, unsafe_allow_html=True)
 
