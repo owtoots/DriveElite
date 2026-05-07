@@ -46,12 +46,22 @@ try:
 except:
     pass
 
+try:
+    conn.execute("ALTER TABLE platform_users ADD COLUMN area_code TEXT DEFAULT '+63'")
+    conn.commit()
+except:
+    pass
+
 # ---> THE CORRECTED SAFE PATCH <---
 try:
     conn.execute("ALTER TABLE platform_users ADD COLUMN admin_status TEXT DEFAULT 'PENDING'")
     conn.commit()
 except:
     pass
+
+# ---> FOLDER CREATION FIX <---
+if not os.path.exists("uploads"):
+    os.makedirs("uploads")
 # ----------------------------------
 
 # ==========================================
@@ -59,23 +69,20 @@ except:
 # ==========================================
 def crop_signature(image_data):
     """Acts as digital scissors to trim the blank space around the drawn ink."""
-    # Convert image to grayscale to find the dark ink
     gray = np.dot(image_data[...,:3], [0.2989, 0.5870, 0.1140])
-    mask = gray < 200  # Target the black ink (ignore the light background)
+    mask = gray < 200  
     
     coords = np.argwhere(mask)
     if coords.size > 0:
         y0, x0 = coords.min(axis=0)
         y1, x1 = coords.max(axis=0) + 1
         
-        # Add a tiny 5-pixel padding so the edges aren't sliced off
         y0, x0 = max(0, y0-5), max(0, x0-5)
         y1, x1 = min(image_data.shape[0], y1+5), min(image_data.shape[1], x1+5)
         
         cropped = image_data[y0:y1, x0:x1]
         return Image.fromarray(cropped.astype('uint8'), 'RGBA')
     
-    # Fallback if no ink is detected
     return Image.fromarray(image_data.astype('uint8'), 'RGBA')
 
 def send_welcome_email(recipient_email, role, username, filepath):
@@ -86,7 +93,7 @@ def send_welcome_email(recipient_email, role, username, filepath):
     msg['Subject'] = f'DriveElite: Your Official {doc_type}'
     msg['From'] = 'rdalbaojr@gmail.com'
     msg['To'] = recipient_email
-    msg['Bcc'] = 'rdalbaojr@gmail.com'
+    msg['Bcc'] = 'rdalbaojr@gmail.com' # <-- This is your automated Backup Vault!
 
     msg.set_content(f'''Hello,
     
@@ -292,10 +299,9 @@ else:
                         doc.save(docx_filename)
                         
                         try:
-                            # Streamlit Cloud Linux Conversion
                             subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', docx_filename, '--outdir', 'uploads/'], check=True)
                         except Exception:
-                            pass # If LibreOffice fails (e.g. running locally on Windows), it gracefully falls back to DOCX
+                            pass
                         
                         # 4. Set Payload and Move to OTP
                         st.session_state.reg_payload = (
@@ -422,10 +428,9 @@ else:
                         doc.save(docx_filename)
                         
                         try:
-                            # Streamlit Cloud Linux Conversion
                             subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', docx_filename, '--outdir', 'uploads/'], check=True)
                         except Exception:
-                            pass # Fallback to DOCX if LibreOffice isn't available
+                            pass
                         
                         # 4. Set Payload and Move to OTP
                         st.session_state.reg_payload = (
