@@ -74,6 +74,24 @@ st.markdown("""
     h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
     label { color: #475569 !important; font-weight: 600 !important; }
 </style>
+<style>
+    /* ... existing CSS ... */
+
+    /* 🟢 INSERT THESE 3 RULES HERE */
+    [data-testid="stSidebarNav"] {
+        padding-top: 3rem !important;
+    }
+
+    [data-testid="stLogo"] {
+        margin-bottom: 1.5rem !important;
+        margin-left: 1rem !important;
+    }
+
+    /* This makes the navigation links match your Crystal Blue theme */
+    [data-testid="stSidebarNav"] ul {
+        padding-top: 1rem !important;
+    }
+</style>
 """, unsafe_allow_html=True)
 
 conn = get_connection()
