@@ -21,69 +21,84 @@ st.set_page_config(page_title="DriveElite Renter Portal", layout="wide")
 # ==========================================
 # 🚨 PASTE THE NEW CSS RIGHT HERE 🚨
 # ==========================================
+# 1. Page Config (Must be the first Streamlit command)
+st.set_page_config(page_title="DriveElite", layout="wide")
+
+# 2. Inject the Logo into the Sidebar
+st.sidebar.image("logo.png", use_container_width=True)
+
+# 3. The Universal "Crystal Elite" CSS Engine
 st.markdown("""
 <style>
-    /* 1. Page Background - Cool Ice White */
-    [data-testid="stAppViewContainer"] {
+    /* --- GLOBAL THEME --- */
+    [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background-color: #F8FAFC !important;
         color: #0F172A !important;
         font-family: 'Inter', -apple-system, sans-serif !important;
     }
-    [data-testid="stHeader"] { background-color: #F8FAFC !important; }
     
-    /* 2. Sidebar Styling */
+    /* --- SIDEBAR & LOGO REORDER HACK --- */
     [data-testid="stSidebar"] {
         background-color: #FFFFFF !important;
         border-right: 1px solid #E2E8F0 !important;
     }
+    
+    [data-testid="stSidebarContent"] {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    
+    [data-testid="stSidebarUserContent"] {
+        order: 1 !important;
+        padding-top: 0rem !important;
+        margin-top: -1.5rem !important; 
+        padding-bottom: 1rem !important;
+    }
 
-    /* 3. Primary Action Buttons - Crystal Electric Blue */
-    div.stButton > button, [data-testid="stFormSubmitButton"] > button, [data-testid="stPopover"] > button {
+    [data-testid="stSidebarNav"] {
+        order: 2 !important;
+        padding-top: 0rem !important; 
+    }
+
+    /* --- CARDS & BUTTONS --- */
+    [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
+        background-color: #FFFFFF !important;
+        padding: 20px !important;
+        border-radius: 16px !important;
+        border: 1px solid #E2E8F0 !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    div.stButton > button, [data-testid="stFormSubmitButton"] > button {
         background-color: #2563EB !important;
         color: #FFFFFF !important;
         border: none !important;
         font-weight: 700 !important;
         border-radius: 10px !important;
-        padding: 10px 20px !important;
+        padding: 10px 24px !important;
+        text-transform: uppercase !important;
+        transition: all 0.2s ease !important;
     }
     
-    /* Force pure white text inside the button */
-    div.stButton > button p, [data-testid="stFormSubmitButton"] > button p, [data-testid="stPopover"] > button p {
+    div.stButton > button p, [data-testid="stFormSubmitButton"] > button p {
         color: #FFFFFF !important;
     }
 
     div.stButton > button:hover {
         background-color: #1D4ED8 !important;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
+        transform: translateY(-1px) !important;
     }
 
-    /* 4. White Cards for Forms/Expanders */
-    [data-testid="stForm"], .stForm, div[data-testid="stExpander"] {
-        background-color: #FFFFFF !important;
-        border-radius: 12px !important;
-        border: 1px solid #E2E8F0 !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
-    }
-
-    /* 5. Clean Input Fields */
-    div[data-baseweb="input"] > div {
+    /* --- TYPOGRAPHY & INPUTS --- */
+    div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
         background-color: #FFFFFF !important;
         border: 1px solid #CBD5E1 !important;
         border-radius: 8px !important;
     }
-    
-    /* 6. Typography */
+    input { color: #1E293B !important; }
     h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
-    label, p { color: #475569 !important; }
-
-    /* 7. Receipt Box Styling */
-    .bill-box { 
-        background-color: #F1F5F9; 
-        padding: 20px; 
-        border-radius: 10px; 
-        border: 1px solid #E2E8F0; 
-        color: #1E293B;
-    }
+    label { color: #475569 !important; font-weight: 600 !important; }
 </style>
 """, unsafe_allow_html=True)
 
