@@ -46,23 +46,13 @@ try:
 except:
     pass
 
+# ---> THE CORRECTED SAFE PATCH <---
 try:
-    conn.execute("ALTER TABLE platform_users ADD COLUMN area_code TEXT DEFAULT '+63'")
-    conn.commit()
-except:
-    pass
-
-# ---> ADD THIS BRAND NEW BLOCK <---
-try:
-    conn.execute("ALTER TABLE platform_users ADD COLUMN approval_status TEXT DEFAULT 'Pending'")
+    conn.execute("ALTER TABLE platform_users ADD COLUMN admin_status TEXT DEFAULT 'PENDING'")
     conn.commit()
 except:
     pass
 # ----------------------------------
-
-if not os.path.exists("uploads"):
-    os.makedirs("uploads")
-
 # ==========================================
 # EMAIL FUNCTION (Handles both PDF and DOCX)
 # ==========================================
