@@ -108,6 +108,24 @@ st.markdown("""
     /* 6. Typography Fixes */
     h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
     label { color: #475569 !important; font-weight: 600 !important; }
+    /* 🚀 THE SIDEBAR REORDER HACK */
+    [data-testid="stSidebarContent"] {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    
+    /* 1. Force the Logo (User Content) to the TOP */
+    [data-testid="stSidebarUserContent"] {
+        order: 1 !important;
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+    }
+
+    /* 2. Force the Navigation Links to the BOTTOM */
+    [data-testid="stSidebarNav"] {
+        order: 2 !important;
+        padding-top: 0rem !important; 
+    }
 </style>
 """, unsafe_allow_html=True)
 
