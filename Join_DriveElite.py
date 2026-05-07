@@ -52,7 +52,15 @@ try:
 except:
     pass
 
-if not os.path.exists("uploads"): 
+# ---> ADD THIS BRAND NEW BLOCK <---
+try:
+    conn.execute("ALTER TABLE platform_users ADD COLUMN approval_status TEXT DEFAULT 'Pending'")
+    conn.commit()
+except:
+    pass
+# ----------------------------------
+
+if not os.path.exists("uploads"):
     os.makedirs("uploads")
 
 # ==========================================
