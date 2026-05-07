@@ -15,7 +15,13 @@ import subprocess
 # --- THE MAGIC LIBRARY ---
 from docxtpl import DocxTemplate, InlineImage
 from docx.shared import Mm
+# ... (imports at the very top)
 
+# 1. PAGE CONFIG
+st.set_page_config(page_title="Join DriveElite", layout="wide")
+
+# 🟢 INSERT THIS LINE HERE
+st.logo("logo.png", icon_image="logo.png")
 # ==========================================
 # 💎 THE "CRYSTAL ELITE" CSS ENGINE
 # ==========================================
