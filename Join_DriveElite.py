@@ -15,22 +15,16 @@ import subprocess
 # --- THE MAGIC LIBRARY ---
 from docxtpl import DocxTemplate, InlineImage
 from docx.shared import Mm
-# ... (imports at the very top)
 
-# 1. PAGE CONFIG
-st.logo("logo.png", size="large")
-st.set_page_config(page_title="Join DriveElite", layout="wide")
-
-# 🟢 INSERT THIS LINE HERE
-st.logo("logo.png", icon_image="logo.png")
 # ==========================================
-# 💎 THE "CRYSTAL ELITE" CSS ENGINE
+# 1. PAGE CONFIG & LOGO (Must be first!)
 # ==========================================
 st.set_page_config(page_title="Join DriveElite", layout="wide")
-
-# Ensure the logo is called at the top!
 st.logo("logo.png", size="large", icon_image="logo.png")
 
+# ==========================================
+# 💎 2. THE "CRYSTAL ELITE" CSS ENGINE
+# ==========================================
 st.markdown("""
 <style>
     /* 1. Page Background - Cool Ice White */
@@ -40,53 +34,16 @@ st.markdown("""
         font-family: 'Inter', -apple-system, sans-serif !important;
     }
     [data-testid="stHeader"] { background-color: #F8FAFC !important; }
-
-    /* 2. Registration Cards - Pure White with Soft Shadow */
-    [data-testid="stForm"], .stForm {
-        background-color: #FFFFFF !important;
-        padding: 40px !important;
-        border-radius: 16px !important;
-        border: 1px solid #E2E8F0 !important;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05) !important;
-    }
-
-    /* 3. Primary Action Buttons - Electric Blue (High Contrast) */
-    div.stButton > button, [data-testid="stFormSubmitButton"] > button {
-        background-color: #2563EB !important;
-        color: #FFFFFF !important;
-        border: none !important;
-        font-weight: 700 !important;
-        border-radius: 10px !important;
-        padding: 14px 28px !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.5px !important;
-    }
     
-    /* Target the text specifically inside the button to prevent "Dark Text" bug */
-    div.stButton > button p, [data-testid="stFormSubmitButton"] > button p {
-        color: #FFFFFF !important;
-    }
-
-    div.stButton > button:hover {
-        background-color: #1D4ED8 !important;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
-    }
-
-    /* 4. Cleaner Input Fields */
-    div[data-baseweb="input"] > div {
+    /* Ensure the Sidebar background is clean */
+    [data-testid="stSidebar"] {
         background-color: #FFFFFF !important;
-        border: 1px solid #CBD5E1 !important;
-        border-radius: 10px !important;
+        border-right: 1px solid #E2E8F0 !important;
     }
-    input { color: #1E293B !important; }
-    
-    /* 5. Typography Fixes */
-    h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
-    label { color: #475569 !important; font-weight: 600 !important; }
 
-    /* 1. Size the Logo and Center it Perfectly */
+    /* 2. Size the Logo and Center it Perfectly */
     [data-testid="stLogo"] {
-        height: 50rem !important; /* Adjust this number to make it taller/shorter */
+        height: 6.5rem !important; /* Adjust this number to make it taller/shorter */
         width: auto !important;
         max-width: 80% !important; /* Keeps it from hitting the sidebar edges */
         
@@ -99,15 +56,63 @@ st.markdown("""
         object-fit: contain !important; /* Ensures the image doesn't stretch weirdly */
     }
 
-    /* 2. Push the Menu down so it doesn't overlap the new centered logo */
+    /* Push the Menu down so it doesn't overlap the new centered logo */
     [data-testid="stSidebarNav"] {
         padding-top: 8.5rem !important; 
     }
+
+    /* 3. Registration Cards - Pure White with Soft Shadow */
+    [data-testid="stForm"], .stForm {
+        background-color: #FFFFFF !important;
+        padding: 40px !important;
+        border-radius: 16px !important;
+        border: 1px solid #E2E8F0 !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    /* 4. Primary Action Buttons - Electric Blue (High Contrast) */
+    div.stButton > button, [data-testid="stFormSubmitButton"] > button {
+        background-color: #2563EB !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        font-weight: 700 !important;
+        border-radius: 10px !important;
+        padding: 14px 28px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    /* Target the text specifically inside the button to prevent "Dark Text" bug */
+    div.stButton > button p, [data-testid="stFormSubmitButton"] > button p {
+        color: #FFFFFF !important;
+    }
+
+    div.stButton > button:hover {
+        background-color: #1D4ED8 !important;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    /* 5. Cleaner Input Fields */
+    div[data-baseweb="input"] > div {
+        background-color: #FFFFFF !important;
+        border: 1px solid #CBD5E1 !important;
+        border-radius: 10px !important;
+    }
+    input { color: #1E293B !important; }
+    
+    /* 6. Typography Fixes */
+    h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
+    label { color: #475569 !important; font-weight: 600 !important; }
 </style>
 """, unsafe_allow_html=True)
 
+# ==========================================
+# 3. DATABASE SETUP
+# ==========================================
 conn = get_connection()
-# --- DATABASE INTEGRITY ENGINE ---
+
 try:
     conn.execute('''
         CREATE TABLE IF NOT EXISTS platform_users (
@@ -142,7 +147,7 @@ if not os.path.exists("uploads"):
     os.makedirs("uploads")
 
 # ==========================================
-# UTILITY FUNCTIONS
+# 4. UTILITY FUNCTIONS
 # ==========================================
 def crop_signature(image_data):
     gray = np.dot(image_data[...,:3], [0.2989, 0.5870, 0.1140])
@@ -176,7 +181,7 @@ def send_welcome_email(recipient_email, role, filepath):
         smtp.send_message(msg)
 
 # ==========================================
-# 🔐 OTP VERIFICATION SCREEN
+# 5. 🔐 OTP VERIFICATION SCREEN
 # ==========================================
 if st.session_state.get('otp_pending'):
     st.title("🔐 Account Verification")
@@ -219,7 +224,7 @@ if st.session_state.get('otp_pending'):
             st.error("🚨 Invalid OTP. Please try again.")
 
 # ==========================================
-# 🚗 MAIN REGISTRATION SCREEN
+# 6. 🚗 MAIN REGISTRATION SCREEN
 # ==========================================
 else:
     st.title("🚗 Join DriveElite")
@@ -267,7 +272,6 @@ else:
                     elif not all([fn, sn, un, pwd, g_id, l_id, cn, em, ad]):
                         st.error("🚨 Please fill all required fields and upload your documents.")
                     else:
-                        # Check if username exists
                         check = pd.read_sql_query("SELECT username FROM platform_users WHERE username=?", conn, params=(un,))
                         if not check.empty:
                             st.error("🚨 Username already taken.")
@@ -301,11 +305,9 @@ else:
                         sig_cropped.save(sig_buf, format='PNG')
                         sig_bytes = sig_buf.getvalue()
                         
-                        # Selection of template
                         tmpl = "moa_affiliate.docx" if reg_type == "Affiliate" else "MASTER RENTER AGREEMENT.docx"
                         doc = DocxTemplate(tmpl)
                         
-                        # Synced with standard placeholders
                         ctx = {
                             'FULL_NAME': data['full_name'].upper(),
                             'DATE_SIGNED': datetime.date.today().strftime("%B %d, %Y"),
@@ -319,11 +321,9 @@ else:
                         docx_fn = f"uploads/{prefix}_{data['username']}.docx"
                         doc.save(docx_fn)
                         
-                        # PDF Conversion
                         try: subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', docx_fn, '--outdir', 'uploads/'], check=True)
                         except: pass
                         
-                        # Pack payload for OTP screen
                         st.session_state.reg_payload = (
                             data["username"], data["password"], reg_type.upper(), data["full_name"], 
                             data["email"], data["age"], data["nationality"], data["address"], 
