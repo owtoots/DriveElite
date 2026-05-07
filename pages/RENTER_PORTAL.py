@@ -447,10 +447,6 @@ with tabs[0]:
                                 # --- 4. PAYMENT & CONFIRMATION FLOW ---
                                 if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True, disabled=not can_book):
                                     if dest and p_exact and r_exact and luzon_agree:
-
-                                # --- 4. PAYMENT & CONFIRMATION FLOW ---
-                                if st.button("CONFIRM BOOKING", key=f"conf_{car['id']}", type="primary", use_container_width=True, disabled=not can_book):
-                                    if dest and p_exact and r_exact and luzon_agree:
                                         with st.spinner("Securing your booking..."):
                                             b_ref = str(random.randint(100000, 999999))
                                             p_dt_str, r_dt_str = p_dt_obj.strftime("%Y-%m-%d %H:%M"), r_dt_obj.strftime("%Y-%m-%d %H:%M")
