@@ -268,10 +268,9 @@ else:
                         current_date = datetime.date.today().strftime("%B %d, %Y")
                         
                         # 1. Save Signature Image into Memory
-                        sig_image = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-                        img_byte_arr = io.BytesIO()
-                        sig_image.save(img_byte_arr, format='PNG')
-                        signature_bytes = img_byte_arr.getvalue() 
+sig_image = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+img_byte_arr = io.BytesIO()
+sig_image.save(img_byte_arr, format='PNG')
                         
                         # 2. GENERATE LOCAL WORD DOC
                         doc = DocxTemplate("moa_affiliate.docx")
