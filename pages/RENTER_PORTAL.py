@@ -51,66 +51,62 @@ def render_availability_calendar(year, month, booked_dates_set):
     return html
 
 # ==========================================
-# 🚨 PASTE THE NEW CSS RIGHT HERE 🚨
+# 🚨 MASTER THEME & CSS ENGINE 🚨
 # ==========================================
 st.markdown("""
 <style>
-    /* 1. Main Background and Page Theme */
-    [data-testid="stAppViewContainer"] {
-        background-color: #121212 !important;
-        color: #ffffff !important;
-        font-family: sans-serif !important;
-    }
-    
-    [data-testid="stHeader"] {
-        background-color: #121212 !important;
-    }
+    /* 1. Main Backgrounds */
+    [data-testid="stAppViewContainer"] { background-color: #121212 !important; color: #ffffff !important; font-family: sans-serif !important; }
+    [data-testid="stHeader"] { background-color: #121212 !important; }
+    [data-testid="stSidebar"] { background-color: #1e1e1e !important; }
 
-    /* 2. Login Container (Streamlit Forms) */
-    [data-testid="stForm"] {
-        background-color: #1e1e1e !important;
-        padding: 30px !important;
-        border-radius: 8px !important;
-        border: 1px solid #333 !important;
-        max-width: 500px !important;
-        margin: 0 auto !important;
-    }
-
-    /* 3. Input Fields */
-    div[data-baseweb="input"] > div {
-        background-color: #2a2a2a !important;
-        border: 1px solid #444 !important;
-        border-radius: 4px !important;
-    }
-    
-    /* Make input text white */
-    div[data-baseweb="input"] input {
-        color: #ffffff !important;
-    }
-
-    /* 4. Login Button - Styled to match the green car emoji */
-    [data-testid="stFormSubmitButton"] > button {
+    /* 2. Fix All Buttons (Forms, Standard, and Popovers) */
+    div.stButton > button, 
+    [data-testid="stFormSubmitButton"] > button,
+    [data-testid="stPopover"] > button {
         background-color: #2c8c80 !important; 
         color: #ffffff !important;
-        font-weight: bold !important;
-        border: none !important;
-        border-radius: 4px !important;
-        width: 100% !important;
+        border: 1px solid #20685e !important;
+        border-radius: 6px !important;
     }
-
-    [data-testid="stFormSubmitButton"] > button:hover {
+    div.stButton > button:hover, 
+    [data-testid="stFormSubmitButton"] > button:hover,
+    [data-testid="stPopover"] > button:hover {
         background-color: #20685e !important;
+        border-color: #ffffff !important;
         color: #ffffff !important;
+    }
+    
+    /* Fix text inside buttons */
+    div.stButton > button p, 
+    [data-testid="stFormSubmitButton"] > button p,
+    [data-testid="stPopover"] > button p {
+        color: #ffffff !important;
+        font-weight: bold !important;
     }
 
-    /* 5. Typography Fix (Ensures invisible text becomes visible) */
-    h1, h2, h3, p, label, .stMarkdown p {
-        color: #ffffff !important;
+    /* 3. Global Typography & Inputs */
+    h1, h2, h3, p, label { color: #ffffff !important; }
+    div[data-baseweb="input"] > div, div[data-baseweb="select"] > div { background-color: #2a2a2a !important; border: 1px solid #444 !important; }
+    input, select, div[data-baseweb="select"] { color: #ffffff !important; }
+
+    /* 4. The Receipt / Bill Box */
+    .bill-box { 
+        background-color: #1e1e1e; 
+        padding: 20px; 
+        border-radius: 10px; 
+        border: 1px solid #444; 
+        margin-top: 10px; 
+        color: #ffffff; 
     }
-    /* 6. Force Sidebar to be Dark */
-    [data-testid="stSidebar"] {
-        background-color: #262626 !important;
-    }
+    .table-bill { width:100%; font-family: monospace; font-size: 1.05em; border-collapse: collapse; color: #ffffff; }
+    .table-bill td { padding: 6px 0; border-bottom: 1px solid #333; }
+    .bill-label { font-weight: 700; color: #aaaaaa; }
+
+    /* 5. Kill Streamlit Blink Effect */
+    [data-testid="stAppViewContainer"] > .main { transition: none !important; }
+    .element-container, .stMarkdown, .stText { transition: none !important; animation: none !important; opacity: 1 !important; }
+    div[data-testid="stStaleElement"] { opacity: 1 !important; transition: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -212,40 +208,6 @@ def calculate_24h_rental(pickup_dt, return_dt, daily_rate, hourly_late_fee=300.0
     base_cost = full_days * daily_rate
     total_rental_cost = base_cost + hourly_fee_total
     return full_days, billed_hours, base_cost, hourly_fee_total, total_rental_cost
-
-
-# --- CUSTOM CSS ---
-st.markdown("""
-<style>
-    .stApp { background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); }
-    .bill-box { 
-        background-color: #ffffff; 
-        padding: 20px; 
-        border-radius: 10px; 
-        border: 2px solid #333333; 
-        margin-top: 10px; 
-        box-shadow: 4px 4px 10px rgba(0,0,0,0.1); 
-        color: #1a1a1a; 
-    }
-    .table-bill { width:100%; font-family: monospace; font-size: 1.05em; border-collapse: collapse; color: #1a1a1a; }
-    .table-bill td { padding: 6px 0; }
-    .bill-label { font-weight: 700; color: #000000; }
-
-    /* 🚨 NEW: KILL THE STREAMLIT FADE/BLINK EFFECT 🚨 */
-    [data-testid="stAppViewContainer"] > .main {
-        transition: none !important;
-    }
-    .element-container, .stMarkdown, .stText {
-        transition: none !important;
-        animation: none !important;
-        opacity: 1 !important;
-    }
-    div[data-testid="stStaleElement"] {
-        opacity: 1 !important;
-        transition: none !important;
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # --- 1. AUTHENTICATION FLOW ---
 if not st.session_state.get('logged_in') or st.session_state.get('role') != 'RENTER':
@@ -381,7 +343,6 @@ with tabs[0]:
                                 except: 
                                     dynamic_renter_fee = 0.07
 
-                                # 🚨 The 4-Day Rule: Waive the fee if booking is less than 4 days
                                 applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
 
                                 platform_fee = discounted_subtotal * applied_renter_fee
@@ -397,21 +358,21 @@ with tabs[0]:
                                 rows = [f'<tr><td class="bill-label">Base Rental (₱{base_rate:,.2f} x {full_days} {plural_days})</td><td style="text-align:right; font-weight:bold;">₱{base_cost:,.2f}</td></tr>']
                                 
                                 if billed_hrs > 0: 
-                                    rows.append(f'<tr><td style="color:#d35400;">Hourly Extension</td><td style="text-align:right; color:#d35400;">+₱{ext_fee:,.2f}</td></tr>')
+                                    rows.append(f'<tr><td style="color:#f39c12;">Hourly Extension</td><td style="text-align:right; color:#f39c12;">+₱{ext_fee:,.2f}</td></tr>')
                                 
                                 if savings > 0: 
-                                    rows.append(f'<tr><td style="color:#cc0000;">Duration Discount ({int(discount_pct * 100)}%)</td><td style="text-align:right; color:#cc0000;">-₱{savings:,.2f}</td></tr>')
+                                    rows.append(f'<tr><td style="color:#ff4d4d;">Duration Discount ({int(discount_pct * 100)}%)</td><td style="text-align:right; color:#ff4d4d;">-₱{savings:,.2f}</td></tr>')
                                 
-                                rows.append(f'<tr><td style="color:#27ae60;">DriveElite Fee ({int(applied_renter_fee * 100)}%)</td><td style="text-align:right; color:#27ae60;">+₱{platform_fee:,.2f}</td></tr>')
+                                rows.append(f'<tr><td style="color:#2ecc71;">DriveElite Fee ({int(applied_renter_fee * 100)}%)</td><td style="text-align:right; color:#2ecc71;">+₱{platform_fee:,.2f}</td></tr>')
                                 
                                 if is_driver: 
-                                    rows.append(f'<tr><td style="color:#003399;">Driver Fee</td><td style="text-align:right; color:#003399;">+₱{driver_fee:,.2f}</td></tr>')
+                                    rows.append(f'<tr><td style="color:#3498db;">Driver Fee</td><td style="text-align:right; color:#3498db;">+₱{driver_fee:,.2f}</td></tr>')
                                 if p_fee > 0: 
-                                    rows.append(f'<tr><td style="color:#555;">Pickup Fee</td><td style="text-align:right; color:#555;">+₱{p_fee:,.2f}</td></tr>')
+                                    rows.append(f'<tr><td style="color:#aaaaaa;">Pickup Fee</td><td style="text-align:right; color:#aaaaaa;">+₱{p_fee:,.2f}</td></tr>')
                                 if r_fee > 0: 
-                                    rows.append(f'<tr><td style="color:#555;">Return Fee</td><td style="text-align:right; color:#555;">+₱{r_fee:,.2f}</td></tr>')
+                                    rows.append(f'<tr><td style="color:#aaaaaa;">Return Fee</td><td style="text-align:right; color:#aaaaaa;">+₱{r_fee:,.2f}</td></tr>')
 
-                                bill_html = f'<div class="bill-box"><table class="table-bill" style="width:100%;">{"".join(rows)}<tr style="border-top:2px solid #000;"><td class="bill-label" style="font-weight:900;">GRAND TOTAL</td><td style="text-align:right; font-weight:900; font-size:1.1em;">₱{grand_total:,.2f}</td></tr></table></div>'
+                                bill_html = f'<div class="bill-box"><table class="table-bill" style="width:100%;">{"".join(rows)}<tr style="border-top:2px solid #555;"><td class="bill-label" style="font-weight:900; color:#fff;">GRAND TOTAL</td><td style="text-align:right; font-weight:900; font-size:1.1em; color:#fff;">₱{grand_total:,.2f}</td></tr></table></div>'
                                 st.markdown(bill_html, unsafe_allow_html=True)
                                 
                                 st.divider()
@@ -432,7 +393,7 @@ with tabs[0]:
                                 
                                 if is_overlapping:
                                     st.error("🚨 **DATE UNAVAILABLE:** Your exact times overlap with an existing reservation. Please select different times or dates.")
-                                    can_book = False  # Kills the checkout button!
+                                    can_book = False  
                                 # =========================================================
 
                                 # --- 4. PAYMENT & CONFIRMATION FLOW ---
