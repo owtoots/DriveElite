@@ -73,16 +73,22 @@ def get_live_google_doc(doc_id):
         return f"<p>Agreement terms are temporarily unavailable. Error: {e}</p>"
 
 def generate_legal_doc_from_drive(role, username, full_name, address, nationality, doc_id, signature_bytes):
-    from google.oauth2.credentials import Credentials
+    from google.oauth2 import service_account
     from googleapiclient.http import MediaIoBaseUpload
     from googleapiclient.discovery import build
     import datetime
-    import json
     import io
     import streamlit as st
 
-    token_data = json.loads(st.secrets["google_oauth"]["token"])
-    creds = Credentials.from_authorized_user_info(token_data)
+    # --- SMART AUTHENTICATION ---
+    SCOPES = ['https://www.googleapis.com/auth/documents', 'https://www.googleapis.com/auth/drive']
+    try:
+        # First, the app tries to look in Streamlit's secure online vault
+        creds_dict = st.secrets["gcp_service_account"]
+        creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+    except Exception:
+        # If it's not online, it falls back to looking for the local file on your computer
+        creds = service_account.Credentials.from_service_account_file('service_account.json', scopes=SCOPES)
     
     drive_service = build('drive', 'v3', credentials=creds)
     docs_service = build('docs', 'v1', credentials=creds)
@@ -140,10 +146,21 @@ def generate_legal_doc_from_drive(role, username, full_name, address, nationalit
 # DRIVEELITE VAULT & MAILROOM FUNCTIONS
 # ==========================================
 def upload_to_vault(file_bytes, folder_id, filename):
-    """Uploads ID bytes directly to Google Drive Vault using your personal token."""
-    token_data = json.loads(st.secrets["google_oauth"]["token"])
-    from google.oauth2.credentials import Credentials
-    creds = Credentials.from_authorized_user_info(token_data)
+    """Uploads ID bytes directly to Google Drive Vault using the Service Account bot."""
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaIoBaseUpload
+    import io
+    import streamlit as st
+
+    # --- SMART AUTHENTICATION ---
+    SCOPES = ['https://www.googleapis.com/auth/drive']
+    try:
+        creds_dict = st.secrets["gcp_service_account"]
+        creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+    except Exception:
+        creds = service_account.Credentials.from_service_account_file('service_account.json', scopes=SCOPES)
+        
     drive_service = build('drive', 'v3', credentials=creds)
 
     file_metadata = {'name': filename, 'parents': [folder_id]}
