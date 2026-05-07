@@ -18,6 +18,7 @@ from docx.shared import Mm
 # ... (imports at the very top)
 
 # 1. PAGE CONFIG
+st.logo("logo.png", size="large")
 st.set_page_config(page_title="Join DriveElite", layout="wide")
 
 # 🟢 INSERT THIS LINE HERE
