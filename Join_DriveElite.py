@@ -28,6 +28,9 @@ st.logo("logo.png", icon_image="logo.png")
 # ==========================================
 st.set_page_config(page_title="Join DriveElite", layout="wide")
 
+# Ensure the logo is called at the top!
+st.logo("logo.png", size="large", icon_image="logo.png")
+
 st.markdown("""
 <style>
     /* 1. Page Background - Cool Ice White */
@@ -80,28 +83,29 @@ st.markdown("""
     /* 5. Typography Fixes */
     h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
     label { color: #475569 !important; font-weight: 600 !important; }
-</style>
-/* 1. Make the Logo Bigger */
+
+    /* 6. Make the Logo Bigger */
     [data-testid="stLogo"] {
-        height: 5rem !important; /* Increase this to make it even bigger */
+        height: 5rem !important; 
         width: auto !important;
         margin-top: 1.5rem !important;
         margin-left: 1rem !important;
     }
 
-    /* 2. Add breathing room to the Sidebar Menu */
+    /* 7. Add breathing room to the Sidebar Menu */
     [data-testid="stSidebarNav"] {
-        padding-top: 6rem !important; /* This pushes the links down so they don't hit the logo */
+        padding-top: 6rem !important; 
     }
 
-    /* 3. Ensure the Sidebar background is clean */
+    /* 8. Ensure the Sidebar background is clean */
     [data-testid="stSidebar"] {
         background-color: #FFFFFF !important;
+        border-right: 1px solid #E2E8F0 !important;
     }
+</style>
 """, unsafe_allow_html=True)
 
 conn = get_connection()
-
 # --- DATABASE INTEGRITY ENGINE ---
 try:
     conn.execute('''
