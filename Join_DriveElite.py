@@ -286,11 +286,13 @@ else:
                         doc = DocxTemplate("moa_affiliate.docx")
                         
                         context = {
-                            'AFFILIATE_FULLNAME': data['full_name'].upper(),
+                            'FULL_NAME': data['full_name'].upper(),
                             'DATE_SIGNED': current_date,
-                            'address': data['address'],
-                            'signature': InlineImage(doc, io.BytesIO(signature_bytes), width=Mm(40))
+                            'ADDRESS': data['address'],
+                            'NATIONALITY': data['nationality'].upper(),
+                            'SIGNATURE': InlineImage(doc, io.BytesIO(signature_bytes), width=Mm(40))
                         }
+                        
                         
                         doc.render(context)
                         
@@ -414,11 +416,11 @@ else:
                         doc = DocxTemplate("MASTER RENTER AGREEMENT.docx")
                         
                         context = {
-                            'renter_fullname': data['full_name'].upper(),
-                            'renter_nationality': data['nationality'].upper(),
-                            'renter_address': data['address'],
-                            'date_signed': current_date,
-                            'signature': InlineImage(doc, io.BytesIO(signature_bytes), width=Mm(40))
+                            'FULL_NAME': data['full_name'].upper(),
+                            'DATE_SIGNED': current_date,
+                            'ADDRESS': data['address'],
+                            'NATIONALITY': data['nationality'].upper(),
+                            'SIGNATURE': InlineImage(doc, io.BytesIO(signature_bytes), width=Mm(40))
                         }
                         
                         doc.render(context)
