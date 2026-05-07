@@ -36,6 +36,7 @@ st.set_page_config(page_title="DriveElite", layout="wide")
 st.sidebar.image("logo.png", use_container_width=True)
 
 # 3. The Universal "Crystal Elite" CSS Engine
+# NOTICE THE st.markdown AND TRIPLE QUOTES BELOW! 👇
 st.markdown("""
 <style>
     /* --- GLOBAL THEME --- */
@@ -56,7 +57,6 @@ st.markdown("""
         flex-direction: column !important;
     }
     
-    /* Force the Logo to the absolute TOP and kill the empty gap */
     [data-testid="stSidebarUserContent"] {
         order: 1 !important;
         padding-top: 0rem !important;
@@ -64,7 +64,6 @@ st.markdown("""
         padding-bottom: 1rem !important;
     }
 
-    /* Force the Navigation Links below the logo */
     [data-testid="stSidebarNav"] {
         order: 2 !important;
         padding-top: 0rem !important; 
@@ -110,8 +109,8 @@ st.markdown("""
     h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
     label { color: #475569 !important; font-weight: 600 !important; }
 </style>
-""", unsafe_allow_html=True)
-
+""", unsafe_allow_html=True) 
+# 👆 NOTICE THE TRIPLE QUOTES ENDING IT HERE!
 # ==========================================
 # 3. DATABASE SETUP
 # ==========================================
