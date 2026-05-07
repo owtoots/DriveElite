@@ -10,8 +10,9 @@ from database_utils import get_connection
 from streamlit_drawable_canvas import st_canvas
 import smtplib
 from email.message import EmailMessage
+import subprocess # <-- NEW: Used to run the PDF conversion
 
-# --- THE NEW MAGIC LIBRARY ---
+# --- THE MAGIC LIBRARY ---
 from docxtpl import DocxTemplate, InlineImage
 from docx.shared import Mm
 
@@ -55,10 +56,10 @@ if not os.path.exists("uploads"):
     os.makedirs("uploads")
 
 # ==========================================
-# EMAIL FUNCTION (Now handles .docx)
+# EMAIL FUNCTION (Handles both PDF and DOCX)
 # ==========================================
-def send_welcome_email(recipient_email, role, username, docx_filepath):
-    """Emails the generated Word Doc to the user and your backup inbox."""
+def send_welcome_email(recipient_email, role, username, filepath):
+    """Emails the generated Document to the user and your backup inbox."""
     msg = EmailMessage()
     doc_type = "Memorandum of Agreement" if role == "AFFILIATE" else "Master Renter Agreement"
     
@@ -74,10 +75,13 @@ Welcome to DriveElite! Please find your official signed {doc_type} attached to t
 Best regards,
 The DriveElite Team''')
 
-    with open(docx_filepath, 'rb') as f:
-        docx_data = f.read()
+    with open(filepath, 'rb') as f:
+        file_data = f.read()
         
-    msg.add_attachment(docx_data, maintype='application', subtype='vnd.openxmlformats-officedocument.wordprocessingml.document', filename=f"DriveElite_{doc_type}.docx")
+    if filepath.endswith('.pdf'):
+        msg.add_attachment(file_data, maintype='application', subtype='pdf', filename=f"DriveElite_{doc_type}.pdf")
+    else:
+        msg.add_attachment(file_data, maintype='application', subtype='vnd.openxmlformats-officedocument.wordprocessingml.document', filename=f"DriveElite_{doc_type}.docx")
 
     email_password = st.secrets["email_app_password"]
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
@@ -99,7 +103,7 @@ if st.session_state.get('otp_pending'):
             payload = st.session_state.reg_payload
             cursor = conn.cursor()
             
-            # 1. SAVE TO DATABASE (IDs are now securely stored here as BLOBs!)
+            # 1. SAVE TO DATABASE
             cursor.execute('''INSERT INTO platform_users 
             (username, password, role, full_name, email, age, nationality, address, area_code, contact_number, govt_id_img, license_img, signature_img) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
@@ -113,27 +117,30 @@ if st.session_state.get('otp_pending'):
                     role = payload[2]
                     email_addr = payload[4]
 
-                    # Read local file
+                    # Find the generated file (try PDF first, fallback to DOCX)
                     doc_prefix = "MOA" if role == "AFFILIATE" else "RENTER"
+                    pdf_path = f"uploads/{doc_prefix}_{username}.pdf"
                     docx_path = f"uploads/{doc_prefix}_{username}.docx"
+                    
+                    final_path = pdf_path if os.path.exists(pdf_path) else docx_path
                             
-                    send_welcome_email(email_addr, role, username, docx_path)
+                    send_welcome_email(email_addr, role, username, final_path)
                     
                     st.success("✅ Verification successful! Your account is created and your contract has been emailed.")
                     
-                    # --- NEW: INSTANT DOWNLOAD BUTTON ---
-                    with open(docx_path, "rb") as file:
+                    # --- INSTANT DOWNLOAD BUTTON ---
+                    with open(final_path, "rb") as file:
                         btn = st.download_button(
                             label="📄 Download Your Signed Contract Now",
                             data=file,
-                            file_name=f"DriveElite_{doc_prefix}.docx",
-                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            file_name=f"DriveElite_{doc_prefix}.{'pdf' if final_path.endswith('.pdf') else 'docx'}",
+                            mime="application/pdf" if final_path.endswith('.pdf') else "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                             type="primary"
                         )
                             
                     # Cleanup local server memory
-                    if os.path.exists(docx_path):
-                        os.remove(docx_path)
+                    if os.path.exists(docx_path): os.remove(docx_path)
+                    if os.path.exists(pdf_path): os.remove(pdf_path)
                                 
                 except Exception as e:
                     st.warning(f"Account created, but background email encountered an error: {e}")
@@ -237,7 +244,7 @@ else:
 
             if c_submit.button("Submit Registration & Send OTP", type="primary", key="a_sub"):
                 if canvas_result.image_data is not None and len(np.unique(canvas_result.image_data)) > 1:
-                    with st.spinner("Generating your digital contract instantly..."):
+                    with st.spinner("Generating your digital PDF contract instantly..."):
                         
                         data = st.session_state.temp_affiliate_data
                         current_date = datetime.date.today().strftime("%B %d, %Y")
@@ -248,22 +255,27 @@ else:
                         sig_image.save(img_byte_arr, format='PNG')
                         signature_bytes = img_byte_arr.getvalue() 
                         
-                        # 2. GENERATE LOCAL WORD DOC (No Google!)
+                        # 2. GENERATE LOCAL WORD DOC
                         doc = DocxTemplate("moa_affiliate.docx")
                         
                         context = {
-                            'FULL_NAME': data['full_name'].upper(),
+                            'AFFILIATE_FULLNAME': data['full_name'].upper(),
                             'DATE_SIGNED': current_date,
-                            'ADDRESS': data['address'],
-                            'NATIONALITY': data['nationality'],
-                            'SIGNATURE': InlineImage(doc, io.BytesIO(signature_bytes), width=Mm(40))
+                            'address': data['address'],
+                            'signature': InlineImage(doc, io.BytesIO(signature_bytes), width=Mm(40))
                         }
                         
                         doc.render(context)
                         
-                        # 3. Save to server memory
+                        # 3. Save DOCX, then CONVERT TO PDF
                         docx_filename = f"uploads/MOA_{data['username']}.docx"
                         doc.save(docx_filename)
+                        
+                        try:
+                            # Streamlit Cloud Linux Conversion
+                            subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', docx_filename, '--outdir', 'uploads/'], check=True)
+                        except Exception:
+                            pass # If LibreOffice fails (e.g. running locally on Windows), it gracefully falls back to DOCX
                         
                         # 4. Set Payload and Move to OTP
                         st.session_state.reg_payload = (
@@ -361,7 +373,7 @@ else:
 
             if c_submit.button("Submit Registration & Send OTP", type="primary", key="r_sub"):
                 if r_canvas.image_data is not None and len(np.unique(r_canvas.image_data)) > 1:
-                    with st.spinner("Generating your digital contract instantly..."):
+                    with st.spinner("Generating your digital PDF contract instantly..."):
                         
                         data = st.session_state.temp_renter_data
                         current_date = datetime.date.today().strftime("%B %d, %Y")
@@ -372,22 +384,28 @@ else:
                         sig_image.save(img_byte_arr, format='PNG')
                         signature_bytes = img_byte_arr.getvalue() 
                         
-                        # 2. GENERATE LOCAL WORD DOC (No Google!)
+                        # 2. GENERATE LOCAL WORD DOC
                         doc = DocxTemplate("MASTER RENTER AGREEMENT.docx")
                         
                         context = {
-                            'FULL_NAME': data['full_name'].upper(),
-                            'DATE_SIGNED': current_date,
-                            'ADDRESS': data['address'],
-                            'NATIONALITY': data['nationality'],
-                            'SIGNATURE': InlineImage(doc, io.BytesIO(signature_bytes), width=Mm(40))
+                            'renter_fullname': data['full_name'].upper(),
+                            'renter_nationality': data['nationality'].upper(),
+                            'renter_address': data['address'],
+                            'date_signed': current_date,
+                            'signature': InlineImage(doc, io.BytesIO(signature_bytes), width=Mm(40))
                         }
                         
                         doc.render(context)
                         
-                        # 3. Save to server memory
+                        # 3. Save DOCX, then CONVERT TO PDF
                         docx_filename = f"uploads/RENTER_{data['username']}.docx"
                         doc.save(docx_filename)
+                        
+                        try:
+                            # Streamlit Cloud Linux Conversion
+                            subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', docx_filename, '--outdir', 'uploads/'], check=True)
+                        except Exception:
+                            pass # Fallback to DOCX if LibreOffice isn't available
                         
                         # 4. Set Payload and Move to OTP
                         st.session_state.reg_payload = (
