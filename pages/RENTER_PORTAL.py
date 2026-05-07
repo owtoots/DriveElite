@@ -13,10 +13,10 @@ import base64
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from database_utils import get_connection
+import calendar
+
 # --- AUTHENTICATION & PAGE CONFIG ---
 st.set_page_config(page_title="DriveElite Renter Portal", layout="wide")
-import calendar
-import datetime
 
 def render_availability_calendar(year, month, booked_dates_set):
     cal = calendar.monthcalendar(year, month)
@@ -49,6 +49,7 @@ def render_availability_calendar(year, month, booked_dates_set):
         html += "</tr>"
     html += "</table>"
     return html
+
 # ==========================================
 # 🚨 PASTE THE NEW CSS RIGHT HERE 🚨
 # ==========================================
@@ -112,21 +113,23 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
 # --- DATABASE CONNECTION ---
 conn = get_connection()
+
 # --- FETCH DYNAMIC PLATFORM SETTINGS (Including Payment Gateway) ---
 try:
     settings_df = pd.read_sql_query("SELECT payment_mode FROM platform_settings WHERE id = 1", conn)
     gateway_mode = settings_df.iloc[0]['payment_mode'] if not settings_df.empty else "MANUAL_QR"
 except Exception:
     gateway_mode = "MANUAL_QR"
+
 # --- CHAT INPUT RESET LOGIC ---
 if "temp_msg_renter" not in st.session_state:
     st.session_state.temp_msg_renter = ""
 
 def get_booked_dates(vehicle_id, conn):
     """Finds all dates a specific vehicle is already booked."""
-    # We only care about active trips, pending trips, or confirmed trips. 
     query = "SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status IN ('CONFIRMED', 'ONGOING', 'PENDING')"
     df = pd.read_sql_query(query, conn, params=(vehicle_id,))
     
@@ -135,8 +138,6 @@ def get_booked_dates(vehicle_id, conn):
         try:
             start = pd.to_datetime(row['pickup_time']).date()
             end = pd.to_datetime(row['return_time']).date()
-            
-            # Add every single day of that trip to our 'booked' list
             delta = end - start
             for i in range(delta.days + 1):
                 booked_days.add(start + datetime.timedelta(days=i))
@@ -212,13 +213,10 @@ def calculate_24h_rental(pickup_dt, return_dt, daily_rate, hourly_late_fee=300.0
     total_rental_cost = base_cost + hourly_fee_total
     return full_days, billed_hours, base_cost, hourly_fee_total, total_rental_cost
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="DriveElite Showroom", layout="wide")
 
 # --- CUSTOM CSS ---
 st.markdown("""
 <style>
-    /* Your existing styles */
     .stApp { background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); }
     .bill-box { 
         background-color: #ffffff; 
@@ -308,26 +306,26 @@ with tabs[0]:
                         with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
                             unavailable_dates = get_booked_dates(car['id'], conn)
                             # --- SHOW VISUAL AVAILABILITY CALENDAR ---
-                                existing_bookings = pd.read_sql_query("SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status NOT IN ('CANCELLED', 'REJECTED')", conn, params=(car['id'],))
-                                booked_dates = set()
-                                for _, row in existing_bookings.iterrows():
-                                    try:
-                                        start_dt = pd.to_datetime(row['pickup_time']).date()
-                                        end_dt = pd.to_datetime(row['return_time']).date()
-                                        delta = end_dt - start_dt
-                                        for i in range(delta.days + 1):
-                                            day = start_dt + datetime.timedelta(days=i)
-                                            booked_dates.add(day.strftime("%Y-%m-%d"))
-                                    except: pass
+                            existing_bookings = pd.read_sql_query("SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status NOT IN ('CANCELLED', 'REJECTED')", conn, params=(car['id'],))
+                            booked_dates = set()
+                            for _, row in existing_bookings.iterrows():
+                                try:
+                                    start_dt = pd.to_datetime(row['pickup_time']).date()
+                                    end_dt = pd.to_datetime(row['return_time']).date()
+                                    delta = end_dt - start_dt
+                                    for idx in range(delta.days + 1):
+                                        day = start_dt + datetime.timedelta(days=idx)
+                                        booked_dates.add(day.strftime("%Y-%m-%d"))
+                                except: pass
 
-                                today = datetime.date.today()
-                                st.markdown(render_availability_calendar(today.year, today.month, booked_dates), unsafe_allow_html=True)
-                                # Show next month too if you want
-                                next_m = today.month + 1 if today.month < 12 else 1
-                                next_y = today.year if today.month < 12 else today.year + 1
-                                st.markdown(render_availability_calendar(next_y, next_m, booked_dates), unsafe_allow_html=True)
-                            d1 = st.date_input("Pickup Date", min_value=datetime.date.today(), key=f"d1_{car['id']}")
+                            today = datetime.date.today()
+                            st.markdown(render_availability_calendar(today.year, today.month, booked_dates), unsafe_allow_html=True)
                             
+                            next_m = today.month + 1 if today.month < 12 else 1
+                            next_y = today.year if today.month < 12 else today.year + 1
+                            st.markdown(render_availability_calendar(next_y, next_m, booked_dates), unsafe_allow_html=True)
+                            
+                            d1 = st.date_input("Pickup Date", min_value=datetime.date.today(), key=f"d1_{car['id']}")
                             t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}", step=datetime.timedelta(hours=1))
                             d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}")
                             t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}", step=datetime.timedelta(hours=1))
@@ -417,15 +415,9 @@ with tabs[0]:
                                 st.markdown(bill_html, unsafe_allow_html=True)
                                 
                                 st.divider()
-                                # ... (Cost breakdown calculations above this) ...
-                                
-                                bill_html = f'<div class="bill-box"><table class="table-bill" style="width:100%;">{"".join(rows)}<tr style="border-top:2px solid #000;"><td class="bill-label" style="font-weight:900;">GRAND TOTAL</td><td style="text-align:right; font-weight:900; font-size:1.1em;">₱{grand_total:,.2f}</td></tr></table></div>'
-                                st.markdown(bill_html, unsafe_allow_html=True)
-                                
-                                st.divider()
 
                                 # =========================================================
-                                # 🚨 PASTE STRICT OVERLAP CHECKER HERE 🚨
+                                # 🚨 STRICT OVERLAP CHECKER
                                 # =========================================================
                                 overlap_check_df = pd.read_sql_query("SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status NOT IN ('CANCELLED', 'REJECTED')", conn, params=(car['id'],))
                                 is_overlapping = False
@@ -434,7 +426,6 @@ with tabs[0]:
                                     ex_start = pd.to_datetime(row['pickup_time'])
                                     ex_end = pd.to_datetime(row['return_time'])
                                     
-                                    # Overlap Formula
                                     if p_dt_obj < ex_end and r_dt_obj > ex_start:
                                         is_overlapping = True
                                         break
@@ -493,7 +484,7 @@ with tabs[0]:
                                                 except Exception as e:
                                                     st.error("Failed to generate payment link. Please contact admin.")
                                                     st.write(e)
-                                                
+                                            
                                             else:
                                                 # --- DOOR B: MANUAL BPI QR ---
                                                 conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
@@ -512,6 +503,7 @@ with tabs[0]:
                                                 st.warning("⚠️ After transferring, go to the 'My Bookings' tab and send a screenshot of your receipt in the chat. Your booking will remain PENDING until we verify the receipt.")
                                     else: 
                                         st.warning("⚠️ Please fill all required fields (Destination, Address, and Luzon Agreement).")
+
 # --- TAB 1: MY BOOKINGS ---
 with tabs[1]:
     trip_tabs = st.tabs(["🚀 Active Trips", "📜 History"])
@@ -543,13 +535,10 @@ with tabs[1]:
                 with c_msg: 
                     st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_renter_chat, args=(b_ref_str,), placeholder="Upload BPI receipt or type a message...")
 
-                # 🚨 FIX 1: Attach the callback directly to the Send button
                 st.button("Send", key=f"btn_{b_ref_str}", on_click=clear_renter_chat, args=(b_ref_str,), use_container_width=True)
                 
-                # Check if either Enter OR the Button triggered the send action
                 enter_pressed = st.session_state.get(f"trigger_send_{b_ref_str}", False)
 
-                # 🚨 FIX 2: Process the message safely
                 if enter_pressed:
                     final_msg = st.session_state.temp_msg_renter
                     has_text = bool(final_msg.strip())
@@ -568,7 +557,6 @@ with tabs[1]:
                                          (b_ref_str, renter_user, t['owner_username'], final_msg, ""))
                         conn.commit()
                         
-                        # 🚨 FIX 3: Removed the illegal code. Only clear the temp flags!
                         st.session_state.temp_msg_renter = ""
                         st.session_state[f"trigger_send_{b_ref_str}"] = False
                         st.rerun()
