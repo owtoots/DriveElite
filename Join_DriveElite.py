@@ -6,18 +6,14 @@ import random
 import datetime
 import os
 import numpy as np
-import requests 
 from database_utils import get_connection
 from streamlit_drawable_canvas import st_canvas
-import streamlit.components.v1 as components
 import smtplib
 from email.message import EmailMessage
-from googleapiclient.http import MediaIoBaseUpload
-import json
 
-# --- GOOGLE API IMPORTS ---
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
+# --- THE NEW MAGIC LIBRARY ---
+from docxtpl import DocxTemplate, InlineImage
+from docx.shared import Mm
 
 # ==========================================
 # PAGE CONFIG & DATABASE
@@ -25,7 +21,7 @@ from googleapiclient.discovery import build
 st.set_page_config(page_title="Join DriveElite", layout="wide")
 conn = get_connection()
 
-# --- NEW: AUTO-BUILD THE DATABASE TABLE ---
+# --- AUTO-BUILD THE DATABASE TABLE ---
 try:
     conn.execute('''
         CREATE TABLE IF NOT EXISTS platform_users (
@@ -49,148 +45,40 @@ try:
 except:
     pass
 
-# --- SAFE PATCH: Force add the missing column to old databases ---
 try:
     conn.execute("ALTER TABLE platform_users ADD COLUMN area_code TEXT DEFAULT '+63'")
     conn.commit()
 except:
     pass
-# -----------------------------------------------------------------
 
 if not os.path.exists("uploads"): 
     os.makedirs("uploads")
 
 # ==========================================
-# UNIVERSAL GOOGLE DOC FETCH FUNCTION
+# EMAIL FUNCTION (Now handles .docx)
 # ==========================================
-def get_live_google_doc(doc_id):
-    """Fetches the Google Doc as HTML so it keeps all bolding, paragraphs, and spacing."""
-    url = f"https://docs.google.com/document/d/{doc_id}/export?format=html"
-    try:
-        response = requests.get(url)
-        return response.content.decode('utf-8')
-    except Exception as e:
-        return f"<p>Agreement terms are temporarily unavailable. Error: {e}</p>"
-
-def generate_legal_doc_from_drive(role, username, full_name, address, nationality, doc_id, signature_bytes):
-    from google.oauth2 import service_account
-    from googleapiclient.http import MediaIoBaseUpload
-    from googleapiclient.discovery import build
-    import datetime
-    import io
-    import streamlit as st
-
-    # --- SMART AUTHENTICATION ---
-    SCOPES = ['https://www.googleapis.com/auth/documents', 'https://www.googleapis.com/auth/drive']
-    try:
-        # First, the app tries to look in Streamlit's secure online vault
-        creds_dict = st.secrets["gcp_service_account"]
-        creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-    except Exception:
-        # If it's not online, it falls back to looking for the local file on your computer
-        creds = service_account.Credentials.from_service_account_file('service_account.json', scopes=SCOPES)
-    
-    drive_service = build('drive', 'v3', credentials=creds)
-    docs_service = build('docs', 'v1', credentials=creds)
-
-    # 1. Duplicate Template
-    copy_title = f"TEMP_{role}_{username}"
-    copied_file = drive_service.files().copy(fileId=doc_id, body={'name': copy_title}).execute()
-    new_doc_id = copied_file.get('id')
-
-    # 2. Temporary Signature Upload (to your Vault)
-    VAULT_ID = "1Gc21xmpLvKHFB_0ta9vl-osySjLyrPD7"
-    sig_metadata = {'name': f'temp_sig_{username}.png', 'parents': [VAULT_ID]}
-    sig_media = MediaIoBaseUpload(io.BytesIO(signature_bytes), mimetype='image/png')
-    sig_file = drive_service.files().create(body=sig_metadata, media_body=sig_media, fields='id').execute()
-    sig_id = sig_file.get('id')
-    
-    # Make it readable for the Docs API
-    drive_service.permissions().create(fileId=sig_id, body={'type': 'anyone', 'role': 'reader'}).execute()
-    sig_url = f"https://drive.google.com/uc?id={sig_id}"
-
-    # 3. Replace Text Tags
-    today_date = datetime.datetime.now().strftime("%B %d, %Y")
-    text_requests = [
-        {'replaceAllText': {'containsText': {'text': '{{AFFILIATE_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
-        {'replaceAllText': {'containsText': {'text': '{{RENTER_FULLNAME}}', 'matchCase': False}, 'replaceText': full_name.upper()}},
-        {'replaceAllText': {'containsText': {'text': '{{DATE_SIGNED}}', 'matchCase': False}, 'replaceText': today_date}},
-        {'replaceAllText': {'containsText': {'text': '{{ADDRESS}}', 'matchCase': False}, 'replaceText': address}},
-        {'replaceAllText': {'containsText': {'text': '{{renter_address}}', 'matchCase': False}, 'replaceText': address}},
-        {'replaceAllText': {'containsText': {'text': '{{NATIONALITY}}', 'matchCase': False}, 'replaceText': nationality}},
-        {'replaceAllText': {'containsText': {'text': '{{renter_nationality}}', 'matchCase': False}, 'replaceText': nationality}},
-    ]
-    docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': text_requests}).execute()
-
-    # 4. GET THE END INDEX & INSERT SIGNATURE
-    doc_metadata = docs_service.documents().get(documentId=new_doc_id).execute()
-    end_index = doc_metadata.get('body').get('content')[-1].get('endIndex') - 1
-
-    img_request = [{
-        'insertInlineImage': {
-            'uri': sig_url,
-            'location': {'index': end_index}, 
-            'objectSize': {'height': {'magnitude': 60, 'unit': 'PT'}, 'width': {'magnitude': 120, 'unit': 'PT'}}
-        }
-    }]
-    docs_service.documents().batchUpdate(documentId=new_doc_id, body={'requests': img_request}).execute()
-
-    # 5. Export and Cleanup
-    pdf_bytes = drive_service.files().export_media(fileId=new_doc_id, mimeType='application/pdf').execute()
-    drive_service.files().delete(fileId=new_doc_id).execute()
-    drive_service.files().delete(fileId=sig_id).execute()
-
-    return pdf_bytes
-
-# ==========================================
-# DRIVEELITE VAULT & MAILROOM FUNCTIONS
-# ==========================================
-def upload_to_vault(file_bytes, folder_id, filename):
-    """Uploads ID bytes directly to Google Drive Vault using the Service Account bot."""
-    from google.oauth2 import service_account
-    from googleapiclient.discovery import build
-    from googleapiclient.http import MediaIoBaseUpload
-    import io
-    import streamlit as st
-
-    # --- SMART AUTHENTICATION ---
-    SCOPES = ['https://www.googleapis.com/auth/drive']
-    try:
-        creds_dict = st.secrets["gcp_service_account"]
-        creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-    except Exception:
-        creds = service_account.Credentials.from_service_account_file('service_account.json', scopes=SCOPES)
-        
-    drive_service = build('drive', 'v3', credentials=creds)
-
-    file_metadata = {'name': filename, 'parents': [folder_id]}
-    media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype='application/octet-stream', resumable=True)
-    drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-
-def send_welcome_email(recipient_email, role, username, pdf_filepath):
-    """Emails the generated PDF to the user and your backup inbox."""
+def send_welcome_email(recipient_email, role, username, docx_filepath):
+    """Emails the generated Word Doc to the user and your backup inbox."""
     msg = EmailMessage()
     doc_type = "Memorandum of Agreement" if role == "AFFILIATE" else "Master Renter Agreement"
     
     msg['Subject'] = f'DriveElite: Your Official {doc_type}'
     msg['From'] = 'rdalbaojr@gmail.com'
     msg['To'] = recipient_email
-    msg['Bcc'] = 'rdalbaojr@gmail.com' # Your permanent backup copy!
+    msg['Bcc'] = 'rdalbaojr@gmail.com'
 
     msg.set_content(f'''Hello,
     
-Welcome to DriveElite! Please find your official {doc_type} attached to this email.
+Welcome to DriveElite! Please find your official signed {doc_type} attached to this email.
 
 Best regards,
 The DriveElite Team''')
 
-    # Read the PDF that your script already saved to the uploads folder
-    with open(pdf_filepath, 'rb') as f:
-        pdf_data = f.read()
+    with open(docx_filepath, 'rb') as f:
+        docx_data = f.read()
         
-    msg.add_attachment(pdf_data, maintype='application', subtype='pdf', filename=f"DriveElite_{doc_type}.pdf")
+    msg.add_attachment(docx_data, maintype='application', subtype='vnd.openxmlformats-officedocument.wordprocessingml.document', filename=f"DriveElite_{doc_type}.docx")
 
-    # Send the email securely
     email_password = st.secrets["email_app_password"]
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
         smtp.login('rdalbaojr@gmail.com', email_password)
@@ -211,44 +99,45 @@ if st.session_state.get('otp_pending'):
             payload = st.session_state.reg_payload
             cursor = conn.cursor()
             
-            # 1. SAVE TO DATABASE
+            # 1. SAVE TO DATABASE (IDs are now securely stored here as BLOBs!)
             cursor.execute('''INSERT INTO platform_users 
             (username, password, role, full_name, email, age, nationality, address, area_code, contact_number, govt_id_img, license_img, signature_img) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
             
             conn.commit()
             
-            # 2. THE AUTOMATION INJECTION (Vault + Email)
-            with st.spinner("Securing IDs to Vault and emailing your contract..."):
+            # 2. EMAIL AUTOMATION
+            with st.spinner("Securing account and emailing your contract..."):
                 try:
                     username = payload[0]
                     role = payload[2]
                     email_addr = payload[4]
-                    gov_id_bytes = payload[10]
-                    lic_id_bytes = payload[11]
 
-                    # Upload IDs to the Vault
-                    VAULT_ID = "1Gc21xmpLvKHFB_0ta9vl-osySjLyrPD7"  
-                    upload_to_vault(gov_id_bytes, VAULT_ID, f"{username}_GovID.jpg")
-                    upload_to_vault(lic_id_bytes, VAULT_ID, f"{username}_License.jpg")
-
-                    # Decide which file to look for based on role
-                    pdf_prefix = "MOA" if role == "AFFILIATE" else "RENTER"
-                    pdf_path = f"uploads/{pdf_prefix}_{username}.pdf"
+                    # Read local file
+                    doc_prefix = "MOA" if role == "AFFILIATE" else "RENTER"
+                    docx_path = f"uploads/{doc_prefix}_{username}.docx"
                             
-                    # SEND THE EMAIL
-                    send_welcome_email(email_addr, role, username, pdf_path)
+                    send_welcome_email(email_addr, role, username, docx_path)
+                    
+                    st.success("✅ Verification successful! Your account is created and your contract has been emailed.")
+                    
+                    # --- NEW: INSTANT DOWNLOAD BUTTON ---
+                    with open(docx_path, "rb") as file:
+                        btn = st.download_button(
+                            label="📄 Download Your Signed Contract Now",
+                            data=file,
+                            file_name=f"DriveElite_{doc_prefix}.docx",
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            type="primary"
+                        )
                             
                     # Cleanup local server memory
-                    if os.path.exists(pdf_path):
-                        os.remove(pdf_path)
+                    if os.path.exists(docx_path):
+                        os.remove(docx_path)
                                 
                 except Exception as e:
-                    st.warning(f"Account created, but background tasks (Vault/Email) encountered an error: {e}")
-
-            st.success("✅ Verification successful! Your account is created and your contract has been emailed.")
+                    st.warning(f"Account created, but background email encountered an error: {e}")
             
-            # Reset session state for next use
             for key in ['reg_payload', 'verify_contact', 'generated_otp']:
                 if key in st.session_state: del st.session_state[key]
             st.session_state.otp_pending = False
@@ -288,9 +177,8 @@ else:
                 c4, c5, c6, c7 = st.columns([3, 1, 1, 3])
                 dob = c4.date_input("Date of Birth", min_value=datetime.date(1920, 1, 1), max_value=datetime.date.today())
                 age = c5.text_input("Age", max_chars=2) 
-                nationality = c6.text_input("Nat.", max_chars=3).upper() 
+                nationality = c6.text_input("Nat.", max_chars=3, value="PH").upper() 
                 
-                # --- UPGRADED AREA CODE SELECTION ---
                 st.write("Mobile Number *")
                 c_area, c_num = st.columns([1, 4])
                 with c_area:
@@ -325,29 +213,14 @@ else:
                                 "age": age, "nationality": nationality, "address": address,
                                 "area_code": a_code,
                                 "contact": contact, "gov_id_bytes": gov_id.read(), "lic_id_bytes": lic_id.read(),
-                                "first_name": first_name, "surname": surname
                             }
                             st.session_state.affiliate_step = 2
                             st.rerun()
 
         elif st.session_state.affiliate_step == 2:
             st.write("### Step 2: Memorandum of Agreement")
+            st.info("Please sign below to digitally execute your DriveElite Affiliate Memorandum of Agreement. A signed copy will be emailed to you and made available for instant download.")
             
-            affiliate_doc_id = "1CUT_lzsYG0M9RiLuItk8FHKg03QUZ3TXLHT9f6quR5A"
-            raw_moa_html = get_live_google_doc(affiliate_doc_id)
-            
-            current_date = datetime.date.today().strftime("%B %d, %Y")
-            affiliate_name = st.session_state.temp_affiliate_data['full_name']
-            
-            display_moa = raw_moa_html.replace("{{AFFILIATE_FULLNAME}}", affiliate_name.upper())
-            display_moa = display_moa.replace("{affiliate_fullname}", affiliate_name.upper()) 
-            display_moa = display_moa.replace("{{DATE_SIGNED}}", current_date)
-            display_moa = display_moa.replace("{date_signed}", current_date) 
-
-            with st.container(border=True):
-                components.html(display_moa, height=400, scrolling=True)
-                
-            st.divider()
             st.write("#### Sign to Accept")
             st.caption("Please draw your signature below. This will be saved to your profile for future booking handovers.")
             
@@ -364,40 +237,47 @@ else:
 
             if c_submit.button("Submit Registration & Send OTP", type="primary", key="a_sub"):
                 if canvas_result.image_data is not None and len(np.unique(canvas_result.image_data)) > 1:
-                    with st.spinner("Connecting to Google Cloud to generate your legal PDF..."):
-                        try:
-                            # 1. Save Signature Image
-                            sig_image = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
-                            img_byte_arr = io.BytesIO()
-                            sig_image.save(img_byte_arr, format='PNG')
-                            signature_bytes = img_byte_arr.getvalue() 
-                            
-                            data = st.session_state.temp_affiliate_data
-                            
-                            # 2. Call Google Docs API
-                            pdf_bytes = generate_legal_doc_from_drive("AFFILIATE", data['username'], data['full_name'], data['address'], data['nationality'], affiliate_doc_id, signature_bytes)
-                            
-                            # 3. Save PDF to uploads folder
-                            pdf_filename = f"uploads/MOA_{data['username']}.pdf"
-                            with open(pdf_filename, "wb") as f:
-                                f.write(pdf_bytes)
-                                
-                            # 4. Set Payload and Move to OTP
-                            st.session_state.reg_payload = (
-                                data["username"], data["password"], 'AFFILIATE', data["full_name"], data["email"],
-                                data["age"], data["nationality"], data["address"], data["area_code"], data["contact"], 
-                                data["gov_id_bytes"], data["lic_id_bytes"], signature_bytes 
-                            )
-                            
-                            st.session_state.verify_contact = data["contact"]
-                            st.session_state.generated_otp = str(random.randint(100000, 999999))
-                            st.session_state.otp_pending = True
-                            st.session_state.affiliate_step = 1 
-                            del st.session_state.temp_affiliate_data
-                            st.rerun()
-                            
-                        except Exception as e:
-                            st.error(f"Failed to connect to Google Docs API. Ensure credentials are valid. Error: {e}")
+                    with st.spinner("Generating your digital contract instantly..."):
+                        
+                        data = st.session_state.temp_affiliate_data
+                        current_date = datetime.date.today().strftime("%B %d, %Y")
+                        
+                        # 1. Save Signature Image into Memory
+                        sig_image = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+                        img_byte_arr = io.BytesIO()
+                        sig_image.save(img_byte_arr, format='PNG')
+                        signature_bytes = img_byte_arr.getvalue() 
+                        
+                        # 2. GENERATE LOCAL WORD DOC (No Google!)
+                        doc = DocxTemplate("moa_affiliate.docx")
+                        
+                        context = {
+                            'FULL_NAME': data['full_name'].upper(),
+                            'DATE_SIGNED': current_date,
+                            'ADDRESS': data['address'],
+                            'NATIONALITY': data['nationality'],
+                            'SIGNATURE': InlineImage(doc, io.BytesIO(signature_bytes), width=Mm(40))
+                        }
+                        
+                        doc.render(context)
+                        
+                        # 3. Save to server memory
+                        docx_filename = f"uploads/MOA_{data['username']}.docx"
+                        doc.save(docx_filename)
+                        
+                        # 4. Set Payload and Move to OTP
+                        st.session_state.reg_payload = (
+                            data["username"], data["password"], 'AFFILIATE', data["full_name"], data["email"],
+                            data["age"], data["nationality"], data["address"], data["area_code"], data["contact"], 
+                            data["gov_id_bytes"], data["lic_id_bytes"], signature_bytes 
+                        )
+                        
+                        st.session_state.verify_contact = data["contact"]
+                        st.session_state.generated_otp = str(random.randint(100000, 999999))
+                        st.session_state.otp_pending = True
+                        st.session_state.affiliate_step = 1 
+                        del st.session_state.temp_affiliate_data
+                        st.rerun()
                 else:
                     st.error("🚨 Digital signature required to proceed.")
 
@@ -423,7 +303,6 @@ else:
                 age = c5.text_input("Age", max_chars=2) 
                 nationality = c6.text_input("Nat.", max_chars=3, value="PH").upper() 
                 
-                # --- UPGRADED AREA CODE SELECTION ---
                 st.write("Mobile Number *")
                 c_area, c_num = st.columns([1, 4])
                 with c_area:
@@ -458,34 +337,14 @@ else:
                                 "age": age, "nationality": nationality, "address": address,
                                 "area_code": a_code,
                                 "contact": contact, "gov_id_bytes": gov_id.read(), "lic_id_bytes": lic_id.read(),
-                                "first_name": first_name, "surname": surname
                             }
                             st.session_state.renter_step = 2
                             st.rerun()
 
         elif st.session_state.renter_step == 2:
             st.write("### Step 2: Master Renter Agreement")
-            
-            renter_doc_id = "1bEs6dcwb5OYuerZHeAg7MAF2c1HTsP2Zk67Pg71QYj8" 
-            raw_renter_html = get_live_google_doc(renter_doc_id)
-            
-            data = st.session_state.temp_renter_data
-            current_date = datetime.date.today().strftime("%B %d, %Y")
-            renter_name = data['full_name']
+            st.info("Please sign below to digitally execute your DriveElite Master Renter Agreement. A signed copy will be emailed to you and made available for instant download.")
 
-            # --- DYNAMIC PREVIEW DATA FIX ---
-            display_renter = raw_renter_html.replace("{{renter_fullname}}", renter_name.upper())
-            nat_data = data.get('nationality', 'FILIPINO')
-            display_renter = display_renter.replace("{{renter_nationality}}", nat_data)
-            display_renter = display_renter.replace("{{nationality}}", nat_data)
-            display_renter = display_renter.replace("{{renter_address}}", data['address'])
-            display_renter = display_renter.replace("{{address}}", data['address'])
-            display_renter = display_renter.replace("{{date_signed}}", current_date)
-
-            with st.container(border=True):
-                components.html(display_renter, height=400, scrolling=True)
-
-            st.divider()
             st.write("#### Sign to Accept")
             st.caption("Please draw your signature below. This will be saved to your profile for future bookings.")
 
@@ -502,37 +361,47 @@ else:
 
             if c_submit.button("Submit Registration & Send OTP", type="primary", key="r_sub"):
                 if r_canvas.image_data is not None and len(np.unique(r_canvas.image_data)) > 1:
-                    with st.spinner("Connecting to Google Cloud to generate your legal PDF..."):
-                        try:
-                            # 1. Save Signature Image
-                            sig_image = Image.fromarray(r_canvas.image_data.astype('uint8'), 'RGBA')
-                            img_byte_arr = io.BytesIO()
-                            sig_image.save(img_byte_arr, format='PNG')
-                            signature_bytes = img_byte_arr.getvalue() 
-                            
-                            # 2. Call Google Docs API
-                            pdf_bytes = generate_legal_doc_from_drive("RENTER", data['username'], data['full_name'], data['address'], data['nationality'], renter_doc_id, signature_bytes)
-                            
-                            # 3. Save PDF to uploads folder
-                            pdf_filename = f"uploads/RENTER_{data['username']}.pdf"
-                            with open(pdf_filename, "wb") as f:
-                                f.write(pdf_bytes)
-                                
-                            # 4. Set Payload and Move to OTP
-                            st.session_state.reg_payload = (
-                                data["username"], data["password"], 'RENTER', data["full_name"], data["email"],
-                                data["age"], data["nationality"], data["address"], data["area_code"], data["contact"], 
-                                data["gov_id_bytes"], data["lic_id_bytes"], signature_bytes 
-                            )
-                            
-                            st.session_state.verify_contact = data["contact"]
-                            st.session_state.generated_otp = str(random.randint(100000, 999999))
-                            st.session_state.otp_pending = True
-                            st.session_state.renter_step = 1 
-                            del st.session_state.temp_renter_data
-                            st.rerun()
-                            
-                        except Exception as e:
-                            st.error(f"Failed to connect to Google Docs API. Ensure credentials are valid. Error: {e}")
+                    with st.spinner("Generating your digital contract instantly..."):
+                        
+                        data = st.session_state.temp_renter_data
+                        current_date = datetime.date.today().strftime("%B %d, %Y")
+                        
+                        # 1. Save Signature Image into Memory
+                        sig_image = Image.fromarray(r_canvas.image_data.astype('uint8'), 'RGBA')
+                        img_byte_arr = io.BytesIO()
+                        sig_image.save(img_byte_arr, format='PNG')
+                        signature_bytes = img_byte_arr.getvalue() 
+                        
+                        # 2. GENERATE LOCAL WORD DOC (No Google!)
+                        doc = DocxTemplate("MASTER RENTER AGREEMENT.docx")
+                        
+                        context = {
+                            'FULL_NAME': data['full_name'].upper(),
+                            'DATE_SIGNED': current_date,
+                            'ADDRESS': data['address'],
+                            'NATIONALITY': data['nationality'],
+                            'SIGNATURE': InlineImage(doc, io.BytesIO(signature_bytes), width=Mm(40))
+                        }
+                        
+                        doc.render(context)
+                        
+                        # 3. Save to server memory
+                        docx_filename = f"uploads/RENTER_{data['username']}.docx"
+                        doc.save(docx_filename)
+                        
+                        # 4. Set Payload and Move to OTP
+                        st.session_state.reg_payload = (
+                            data["username"], data["password"], 'RENTER', data["full_name"], data["email"],
+                            data["age"], data["nationality"], data["address"], data["area_code"], data["contact"], 
+                            data["gov_id_bytes"], data["lic_id_bytes"], signature_bytes 
+                        )
+                        
+                        st.session_state.verify_contact = data["contact"]
+                        st.session_state.generated_otp = str(random.randint(100000, 999999))
+                        st.session_state.otp_pending = True
+                        st.session_state.renter_step = 1 
+                        del st.session_state.temp_renter_data
+                        st.rerun()
+                        
                 else:
                     st.error("🚨 Digital signature required to proceed.")
