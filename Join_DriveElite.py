@@ -86,7 +86,7 @@ st.markdown("""
 
     /* 1. Size the Logo and Center it Perfectly */
     [data-testid="stLogo"] {
-        height: 6.5rem !important; /* Adjust this number to make it taller/shorter */
+        height: 50rem !important; /* Adjust this number to make it taller/shorter */
         width: auto !important;
         max-width: 80% !important; /* Keeps it from hitting the sidebar edges */
         
