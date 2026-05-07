@@ -17,9 +17,62 @@ from docxtpl import DocxTemplate, InlineImage
 from docx.shared import Mm
 
 # ==========================================
-# PAGE CONFIG & DATABASE
+# PAGE CONFIG & MODERN VELOCITY CSS (STYLE A)
 # ==========================================
 st.set_page_config(page_title="Join DriveElite", layout="wide")
+
+st.markdown("""
+<style>
+    /* 1. Main Background - Cool Slate Gray */
+    [data-testid="stAppViewContainer"] {
+        background-color: #F1F5F9 !important;
+        color: #111827 !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    [data-testid="stHeader"] { background-color: #F1F5F9 !important; }
+
+    /* 2. Registration Cards - Crisp White */
+    [data-testid="stForm"], .stForm {
+        background-color: #FFFFFF !important;
+        padding: 40px !important;
+        border-radius: 12px !important;
+        border: 1px solid #E2E8F0 !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+    }
+
+    /* 3. Primary Buttons - Emerald Green */
+    div.stButton > button, [data-testid="stFormSubmitButton"] > button {
+        background-color: #10B981 !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        padding: 12px 24px !important;
+        transition: all 0.2s ease !important;
+    }
+    div.stButton > button:hover {
+        background-color: #059669 !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2) !important;
+    }
+
+    /* 4. Input Fields */
+    div[data-baseweb="input"] > div {
+        background-color: #F9FAFB !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 8px !important;
+    }
+    input { color: #111827 !important; }
+    
+    /* 5. Typography */
+    h1, h2, h3 { color: #111827 !important; font-weight: 800 !important; letter-spacing: -0.025em !important; }
+    p, label { color: #4B5563 !important; font-weight: 500 !important; }
+
+    /* 6. Radio & Dividers */
+    hr { border-top: 1px solid #E2E8F0 !important; }
+</style>
+""", unsafe_allow_html=True)
+
 conn = get_connection()
 
 # --- AUTO-BUILD THE DATABASE TABLE ---
@@ -62,7 +115,6 @@ except:
 # ---> FOLDER CREATION FIX <---
 if not os.path.exists("uploads"):
     os.makedirs("uploads")
-# ----------------------------------
 
 # ==========================================
 # UTILITY & EMAIL FUNCTIONS
@@ -89,11 +141,12 @@ def send_welcome_email(recipient_email, role, username, filepath):
     """Emails the generated Document to the user and your backup inbox."""
     msg = EmailMessage()
     doc_type = "Memorandum of Agreement" if role == "AFFILIATE" else "Master Renter Agreement"
+    doc_prefix = "MOA" if role == "AFFILIATE" else "RENTER"
     
     msg['Subject'] = f'DriveElite: Your Official {doc_type}'
     msg['From'] = 'rdalbaojr@gmail.com'
     msg['To'] = recipient_email
-    msg['Bcc'] = 'rdalbaojr@gmail.com' # <-- This is your automated Backup Vault!
+    msg['Bcc'] = 'rdalbaojr@gmail.com' 
 
     msg.set_content(f'''Hello,
     
@@ -106,9 +159,9 @@ The DriveElite Team''')
         file_data = f.read()
         
     if filepath.endswith('.pdf'):
-        msg.add_attachment(file_data, maintype='application', subtype='pdf', filename=f"DriveElite_{doc_type}.pdf")
+        msg.add_attachment(file_data, maintype='application', subtype='pdf', filename=f"DriveElite_{doc_prefix}.pdf")
     else:
-        msg.add_attachment(file_data, maintype='application', subtype='vnd.openxmlformats-officedocument.wordprocessingml.document', filename=f"DriveElite_{doc_type}.docx")
+        msg.add_attachment(file_data, maintype='application', subtype='vnd.openxmlformats-officedocument.wordprocessingml.document', filename=f"DriveElite_{doc_prefix}.docx")
 
     email_password = st.secrets["email_app_password"]
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
@@ -144,7 +197,6 @@ if st.session_state.get('otp_pending'):
                     role = payload[2]
                     email_addr = payload[4]
 
-                    # Find the generated file (try PDF first, fallback to DOCX)
                     doc_prefix = "MOA" if role == "AFFILIATE" else "RENTER"
                     pdf_path = f"uploads/{doc_prefix}_{username}.pdf"
                     docx_path = f"uploads/{doc_prefix}_{username}.docx"
@@ -155,12 +207,11 @@ if st.session_state.get('otp_pending'):
                     
                     st.success("✅ Verification successful! Your account is created and your contract has been emailed.")
                     
-                    # --- INSTANT DOWNLOAD BUTTON ---
                     with open(final_path, "rb") as file:
-                        btn = st.download_button(
+                        st.download_button(
                             label="📄 Download Your Signed Contract Now",
                             data=file,
-                            file_name=f"DriveElite_{doc_prefix}.{'pdf' if final_path.endswith('.pdf') else 'docx'}",
+                            file_name=f"DriveElite_{doc_prefix}.pdf",
                             mime="application/pdf" if final_path.endswith('.pdf') else "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                             type="primary"
                         )
@@ -191,12 +242,8 @@ else:
     reg_type = st.radio("I want to register as a:", ["Select...", "Affiliate", "Renter"])
     st.divider()
 
-    # ---------------------------------------------------------
-    # AFFILIATE REGISTRATION BLOCK 
-    # ---------------------------------------------------------
     if reg_type == "Affiliate":
         st.subheader("💼 Affiliate Partner Registration")
-        
         if "affiliate_step" not in st.session_state:
             st.session_state.affiliate_step = 1
 
@@ -253,18 +300,14 @@ else:
 
         elif st.session_state.affiliate_step == 2:
             st.write("### Step 2: Memorandum of Agreement")
-            st.info("Please sign below to digitally execute your DriveElite Affiliate Memorandum of Agreement. A signed copy will be emailed to you and made available for instant download.")
-            
-            st.write("#### Sign to Accept")
-            st.caption("Please draw your signature below. This will be saved to your profile for future booking handovers.")
+            st.info("Please sign below to digitally execute your DriveElite Affiliate MOA.")
             
             canvas_result = st_canvas(
-                stroke_width=3, stroke_color="#000000", background_color="#f0f2f6",
+                stroke_width=3, stroke_color="#000000", background_color="#FFFFFF",
                 height=150, width=400, drawing_mode="freedraw", key="a_canvas",
             )
             
             c_back, c_submit = st.columns([1, 4])
-            
             if c_back.button("⬅️ Back", key="a_back"):
                 st.session_state.affiliate_step = 1
                 st.rerun()
@@ -272,46 +315,32 @@ else:
             if c_submit.button("Submit Registration & Send OTP", type="primary", key="a_sub"):
                 if canvas_result.image_data is not None and len(np.unique(canvas_result.image_data)) > 1:
                     with st.spinner("Generating your digital PDF contract instantly..."):
-                        
                         data = st.session_state.temp_affiliate_data
-                        current_date = datetime.date.today().strftime("%B %d, %Y")
-                        
-                        # 1. Save and Crop Signature Image into Memory
                         sig_image = crop_signature(canvas_result.image_data)
                         img_byte_arr = io.BytesIO()
                         sig_image.save(img_byte_arr, format='PNG')
                         signature_bytes = img_byte_arr.getvalue() 
                         
-                        # 2. GENERATE LOCAL WORD DOC
                         doc = DocxTemplate("moa_affiliate.docx")
-                        
                         context = {
                             'FULL_NAME': data['full_name'].upper(),
-                            'DATE_SIGNED': current_date,
+                            'DATE_SIGNED': datetime.date.today().strftime("%B %d, %Y"),
                             'ADDRESS': data['address'],
                             'NATIONALITY': data['nationality'].upper(),
                             'SIGNATURE': InlineImage(doc, io.BytesIO(signature_bytes), width=Mm(40))
                         }
-                        
-                        
                         doc.render(context)
-                        
-                        # 3. Save DOCX, then CONVERT TO PDF
                         docx_filename = f"uploads/MOA_{data['username']}.docx"
                         doc.save(docx_filename)
-                        
                         try:
                             subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', docx_filename, '--outdir', 'uploads/'], check=True)
-                        except Exception:
-                            pass
+                        except Exception: pass
                         
-                        # 4. Set Payload and Move to OTP
                         st.session_state.reg_payload = (
                             data["username"], data["password"], 'AFFILIATE', data["full_name"], data["email"],
                             data["age"], data["nationality"], data["address"], data["area_code"], data["contact"], 
                             data["gov_id_bytes"], data["lic_id_bytes"], signature_bytes 
                         )
-                        
                         st.session_state.verify_contact = data["contact"]
                         st.session_state.generated_otp = str(random.randint(100000, 999999))
                         st.session_state.otp_pending = True
@@ -319,14 +348,10 @@ else:
                         del st.session_state.temp_affiliate_data
                         st.rerun()
                 else:
-                    st.error("🚨 Digital signature required to proceed.")
+                    st.error("🚨 Digital signature required.")
 
-    # ---------------------------------------------------------
-    # RENTER REGISTRATION BLOCK
-    # ---------------------------------------------------------
     elif reg_type == "Renter":
         st.subheader("🚙 Renter Account Setup")
-        
         if "renter_step" not in st.session_state:
             st.session_state.renter_step = 1
 
@@ -334,119 +359,66 @@ else:
             with st.form("renter_reg_form"):
                 st.write("### Step 1: Personal & Account Details")
                 c1, c2, c3 = st.columns(3)
-                first_name = c1.text_input("First Name").title()
-                middle_name = c2.text_input("Middle Name").title()
-                surname = c3.text_input("Surname").title()
-                
-                c4, c5, c6, c7 = st.columns([3, 1, 1, 3])
-                dob = c4.date_input("Date of Birth", min_value=datetime.date(1920, 1, 1), max_value=datetime.date.today())
-                age = c5.text_input("Age", max_chars=2) 
-                nationality = c6.text_input("Nat.", max_chars=3, value="PH").upper() 
-                
+                first_name, middle_name, surname = c1.text_input("First Name").title(), c2.text_input("Middle Name").title(), c3.text_input("Surname").title()
+                c4, c5, c6 = st.columns([3, 1, 1])
+                dob = c4.date_input("Date of Birth", min_value=datetime.date(1920, 1, 1))
+                age, nationality = c5.text_input("Age", max_chars=2), c6.text_input("Nat.", value="PH").upper() 
                 st.write("Mobile Number *")
                 c_area, c_num = st.columns([1, 4])
-                with c_area:
-                    a_code = st.text_input("Code", value="+63", label_visibility="collapsed")
-                with c_num:
-                    contact = st.text_input("Number", placeholder="917 123 4567", label_visibility="collapsed")
-                
-                email = st.text_input("Email Address *")
-                address = st.text_area("Complete Home Address")
-                
+                a_code, contact = c_area.text_input("Code", value="+63"), c_num.text_input("Number")
+                email, address = st.text_input("Email Address *"), st.text_area("Complete Home Address")
                 username = st.text_input("Choose a Username")
                 p1, p2 = st.columns(2)
-                password = p1.text_input("Password", type="password")
-                confirm_password = p2.text_input("Confirm Password", type="password")
-                
-                gov_id = st.file_uploader("Upload Valid Government ID", type=['jpg', 'png', 'jpeg'], key="r_gov")
-                lic_id = st.file_uploader("Upload Driver's License", type=['jpg', 'png', 'jpeg'], key="r_lic")
+                password, confirm_password = p1.text_input("Password", type="password"), p2.text_input("Confirm Password", type="password")
+                gov_id, lic_id = st.file_uploader("Upload Valid Govt ID", type=['jpg', 'png']), st.file_uploader("Upload Driver's License", type=['jpg', 'png'])
                 
                 if st.form_submit_button("Next: Review & Sign Master Agreement", type="primary"):
-                    if password != confirm_password:
-                        st.error("🚨 Passwords do not match.")
-                    elif not all([first_name, surname, username, password, gov_id, lic_id, contact, email, address]):
-                        st.error("🚨 Please fill out all required fields.")
-                    else:
-                        user_check = pd.read_sql_query("SELECT username FROM platform_users WHERE username=?", conn, params=(username,))
-                        if not user_check.empty:
-                            st.error("🚨 Username taken.")
-                        else:
-                            full_name = f"{first_name} {middle_name} {surname}".replace("  ", " ").strip()
-                            st.session_state.temp_renter_data = {
-                                "username": username, "password": password, "full_name": full_name, "email": email,
-                                "age": age, "nationality": nationality, "address": address,
-                                "area_code": a_code,
-                                "contact": contact, "gov_id_bytes": gov_id.read(), "lic_id_bytes": lic_id.read(),
-                            }
-                            st.session_state.renter_step = 2
-                            st.rerun()
+                    if password == confirm_password and all([first_name, surname, username, password, gov_id, lic_id, contact, email, address]):
+                        st.session_state.temp_renter_data = {
+                            "username": username, "password": password, "full_name": f"{first_name} {middle_name} {surname}".strip(), 
+                            "email": email, "age": age, "nationality": nationality, "address": address,
+                            "area_code": a_code, "contact": contact, "gov_id_bytes": gov_id.read(), "lic_id_bytes": lic_id.read(),
+                        }
+                        st.session_state.renter_step = 2
+                        st.rerun()
+                    else: st.error("🚨 Please fill out all required fields.")
 
         elif st.session_state.renter_step == 2:
             st.write("### Step 2: Master Renter Agreement")
-            st.info("Please sign below to digitally execute your DriveElite Master Renter Agreement. A signed copy will be emailed to you and made available for instant download.")
+            canvas_result = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=150, width=400, key="r_canvas")
 
-            st.write("#### Sign to Accept")
-            st.caption("Please draw your signature below. This will be saved to your profile for future bookings.")
-
-            r_canvas = st_canvas(
-                stroke_width=3, stroke_color="#000000", background_color="#f0f2f6",
-                height=150, width=400, drawing_mode="freedraw", key="r_canvas",
-            )
-
-            c_back, c_submit = st.columns([1, 4])
-            
-            if c_back.button("⬅️ Back", key="r_back"):
-                st.session_state.renter_step = 1
-                st.rerun()
-
-            if c_submit.button("Submit Registration & Send OTP", type="primary", key="r_sub"):
-                if r_canvas.image_data is not None and len(np.unique(r_canvas.image_data)) > 1:
+            if st.button("Submit Registration & Send OTP", type="primary", key="r_sub"):
+                if canvas_result.image_data is not None and len(np.unique(canvas_result.image_data)) > 1:
                     with st.spinner("Generating your digital PDF contract instantly..."):
-                        
                         data = st.session_state.temp_renter_data
-                        current_date = datetime.date.today().strftime("%B %d, %Y")
-                        
-                        # 1. Save and Crop Signature Image into Memory
-                        sig_image = crop_signature(r_canvas.image_data)
+                        sig_image = crop_signature(canvas_result.image_data)
                         img_byte_arr = io.BytesIO()
                         sig_image.save(img_byte_arr, format='PNG')
                         signature_bytes = img_byte_arr.getvalue() 
                         
-                        # 2. GENERATE LOCAL WORD DOC
                         doc = DocxTemplate("MASTER RENTER AGREEMENT.docx")
-                        
                         context = {
                             'FULL_NAME': data['full_name'].upper(),
-                            'DATE_SIGNED': current_date,
+                            'DATE_SIGNED': datetime.date.today().strftime("%B %d, %Y"),
                             'ADDRESS': data['address'],
                             'NATIONALITY': data['nationality'].upper(),
                             'SIGNATURE': InlineImage(doc, io.BytesIO(signature_bytes), width=Mm(40))
                         }
-                        
                         doc.render(context)
-                        
-                        # 3. Save DOCX, then CONVERT TO PDF
                         docx_filename = f"uploads/RENTER_{data['username']}.docx"
                         doc.save(docx_filename)
-                        
                         try:
                             subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', docx_filename, '--outdir', 'uploads/'], check=True)
-                        except Exception:
-                            pass
+                        except Exception: pass
                         
-                        # 4. Set Payload and Move to OTP
                         st.session_state.reg_payload = (
                             data["username"], data["password"], 'RENTER', data["full_name"], data["email"],
                             data["age"], data["nationality"], data["address"], data["area_code"], data["contact"], 
                             data["gov_id_bytes"], data["lic_id_bytes"], signature_bytes 
                         )
-                        
-                        st.session_state.verify_contact = data["contact"]
-                        st.session_state.generated_otp = str(random.randint(100000, 999999))
-                        st.session_state.otp_pending = True
+                        st.session_state.verify_contact, st.session_state.generated_otp, st.session_state.otp_pending = data["contact"], str(random.randint(100000, 999999)), True
                         st.session_state.renter_step = 1 
                         del st.session_state.temp_renter_data
                         st.rerun()
-                        
                 else:
-                    st.error("🚨 Digital signature required to proceed.")
+                    st.error("🚨 Digital signature required.")
