@@ -20,7 +20,10 @@ from docx.shared import Mm
 # 1. PAGE CONFIG & LOGO (Must be first!)
 # ==========================================
 st.set_page_config(page_title="Join DriveElite", layout="wide")
-st.logo("logo.png", size="large", icon_image="logo.png")
+
+# 🟢 THE NEW GUARANTEED LOGO METHOD
+st.sidebar.image("logo.png", use_container_width=True)
+st.sidebar.markdown("<br>", unsafe_allow_html=True) # Adds a clean gap below the logo
 
 # ==========================================
 # 💎 2. THE "CRYSTAL ELITE" CSS ENGINE
