@@ -943,7 +943,7 @@ with tabs[9]:
                         ["MANUAL_QR", "PAYMONGO"], 
                         index=0 if current_mode == "MANUAL_QR" else 1)
 
-   if st.button("Save Payment Settings", type="primary"):
+    if st.button("Save Payment Settings", type="primary"):
         try:
             check = pd.read_sql_query("SELECT id FROM platform_settings WHERE id = 1", conn)
             
