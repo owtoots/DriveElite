@@ -413,6 +413,144 @@ with tabs[0]:
                                                     st.rerun()
                                         else: st.warning("⚠️ Please fill all required fields (Destination, Address, and Luzon Agreement).")
 
+                           # -------------------------------------------------------------
+                            # CHECKOUT STAGE 0: SELECT DATES & CONFIRM SOFT LOCK
+                            # -------------------------------------------------------------
+                            if st.session_state[stage_key] == 0:
+                                # Visual Calendar
+                                existing_bookings = pd.read_sql_query("SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status NOT IN ('CANCELLED', 'REJECTED')", conn, params=(car['id'],))
+                                booked_dates = set()
+                                for _, row in existing_bookings.iterrows():
+                                    try:
+                                        s_dt, e_dt = pd.to_datetime(row['pickup_time']).date(), pd.to_datetime(row['return_time']).date()
+                                        for idx in range((e_dt - s_dt).days + 1): booked_dates.add((s_dt + datetime.timedelta(days=idx)).strftime("%Y-%m-%d"))
+                                    except: pass
+
+                                today = datetime.date.today()
+                                st.markdown(render_availability_calendar(today.year, today.month, booked_dates), unsafe_allow_html=True)
+                                
+                                d1 = st.date_input("Pickup Date", min_value=datetime.date.today(), key=f"d1_{car['id']}")
+                                t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}", step=datetime.timedelta(hours=1))
+                                d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}")
+                                t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}", step=datetime.timedelta(hours=1))
+                                
+                                can_book = True
+                                requested_days = set([d1 + datetime.timedelta(days=j) for j in range((d2 - d1).days + 1)])
+                                clashes = requested_days.intersection(unavailable_dates)
+                                if clashes:
+                                    can_book = False
+                                    st.error(f"🚨 Vehicle booked on: {', '.join([d.strftime('%b %d') for d in sorted(list(clashes))])}")
+
+                                drive_mode = st.radio("Mode", ["Self-Drive", "With Driver (+₱1k/day)"], key=f"dm_{car['id']}")
+                                dest = st.text_input("Destination", key=f"dest_{car['id']}")
+                                luzon_agree = st.checkbox("I agree to LUZON ONLY travel.", key=f"luzon_{car['id']}")
+                                ZONES = {"HQ: Pasig/Ortigas/BGC (Free)": 0.0, "Zone 1: Cubao/Sta. Mesa/Makati": 500.0, "Zone 2: Manila/QC/MOA": 1000.0, "Zone 3: Alabang/LP": 1500.0}
+                                p_zone = st.selectbox("Pickup Zone", list(ZONES.keys()), key=f"pz_{car['id']}")
+                                p_exact = st.text_input("Pickup Address", key=f"pa_{car['id']}")
+                                r_zone = st.selectbox("Return Zone", list(ZONES.keys()), key=f"rz_{car['id']}")
+                                r_exact = st.text_input("Return Address", key=f"ra_{car['id']}")
+
+                                p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
+                                if r_dt_obj <= p_dt_obj: 
+                                    st.error("⚠️ Return time must be after pickup.")
+                                    can_book = False
+                                else:
+                                    full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
+                                    driver_fee = (full_days + (1 if billed_hrs > 0 else 0)) * 1000.0 if "Driver" in drive_mode else 0.0
+                                    
+                                    try:
+                                        tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
+                                        discount_pct = next((float(r['discount_pct']) for _, r in tiers_df.iterrows() if full_days >= r['min_days']), 0.0)
+                                    except: discount_pct = 0.0
+
+                                    savings = subtotal * discount_pct
+                                    discounted_subtotal = subtotal - savings
+                                    
+                                    try:
+                                        settings_df = pd.read_sql_query("SELECT renter_markup_pct FROM platform_settings WHERE id = 1", conn)
+                                        dynamic_renter_fee = float(settings_df.iloc[0]['renter_markup_pct'])
+                                    except: dynamic_renter_fee = 0.07
+
+                                    applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
+                                    platform_fee = discounted_subtotal * applied_renter_fee
+                                    p_fee, r_fee = ZONES.get(p_zone, 0.0), ZONES.get(r_zone, 0.0)
+                                    grand_total = discounted_subtotal + platform_fee + driver_fee + p_fee + r_fee
+
+                                    # Cost Breakdown Receipt
+                                    st.markdown("#### 🧾 Cost Breakdown")
+                                    plural = "day" if full_days == 1 else "days"
+                                    rows = [f'<tr><td class="bill-label">Base Rental (₱{base_rate:,.2f} x {full_days} {plural})</td><td style="text-align:right; font-weight:bold;">₱{base_cost:,.2f}</td></tr>']
+                                    if billed_hrs > 0: rows.append(f'<tr><td style="color:#d35400;">Hourly Extension</td><td style="text-align:right; color:#d35400;">+₱{ext_fee:,.2f}</td></tr>')
+                                    if savings > 0: rows.append(f'<tr><td style="color:#cc0000;">Duration Discount ({int(discount_pct * 100)}%)</td><td style="text-align:right; color:#cc0000;">-₱{savings:,.2f}</td></tr>')
+                                    rows.append(f'<tr><td style="color:#27ae60;">DriveElite Fee ({int(applied_renter_fee * 100)}%)</td><td style="text-align:right; color:#27ae60;">+₱{platform_fee:,.2f}</td></tr>')
+                                    if "Driver" in drive_mode: rows.append(f'<tr><td style="color:#003399;">Driver Fee</td><td style="text-align:right; color:#003399;">+₱{driver_fee:,.2f}</td></tr>')
+                                    if p_fee > 0: rows.append(f'<tr><td style="color:#555;">Pickup Fee</td><td style="text-align:right; color:#555;">+₱{p_fee:,.2f}</td></tr>')
+                                    if r_fee > 0: rows.append(f'<tr><td style="color:#555;">Return Fee</td><td style="text-align:right; color:#555;">+₱{r_fee:,.2f}</td></tr>')
+                                    
+                                    bill_html = f'<div class="bill-box"><table class="table-bill" style="width:100%;">{"".join(rows)}<tr style="border-top:2px solid #000;"><td class="bill-label" style="font-weight:900;">GRAND TOTAL</td><td style="text-align:right; font-weight:900; font-size:1.1em;">₱{grand_total:,.2f}</td></tr></table></div>'
+                                    st.markdown(bill_html, unsafe_allow_html=True)
+                                    st.divider()
+
+                                    # Overlap Security Check
+                                    is_overlapping = False
+                                    for _, row in pd.read_sql_query("SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status NOT IN ('CANCELLED', 'REJECTED')", conn, params=(car['id'],)).iterrows():
+                                        if p_dt_obj < pd.to_datetime(row['return_time']) and r_dt_obj > pd.to_datetime(row['pickup_time']):
+                                            is_overlapping = True; break
+                                    
+                                    if is_overlapping:
+                                        st.error("🚨 **DATE UNAVAILABLE:** Your exact times overlap with an existing reservation.")
+                                        can_book = False 
+
+                                    if st.button("1. CONFIRM BOOKING (SOFT LOCK)", key=f"conf_{car['id']}", type="primary", use_container_width=True, disabled=not can_book):
+                                        if dest and p_exact and r_exact and luzon_agree:
+                                            with st.spinner("Securing your dates..."):
+                                                b_ref = str(random.randint(100000, 999999))
+                                                p_dt_str, r_dt_str = p_dt_obj.strftime("%Y-%m-%d %H:%M"), r_dt_obj.strftime("%Y-%m-%d %H:%M")
+                                                is_drvr_int = 1 if "Driver" in drive_mode else 0
+                                                
+                                                # ==========================================
+                                                # 🔀 THE SMART PAYMENT TOGGLE
+                                                # ==========================================
+                                                if gateway_mode == "PAYMONGO":
+                                                    # --- DOOR A: AUTOMATED PAYMONGO ---
+                                                    conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
+                                                                 (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_drvr_int, b_ref))
+                                                    conn.commit()
+                                                    
+                                                    try:
+                                                        SECRET_KEY = st.secrets["paymongo_active_key"]
+                                                        pay_amount = int(grand_total * 100) # Centavos
+                                                        auth_string = f"{SECRET_KEY}:"
+                                                        base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+                                                        
+                                                        url = "https://api.paymongo.com/v1/links"
+                                                        payload = {"data": {"attributes": {"amount": pay_amount, "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})", "remarks": f"Renter: {renter_user}"}}}
+                                                        
+                                                        req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'))
+                                                        req.add_header('accept', 'application/json')
+                                                        req.add_header('content-type', 'application/json')
+                                                        req.add_header('authorization', f'Basic {base64_auth}')
+                                                        
+                                                        response = urllib.request.urlopen(req)
+                                                        checkout_url = json.loads(response.read().decode('utf-8'))['data']['attributes']['checkout_url']
+                                                        
+                                                        st.success(f"✅ Booking Saved (Ref: #{b_ref})")
+                                                        st.markdown(f"### 💳 [👉 CLICK HERE TO PAY ₱{grand_total:,.2f} VIA PAYMONGO]({checkout_url})")
+                                                        st.info("Complete your payment using the link above. Our system will auto-verify shortly.")
+                                                    except Exception as e:
+                                                        st.error("Failed to generate payment link. Please try again or contact support.")
+                                                
+                                                else:
+                                                    # --- DOOR B: MANUAL BPI FLOW (Moves to Stage 1) ---
+                                                    conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
+                                                                 (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_drvr_int, b_ref))
+                                                    conn.commit()
+                                                    st.session_state[stage_key] = 1
+                                                    st.session_state[ref_key] = b_ref
+                                                    st.rerun()
+                                        else: 
+                                            st.warning("⚠️ Please fill all required fields (Destination, Address, and Luzon Agreement).")
+
                             # -------------------------------------------------------------
                             # CHECKOUT STAGE 1: VALIDATE BPI PAYMENT (HARD LOCK TRIGGER)
                             # -------------------------------------------------------------
@@ -452,7 +590,8 @@ with tabs[0]:
                                         if receipt_file:
                                             receipt_bytes = receipt_file.read()
                                             with st.spinner("Transmitting to Admin..."):
-                                                conn.execute("UPDATE bookings SET receipt_img = ? WHERE booking_ref = ?", (receipt_bytes, b_ref))
+                                                # Save the receipt directly to the database
+                                                conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE booking_ref = ?", (receipt_bytes, b_ref))
                                                 
                                                 receipt_path = f"uploads/chat_images/receipt_{b_ref}.jpg"
                                                 with open(receipt_path, "wb") as f: f.write(receipt_bytes)
