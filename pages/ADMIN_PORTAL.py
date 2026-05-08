@@ -14,7 +14,7 @@ import time
 import random
 import math
 from PIL import Image
-from fpdf import FPDF  # Added for PDF Receipt Generation
+from fpdf import FPDF
 
 # --- AUTHENTICATION & PAGE CONFIG ---
 st.set_page_config(page_title="DriveElite Admin", layout="wide")
@@ -381,10 +381,9 @@ with tabs[0]:
             st.warning(f"Could not load Driver database: {e}")
 
 # --- TAB: ASSETS (Vehicle Approvals) ---
-with tabs[1]: # (Make sure this matches your tab index for Assets)
+with tabs[1]:
     st.subheader("🚗 Vehicle Onboarding Queue")
     
-    # Fetch all vehicles waiting for Admin approval
     pending_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'PENDING'", conn)
     
     if pending_cars.empty:
@@ -393,30 +392,21 @@ with tabs[1]: # (Make sure this matches your tab index for Assets)
         for _, v in pending_cars.iterrows():
             with st.expander(f"Review: {v['make']} {v['model']} ({v['plate']}) - Owner: @{v['owner_username']}"):
                 
-                # -----------------------------------------
-                # 1. SHOW THE ACTUAL CAR PHOTO
-                # -----------------------------------------
                 st.markdown("#### 📸 Vehicle Photo")
                 if v.get('vehicle_img') and os.path.exists(v['vehicle_img']):
-                    # Display the car photo slightly smaller so it doesn't take up the whole screen
                     st.image(v['vehicle_img'], width=400)
                 else:
                     st.warning("No vehicle photo uploaded.")
                 
                 st.divider()
                 
-                # -----------------------------------------
-                # 2. SMART DOCUMENT VIEWER (Handles PDFs & Images)
-                # -----------------------------------------
                 st.markdown("#### 📄 Legal Documents")
                 c_or, c_cr, c_ins = st.columns(3)
                 
                 def render_document(col, title, file_path):
                     with col:
                         st.write(f"**{title}**")
-                        # Check if the file exists in the database and in the folder
                         if file_path and os.path.exists(file_path):
-                            # If it's a PDF, create a Download/View Button
                             if file_path.lower().endswith('.pdf'):
                                 with open(file_path, "rb") as f:
                                     st.download_button(
@@ -426,22 +416,17 @@ with tabs[1]: # (Make sure this matches your tab index for Assets)
                                         key=f"dl_{title}_{v['id']}", 
                                         use_container_width=True
                                     )
-                            # If it's an Image (JPG/PNG), display it normally
                             else:
                                 st.image(file_path, use_container_width=True)
                         else:
                             st.error("Missing File")
 
-                # Render all three documents safely
                 render_document(c_or, "Official Receipt (OR)", v.get('or_img'))
                 render_document(c_cr, "Certificate of Reg (CR)", v.get('cr_img'))
                 render_document(c_ins, "Insurance Policy", v.get('insurance_img'))
                 
                 st.divider()
                 
-                # -----------------------------------------
-                # 3. APPROVAL CONTROLS
-                # -----------------------------------------
                 c_app, c_rej = st.columns(2)
                 if c_app.button("✅ APPROVE & LIST VEHICLE", key=f"app_{v['id']}", type="primary", use_container_width=True):
                     conn.execute("UPDATE vehicles SET admin_status = 'APPROVED', booking_status = 'AVAILABLE' WHERE id = ?", (v['id'],))
@@ -501,7 +486,7 @@ with tabs[3]:
             r_markup = 0.07 
             a_share = 0.85  
 
-        f_tabs = st.tabs(["💸 BPI VERIFICATION", "📑 MASTER LEDGER", "📤 PROCESS PAYOUTS", "🎫 ISSUE RECEIPTS"])
+        f_tabs = st.tabs(["💸 BPI VERIFICATION", "📑 MASTER LEDGER", "📤 PROCESS PAYOUTS", "🖨️ ISSUE RECEIPTS"])
 
         # --- SUB-TAB 0: BPI VERIFICATION ---
         with f_tabs[0]:
@@ -627,21 +612,18 @@ with tabs[3]:
                             st.success("Marked as Paid!")
                             time.sleep(1); st.rerun()
 
-        # --- SUB-TAB 3: ISSUE RECEIPTS ---
+        # --- SUB-TAB 3: ISSUE RECEIPTS (NEW PDF GENERATOR) ---
         with f_tabs[3]:
             if not df.empty:
                 st.markdown("#### 🖨️ Download Official PDF Receipts")
                 st.write("Manually generate and download the official DriveElite PDF Booking Receipt for any past transaction.")
                 
-                # 1. Select a Transaction
                 tx_options = ["-- Select a Transaction --"] + df['Ref'].tolist()
                 selected_tx = st.selectbox("Select Transaction Reference:", tx_options)
                 
                 if selected_tx != "-- Select a Transaction --":
-                    # Clean the "#" off the reference number
                     ref_clean = selected_tx.replace("#", "")
                     
-                    # 2. Fetch the exact vehicle and renter details needed for the PDF
                     query_receipt = """
                         SELECT b.*, u_renter.full_name as renter_name, v.make, v.model, v.plate
                         FROM bookings b
@@ -655,11 +637,9 @@ with tabs[3]:
                         if not receipt_data.empty:
                             r_row = receipt_data.iloc[0]
                             
-                            # Format strings for the PDF
                             travel_dates = f"{str(r_row['pickup_time'])[:10]} to {str(r_row['return_time'])[:10]}"
                             vehicle_str = f"{r_row['make']} {r_row['model']}"
                             
-                            # 3. Trigger your built-in FPDF Generator!
                             pdf_bytes = generate_booking_receipt(
                                 ref_no=r_row['booking_ref'], 
                                 renter_name=r_row['renter_name'], 
@@ -671,7 +651,6 @@ with tabs[3]:
                                 return_loc=r_row.get('return_loc', 'N/A')
                             )
                             
-                            # 4. Display a success message and the Download Button
                             st.success(f"✅ PDF Receipt Generated for {r_row['renter_name']}!")
                             
                             st.download_button(
@@ -686,6 +665,9 @@ with tabs[3]:
                             st.warning("Could not find full booking details for this transaction.")
                     except Exception as e:
                         st.error(f"Error generating PDF: {e}")
+
+    except Exception as e:
+        st.error(f"Financial Error: {e}")
 
 # --- TAB 4: FILING CABINET ---
 with tabs[4]: 
