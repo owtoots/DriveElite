@@ -413,51 +413,80 @@ with tabs[3]:
         # 2. Setup the Sub-Tabs (Adding BPI Verification as the first step)
         f_tabs = st.tabs(["💸 BPI VERIFICATION", "📑 MASTER LEDGER", "📤 PROCESS PAYOUTS", "🎫 ISSUE RECEIPTS"])
 
-        # --- SUB-TAB 0: BPI VERIFICATION ---
-        with f_tabs[0]:
-            st.markdown("#### 🔍 Awaiting BPI Confirmation")
-            # We look specifically for PENDING bookings
-            pending_bpi = pd.read_sql_query("""
-                SELECT b.*, u.full_name as Renter, v.make, v.model
-                FROM bookings b 
-                JOIN platform_users u ON b.renter_username = u.username 
-                JOIN vehicles v ON b.vehicle_id = v.id
-                WHERE b.status = 'PENDING' 
-                ORDER BY b.id DESC
-            """, conn)
-            
-            if pending_bpi.empty:
-                st.info("No bookings currently awaiting payment verification.")
-            else:
-                for _, row in pending_bpi.iterrows():
-                    with st.container(border=True):
-                        c_info, c_acts = st.columns([2, 1])
-                        with c_info:
-                            st.write(f"**Ref:** #{row['booking_ref']} | **Renter:** {row['Renter']}")
-                            st.write(f"**Vehicle:** {row['make']} {row['model']}")
-                            st.write(f"**Amount to Verify:** :green[₱{row['amount']:,.2f}]")
-                            st.caption(f"Pickup: {row['pickup_time']} | Destination: {row['destination']}")
-                        with st.expander("👁️ View Chat & Receipts"):
-                                msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(row['booking_ref'],))
-                                if msgs.empty:
-                                    st.info("No messages or receipts uploaded yet.")
-                                else:
-                                    for _, m in msgs.iterrows():
-                                        st.write(f"**{m['sender_username']}:** {m['message_text']}")
-                                        if m.get('image_path') and os.path.exists(m['image_path']):
-                                            st.image(m['image_path'], width=200)
-                        with c_acts:
-                            if st.button("✅ CONFIRM PAYMENT", key=f"verify_{row['booking_ref']}", type="primary", use_container_width=True):
-                                conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE booking_ref = ?", (row['booking_ref'],))
-                                conn.commit()
-                                st.success(f"Verified! Booking #{row['booking_ref']} moved to Ledger.")
-                                time.sleep(1)
-                                st.rerun()
-                            
-                            if st.button("❌ REJECT / CANCEL", key=f"reject_{row['booking_ref']}", use_container_width=True):
-                                conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE booking_ref = ?", (row['booking_ref'],))
-                                conn.commit()
-                                st.rerun()
+        # --- SUB-TAB 1: BPI VERIFICATION (Inside ADMIN_PORTAL.py) ---
+with f_sub[0]:
+    st.markdown("### 🔍 Awaiting Payment Verification")
+    
+    # We fetch bookings that are PENDING and grab the renter's email and vehicle details
+    query = """
+        SELECT b.*, u.full_name as renter_name, u.email as renter_email, 
+               v.make, v.model, v.plate 
+        FROM bookings b 
+        JOIN platform_users u ON b.renter_username = u.username 
+        JOIN vehicles v ON b.vehicle_id = v.id
+        WHERE b.status = 'PENDING' OR b.status = 'VERIFYING'
+        ORDER BY b.id DESC
+    """
+    pending_pay = pd.read_sql_query(query, conn)
+    
+    if pending_pay.empty: 
+        st.info("No payments currently awaiting verification.")
+    else:
+        for _, row in pending_pay.iterrows():
+            with st.container(border=True):
+                st.write(f"**Ref:** #{row['booking_ref']} | **Renter:** {row['renter_name']}")
+                st.write(f"**Vehicle:** {row['make']} {row['model']} ({row['plate']})")
+                st.write(f"**Amount to Verify:** :blue[₱{row['amount']:,.2f}]")
+                
+                # Show the uploaded receipt if it exists
+                if row.get('receipt_img'):
+                    with st.expander("👁️ View Uploaded Payment Receipt"):
+                        st.image(row['receipt_img'], caption="Renter's Uploaded Proof of Payment")
+                else:
+                    st.warning("⏳ Renter has not uploaded a receipt yet.")
+
+                c1, c2 = st.columns(2)
+                
+                # --- ACTION A: CONFIRM & SEND RECEIPT ---
+                if c1.button("✅ CONFIRM & SEND RECEIPT", key=f"vpay_{row['id']}", type="primary", use_container_width=True):
+                    with st.spinner("Confirming payment and generating PDF receipt..."):
+                        # 1. Update Database to CONFIRMED
+                        conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE id = ?", (row['id'],))
+                        conn.commit()
+                        
+                        # 2. Generate the PDF Booking Receipt
+                        travel_dates = f"{str(row['pickup_time'])[:10]} to {str(row['return_time'])[:10]}"
+                        vehicle_str = f"{row['make']} {row['model']}"
+                        
+                        pdf_bytes = generate_booking_receipt(
+                            ref_no=row['booking_ref'], 
+                            renter_name=row['renter_name'], 
+                            vehicle=vehicle_str, 
+                            plate=row['plate'], 
+                            travel_dates=travel_dates, 
+                            amount=row['amount'], 
+                            pickup_loc=row.get('pickup_loc', 'N/A'), 
+                            return_loc=row.get('return_loc', 'N/A')
+                        )
+                        
+                        # 3. Email the PDF to the Renter
+                        if row['renter_email']:
+                            subject = f"DriveElite: Payment Confirmed - Official Receipt (#{row['booking_ref']})"
+                            body = f"Hello {row['renter_name']},\n\nYour payment has been successfully verified! Your booking for the {vehicle_str} is now CONFIRMED.\n\nPlease find your Official Booking Receipt attached to this email.\n\nThank you for choosing DriveElite!"
+                            send_pdf_email(row['renter_email'], subject, body, pdf_bytes, f"Receipt_{row['booking_ref']}.pdf")
+                        
+                        st.success("✅ Payment Confirmed and Receipt emailed to the Renter!")
+                        time.sleep(2)
+                        st.rerun()
+                
+                # --- ACTION B: REJECT & FREE SCHEDULE ---
+                if c2.button("❌ REJECT & FREE CAR", key=f"rej_{row['id']}", use_container_width=True):
+                    # Cancelling it removes the soft-lock, putting the car back on the market
+                    conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE id = ?", (row['id'],))
+                    conn.commit()
+                    st.error(f"Booking #{row['booking_ref']} cancelled. The vehicle calendar is now free.")
+                    time.sleep(2)
+                    st.rerun()
 
         # --- PREPARE DATA FOR LEDGER (Excluding Pending) ---
         query = """
