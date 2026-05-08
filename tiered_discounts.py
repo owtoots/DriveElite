@@ -14,7 +14,7 @@ def init_discount_db(conn):
             )
         ''')
 
-        # Create Platform Settings Table (Fee & Revenue Share & Operator)
+        # Create Platform Settings Table
         conn.execute('''
             CREATE TABLE IF NOT EXISTS platform_settings (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -25,14 +25,14 @@ def init_discount_db(conn):
             )
         ''')
         
-        # Patch missing columns just in case it's an old database file
+        # Patch missing columns
         for col, ctype in [('payment_mode', 'TEXT'), ('operator_name', 'TEXT')]:
             try: conn.execute(f"ALTER TABLE platform_settings ADD COLUMN {col} {ctype}"); conn.commit()
             except: pass
         
         cursor = conn.cursor()
         
-        # Seed default discounts if the table is empty
+        # Seed default discounts
         cursor.execute("SELECT count(*) FROM discount_tiers")
         if cursor.fetchone()[0] == 0:
             default_tiers = [
@@ -43,7 +43,7 @@ def init_discount_db(conn):
             ]
             conn.executemany("INSERT INTO discount_tiers VALUES (?, ?, ?)", default_tiers)
             
-        # Seed default platform margins if empty
+        # Seed default platform margins
         cursor.execute("SELECT count(*) FROM platform_settings")
         if cursor.fetchone()[0] == 0:
             conn.execute("INSERT INTO platform_settings (id, payment_mode, renter_markup_pct, affiliate_share_pct, operator_name) VALUES (1, 'MANUAL_QR', 0.07, 0.82, 'DriveElite Platform')")
@@ -57,10 +57,8 @@ def render_platform_settings(conn):
     st.markdown("### 1. Platform Details & Revenue Margins")
     st.caption("Adjust the service fee charged to Renters, the share given to Affiliates, and the entity name printed on official receipts.")
 
-    # Guarantee the DB is ready before reading
     init_discount_db(conn)
 
-    # Safely Fetch Data
     try:
         settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct, operator_name FROM platform_settings WHERE id = 1", conn)
         if not settings_df.empty:
@@ -93,7 +91,6 @@ def render_platform_settings(conn):
             st.write("") 
             if st.form_submit_button("SAVE PLATFORM SETTINGS", type="primary", use_container_width=True):
                 try:
-                    # UPSERT LOGIC: Ensure it ALWAYS saves properly
                     check = pd.read_sql_query("SELECT id FROM platform_settings WHERE id = 1", conn)
                     
                     if check.empty:
@@ -112,8 +109,24 @@ def render_platform_settings(conn):
                     st.success(f"✅ Settings Saved! Platform Fee is now {new_r_pct}%.")
                     time.sleep(1)
                     st.rerun()
-                    
                 except Exception as e:
                     st.error(f"🚨 Error saving settings: {e}")
 
-# ... (Keep your `render_admin_discount_table` function below here exactly as it was) ...
+def render_admin_discount_table(conn):
+    st.markdown("### 2. Duration Discount Tiers")
+    st.caption("Changes here reflect instantly on the Renter's final price calculation.")
+    
+    init_discount_db(conn)
+    
+    try:
+        df = pd.read_sql_query("SELECT * FROM discount_tiers ORDER BY min_days ASC", conn)
+        edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
+        
+        if st.button("SAVE DISCOUNT RULES", type="primary", use_container_width=True):
+            conn.execute("DELETE FROM discount_tiers")
+            edited_df.to_sql("discount_tiers", conn, if_exists="append", index=False)
+            st.success("✅ Discount rules updated successfully!")
+            time.sleep(1)
+            st.rerun()
+    except Exception as e:
+        st.error(f"Error loading discount tiers: {e}")
