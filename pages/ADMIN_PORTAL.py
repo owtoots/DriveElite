@@ -945,14 +945,11 @@ with tabs[9]:
 
    if st.button("Save Payment Settings", type="primary"):
         try:
-            # Check if Row 1 exists
             check = pd.read_sql_query("SELECT id FROM platform_settings WHERE id = 1", conn)
             
             if check.empty:
-                # If missing, INSERT it
                 conn.execute("INSERT INTO platform_settings (id, payment_mode) VALUES (1, ?)", (new_mode,))
             else:
-                # If exists, UPDATE it
                 conn.execute("UPDATE platform_settings SET payment_mode = ? WHERE id = 1", (new_mode,))
                 
             conn.commit()
