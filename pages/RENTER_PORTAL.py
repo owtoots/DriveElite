@@ -376,15 +376,28 @@ with tabs[0]:
                                     # Cost Breakdown Receipt
                                     st.markdown("#### 🧾 Cost Breakdown")
                                     plural = "day" if full_days == 1 else "days"
-                                    rows = [f'<tr><td class="bill-label">Base Rental (₱{base_rate:,.2f} x {full_days} {plural})</td><td style="text-align:right; font-weight:bold;">₱{base_cost:,.2f}</td></tr>']
-                                    if billed_hrs > 0: rows.append(f'<tr><td style="color:#d35400;">Hourly Extension</td><td style="text-align:right; color:#d35400;">+₱{ext_fee:,.2f}</td></tr>')
-                                    if savings > 0: rows.append(f'<tr><td style="color:#cc0000;">Duration Discount ({int(discount_pct * 100)}%)</td><td style="text-align:right; color:#cc0000;">-₱{savings:,.2f}</td></tr>')
-                                    rows.append(f'<tr><td style='padding: 8px; color: #16A34A;'>{operator_name} Fee ({int(applied_renter_fee * 100)}%)</td><td style="text-align:right; color:#27ae60;">+₱{platform_fee:,.2f}</td></tr>')
-                                    if "Driver" in drive_mode: rows.append(f'<tr><td style="color:#003399;">Driver Fee</td><td style="text-align:right; color:#003399;">+₱{driver_fee:,.2f}</td></tr>')
-                                    if p_fee > 0: rows.append(f'<tr><td style="color:#555;">Pickup Fee</td><td style="text-align:right; color:#555;">+₱{p_fee:,.2f}</td></tr>')
-                                    if r_fee > 0: rows.append(f'<tr><td style="color:#555;">Return Fee</td><td style="text-align:right; color:#555;">+₱{r_fee:,.2f}</td></tr>')
                                     
-                                    bill_html = f'<div class="bill-box"><table class="table-bill" style="width:100%;">{"".join(rows)}<tr style="border-top:2px solid #000;"><td class="bill-label" style="font-weight:900;">GRAND TOTAL</td><td style="text-align:right; font-weight:900; font-size:1.1em;">₱{grand_total:,.2f}</td></tr></table></div>'
+                                    # We use safe double-quotes outside, and single-quotes inside to prevent Syntax Errors!
+                                    rows = [f"<tr><td class='bill-label'>Base Rental (₱{base_rate:,.2f} x {full_days} {plural})</td><td style='text-align:right; font-weight:bold;'>₱{base_cost:,.2f}</td></tr>"]
+                                    
+                                    if billed_hrs > 0: 
+                                        rows.append(f"<tr><td style='color:#d35400;'>Hourly Extension</td><td style='text-align:right; color:#d35400;'>+₱{ext_fee:,.2f}</td></tr>")
+                                    
+                                    if savings > 0: 
+                                        rows.append(f"<tr><td style='color:#cc0000;'>Duration Discount ({int(discount_pct * 100)}%)</td><td style='text-align:right; color:#cc0000;'>-₱{savings:,.2f}</td></tr>")
+                                    
+                                    # Here is the dynamic Nucluez / Platform Fee line working perfectly!
+                                    rows.append(f"<tr><td style='padding: 8px; color: #16A34A;'>{operator_name} Fee ({int(applied_renter_fee * 100)}%)</td><td style='text-align:right; color:#27ae60;'>+₱{platform_fee:,.2f}</td></tr>")
+                                    
+                                    if "Driver" in drive_mode: 
+                                        rows.append(f"<tr><td style='color:#003399;'>Driver Fee</td><td style='text-align:right; color:#003399;'>+₱{driver_fee:,.2f}</td></tr>")
+                                    if p_fee > 0: 
+                                        rows.append(f"<tr><td style='color:#555;'>Pickup Fee</td><td style='text-align:right; color:#555;'>+₱{p_fee:,.2f}</td></tr>")
+                                    if r_fee > 0: 
+                                        rows.append(f"<tr><td style='color:#555;'>Return Fee</td><td style='text-align:right; color:#555;'>+₱{r_fee:,.2f}</td></tr>")
+                                    
+                                    bill_html = f"<div class='bill-box'><table class='table-bill' style='width:100%;'>{''.join(rows)}<tr style='border-top:2px solid #000;'><td class='bill-label' style='font-weight:900;'>GRAND TOTAL</td><td style='text-align:right; font-weight:900; font-size:1.1em;'>₱{grand_total:,.2f}</td></tr></table></div>"
+                                    
                                     st.markdown(bill_html, unsafe_allow_html=True)
                                     st.divider()
 
