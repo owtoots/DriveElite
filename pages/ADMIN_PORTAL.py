@@ -380,28 +380,82 @@ with tabs[0]:
         except Exception as e:
             st.warning(f"Could not load Driver database: {e}")
 
-# --- TAB 1: ASSETS ---
-with tabs[1]:
-    try:
-        pv = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'PENDING'", conn)
-        if pv.empty: 
-            st.info("No vehicles currently pending approval.")
-        else:
-            for i, r in pv.iterrows():
-                with st.expander(f"🚗 {r['make']} {r['model']} ({r['plate']})"):
-                    st.write("### Vehicle Documents")
-                    c_doc1, c_doc2, c_doc3 = st.columns(3)
-                    with c_doc1: display_document(r.get('or_img'), "Official Receipt (OR)")
-                    with c_doc2: display_document(r.get('cr_img'), "Certificate of Reg (CR)")
-                    with c_doc3: display_document(r.get('insurance_img'), "Insurance Policy")
-                    st.divider()
-                    if st.button("✅ APPROVE & ACTIVATE", key=f"v_app_{r['id']}", type="primary", use_container_width=True):
-                        conn.execute("UPDATE vehicles SET admin_status = 'APPROVED', booking_status = 'AVAILABLE' WHERE id = ?", (r['id'],))
-                        conn.commit()
-                        st.success(f"Success! {r['plate']} is now visible in the Showroom.")
-                        time.sleep(1); st.rerun()
-    except Exception as e:
-        st.warning(f"Could not load Vehicles database: {e}")
+# --- TAB: ASSETS (Vehicle Approvals) ---
+with tabs[1]: # (Make sure this matches your tab index for Assets)
+    st.subheader("🚗 Vehicle Onboarding Queue")
+    
+    # Fetch all vehicles waiting for Admin approval
+    pending_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'PENDING'", conn)
+    
+    if pending_cars.empty:
+        st.info("No vehicles currently waiting for approval.")
+    else:
+        for _, v in pending_cars.iterrows():
+            with st.expander(f"Review: {v['make']} {v['model']} ({v['plate']}) - Owner: @{v['owner_username']}"):
+                
+                # -----------------------------------------
+                # 1. SHOW THE ACTUAL CAR PHOTO
+                # -----------------------------------------
+                st.markdown("#### 📸 Vehicle Photo")
+                if v.get('vehicle_img') and os.path.exists(v['vehicle_img']):
+                    # Display the car photo slightly smaller so it doesn't take up the whole screen
+                    st.image(v['vehicle_img'], width=400)
+                else:
+                    st.warning("No vehicle photo uploaded.")
+                
+                st.divider()
+                
+                # -----------------------------------------
+                # 2. SMART DOCUMENT VIEWER (Handles PDFs & Images)
+                # -----------------------------------------
+                st.markdown("#### 📄 Legal Documents")
+                c_or, c_cr, c_ins = st.columns(3)
+                
+                def render_document(col, title, file_path):
+                    with col:
+                        st.write(f"**{title}**")
+                        # Check if the file exists in the database and in the folder
+                        if file_path and os.path.exists(file_path):
+                            # If it's a PDF, create a Download/View Button
+                            if file_path.lower().endswith('.pdf'):
+                                with open(file_path, "rb") as f:
+                                    st.download_button(
+                                        label=f"📄 Download {title} (PDF)", 
+                                        data=f, 
+                                        file_name=os.path.basename(file_path), 
+                                        key=f"dl_{title}_{v['id']}", 
+                                        use_container_width=True
+                                    )
+                            # If it's an Image (JPG/PNG), display it normally
+                            else:
+                                st.image(file_path, use_container_width=True)
+                        else:
+                            st.error("Missing File")
+
+                # Render all three documents safely
+                render_document(c_or, "Official Receipt (OR)", v.get('or_img'))
+                render_document(c_cr, "Certificate of Reg (CR)", v.get('cr_img'))
+                render_document(c_ins, "Insurance Policy", v.get('insurance_img'))
+                
+                st.divider()
+                
+                # -----------------------------------------
+                # 3. APPROVAL CONTROLS
+                # -----------------------------------------
+                c_app, c_rej = st.columns(2)
+                if c_app.button("✅ APPROVE & LIST VEHICLE", key=f"app_{v['id']}", type="primary", use_container_width=True):
+                    conn.execute("UPDATE vehicles SET admin_status = 'APPROVED', booking_status = 'AVAILABLE' WHERE id = ?", (v['id'],))
+                    conn.commit()
+                    st.success(f"{v['make']} {v['model']} Approved! It is now live in the Renter Showroom.")
+                    time.sleep(2)
+                    st.rerun()
+                    
+                if c_rej.button("❌ REJECT VEHICLE", key=f"rej_{v['id']}", use_container_width=True):
+                    conn.execute("UPDATE vehicles SET admin_status = 'REJECTED' WHERE id = ?", (v['id'],))
+                    conn.commit()
+                    st.warning("Vehicle Rejected. It will not appear in the showroom.")
+                    time.sleep(2)
+                    st.rerun()
 
 # --- TAB 2: LOGISTICS ---
 with tabs[2]:
