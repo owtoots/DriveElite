@@ -14,20 +14,16 @@ import time
 import random
 import math
 from PIL import Image
+from fpdf import FPDF  # Added for PDF Receipt Generation
 
 # --- AUTHENTICATION & PAGE CONFIG ---
-st.set_page_config(page_title="DriveElite Renter Portal", layout="wide")
+st.set_page_config(page_title="DriveElite Admin", layout="wide")
 
 # ==========================================
-# 🚨 PASTE THE NEW CSS RIGHT HERE 🚨
+# 🚨 "CRYSTAL ELITE" CSS ENGINE 🚨
 # ==========================================
-# 1. Page Config (Must be the first Streamlit command)
-st.set_page_config(page_title="DriveElite", layout="wide")
-
-# 2. Inject the Logo into the Sidebar
 st.sidebar.image("logo.png", use_container_width=True)
 
-# 3. The Universal "Crystal Elite" CSS Engine
 st.markdown("""
 <style>
     /* --- GLOBAL THEME --- */
@@ -122,7 +118,6 @@ if missing:
     st.error(f"🚨 Critical System Error: Missing required modules: {', '.join(missing)}")
     st.stop()
 
-# If validation passes, safely import the required functions
 from database_utils import get_connection, init_db, patch_database
 from tiered_discounts import init_discount_db, render_admin_discount_table, render_platform_settings
 from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
@@ -135,7 +130,7 @@ ADMIN_PASSWORD = st.secrets.get("admin_password")
 SENDER_EMAIL = st.secrets.get("email_sender")
 EMAIL_APP_PASSWORD = st.secrets.get("email_app_password")
 
-TAX_RATE = 0.02  # EWT / System Tax Rate
+TAX_RATE = 0.02  
 DEFAULT_RENTER_MARKUP = 0.07
 DEFAULT_AFFILIATE_SHARE = 0.80
 
@@ -151,6 +146,7 @@ try:
     conn.commit()
 except:
     pass
+
 # ==========================================
 # 6. UTILITY FUNCTIONS (UNIFIED EMAILS, CACHE & POS)
 # ==========================================
@@ -166,9 +162,7 @@ def display_document(file_path, title):
         st.warning(f"No {title} provided.")
 
 def send_email(to_email, subject, body, attachment_path=None, attachment_name=None):
-    """Smart email function that handles both plain text and PDF attachments."""
     try:
-        # Check if email configs exist before trying to send
         if not SENDER_EMAIL or not EMAIL_APP_PASSWORD:
             return False, "Email credentials missing in Streamlit secrets."
             
@@ -197,38 +191,82 @@ def send_email(to_email, subject, body, attachment_path=None, attachment_name=No
             smtp.send_message(msg)
         return True, "Email sent successfully!"
     except Exception as e:
-        error_msg = f"Failed to send email: {str(e)}"
-        st.error(error_msg)
-        return False, error_msg
+        return False, f"Failed to send email: {str(e)}"
 
-def generate_pos_receipt(b_data):
-    date_now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    receipt = f"""
-================================
-      DRIVEELITE PLATFORM       
-       OFFICIAL RECEIPT         
-================================
-DATE: {date_now}
-REF NO: #{b_data['booking_ref']}
-STATUS: {b_data['status']}
---------------------------------
-RENTER: {b_data['renter_name']}
-AFFILIATE: {b_data['affiliate_name']}
+def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
+    try:
+        if not SENDER_EMAIL or not EMAIL_APP_PASSWORD: return False
+        msg = MIMEMultipart()
+        msg['From'] = f"DriveElite Admin <{SENDER_EMAIL}>"
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+        
+        part = MIMEBase('application', 'octet-stream')
+        part.set_payload(pdf_bytes)
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', f"attachment; filename= {filename}")
+        msg.attach(part)
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(SENDER_EMAIL, EMAIL_APP_PASSWORD)
+            server.send_message(msg)
+        return True
+    except: 
+        return False
 
-VEHICLE: {b_data['make']} {b_data['model']}
-PLATE: {b_data['plate']}
+def generate_booking_receipt(ref_no, renter_name, vehicle, plate, travel_dates, amount, pickup_loc, return_loc):
+    pdf = FPDF(orientation='L', unit='mm', format='A5')
+    pdf.add_page()
+    try: pdf.image("logo.png", x=15, y=12, w=25)
+    except: pass
+        
+    pdf.set_y(15)
+    pdf.set_font("Helvetica", 'B', 16)
+    pdf.cell(0, 6, "DRIVEELITE PLATFORM", ln=True, align='R')
+    pdf.set_font("Helvetica", '', 10)
+    pdf.cell(0, 5, "Official Booking Receipt", ln=True, align='R')
+    pdf.cell(0, 5, f"Date: {datetime.date.today()}", ln=True, align='R')
+    pdf.cell(0, 5, f"Receipt No: {ref_no}", ln=True, align='R')
+    
+    pdf.ln(8)
+    pdf.set_line_width(0.5)
+    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+    pdf.ln(8)
+    
+    pdf.set_font("Helvetica", '', 12)
+    pdf.cell(35, 8, "Received From:", ln=0)
+    pdf.set_font("Helvetica", 'B', 12)
+    pdf.cell(0, 8, f"{renter_name}", ln=1)
+    
+    pdf.set_font("Helvetica", '', 12)
+    pdf.cell(35, 8, "The Sum Of:", ln=0)
+    pdf.set_font("Helvetica", 'B', 12)
+    pdf.cell(0, 8, f"Php {amount:,.2f}", ln=1)
+    
+    pdf.ln(5)
+    pdf.set_font("Helvetica", 'B', 10)
+    pdf.cell(0, 6, "IN FULL PAYMENT FOR RESERVATION:", ln=1)
+    pdf.set_font("Helvetica", '', 10)
+    pdf.cell(30, 6, "Vehicle:", ln=0)
+    pdf.cell(0, 6, f"{vehicle} ({plate})", ln=1)
+    pdf.cell(30, 6, "Travel Dates:", ln=0)
+    pdf.cell(0, 6, f"{travel_dates}", ln=1)
+    pdf.cell(30, 6, "Pickup Loc:", ln=0)
+    pdf.cell(0, 6, f"{pickup_loc}", ln=1)
+    pdf.cell(30, 6, "Return Loc:", ln=0)
+    pdf.cell(0, 6, f"{return_loc}", ln=1)
+    
+    pdf.ln(5)
+    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+    pdf.ln(5)
+    
+    pdf.set_font("Helvetica", 'I', 8)
+    pdf.cell(0, 4, "This is a system-generated Official Booking Receipt.", align='C', ln=1)
+    pdf.cell(0, 4, "Valid for corporate reimbursement and proof of reservation payment. No physical signature required.", align='C', ln=1)
+    
+    return pdf.output(dest="S").encode("latin-1")
 
-PICKUP: {b_data['pickup_time']}
-RETURN: {b_data['return_time']}
---------------------------------
-TOTAL PAID: PHP {float(b_data['amount']):,.2f}
---------------------------------
-Thank you for choosing DriveElite!
-================================
-    """
-    return receipt
-
-# ✅ PERFORMANCE: Cached Database Query for Reviews Tab
 @st.cache_data(ttl=300, show_spinner=False)
 def get_all_reviews(_conn):
     q_all_reviews = """
@@ -365,7 +403,7 @@ with tabs[1]:
     except Exception as e:
         st.warning(f"Could not load Vehicles database: {e}")
 
-# --- TAB 2: LOGISTICS (PAYMONGO ALIGNED) ---
+# --- TAB 2: LOGISTICS ---
 with tabs[2]:
     st.subheader("Active Logistics & Payment Status")
     try:
@@ -389,7 +427,7 @@ with tabs[2]:
                     st.write(f"**Affiliate:** {r['affiliate_name']}")
                     
                     if r['status'] == 'PENDING':
-                        st.warning("⏳ This renter is currently at the PayMongo checkout screen. If they paid via manual GCash transfer instead, you can override and confirm the booking below.")
+                        st.warning("⏳ This renter is currently at the checkout screen.")
                         if st.button("Verify Payment & Confirm Booking", key=f"force_conf_{r['id']}"):
                             conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE id = ?", (r['id'],))
                             conn.commit()
@@ -397,96 +435,86 @@ with tabs[2]:
                             time.sleep(1); st.rerun()
     except Exception as e: st.error(f"Error loading logistics data: {e}")
 
-# --- TAB 3: FINANCIALS (BPI VERIFICATION, DYNAMIC MARGINS & 4-DAY RULE) ---
+# --- TAB 3: FINANCIALS ---
 with tabs[3]:
     st.markdown("<h2 style='text-align: center;'>🏦 MASTER FINANCIAL LEDGER</h2>", unsafe_allow_html=True)
     try:
-        # 1. Pull dynamic settings from the DB
         settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct FROM platform_settings WHERE id = 1", conn)
         if not settings_df.empty:
             r_markup = float(settings_df.iloc[0]['renter_markup_pct'])
             a_share = float(settings_df.iloc[0]['affiliate_share_pct'])
         else:
-            r_markup = 0.07 # Default 7%
-            a_share = 0.85  # Default 85%
+            r_markup = 0.07 
+            a_share = 0.85  
 
-        # 2. Setup the Sub-Tabs (Adding BPI Verification as the first step)
         f_tabs = st.tabs(["💸 BPI VERIFICATION", "📑 MASTER LEDGER", "📤 PROCESS PAYOUTS", "🎫 ISSUE RECEIPTS"])
 
-        # --- SUB-TAB 1: BPI VERIFICATION (Inside ADMIN_PORTAL.py) ---
-with f_sub[0]:
-    st.markdown("### 🔍 Awaiting Payment Verification")
-    
-    # We fetch bookings that are PENDING and grab the renter's email and vehicle details
-    query = """
-        SELECT b.*, u.full_name as renter_name, u.email as renter_email, 
-               v.make, v.model, v.plate 
-        FROM bookings b 
-        JOIN platform_users u ON b.renter_username = u.username 
-        JOIN vehicles v ON b.vehicle_id = v.id
-        WHERE b.status = 'PENDING' OR b.status = 'VERIFYING'
-        ORDER BY b.id DESC
-    """
-    pending_pay = pd.read_sql_query(query, conn)
-    
-    if pending_pay.empty: 
-        st.info("No payments currently awaiting verification.")
-    else:
-        for _, row in pending_pay.iterrows():
-            with st.container(border=True):
-                st.write(f"**Ref:** #{row['booking_ref']} | **Renter:** {row['renter_name']}")
-                st.write(f"**Vehicle:** {row['make']} {row['model']} ({row['plate']})")
-                st.write(f"**Amount to Verify:** :blue[₱{row['amount']:,.2f}]")
-                
-                # Show the uploaded receipt if it exists
-                if row.get('receipt_img'):
-                    with st.expander("👁️ View Uploaded Payment Receipt"):
-                        st.image(row['receipt_img'], caption="Renter's Uploaded Proof of Payment")
-                else:
-                    st.warning("⏳ Renter has not uploaded a receipt yet.")
+        # --- SUB-TAB 0: BPI VERIFICATION ---
+        with f_tabs[0]:
+            st.markdown("### 🔍 Awaiting Payment Verification")
+            
+            query = """
+                SELECT b.*, u.full_name as renter_name, u.email as renter_email, 
+                       v.make, v.model, v.plate 
+                FROM bookings b 
+                JOIN platform_users u ON b.renter_username = u.username 
+                JOIN vehicles v ON b.vehicle_id = v.id
+                WHERE b.status = 'PENDING' OR b.status = 'VERIFYING'
+                ORDER BY b.id DESC
+            """
+            pending_pay = pd.read_sql_query(query, conn)
+            
+            if pending_pay.empty: 
+                st.info("No payments currently awaiting verification.")
+            else:
+                for _, row in pending_pay.iterrows():
+                    with st.container(border=True):
+                        st.write(f"**Ref:** #{row['booking_ref']} | **Renter:** {row['renter_name']}")
+                        st.write(f"**Vehicle:** {row['make']} {row['model']} ({row['plate']})")
+                        st.write(f"**Amount to Verify:** :blue[₱{row['amount']:,.2f}]")
+                        
+                        if row.get('receipt_img'):
+                            with st.expander("👁️ View Uploaded Payment Receipt"):
+                                st.image(row['receipt_img'], caption="Renter's Uploaded Proof of Payment")
+                        else:
+                            st.warning("⏳ Renter has not uploaded a receipt yet.")
 
-                c1, c2 = st.columns(2)
-                
-                # --- ACTION A: CONFIRM & SEND RECEIPT ---
-                if c1.button("✅ CONFIRM & SEND RECEIPT", key=f"vpay_{row['id']}", type="primary", use_container_width=True):
-                    with st.spinner("Confirming payment and generating PDF receipt..."):
-                        # 1. Update Database to CONFIRMED
-                        conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE id = ?", (row['id'],))
-                        conn.commit()
+                        c1, c2 = st.columns(2)
                         
-                        # 2. Generate the PDF Booking Receipt
-                        travel_dates = f"{str(row['pickup_time'])[:10]} to {str(row['return_time'])[:10]}"
-                        vehicle_str = f"{row['make']} {row['model']}"
+                        if c1.button("✅ CONFIRM & SEND RECEIPT", key=f"vpay_{row['id']}", type="primary", use_container_width=True):
+                            with st.spinner("Confirming payment and generating PDF receipt..."):
+                                conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE id = ?", (row['id'],))
+                                conn.commit()
+                                
+                                travel_dates = f"{str(row['pickup_time'])[:10]} to {str(row['return_time'])[:10]}"
+                                vehicle_str = f"{row['make']} {row['model']}"
+                                
+                                pdf_bytes = generate_booking_receipt(
+                                    ref_no=row['booking_ref'], 
+                                    renter_name=row['renter_name'], 
+                                    vehicle=vehicle_str, 
+                                    plate=row['plate'], 
+                                    travel_dates=travel_dates, 
+                                    amount=row['amount'], 
+                                    pickup_loc=row.get('pickup_loc', 'N/A'), 
+                                    return_loc=row.get('return_loc', 'N/A')
+                                )
+                                
+                                if row['renter_email']:
+                                    subject = f"DriveElite: Payment Confirmed - Official Receipt (#{row['booking_ref']})"
+                                    body = f"Hello {row['renter_name']},\n\nYour payment has been successfully verified! Your booking for the {vehicle_str} is now CONFIRMED.\n\nPlease find your Official Booking Receipt attached to this email.\n\nThank you for choosing DriveElite!"
+                                    send_pdf_email(row['renter_email'], subject, body, pdf_bytes, f"Receipt_{row['booking_ref']}.pdf")
+                                
+                                st.success("✅ Payment Confirmed and Receipt emailed to the Renter!")
+                                time.sleep(2)
+                                st.rerun()
                         
-                        pdf_bytes = generate_booking_receipt(
-                            ref_no=row['booking_ref'], 
-                            renter_name=row['renter_name'], 
-                            vehicle=vehicle_str, 
-                            plate=row['plate'], 
-                            travel_dates=travel_dates, 
-                            amount=row['amount'], 
-                            pickup_loc=row.get('pickup_loc', 'N/A'), 
-                            return_loc=row.get('return_loc', 'N/A')
-                        )
-                        
-                        # 3. Email the PDF to the Renter
-                        if row['renter_email']:
-                            subject = f"DriveElite: Payment Confirmed - Official Receipt (#{row['booking_ref']})"
-                            body = f"Hello {row['renter_name']},\n\nYour payment has been successfully verified! Your booking for the {vehicle_str} is now CONFIRMED.\n\nPlease find your Official Booking Receipt attached to this email.\n\nThank you for choosing DriveElite!"
-                            send_pdf_email(row['renter_email'], subject, body, pdf_bytes, f"Receipt_{row['booking_ref']}.pdf")
-                        
-                        st.success("✅ Payment Confirmed and Receipt emailed to the Renter!")
-                        time.sleep(2)
-                        st.rerun()
-                
-                # --- ACTION B: REJECT & FREE SCHEDULE ---
-                if c2.button("❌ REJECT & FREE CAR", key=f"rej_{row['id']}", use_container_width=True):
-                    # Cancelling it removes the soft-lock, putting the car back on the market
-                    conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE id = ?", (row['id'],))
-                    conn.commit()
-                    st.error(f"Booking #{row['booking_ref']} cancelled. The vehicle calendar is now free.")
-                    time.sleep(2)
-                    st.rerun()
+                        if c2.button("❌ REJECT & FREE CAR", key=f"rej_{row['id']}", use_container_width=True):
+                            conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE id = ?", (row['id'],))
+                            conn.commit()
+                            st.error(f"Booking #{row['booking_ref']} cancelled. The vehicle calendar is now free.")
+                            time.sleep(2)
+                            st.rerun()
 
         # --- PREPARE DATA FOR LEDGER (Excluding Pending) ---
         query = """
@@ -497,7 +525,7 @@ with f_sub[0]:
         JOIN vehicles v ON b.vehicle_id = v.id
         JOIN platform_users u_renter ON b.renter_username = u_renter.username
         JOIN platform_users u_owner ON v.owner_username = u_owner.username
-        WHERE b.status != 'PENDING' AND b.status != 'CANCELLED' 
+        WHERE b.status != 'PENDING' AND b.status != 'CANCELLED' AND b.status != 'VERIFYING'
         ORDER BY b.id DESC
         """
         df = pd.read_sql_query(query, conn)
@@ -513,16 +541,13 @@ with f_sub[0]:
                 df['Total_Days'] = (df['return_dt'] - df['pickup_dt']).dt.ceil('D').dt.days
                 df['Total_Days'] = df['Total_Days'].fillna(1).clip(lower=1)
                 
-                # 4-Day Rule Logic
-                import numpy as np
                 df['Applied_Markup'] = np.where(df['Total_Days'] >= 4, r_markup, 0.0)
 
-                # Financial Math
                 df['Platform_Gross_Cut'] = df['Total_Paid_By_Renter'] * (1 - (a_share / (1 + df['Applied_Markup'])))
-                TAX_RATE = 0.01 # Adjust to your current TAX_RATE variable
-                df['Platform_Net_Profit'] = df['Platform_Gross_Cut'] - df['gateway_fee'] - (df['Total_Paid_By_Renter'] * TAX_RATE * 0.18)
+                TAX_RATE_L = 0.01 
+                df['Platform_Net_Profit'] = df['Platform_Gross_Cut'] - df['gateway_fee'] - (df['Total_Paid_By_Renter'] * TAX_RATE_L * 0.18)
                 df['Affiliate_Gross_Share'] = df['Total_Paid_By_Renter'] - df['Platform_Gross_Cut']
-                df['EWT_Deduction'] = df['Affiliate_Gross_Share'] * TAX_RATE
+                df['EWT_Deduction'] = df['Affiliate_Gross_Share'] * TAX_RATE_L
                 df['Affiliate_Net_Payout'] = df['Affiliate_Gross_Share'] - df['EWT_Deduction']
                 df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
 
@@ -552,7 +577,7 @@ with f_sub[0]:
         with f_tabs[3]:
             if not df.empty:
                 st.markdown("#### Manual POS Issuance")
-                # ... (Rest of your receipt issuance code stays the same) ...
+                st.info("Download text receipt for bookkeeping.")
     
     except Exception as e:
         st.error(f"Financial Error: {e}")
@@ -617,11 +642,8 @@ with tabs[4]:
 
 # --- TAB 5: PROMOS & DB ---
 with tabs[5]:
-    # 1. ADDED: Render dynamic platform settings (Fee % / Share %)
     render_platform_settings(conn)
     st.divider()
-
-    # 2. Existing Duration Discounts
     render_admin_discount_table(conn)
     st.divider()
 
@@ -857,7 +879,6 @@ with tabs[9]:
     st.markdown("### 💳 Payment Gateway Control")
     st.info("Toggle the payment system between automated PayMongo and manual BPI QR. This updates the Renter checkout experience instantly.")
     
-    # Fetch current settings to see what is currently active
     try:
         settings_df = pd.read_sql_query("SELECT payment_mode FROM platform_settings WHERE id = 1", conn)
         current_mode = settings_df.iloc[0]['payment_mode'] if not settings_df.empty else "MANUAL_QR"
