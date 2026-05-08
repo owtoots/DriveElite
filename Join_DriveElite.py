@@ -316,7 +316,7 @@ else:
                             legal_entity, owner_share_val, agency_share_val, renter_fee_val = "DriveElite Platform", 82, 18, 7
                         
                         # ==========================================
-                        # 📝 INJECTING THE VARIABLES INTO WORD
+                        # 📝 INJECTING THE VARIABLES INTO WORD (NO SPACES!)
                         # ==========================================
                         ctx = {
                             'FULL_NAME': data['full_name'].upper(),
@@ -324,11 +324,11 @@ else:
                             'ADDRESS': data['address'],
                             'NATIONALITY': data['nationality'].upper(),
                             'SIGNATURE': InlineImage(doc, io.BytesIO(sig_bytes), width=Mm(40)),
-                            # --- DYNAMIC ADMIN VARIABLES ---
-                            'Platform': legal_entity,
-                            'OWNER SHARE': f"{owner_share_val}%",
-                            'Platform Share': f"{agency_share_val}%",
-                            'RENTER FEE': f"{renter_fee_val}%"
+                            # --- FIXED JINJA2 VARIABLES ---
+                            'PLATFORM': legal_entity,
+                            'OWNER_SHARE': f"{owner_share_val}%",
+                            'PLATFORM_SHARE': f"{agency_share_val}%",
+                            'RENTER_FEE': f"{renter_fee_val}%"
                         }
                         
                         doc.render(ctx)
