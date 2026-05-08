@@ -147,12 +147,26 @@ patch_database_tables()
 
 if not os.path.exists("uploads/chat_images"): os.makedirs("uploads/chat_images")
 
-# --- FETCH DYNAMIC PLATFORM SETTINGS ---
+# --- FETCH DYNAMIC PLATFORM SETTINGS (MASTER FETCH) ---
 try:
-    settings_df = pd.read_sql_query("SELECT payment_mode FROM platform_settings WHERE id = 1", conn)
-    gateway_mode = settings_df.iloc[0]['payment_mode'] if not settings_df.empty else "MANUAL_QR"
+    # We grab all 3 columns at the exact same time!
+    settings_df = pd.read_sql_query("SELECT payment_mode, renter_markup_pct, operator_name FROM platform_settings WHERE id = 1", conn)
+    
+    if not settings_df.empty:
+        # 1. Get Payment Toggle
+        gateway_mode = settings_df.iloc[0]['payment_mode']
+        
+        # 2. Get Renter Fee
+        raw_fee = settings_df.iloc[0]['renter_markup_pct']
+        dynamic_renter_fee = float(raw_fee) if pd.notnull(raw_fee) else 0.07
+        
+        # 3. Get Operator Name
+        raw_op = settings_df.iloc[0]['operator_name']
+        operator_name = str(raw_op) if pd.notnull(raw_op) else "Platform"
+    else:
+        gateway_mode, dynamic_renter_fee, operator_name = "MANUAL_QR", 0.07, "Platform"
 except Exception:
-    gateway_mode = "MANUAL_QR"
+    gateway_mode, dynamic_renter_fee, operator_name = "MANUAL_QR", 0.07, "Platform"
 
 # ==========================================
 # 4. UTILITIES & HELPERS
@@ -354,11 +368,6 @@ with tabs[0]:
                                     savings = subtotal * discount_pct
                                     discounted_subtotal = subtotal - savings
                                     
-                                    try:
-                                        settings_df = pd.read_sql_query("SELECT renter_markup_pct FROM platform_settings WHERE id = 1", conn)
-                                        dynamic_renter_fee = float(settings_df.iloc[0]['renter_markup_pct'])
-                                    except: dynamic_renter_fee = 0.07
-
                                     applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
                                     platform_fee = discounted_subtotal * applied_renter_fee
                                     p_fee, r_fee = ZONES.get(p_zone, 0.0), ZONES.get(r_zone, 0.0)
