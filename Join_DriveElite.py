@@ -96,6 +96,7 @@ st.markdown("""
     label { color: #475569 !important; font-weight: 600 !important; }
 </style>
 """, unsafe_allow_html=True)
+
 # ==========================================
 # 3. DATABASE SETUP
 # ==========================================
@@ -164,9 +165,12 @@ def send_welcome_email(recipient_email, role, filepath):
     ext = 'pdf' if filepath.endswith('.pdf') else 'docx'
     msg.add_attachment(file_data, maintype='application', subtype=ext, filename=f"DriveElite_{doc_label}.{ext}")
 
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-        smtp.login('rdalbaojr@gmail.com', st.secrets["email_app_password"])
-        smtp.send_message(msg)
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login('rdalbaojr@gmail.com', st.secrets["email_app_password"])
+            smtp.send_message(msg)
+    except Exception as e:
+        print(f"Email failed: {e}")
 
 # ==========================================
 # 5. 🔐 OTP VERIFICATION SCREEN
@@ -201,7 +205,7 @@ if st.session_state.get('otp_pending'):
                         st.download_button("📄 DOWNLOAD SIGNED CONTRACT", f, file_name=f"DriveElite_{prefix}.pdf", type="primary")
                             
                     if os.path.exists(docx_p): os.remove(docx_p)
-                    if os.path.exists(pdf_p): os.remove(pdf_p)
+                    # Keep PDF if you want, or remove it: if os.path.exists(pdf_p): os.remove(pdf_p)
                                 
                 except Exception as e:
                     st.error(f"Account saved, but email failed: {e}")
@@ -296,13 +300,37 @@ else:
                         tmpl = "moa_affiliate.docx" if reg_type == "Affiliate" else "MASTER RENTER AGREEMENT.docx"
                         doc = DocxTemplate(tmpl)
                         
+                        # ==========================================
+                        # 🧠 THE SMART ADMIN FETCHER
+                        # ==========================================
+                        try:
+                            settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct, operator_name FROM platform_settings WHERE id = 1", conn)
+                            if not settings_df.empty:
+                                legal_entity = settings_df.iloc[0]['operator_name']
+                                owner_share_val = int(float(settings_df.iloc[0]['affiliate_share_pct']) * 100)
+                                agency_share_val = 100 - owner_share_val
+                                renter_fee_val = int(float(settings_df.iloc[0]['renter_markup_pct']) * 100)
+                            else:
+                                legal_entity, owner_share_val, agency_share_val, renter_fee_val = "DriveElite Platform", 82, 18, 7
+                        except Exception:
+                            legal_entity, owner_share_val, agency_share_val, renter_fee_val = "DriveElite Platform", 82, 18, 7
+                        
+                        # ==========================================
+                        # 📝 INJECTING THE VARIABLES INTO WORD
+                        # ==========================================
                         ctx = {
                             'FULL_NAME': data['full_name'].upper(),
                             'DATE_SIGNED': datetime.date.today().strftime("%B %d, %Y"),
                             'ADDRESS': data['address'],
                             'NATIONALITY': data['nationality'].upper(),
-                            'SIGNATURE': InlineImage(doc, io.BytesIO(sig_bytes), width=Mm(40))
+                            'SIGNATURE': InlineImage(doc, io.BytesIO(sig_bytes), width=Mm(40)),
+                            # --- DYNAMIC ADMIN VARIABLES ---
+                            'Platform': legal_entity,
+                            'OWNER SHARE': f"{owner_share_val}%",
+                            'Platform Share': f"{agency_share_val}%",
+                            'RENTER FEE': f"{renter_fee_val}%"
                         }
+                        
                         doc.render(ctx)
                         
                         prefix = "MOA" if reg_type == "Affiliate" else "RENTER"
