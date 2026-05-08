@@ -452,7 +452,7 @@ with tabs[0]:
                             r_dt = pd.to_datetime(b['return_time'])
                             days_count = max(1, (r_dt - p_dt).days) 
                             
-                            active_markup = r_markup if days_count >= 4 else 0.0
+                            active_markup = r_markup if days_count >= 7 else 0.0
                             base_est = b['amount'] / (1 + active_markup)
                             affiliate_gross = base_est * a_share_pct
                             ewt_val = affiliate_gross * 0.01
@@ -464,8 +464,7 @@ with tabs[0]:
                             c_earn3.metric("Net Payout", f"₱{net_payout:,.2f}")
                             
                             if active_markup == 0:
-                                st.info("💡 **4-Day Rule:** Platform fee was waived for this short trip.")
-
+                                st.info("💡 **7-Day Rule:** Platform fee was waived for this short trip.")
                         st.divider()
                         
                         # ... [The rest of your Chat & Handover code stays exactly the same below this line] ...
