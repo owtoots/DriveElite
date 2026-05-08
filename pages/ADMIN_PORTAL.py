@@ -630,11 +630,62 @@ with tabs[3]:
         # --- SUB-TAB 3: ISSUE RECEIPTS ---
         with f_tabs[3]:
             if not df.empty:
-                st.markdown("#### Manual POS Issuance")
-                st.info("Download text receipt for bookkeeping.")
-    
-    except Exception as e:
-        st.error(f"Financial Error: {e}")
+                st.markdown("#### 🖨️ Download Official PDF Receipts")
+                st.write("Manually generate and download the official DriveElite PDF Booking Receipt for any past transaction.")
+                
+                # 1. Select a Transaction
+                tx_options = ["-- Select a Transaction --"] + df['Ref'].tolist()
+                selected_tx = st.selectbox("Select Transaction Reference:", tx_options)
+                
+                if selected_tx != "-- Select a Transaction --":
+                    # Clean the "#" off the reference number
+                    ref_clean = selected_tx.replace("#", "")
+                    
+                    # 2. Fetch the exact vehicle and renter details needed for the PDF
+                    query_receipt = """
+                        SELECT b.*, u_renter.full_name as renter_name, v.make, v.model, v.plate
+                        FROM bookings b
+                        JOIN platform_users u_renter ON b.renter_username = u_renter.username
+                        JOIN vehicles v ON b.vehicle_id = v.id
+                        WHERE b.booking_ref = ?
+                    """
+                    try:
+                        receipt_data = pd.read_sql_query(query_receipt, conn, params=(ref_clean,))
+                        
+                        if not receipt_data.empty:
+                            r_row = receipt_data.iloc[0]
+                            
+                            # Format strings for the PDF
+                            travel_dates = f"{str(r_row['pickup_time'])[:10]} to {str(r_row['return_time'])[:10]}"
+                            vehicle_str = f"{r_row['make']} {r_row['model']}"
+                            
+                            # 3. Trigger your built-in FPDF Generator!
+                            pdf_bytes = generate_booking_receipt(
+                                ref_no=r_row['booking_ref'], 
+                                renter_name=r_row['renter_name'], 
+                                vehicle=vehicle_str, 
+                                plate=r_row['plate'], 
+                                travel_dates=travel_dates, 
+                                amount=r_row['amount'], 
+                                pickup_loc=r_row.get('pickup_loc', 'N/A'), 
+                                return_loc=r_row.get('return_loc', 'N/A')
+                            )
+                            
+                            # 4. Display a success message and the Download Button
+                            st.success(f"✅ PDF Receipt Generated for {r_row['renter_name']}!")
+                            
+                            st.download_button(
+                                label=f"📥 DOWNLOAD OFFICIAL PDF RECEIPT (#{ref_clean})",
+                                data=pdf_bytes,
+                                file_name=f"Official_Receipt_{ref_clean}.pdf",
+                                mime="application/pdf",
+                                type="primary",
+                                use_container_width=True
+                            )
+                        else:
+                            st.warning("Could not find full booking details for this transaction.")
+                    except Exception as e:
+                        st.error(f"Error generating PDF: {e}")
 
 # --- TAB 4: FILING CABINET ---
 with tabs[4]: 
