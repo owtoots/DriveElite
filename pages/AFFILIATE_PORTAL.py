@@ -418,15 +418,20 @@ with tabs[0]:
                 vehicle_info = f"{str(b['pickup_time'])[:16]} | {b['make']} {b['model']} ({b['plate']})"
                 
                 # ---------------------------------------------------------
-                # SCENARIO A: PENDING (Flat, Unclickable Container)
+                # SCENARIO A: PENDING OR VERIFYING (Flat, Unclickable Container)
                 # ---------------------------------------------------------
-                if b['status'] == 'PENDING':
+                if b['status'] in ['PENDING', 'VERIFYING']:
                     with st.container(border=True):
                         c_icon, c_info = st.columns([1, 15])
                         with c_icon: st.markdown("<h2>⏳</h2>", unsafe_allow_html=True)
                         with c_info:
                             st.write(f"**Ref: {b_ref_display}** | {vehicle_info}")
-                            st.warning("🔒 **AWAITING PAYMENT & VERIFICATION.** Admin is verifying the transfer. You cannot process this handover yet.")
+                            
+                            # Give the affiliate exact details on what is happening
+                            if b['status'] == 'PENDING':
+                                st.warning("🔒 **AWAITING RENTER PAYMENT.** Renter reserved the dates but hasn't uploaded a receipt yet.")
+                            elif b['status'] == 'VERIFYING':
+                                st.info("🔒 **VERIFYING RECEIPT.** Renter uploaded proof of payment. Waiting for Admin to confirm the funds.")
 
                 # ---------------------------------------------------------
                 # SCENARIO B: CONFIRMED OR ONGOING (Clickable Expander)
@@ -460,6 +465,10 @@ with tabs[0]:
                             
                             if active_markup == 0:
                                 st.info("💡 **4-Day Rule:** Platform fee was waived for this short trip.")
+
+                        st.divider()
+                        
+                        # ... [The rest of your Chat & Handover code stays exactly the same below this line] ...
 
                         st.divider()
 
