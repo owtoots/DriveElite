@@ -221,46 +221,46 @@ else:
     st.title("🚗 Join DriveElite")
     st.write("Philippines' Premier Peer-to-Peer Car Sharing Platform")
     
-    # ==========================================
+   # ==========================================
     # 🚘 LIVE SHOWROOM PREVIEW (Marketing Hook)
     # ==========================================
     st.markdown("### 🚘 Live Fleet Preview")
-    st.caption("Browse our exclusive fleet. Create a free Renter account to view rates, full specifications, and to lock in your dates!")
+    st.caption("Browse our exclusive fleet. Create a free Renter account to view rates and lock in your dates!")
 
     try:
-        # Fetch only vehicles that are approved by admin and currently available
         preview_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'APPROVED' AND booking_status = 'AVAILABLE'", conn)
         
         if preview_cars.empty:
             st.info("Our fleet is currently fully booked or undergoing maintenance. Check back soon!")
         else:
-            # We will only show a maximum of 4 cars on the landing page
+            # Show exactly 4 cars in one row
             preview_cars = preview_cars.head(4) 
             
-            grid_cols = st.columns(2)
+            # Create 4 columns instead of 2
+            grid_cols = st.columns(4)
             for i, car in preview_cars.iterrows():
-                with grid_cols[i % 2]:
+                with grid_cols[i % 4]:
                     with st.container(border=True):
-                        col1, col2 = st.columns([1, 1.3])
-                        with col1:
-                            img_p = car.get('vehicle_img')
-                            if img_p and os.path.exists(img_p): 
-                                st.image(img_p, use_container_width=True)
-                            else: 
-                                st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
-                        with col2:
-                            # Combine text into a single markdown block to eliminate vertical gaps
-                            st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}")
+                        # --- TOP: Image ---
+                        img_p = car.get('vehicle_img')
+                        if img_p and os.path.exists(img_p): 
+                            st.image(img_p, use_container_width=True)
+                        else: 
+                            st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
+                        
+                        # --- MIDDLE: Details (No Price) ---
+                        st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}")
+                        st.write("") # tiny spacer
+                        
+                        # --- BOTTOM: Button ---
+                        if st.button("🔍 VIEW DETAILS", key=f"preview_btn_{car['id']}", use_container_width=True):
+                            st.warning("🔒 Please sign up to book or view full vehicle rates.")
                             
-                            # Subtle interaction button instead of a "Booking" button
-                            if st.button("🔍 View Details", key=f"preview_btn_{car['id']}", use_container_width=True):
-                                st.warning("🔒 Please sign up to book or view full vehicle rates.")
-                                
             if len(pd.read_sql_query("SELECT id FROM vehicles WHERE admin_status = 'APPROVED'", conn)) > 4:
                 st.markdown("<p style='text-align: center; color: #64748B;'><em>Sign up to explore the full DriveElite fleet...</em></p>", unsafe_allow_html=True)
                 
     except Exception as e:
-        pass # Silently hides if DB isn't fully initialized
+        pass 
         
     st.divider()
         
