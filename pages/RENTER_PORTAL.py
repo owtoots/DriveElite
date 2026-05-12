@@ -278,32 +278,69 @@ st.divider()
 
 tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
 
-# --- TAB 0: VEHICLE SHOWROOM ---
-with tabs[0]:
-    cat_df = pd.read_sql_query("SELECT name FROM vehicle_categories", conn)
-    cat_list = ["All"] + [str(n).strip() for n in cat_df['name'].tolist()]
-    c_f1, c_f2 = st.columns([2, 1])
-    cat_filter = c_f1.selectbox("Filter by Category", cat_list)
-    search_query = c_f2.text_input("Search Brand/Model", placeholder="e.g. Nissan")
+# ==========================================
+    # 🚘 RENTER SHOWROOM
+    # ==========================================
+    st.header("🚘 Available Fleet")
 
-    cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'APPROVED' AND booking_status = 'AVAILABLE'", conn)
-    if cat_filter != "All": cars = cars[cars['category'].str.strip() == cat_filter]
-    if search_query: cars = cars[cars['make'].str.contains(search_query, case=False) | cars['model'].str.contains(search_query, case=False)]
+    # 1. Fetch all approved and available cars
+    available_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'APPROVED' AND booking_status = 'AVAILABLE'", conn)
 
-    if cars.empty: st.info("No vehicles currently live.")
+    if available_cars.empty:
+        st.info("Our fleet is currently fully booked. Please check back later!")
     else:
-        grid_cols = st.columns(2)
-        for i, car in cars.reset_index(drop=True).iterrows():
-            with grid_cols[i % 2]:
-                with st.container(border=True):
-                    col1, col2 = st.columns([1, 1.3])
-                    with col1:
-                        img_p = car.get('vehicle_img')
-                        if img_p and os.path.exists(img_p): st.image(img_p, use_container_width=True)
-                        else: st.image("https://placehold.co/600x400?text=No+Image", use_container_width=True)
-                    with col2:
-                        st.write(f"### {car['make']} {car['model']} ({car['year']})")
-                        base_rate = car.get('approved_price', 2000.0)
+        # 2. Get unique car categories for the tabs
+        # Assuming your database has a 'type' column (SUV, Sedan, Van). Adjust if named differently!
+        if 'type' in available_cars.columns:
+            categories = ["All"] + sorted(available_cars['type'].dropna().unique().tolist())
+        else:
+            categories = ["All"]
+            
+        tabs = st.tabs(categories)
+        
+        # 3. Loop through each tab and display the filtered cars
+        for tab_index, cat in enumerate(categories):
+            with tabs[tab_index]:
+                
+                # Filter cars for this specific tab
+                if cat == "All":
+                    category_cars = available_cars.copy()
+                else:
+                    category_cars = available_cars[available_cars['type'] == cat].copy()
+                
+                # --- YOUR INTEGRATED SHOWROOM LAYOUT ---
+                if category_cars.empty:
+                    st.info("No vehicles available in this category right now.")
+                else:
+                    # Limit to 8 cars (4 columns x 2 rows)
+                    display_cars = category_cars.head(8)
+                    
+                    # 🛠️ CRITICAL FIX: Reset index so the (idx % 4) math works perfectly 0, 1, 2, 3...
+                    display_cars = display_cars.reset_index(drop=True)
+                    
+                    # Create the 4-column grid
+                    grid_cols = st.columns(4)
+                    
+                    for idx, car in display_cars.iterrows():
+                        with grid_cols[idx % 4]: 
+                            with st.container(border=True):
+                                
+                                # --- TOP: Image ---
+                                img_p = car.get('vehicle_img')
+                                if img_p and os.path.exists(img_p): 
+                                    st.image(img_p, use_container_width=True)
+                                else: 
+                                    st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
+                                
+                                # --- MIDDLE: Details (WITH Price) ---
+                                st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}\n\n<h5 style='color: #2563EB;'>₱{car.get('daily_rate', 0):,.2f} / day</h5>", unsafe_allow_html=True)
+                                
+                                # --- BOTTOM: Button ---
+                                # Added _{cat} to the key to prevent Duplicate Widget ID errors between tabs
+                                if st.button("⚡ BOOK NOW", key=f"book_btn_{car['id']}_{cat}", type="primary", use_container_width=True):
+                                    st.session_state.selected_car_id = car['id']
+                                    st.session_state.booking_step = "checkout"
+                                    st.rerun()
                         
                         # --- POPOVER CHECKOUT MANAGER ---
                         with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
