@@ -396,5 +396,4 @@ else:
                         st.rerun()
                 else:
                     st.error("🚨 Digital signature required to proceed.")
-                else:
-                    st.error("🚨 Digital signature required to proceed.")
+                
