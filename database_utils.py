@@ -4,11 +4,13 @@ import os
 # --- 1. SINGLE SOURCE OF TRUTH ---
 DB_NAME = "driveelite_v2.db"
 
+# This tells the app to save everything on your permanent Render Disk
+DB_PATH = "/data/driveelite_v2.db"
+
 def get_connection():
-    """Returns a connection to the active V2 database."""
-    conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-    conn.row_factory = sqlite3.Row 
-    return conn
+    import sqlite3
+    # Use the new path here
+    return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 # --- 2. TABLE INITIALIZATION ---
 def init_db():
