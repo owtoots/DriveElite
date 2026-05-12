@@ -214,7 +214,48 @@ if st.session_state.get('otp_pending'):
             if st.button("GO TO LOGIN"): st.rerun()
         else:
             st.error("🚨 Invalid OTP. Please try again.")
+# ==========================================
+# 🚘 LIVE SHOWROOM PREVIEW (Marketing Hook)
+# ==========================================
+st.markdown("### 🚘 Live Fleet Preview")
+st.caption("Browse our currently available vehicles. Create a free Renter account to lock in your dates!")
 
+try:
+    # Fetch only vehicles that are approved by admin and currently available
+    preview_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'APPROVED' AND booking_status = 'AVAILABLE'", conn)
+    
+    if preview_cars.empty:
+        st.info("Our fleet is currently fully booked or undergoing maintenance. Check back soon!")
+    else:
+        # We will only show a maximum of 4 cars on the landing page so it doesn't get too long
+        preview_cars = preview_cars.head(4) 
+        
+        grid_cols = st.columns(2)
+        for i, car in preview_cars.iterrows():
+            with grid_cols[i % 2]:
+                with st.container(border=True):
+                    col1, col2 = st.columns([1, 1.3])
+                    with col1:
+                        img_p = car.get('vehicle_img')
+                        if img_p and os.path.exists(img_p): 
+                            st.image(img_p, use_container_width=True)
+                        else: 
+                            st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
+                    with col2:
+                        st.write(f"#### {car['make']} {car['model']}")
+                        st.write(f"**Year:** {car['year']} | **Rate:** ₱{car.get('approved_price', 2000.0):,.2f}/day")
+                        
+                        # The "Bait" Button
+                        if st.button(f"⚡ BOOK NOW", key=f"preview_btn_{car['id']}", use_container_width=True):
+                            st.error("🔒 Please Sign Up or Log In as a Renter to book this vehicle!")
+                            
+        if len(pd.read_sql_query("SELECT id FROM vehicles WHERE admin_status = 'APPROVED'", conn)) > 4:
+            st.markdown("<p style='text-align: center; color: #64748B;'><em>Sign up to view the full fleet...</em></p>", unsafe_allow_html=True)
+            
+except Exception as e:
+    pass # If database isn't ready yet, just hide the showroom silently
+    
+st.divider()
 # ==========================================
 # 6. 🚗 MAIN REGISTRATION SCREEN
 # ==========================================
