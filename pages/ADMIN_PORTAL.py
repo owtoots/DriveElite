@@ -125,10 +125,23 @@ from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
 # ==========================================
 # 4. GLOBAL CONSTANTS & CONFIGURATION
 # ==========================================
-ADMIN_USERNAME = st.secrets.get("admin_username", "masterom")
-ADMIN_PASSWORD = st.secrets.get("admin_password")
-SENDER_EMAIL = st.secrets.get("email_sender")
-EMAIL_APP_PASSWORD = st.secrets.get("email_app_password")
+import os
+
+def get_secret(key, default_val=None):
+    # 1. Try to get it from Render's Environment Variables first
+    val = os.environ.get(key)
+    if val: 
+        return val
+    # 2. If not found, try Streamlit's Secret vault (for backup/local testing)
+    try:
+        return st.secrets.get(key, default_val)
+    except:
+        return default_val
+
+ADMIN_USERNAME = get_secret("admin_username", "masterom")
+ADMIN_PASSWORD = get_secret("admin_password")
+SENDER_EMAIL = get_secret("email_sender")
+EMAIL_APP_PASSWORD = get_secret("email_app_password")
 
 TAX_RATE = 0.02  
 DEFAULT_RENTER_MARKUP = 0.07
