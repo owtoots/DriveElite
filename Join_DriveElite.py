@@ -249,10 +249,8 @@ else:
                             else: 
                                 st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
                         with col2:
-                            # Clean display: Just Make, Model, and Year
-                            st.write(f"#### {car['make']} {car['model']}")
-                            st.write(f"**Year:** {car['year']}")
-                            st.write("") # Adds a tiny bit of spacing
+                            # Combine text into a single markdown block to eliminate vertical gaps
+                            st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}")
                             
                             # Subtle interaction button instead of a "Booking" button
                             if st.button("🔍 View Details", key=f"preview_btn_{car['id']}", use_container_width=True):
