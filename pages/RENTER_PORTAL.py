@@ -16,12 +16,14 @@ from database_utils import get_connection
 import calendar
 from datetime import timedelta
 
-
 # ==========================================
 # 1. PAGE CONFIG & LOGO (Must be first!)
 # ==========================================
 st.set_page_config(page_title="DriveElite Renter", layout="wide")
-st.sidebar.image("logo.png", use_container_width=True)
+try:
+    st.sidebar.image("logo.png", use_container_width=True)
+except:
+    pass
 
 # ==========================================
 # 💎 2. THE "CRYSTAL ELITE" CSS ENGINE
@@ -148,7 +150,7 @@ def patch_database_tables():
 patch_database_tables()
 if not os.path.exists("uploads/chat_images"): os.makedirs("uploads/chat_images")
 
-# --- FETCH DYNAMIC PLATFORM SETTINGS (MASTER FETCH) ---
+# --- FETCH DYNAMIC PLATFORM SETTINGS ---
 try:
     settings_df = pd.read_sql_query("SELECT payment_mode, renter_markup_pct, operator_name FROM platform_settings WHERE id = 1", conn)
 
@@ -185,6 +187,34 @@ def get_booked_dates(vehicle_id, conn):
             pass
     return booked_days
 
+def calculate_24h_rental(p_dt, r_dt, base_rate, hourly_penalty=300.0, grace_mins=59):
+    delta = r_dt - p_dt
+    total_hours = delta.total_seconds() / 3600.0
+    full_days = int(total_hours // 24)
+    remainder_hours = total_hours % 24
+    billed_hrs = 0
+    if remainder_hours > (grace_mins / 60.0):
+        billed_hrs = math.ceil(remainder_hours)
+    if full_days == 0 and billed_hrs > 0:
+        full_days, billed_hrs = 1, 0
+    base_cost = full_days * base_rate
+    ext_fee = billed_hrs * hourly_penalty
+    return full_days, billed_hrs, base_cost, ext_fee, base_cost + ext_fee
+
+def clear_renter_chat(b_ref):
+    """Clears the chat input box and stages the message to be sent."""
+    if f"chat_{b_ref}" in st.session_state:
+        st.session_state.temp_msg_renter = st.session_state[f"chat_{b_ref}"]
+        st.session_state[f"chat_{b_ref}"] = ""
+        st.session_state[f"trigger_send_{b_ref}"] = True
+
+def save_chat_image(img_file, b_ref):
+    """Saves an uploaded image from the chat to the server."""
+    path = f"uploads/chat_images/{b_ref}_{img_file.name}"
+    with open(path, "wb") as f:
+        f.write(img_file.getbuffer())
+    return path
+
 # ==========================================
 # 5. AUTHENTICATION FLOW
 # ==========================================
@@ -215,7 +245,6 @@ with col_r:
         st.rerun()
 st.divider()
 
-# 🔥 FIX: We named these 'main_tabs' so they don't get overwritten later
 main_tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
 
 # ==========================================
@@ -224,39 +253,33 @@ main_tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
 with main_tabs[0]:
     st.header("🚘 Available Fleet")
 
-    # 1. Fetch all approved and available cars
     available_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'APPROVED' AND booking_status = 'AVAILABLE'", conn)
 
     if available_cars.empty:
         st.info("Our fleet is currently fully booked. Please check back later!")
     else:
-        # 2. Get unique car categories for the tabs
-        if 'type' in available_cars.columns:
+        if 'category' in available_cars.columns:
+            categories = ["All"] + sorted(available_cars['category'].dropna().unique().tolist())
+        elif 'type' in available_cars.columns:
             categories = ["All"] + sorted(available_cars['type'].dropna().unique().tolist())
         else:
             categories = ["All"]
             
-        # 🔥 FIX: We named these 'category_tabs' to keep them separate from the main navigation
         category_tabs = st.tabs(categories)
         
-        # 3. Loop through each tab and display the filtered cars
         for tab_index, cat in enumerate(categories):
             with category_tabs[tab_index]:
                 
-                # Filter cars for this specific tab
                 if cat == "All":
                     category_cars = available_cars.copy()
                 else:
-                    category_cars = available_cars[available_cars['type'] == cat].copy()
+                    filter_col = 'category' if 'category' in available_cars.columns else 'type'
+                    category_cars = available_cars[available_cars[filter_col] == cat].copy()
                 
-                # --- YOUR INTEGRATED SHOWROOM LAYOUT ---
                 if category_cars.empty:
                     st.info("No vehicles available in this category right now.")
                 else:
-                    # Limit to 8 cars (4 columns x 2 rows)
                     display_cars = category_cars.head(8).reset_index(drop=True)
-                    
-                    # Create the 4-column grid
                     grid_cols = st.columns(4)
                     
                     for idx, car in display_cars.iterrows():
@@ -271,21 +294,12 @@ with main_tabs[0]:
                                     st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
                                 
                                 # --- MIDDLE: Details (WITH Price) ---
-                                # Tries daily_rate first. If 0 or blank, falls back to approved_price. If both are blank, defaults to 0.0
                                 base_rate = float(car.get('daily_rate') or car.get('approved_price') or 0.0)
                                 st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}\n\n<h5 style='color: #2563EB;'>₱{base_rate:,.2f} / day</h5>", unsafe_allow_html=True)
                                 
-                                # 🚨 DELETE THESE 5 LINES 🚨
-                                # --- BOTTOM: Button ---
-                                if st.button("⚡ BOOK NOW", key=f"book_btn_{car['id']}_{cat}", type="primary", use_container_width=True):
-                                    st.session_state.selected_car_id = car['id']
-                                    st.session_state.booking_step = "checkout"
-                                    st.rerun()
-                        
-                                # --- POPOVER CHECKOUT MANAGER ---
+                                # --- BOTTOM: POPOVER CHECKOUT MANAGER (Double Button Fixed!) ---
                                 with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
                                     
-                                    # State Tracking for 2-Step Process
                                     stage_key = f"chk_stage_{car['id']}"
                                     ref_key = f"pend_ref_{car['id']}"
                                     if stage_key not in st.session_state: st.session_state[stage_key] = 0
@@ -296,7 +310,6 @@ with main_tabs[0]:
                                     # CHECKOUT STAGE 0: SELECT DATES & CONFIRM SOFT LOCK
                                     # -------------------------------------------------------------
                                     if st.session_state[stage_key] == 0:
-                                        # Visual Calendar
                                         existing_bookings = pd.read_sql_query("SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status NOT IN ('CANCELLED', 'REJECTED')", conn, params=(car['id'],))
                                         booked_dates = set()
                                         for _, row in existing_bookings.iterrows():
@@ -306,10 +319,6 @@ with main_tabs[0]:
                                             except: pass
 
                                         today = datetime.date.today()
-                                        # Assumes render_availability_calendar is defined in your utilities!
-                                        try:
-                                            st.markdown(render_availability_calendar(today.year, today.month, booked_dates), unsafe_allow_html=True)
-                                        except: pass
                                         
                                         d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}")
                                         t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}", step=datetime.timedelta(hours=1))
@@ -354,7 +363,6 @@ with main_tabs[0]:
                                                 p_fee, r_fee = ZONES.get(p_zone, 0.0), ZONES.get(r_zone, 0.0)
                                                 grand_total = discounted_subtotal + platform_fee + driver_fee + p_fee + r_fee
 
-                                                # Cost Breakdown Receipt
                                                 st.markdown("#### 🧾 Cost Breakdown")
                                                 plural = "day" if full_days == 1 else "days"
                                                 
@@ -380,7 +388,6 @@ with main_tabs[0]:
                                                 st.markdown(bill_html, unsafe_allow_html=True)
                                                 st.divider()
 
-                                                # Overlap Security Check
                                                 is_overlapping = False
                                                 for _, row in pd.read_sql_query("SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status NOT IN ('CANCELLED', 'REJECTED')", conn, params=(car['id'],)).iterrows():
                                                     if p_dt_obj < pd.to_datetime(row['return_time']) and r_dt_obj > pd.to_datetime(row['pickup_time']):
@@ -401,9 +408,6 @@ with main_tabs[0]:
                                                     p_dt_str, r_dt_str = p_dt_obj.strftime("%Y-%m-%d %H:%M"), r_dt_obj.strftime("%Y-%m-%d %H:%M")
                                                     is_drvr_int = 1 if "Driver" in drive_mode else 0
                                                     
-                                                    # ==========================================
-                                                    # 🔀 THE SMART PAYMENT TOGGLE
-                                                    # ==========================================
                                                     if gateway_mode == "PAYMONGO":
                                                         conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
                                                                      (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_drvr_int, b_ref))
@@ -411,7 +415,7 @@ with main_tabs[0]:
                                                         
                                                         try:
                                                             SECRET_KEY = st.secrets["paymongo_active_key"]
-                                                            pay_amount = int(grand_total * 100) # Centavos
+                                                            pay_amount = int(grand_total * 100)
                                                             auth_string = f"{SECRET_KEY}:"
                                                             base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
                                                             
@@ -433,7 +437,6 @@ with main_tabs[0]:
                                                             st.error("Failed to generate payment link. Please try again or contact support.")
                                                     
                                                     else:
-                                                        # --- DOOR B: MANUAL BPI FLOW (Moves to Stage 1) ---
                                                         conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
                                                                      (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_drvr_int, b_ref))
                                                         conn.commit()
@@ -444,7 +447,7 @@ with main_tabs[0]:
                                                 st.warning("⚠️ Please fill all required fields (Destination, Address, and Luzon Agreement).")
 
                                     # -------------------------------------------------------------
-                                    # CHECKOUT STAGE 1: VALIDATE BPI PAYMENT (HARD LOCK TRIGGER)
+                                    # CHECKOUT STAGE 1: VALIDATE BPI PAYMENT 
                                     # -------------------------------------------------------------
                                     elif st.session_state[stage_key] == 1:
                                         b_ref = st.session_state[ref_key]
@@ -540,17 +543,10 @@ with main_tabs[1]:
                 with c_img: 
                     r_img = st.file_uploader("📷", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"r_img_{b_ref_str}", label_visibility="collapsed")
                 with c_msg: 
-                    # Assuming clear_renter_chat is defined in your utilities!
-                    try:
-                        st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_renter_chat, args=(b_ref_str,), placeholder="Type a message...")
-                    except NameError:
-                        st.text_input("Reply...", key=f"chat_{b_ref_str}", placeholder="Type a message...")
+                    st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_renter_chat, args=(b_ref_str,), placeholder="Type a message...")
 
-                try:
-                    st.button("Send", key=f"btn_{b_ref_str}", on_click=clear_renter_chat, args=(b_ref_str,), use_container_width=True)
-                except NameError:
-                    st.button("Send", key=f"btn_{b_ref_str}", use_container_width=True)
-                    
+                st.button("Send", key=f"btn_{b_ref_str}", on_click=clear_renter_chat, args=(b_ref_str,), use_container_width=True)
+                
                 enter_pressed = st.session_state.get(f"trigger_send_{b_ref_str}", False)
 
                 if enter_pressed:
@@ -562,7 +558,7 @@ with main_tabs[1]:
                         if has_imgs:
                             for idx, img_file in enumerate(r_img):
                                 try:
-                                    path = save_chat_image(img_file, b_ref_str) # Assumes save_chat_image is defined!
+                                    path = save_chat_image(img_file, b_ref_str)
                                 except: path = ""
                                 
                                 text_to_save = final_msg if idx == 0 else ""
