@@ -271,8 +271,8 @@ with main_tabs[0]:
                                     st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
                                 
                                 # --- MIDDLE: Details (WITH Price) ---
-                                # The "or 0.0" protects the app if the database has a blank/NULL value
-                                base_rate = float(car.get('daily_rate') or 0.0)
+                                # Tries daily_rate first. If 0 or blank, falls back to approved_price. If both are blank, defaults to 0.0
+                                base_rate = float(car.get('daily_rate') or car.get('approved_price') or 0.0)
                                 st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}\n\n<h5 style='color: #2563EB;'>₱{base_rate:,.2f} / day</h5>", unsafe_allow_html=True)
                                 
                                 # 🚨 DELETE THESE 5 LINES 🚨
