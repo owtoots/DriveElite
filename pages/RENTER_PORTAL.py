@@ -29,40 +29,6 @@ except:
 # 💎 2. THE "CRYSTAL ELITE" CSS ENGINE
 # ==========================================
 st.markdown("""
-/* --- POPOVER (BOOK NOW) BUTTON UPGRADE --- */
-    div[data-testid="stPopover"] > button {
-        background-color: #2563EB !important;
-        color: #FFFFFF !important;
-        border: none !important;
-        font-weight: 800 !important;
-        border-radius: 10px !important;
-        padding: 12px 24px !important;
-        text-transform: uppercase !important;
-        width: 100% !important;
-        transition: all 0.2s ease !important;
-    }
-    div[data-testid="stPopover"] > button p {
-        color: #FFFFFF !important;
-        font-weight: 800 !important;
-        font-size: 1rem !important;
-    }
-    div[data-testid="stPopover"] > button:hover {
-        background-color: #1D4ED8 !important;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4) !important;
-        transform: translateY(-2px) !important;
-    }
-
-    /* --- BEEF UP THE TABS (ALL, SUV, SEDAN) --- */
-    button[data-baseweb="tab"] {
-        font-size: 1.15rem !important;
-        font-weight: 600 !important;
-        color: #64748B !important;
-        padding-bottom: 12px !important;
-    }
-    button[data-baseweb="tab"][aria-selected="true"] {
-        color: #2563EB !important;
-        font-weight: 900 !important;
-    }
 <style>
     /* --- GLOBAL THEME --- */
     [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
@@ -152,6 +118,45 @@ st.markdown("""
     [data-testid="stAppViewContainer"] > .main { transition: none !important; }
     .element-container, .stMarkdown, .stText { transition: none !important; animation: none !important; opacity: 1 !important; }
     div[data-testid="stStaleElement"] { opacity: 1 !important; transition: none !important; }
+
+    /* =========================================
+       ✨ NEW UPGRADES (POPOVER & TABS) ✨ 
+       ========================================= */
+       
+    /* POPOVER (BOOK NOW) BUTTON UPGRADE */
+    div[data-testid="stPopover"] > button {
+        background-color: #2563EB !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        font-weight: 800 !important;
+        border-radius: 10px !important;
+        padding: 12px 24px !important;
+        text-transform: uppercase !important;
+        width: 100% !important;
+        transition: all 0.2s ease !important;
+    }
+    div[data-testid="stPopover"] > button p {
+        color: #FFFFFF !important;
+        font-weight: 800 !important;
+        font-size: 1rem !important;
+    }
+    div[data-testid="stPopover"] > button:hover {
+        background-color: #1D4ED8 !important;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4) !important;
+        transform: translateY(-2px) !important;
+    }
+
+    /* BEEF UP THE TABS (ALL, SUV, SEDAN) */
+    button[data-baseweb="tab"] {
+        font-size: 1.15rem !important;
+        font-weight: 600 !important;
+        color: #64748B !important;
+        padding-bottom: 12px !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: #2563EB !important;
+        font-weight: 900 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
