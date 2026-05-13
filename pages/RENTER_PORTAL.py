@@ -217,9 +217,9 @@ st.divider()
 tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
 
 # ==========================================
-    # 🚘 RENTER SHOWROOM
-    # ==========================================
-    st.header("🚘 Available Fleet")
+# 🚘 RENTER SHOWROOM
+# ==========================================
+st.header("🚘 Available Fleet")
 
     # 1. Fetch all approved and available cars
     available_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'APPROVED' AND booking_status = 'AVAILABLE'", conn)
