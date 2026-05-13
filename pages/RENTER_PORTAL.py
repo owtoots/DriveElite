@@ -297,11 +297,12 @@ with main_tabs[0]:
                                 base_rate = float(car.get('daily_rate') or car.get('approved_price') or 0.0)
                                 st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}\n\n<h5 style='color: #2563EB;'>₱{base_rate:,.2f} / day</h5>", unsafe_allow_html=True)
                                 
-                                # --- BOTTOM: POPOVER CHECKOUT MANAGER (Double Button Fixed!) ---
+                                # --- BOTTOM: POPOVER CHECKOUT MANAGER ---
                                 with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
                                     
-                                    stage_key = f"chk_stage_{car['id']}"
-                                    ref_key = f"pend_ref_{car['id']}"
+                                    # 🛠️ THE FIX: Appended _{cat} to every single key!
+                                    stage_key = f"chk_stage_{car['id']}_{cat}"
+                                    ref_key = f"pend_ref_{car['id']}_{cat}"
                                     if stage_key not in st.session_state: st.session_state[stage_key] = 0
                                     
                                     unavailable_dates = get_booked_dates(car['id'], conn)
@@ -320,10 +321,10 @@ with main_tabs[0]:
 
                                         today = datetime.date.today()
                                         
-                                        d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}")
-                                        t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}", step=datetime.timedelta(hours=1))
-                                        d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}")
-                                        t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}", step=datetime.timedelta(hours=1))
+                                        d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}_{cat}")
+                                        t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
+                                        d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}")
+                                        t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
                                         
                                         can_book = True
                                         requested_days = set([d1 + datetime.timedelta(days=j) for j in range((d2 - d1).days + 1)])
@@ -332,14 +333,14 @@ with main_tabs[0]:
                                             can_book = False
                                             st.error(f"🚨 Vehicle booked on: {', '.join([d.strftime('%b %d') for d in sorted(list(clashes))])}")
 
-                                        drive_mode = st.radio("Mode", ["Self-Drive", "With Driver (+₱1k/day)"], key=f"dm_{car['id']}")
-                                        dest = st.text_input("Destination", key=f"dest_{car['id']}")
-                                        luzon_agree = st.checkbox("I agree to LUZON ONLY travel.", key=f"luzon_{car['id']}")
+                                        drive_mode = st.radio("Mode", ["Self-Drive", "With Driver (+₱1k/day)"], key=f"dm_{car['id']}_{cat}")
+                                        dest = st.text_input("Destination", key=f"dest_{car['id']}_{cat}")
+                                        luzon_agree = st.checkbox("I agree to LUZON ONLY travel.", key=f"luzon_{car['id']}_{cat}")
                                         ZONES = {"HQ: Pasig/Ortigas/BGC (Free)": 0.0, "Zone 1: Cubao/Sta. Mesa/Makati": 500.0, "Zone 2: Manila/QC/MOA": 1000.0, "Zone 3: Alabang/LP": 1500.0}
-                                        p_zone = st.selectbox("Pickup Zone", list(ZONES.keys()), key=f"pz_{car['id']}")
-                                        p_exact = st.text_input("Pickup Address", key=f"pa_{car['id']}")
-                                        r_zone = st.selectbox("Return Zone", list(ZONES.keys()), key=f"rz_{car['id']}")
-                                        r_exact = st.text_input("Return Address", key=f"ra_{car['id']}")
+                                        p_zone = st.selectbox("Pickup Zone", list(ZONES.keys()), key=f"pz_{car['id']}_{cat}")
+                                        p_exact = st.text_input("Pickup Address", key=f"pa_{car['id']}_{cat}")
+                                        r_zone = st.selectbox("Return Zone", list(ZONES.keys()), key=f"rz_{car['id']}_{cat}")
+                                        r_exact = st.text_input("Return Address", key=f"ra_{car['id']}_{cat}")
 
                                         p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
                                         if r_dt_obj <= p_dt_obj: 
@@ -401,7 +402,7 @@ with main_tabs[0]:
                                                 st.error("Error calculating rate. Please verify your functions.")
                                                 can_book = False
 
-                                        if st.button("1. CONFIRM BOOKING (SOFT LOCK)", key=f"conf_{car['id']}", type="primary", use_container_width=True, disabled=not can_book):
+                                        if st.button("1. CONFIRM BOOKING (SOFT LOCK)", key=f"conf_{car['id']}_{cat}", type="primary", use_container_width=True, disabled=not can_book):
                                             if dest and p_exact and r_exact and luzon_agree:
                                                 with st.spinner("Securing your dates..."):
                                                     b_ref = str(random.randint(100000, 999999))
@@ -471,16 +472,16 @@ with main_tabs[0]:
                                             st.divider()
                                             st.write("#### 📤 Upload Proof of Payment")
                                             st.caption("Upload a screenshot of your transfer. Admin will lock your schedule upon validation.")
-                                            receipt_file = st.file_uploader("Upload Receipt", type=['jpg', 'png', 'jpeg'], key=f"rec_{car['id']}")
+                                            receipt_file = st.file_uploader("Upload Receipt", type=['jpg', 'png', 'jpeg'], key=f"rec_{car['id']}_{cat}")
                                             
                                             c_back, c_val = st.columns([1, 2])
-                                            if c_back.button("Cancel Booking", key=f"canc_{car['id']}", use_container_width=True):
+                                            if c_back.button("Cancel Booking", key=f"canc_{car['id']}_{cat}", use_container_width=True):
                                                 conn.execute("DELETE FROM bookings WHERE booking_ref = ?", (b_ref,)); conn.commit()
                                                 st.session_state[stage_key] = 0
                                                 del st.session_state[ref_key]
                                                 st.rerun()
                                                 
-                                            if c_val.button("2. VALIDATE PAYMENT SENT", type="primary", use_container_width=True, key=f"val_{car['id']}"):
+                                            if c_val.button("2. VALIDATE PAYMENT SENT", type="primary", use_container_width=True, key=f"val_{car['id']}_{cat}"):
                                                 if receipt_file:
                                                     receipt_bytes = receipt_file.read()
                                                     with st.spinner("Transmitting to Admin..."):
@@ -501,91 +502,3 @@ with main_tabs[0]:
                                                         st.rerun()
                                                 else:
                                                     st.error("🚨 Please upload a screenshot of your receipt.")
-
-# --- TAB 1: MY BOOKINGS (MAIN TAB 1) ---
-with main_tabs[1]:
-    trip_tabs = st.tabs(["🚀 Active Trips", "📜 History"])
-    my_trips = pd.read_sql_query("SELECT b.*, v.make, v.model, v.plate, v.owner_username FROM bookings b JOIN vehicles v ON b.vehicle_id = v.id WHERE b.renter_username = ? ORDER BY b.pickup_time DESC", conn, params=(renter_user,))
-    
-    with trip_tabs[0]:
-        active = my_trips[my_trips['status'].isin(['CONFIRMED', 'ONGOING', 'PENDING', 'VERIFYING'])]
-        if active.empty: st.info("No active trips.")
-        for _, t in active.iterrows():
-            status_icon = "⏳" if t['status'] in ['PENDING', 'VERIFYING'] else "✅"
-            with st.expander(f"{status_icon} {t['make']} {t['model']} ({t['plate']})"):
-                st.write(f"**Ref:** #{t['booking_ref']} | **Status:** {t['status']}")
-                st.write(f"**Pickup:** {t['pickup_time']}")
-                if t['status'] in ['PENDING', 'VERIFYING']: st.warning("Admin is verifying your payment receipt.")
-                
-                # CHAT LOGIC
-                st.divider()
-                st.markdown("#### 💬 Chat with Owner / Admin")
-                b_ref_str = str(t['booking_ref'])
-                chat_win = st.container(height=300, border=True)
-                with chat_win:
-                    msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref_str,))
-                    for _, m in msgs.iterrows():
-                        align = "right" if m['sender_username'] == renter_user else "left"
-                        bg_col = "#2563EB" if m['sender_username'] == renter_user else "#F1F5F9"
-                        txt_col = "#FFFFFF" if m['sender_username'] == renter_user else "#0F172A"
-                        st.markdown(f'''
-                        <div style="display:flex; justify-content:{"flex-end" if align=="right" else "flex-start"}; margin-bottom:5px;">
-                            <div style="background-color:{bg_col}; color:{txt_col}; padding:10px 15px; border-radius:10px; max-width:80%;">
-                                <b>{m["sender_username"]}:</b><br>{m["message_text"]}
-                            </div>
-                        </div>
-                        ''', unsafe_allow_html=True)
-                        if m.get('image_path') and os.path.exists(m['image_path']):
-                            c_s1, c_img, c_s2 = st.columns([1,2,1] if align=="right" else [0.1,2,2])
-                            with c_img: st.image(m['image_path'])
-                
-                c_img, c_msg = st.columns([1, 4])
-                with c_img: 
-                    r_img = st.file_uploader("📷", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"r_img_{b_ref_str}", label_visibility="collapsed")
-                with c_msg: 
-                    st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_renter_chat, args=(b_ref_str,), placeholder="Type a message...")
-
-                st.button("Send", key=f"btn_{b_ref_str}", on_click=clear_renter_chat, args=(b_ref_str,), use_container_width=True)
-                
-                enter_pressed = st.session_state.get(f"trigger_send_{b_ref_str}", False)
-
-                if enter_pressed:
-                    final_msg = st.session_state.temp_msg_renter
-                    has_text = bool(final_msg.strip())
-                    has_imgs = bool(r_img and len(r_img) > 0)
-                    
-                    if has_text or has_imgs:
-                        if has_imgs:
-                            for idx, img_file in enumerate(r_img):
-                                try:
-                                    path = save_chat_image(img_file, b_ref_str)
-                                except: path = ""
-                                
-                                text_to_save = final_msg if idx == 0 else ""
-                                if idx == 0 and not has_text: text_to_save = "📸 Uploaded Photo."
-                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                             (b_ref_str, renter_user, t['owner_username'], text_to_save, path))
-                        else:
-                            conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                         (b_ref_str, renter_user, t['owner_username'], final_msg, ""))
-                        conn.commit()
-                        st.session_state.temp_msg_renter = ""
-                        st.session_state[f"trigger_send_{b_ref_str}"] = False
-                        st.rerun()
-
-    with trip_tabs[1]:
-        history = my_trips[my_trips['status'] == 'COMPLETED']
-        if history.empty: st.info("No completed trips.")
-        for _, t in history.iterrows():
-            with st.expander(f"✅ COMPLETED: {t['make']} {t['model']} | {str(t['pickup_time'])[:10]}"):
-                st.write(f"**Final Cost:** ₱{t['amount']:,.2f}")
-                if pd.isna(t.get('rating')) or t.get('rating') == "":
-                    with st.container(border=True):
-                        st.markdown("#### ⭐ Rate Your Experience")
-                        raw_stars = st.feedback("stars", key=f"s_{t['id']}")
-                        r = st.text_area("Review", key=f"r_{t['id']}")
-                        if st.button("Submit", type="primary", use_container_width=True, key=f"btn_sub_{t['id']}"):
-                            if raw_stars is not None:
-                                conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (raw_stars + 1, r, t['id']))
-                                conn.commit(); st.success("Submitted!"); time.sleep(1); st.rerun()
-                else: st.success(f"**Rating:** {'⭐' * int(float(t['rating']))}")
