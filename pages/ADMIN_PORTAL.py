@@ -395,67 +395,87 @@ with tabs[0]:
         except Exception as e:
             st.warning(f"Could not load Driver database: {e}")
 
-# --- TAB 1: ASSETS (Vehicle Approvals) ---
+# --- TAB 1: ASSETS (Vehicle Approvals & Fleet Manager) ---
 with tabs[1]:
-    st.subheader("🚗 Vehicle Onboarding Queue")
+    asset_tabs = st.tabs(["⏳ Pending Approvals", "🚘 Active Fleet (Live)"])
     
-    pending_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'PENDING'", conn)
-    
-    if pending_cars.empty:
-        st.info("No vehicles currently waiting for approval.")
-    else:
-        for _, v in pending_cars.iterrows():
-            with st.expander(f"Review: {v['make']} {v['model']} ({v['plate']}) - Owner: @{v['owner_username']}"):
-                
-                st.markdown("#### 📸 Vehicle Photo")
-                if v.get('vehicle_img') and os.path.exists(v['vehicle_img']):
-                    st.image(v['vehicle_img'], width=400)
-                else:
-                    st.warning("No vehicle photo uploaded.")
-                
-                st.divider()
-                
-                st.markdown("#### 📄 Legal Documents")
-                c_or, c_cr, c_ins = st.columns(3)
-                
-                def render_document(col, title, file_path):
-                    with col:
-                        st.write(f"**{title}**")
-                        if file_path and os.path.exists(file_path):
-                            if file_path.lower().endswith('.pdf'):
-                                with open(file_path, "rb") as f:
-                                    st.download_button(
-                                        label=f"📄 Download {title} (PDF)", 
-                                        data=f, 
-                                        file_name=os.path.basename(file_path), 
-                                        key=f"dl_{title}_{v['id']}", 
-                                        use_container_width=True
-                                    )
-                            else:
-                                st.image(file_path, use_container_width=True)
-                        else:
-                            st.error("Missing File")
-
-                render_document(c_or, "Official Receipt (OR)", v.get('or_img'))
-                render_document(c_cr, "Certificate of Reg (CR)", v.get('cr_img'))
-                render_document(c_ins, "Insurance Policy", v.get('insurance_img'))
-                
-                st.divider()
-                
-                c_app, c_rej = st.columns(2)
-                if c_app.button("✅ APPROVE & LIST VEHICLE", key=f"app_{v['id']}", type="primary", use_container_width=True):
-                    conn.execute("UPDATE vehicles SET admin_status = 'APPROVED', booking_status = 'AVAILABLE' WHERE id = ?", (v['id'],))
-                    conn.commit()
-                    st.success(f"{v['make']} {v['model']} Approved! It is now live in the Renter Showroom.")
-                    time.sleep(2)
-                    st.rerun()
+    # --- PENDING APPROVALS ---
+    with asset_tabs[0]:
+        st.subheader("🚗 Vehicle Onboarding Queue")
+        pending_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'PENDING'", conn)
+        
+        if pending_cars.empty:
+            st.info("No vehicles currently waiting for approval.")
+        else:
+            for _, v in pending_cars.iterrows():
+                with st.expander(f"Review: {v['make']} {v['model']} ({v['plate']}) - Owner: @{v['owner_username']}"):
+                    st.markdown("#### 📸 Vehicle Photo")
+                    if v.get('vehicle_img') and os.path.exists(v['vehicle_img']):
+                        st.image(v['vehicle_img'], width=400)
+                    else:
+                        st.warning("No vehicle photo uploaded.")
                     
-                if c_rej.button("❌ REJECT VEHICLE", key=f"rej_{v['id']}", use_container_width=True):
-                    conn.execute("UPDATE vehicles SET admin_status = 'REJECTED' WHERE id = ?", (v['id'],))
-                    conn.commit()
-                    st.warning("Vehicle Rejected. It will not appear in the showroom.")
-                    time.sleep(2)
-                    st.rerun()
+                    st.divider()
+                    st.markdown("#### 📄 Legal Documents")
+                    c_or, c_cr, c_ins = st.columns(3)
+                    
+                    def render_document(col, title, file_path):
+                        with col:
+                            st.write(f"**{title}**")
+                            if file_path and os.path.exists(file_path):
+                                if file_path.lower().endswith('.pdf'):
+                                    with open(file_path, "rb") as f:
+                                        st.download_button(label=f"📄 Download (PDF)", data=f, file_name=os.path.basename(file_path), key=f"dl_{title}_{v['id']}", use_container_width=True)
+                                else:
+                                    st.image(file_path, use_container_width=True)
+                            else:
+                                st.error("Missing File")
+
+                    render_document(c_or, "Official Receipt (OR)", v.get('or_img'))
+                    render_document(c_cr, "Certificate of Reg (CR)", v.get('cr_img'))
+                    render_document(c_ins, "Insurance Policy", v.get('insurance_img'))
+                    st.divider()
+                    
+                    c_app, c_rej = st.columns(2)
+                    if c_app.button("✅ APPROVE & LIST VEHICLE", key=f"app_{v['id']}", type="primary", use_container_width=True):
+                        conn.execute("UPDATE vehicles SET admin_status = 'APPROVED', booking_status = 'AVAILABLE' WHERE id = ?", (v['id'],))
+                        conn.commit()
+                        st.success(f"{v['make']} {v['model']} Approved! It is now live in the Renter Showroom.")
+                        time.sleep(2); st.rerun()
+                        
+                    if c_rej.button("❌ REJECT VEHICLE", key=f"rej_{v['id']}", use_container_width=True):
+                        conn.execute("UPDATE vehicles SET admin_status = 'REJECTED' WHERE id = ?", (v['id'],))
+                        conn.commit()
+                        st.warning("Vehicle Rejected. It will not appear in the showroom.")
+                        time.sleep(2); st.rerun()
+
+    # --- ACTIVE FLEET MANAGER (To delete ghosts!) ---
+    with asset_tabs[1]:
+        st.subheader("🚘 Live Showroom Fleet")
+        active_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'APPROVED'", conn)
+        
+        if active_cars.empty:
+            st.info("No active vehicles in the showroom.")
+        else:
+            for _, v in active_cars.iterrows():
+                # Add a ghost emoji if the image file is missing from the server
+                is_ghost = not (v.get('vehicle_img') and os.path.exists(v['vehicle_img']))
+                ghost_flag = " 👻 (MISSING IMAGE)" if is_ghost else ""
+                
+                with st.expander(f"{v['make']} {v['model']} ({v['plate']}) - @{v['owner_username']}{ghost_flag}"):
+                    c1, c2 = st.columns([1, 3])
+                    with c1:
+                        if not is_ghost: st.image(v['vehicle_img'], use_container_width=True)
+                        else: st.image("https://placehold.co/600x400?text=Missing+Image", use_container_width=True)
+                    with c2:
+                        st.write(f"**Daily Rate:** ₱{v.get('daily_rate') or v.get('approved_price') or 0.0:,.2f}")
+                        st.write(f"**Status:** {v['booking_status']}")
+                        
+                        if st.button("🗑️ DELETE FROM FLEET", key=f"del_car_{v['id']}", type="primary"):
+                            conn.execute("DELETE FROM vehicles WHERE id = ?", (v['id'],))
+                            conn.commit()
+                            st.error(f"Vehicle {v['make']} {v['model']} permanently removed.")
+                            time.sleep(1); st.rerun()
 
 # --- TAB 2: LOGISTICS ---
 with tabs[2]:
