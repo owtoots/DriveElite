@@ -85,13 +85,23 @@ def init_db():
 def patch_database():
     """Safely injects missing columns into the database without losing data."""
     conn = get_connection()
-    
-    # Example patch for Financials (Gateway Fee)
-    try:
+    try: 
         conn.execute("ALTER TABLE bookings ADD COLUMN gateway_fee REAL DEFAULT 0.0")
-    except sqlite3.OperationalError:
-        pass # Column already exists
-        
+    except: pass
+    
+    try: 
+        conn.execute("ALTER TABLE bookings ADD COLUMN receipt_img BLOB")
+    except: pass
+    
+    # --- NEW PATCH: Injecting the missing evidence columns ---
+    try: 
+        conn.execute("ALTER TABLE bookings ADD COLUMN handover_photos TEXT")
+    except: pass
+    
+    try: 
+        conn.execute("ALTER TABLE bookings ADD COLUMN damage_img TEXT")
+    except: pass
+    
     conn.commit()
     conn.close()
 
