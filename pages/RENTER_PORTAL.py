@@ -275,6 +275,7 @@ with main_tabs[0]:
                                 base_rate = float(car.get('daily_rate') or 0.0)
                                 st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}\n\n<h5 style='color: #2563EB;'>₱{base_rate:,.2f} / day</h5>", unsafe_allow_html=True)
                                 
+                                # 🚨 DELETE THESE 5 LINES 🚨
                                 # --- BOTTOM: Button ---
                                 if st.button("⚡ BOOK NOW", key=f"book_btn_{car['id']}_{cat}", type="primary", use_container_width=True):
                                     st.session_state.selected_car_id = car['id']
