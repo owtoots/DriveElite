@@ -14,6 +14,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from database_utils import get_connection
 import calendar
+from datetime import timedelta
+
 
 # ==========================================
 # 1. PAGE CONFIG & LOGO (Must be first!)
@@ -144,23 +146,16 @@ def patch_database_tables():
     except: pass
 
 patch_database_tables()
-
 if not os.path.exists("uploads/chat_images"): os.makedirs("uploads/chat_images")
 
 # --- FETCH DYNAMIC PLATFORM SETTINGS (MASTER FETCH) ---
 try:
-    # We grab all 3 columns at the exact same time!
     settings_df = pd.read_sql_query("SELECT payment_mode, renter_markup_pct, operator_name FROM platform_settings WHERE id = 1", conn)
-    
+
     if not settings_df.empty:
-        # 1. Get Payment Toggle
         gateway_mode = settings_df.iloc[0]['payment_mode']
-        
-        # 2. Get Renter Fee
         raw_fee = settings_df.iloc[0]['renter_markup_pct']
         dynamic_renter_fee = float(raw_fee) if pd.notnull(raw_fee) else 0.07
-        
-        # 3. Get Operator Name
         raw_op = settings_df.iloc[0]['operator_name']
         operator_name = str(raw_op) if pd.notnull(raw_op) else "Platform"
     else:
@@ -180,72 +175,15 @@ def get_booked_dates(vehicle_id, conn):
     booked_days = set()
     for _, row in df.iterrows():
         try:
-            start, end = pd.to_datetime(row['pickup_time']).date(), pd.to_datetime(row['return_time']).date()
-            for i in range((end - start).days + 1): booked_days.add(start + datetime.timedelta(days=i))
-        except: pass
+            start_date = pd.to_datetime(row['pickup_time']).date()
+            end_date = pd.to_datetime(row['return_time']).date()
+            delta = end_date - start_date
+            for i in range(delta.days + 1):
+                day = start_date + timedelta(days=i)
+                booked_days.add(day)
+        except Exception:
+            pass
     return booked_days
-
-def render_availability_calendar(year, month, booked_dates_set):
-    cal = calendar.monthcalendar(year, month)
-    month_name = calendar.month_name[month]
-    html = f"""
-    <style>
-        .cal-table {{ width: 100%; text-align: center; border-collapse: collapse; margin-bottom: 15px; font-family: sans-serif; }}
-        .cal-table th {{ background-color: #F1F5F9; padding: 8px; color: #0F172A; font-size: 14px; border: 1px solid #E2E8F0; }}
-        .cal-table td {{ padding: 10px; border: 1px solid #E2E8F0; font-size: 14px; width: 14.28%; color: #1E293B; }}
-        .available-day {{ background-color: #FFFFFF; font-weight: bold; }}
-        .booked-day {{ background-color: #FEE2E2; color: #B91C1C; text-decoration: line-through; opacity: 0.7; }}
-        .empty-day {{ background-color: #F8FAFC; border: 1px solid #F8FAFC; }}
-    </style>
-    <table class="cal-table">
-        <tr><th colspan="7" style="font-size: 16px;">📅 {month_name} {year} Availability</th></tr>
-        <tr><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th></tr>
-    """
-    for week in cal:
-        html += "<tr>"
-        for day in week:
-            if day == 0: html += "<td class='empty-day'></td>"
-            else:
-                date_str = f"{year}-{month:02d}-{day:02d}"
-                if date_str in booked_dates_set: html += f"<td class='booked-day'>{day}</td>"
-                else: html += f"<td class='available-day'>{day}</td>"
-        html += "</tr>"
-    html += "</table>"
-    return html
-
-def clear_renter_chat(b_ref):
-    b_ref_str = str(b_ref)
-    unique_key = f"chat_{b_ref_str}"
-    if unique_key in st.session_state:
-        if st.session_state[unique_key].strip():
-            st.session_state.temp_msg_renter = st.session_state[unique_key]
-            st.session_state[f"trigger_send_{b_ref_str}"] = True 
-        st.session_state[unique_key] = ""
-
-def save_chat_image(uploaded_file, booking_ref):
-    if uploaded_file:
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"CHAT_RENTER_{booking_ref}_{timestamp}_{uploaded_file.name}"
-        path = os.path.join("uploads/chat_images", filename)
-        with open(path, "wb") as f: f.write(uploaded_file.getbuffer())
-        return path
-    return None
-
-def calculate_24h_rental(pickup_dt, return_dt, daily_rate, hourly_late_fee=300.0, grace_mins=59):
-    diff = return_dt - pickup_dt
-    total_seconds = diff.total_seconds()
-    if total_seconds <= 86400: return 1, 0, daily_rate, 0.0, daily_rate
-    full_days = int(total_seconds // 86400)
-    remainder_mins = (total_seconds % 86400) / 60.0
-    billed_hours = 0
-    hourly_fee_total = 0.0
-    if remainder_mins > grace_mins:
-        billed_hours = math.ceil(remainder_mins / 60.0)
-        hourly_fee_total = billed_hours * hourly_late_fee
-        if hourly_fee_total >= daily_rate:
-            full_days += 1; billed_hours = 0; hourly_fee_total = 0.0
-    base_cost = full_days * daily_rate
-    return full_days, billed_hours, base_cost, hourly_fee_total, base_cost + hourly_fee_total
 
 # ==========================================
 # 5. AUTHENTICATION FLOW
