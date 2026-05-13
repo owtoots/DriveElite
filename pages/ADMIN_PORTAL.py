@@ -1,6 +1,7 @@
 import sys
 import os
 import smtplib
+import sqlite3
 from email.message import EmailMessage
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -22,7 +23,10 @@ st.set_page_config(page_title="DriveElite Admin", layout="wide")
 # ==========================================
 # 🚨 "CRYSTAL ELITE" CSS ENGINE 🚨
 # ==========================================
-st.sidebar.image("logo.png", use_container_width=True)
+try:
+    st.sidebar.image("logo.png", use_container_width=True)
+except:
+    pass
 
 st.markdown("""
 <style>
@@ -125,14 +129,12 @@ from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
 # ==========================================
 # 4. GLOBAL CONSTANTS & CONFIGURATION
 # ==========================================
-import os
-
 def get_secret(key, default_val=None):
     # 1. Try to get it from Render's Environment Variables first
     val = os.environ.get(key)
     if val: 
         return val
-    # 2. If not found, try Streamlit's Secret vault (for backup/local testing)
+    # 2. If not found, try Streamlit's Secret vault
     try:
         return st.secrets.get(key, default_val)
     except:
@@ -177,7 +179,7 @@ def display_document(file_path, title):
 def send_email(to_email, subject, body, attachment_path=None, attachment_name=None):
     try:
         if not SENDER_EMAIL or not EMAIL_APP_PASSWORD:
-            return False, "Email credentials missing in Streamlit secrets."
+            return False, "Email credentials missing in settings."
             
         if attachment_path and os.path.exists(attachment_path):
             msg = MIMEMultipart()
@@ -393,7 +395,7 @@ with tabs[0]:
         except Exception as e:
             st.warning(f"Could not load Driver database: {e}")
 
-# --- TAB: ASSETS (Vehicle Approvals) ---
+# --- TAB 1: ASSETS (Vehicle Approvals) ---
 with tabs[1]:
     st.subheader("🚗 Vehicle Onboarding Queue")
     
@@ -777,15 +779,34 @@ with tabs[5]:
                     st.success(f"Live! Broadcast successfully published to {target}.")
                     time.sleep(1); st.rerun()
                     
+    # ==========================================
+    # 📈 CATEGORY MANAGER (BULLETPROOF SQL FIX)
+    # ==========================================
     with col_cat:
         st.subheader("📈 Category Manager")
-        with st.form("add_cat", clear_on_submit=True):
-            n = st.text_input("New Category (e.g., Pickup, Luxury)")
-            p = st.number_input("Daily Rate (₱)", min_value=500.0, step=100.0, value=2500.0)
-            if st.form_submit_button("ADD NEW CATEGORY"):
-                if n:
-                    try: conn.execute("INSERT INTO vehicle_categories (name, default_price) VALUES (?, ?)", (n.title(), p)); conn.commit()
-                    except Exception as e: st.error(f"Error adding category: {e}")
+        n = st.text_input("New Category (e.g., Pickup, Luxury)")
+        p = st.number_input("Daily Rate (₱)", min_value=500.0, step=100.0, value=2500.0)
+        
+        if st.button("ADD NEW CATEGORY", type="primary"):
+            if not n.strip():
+                st.warning("⚠️ Please type a name for the category before adding.")
+            else:
+                clean_name = n.strip().title()
+                # Use a fresh, temporary connection to prevent SQLite lockups
+                temp_conn = get_connection()
+                try:
+                    temp_conn.execute("INSERT INTO vehicle_categories (name, default_price) VALUES (?, ?)", (clean_name, p))
+                    temp_conn.commit()
+                    temp_conn.close() # INSTANT RELEASE
+                    st.success(f"✅ '{clean_name}' added successfully!")
+                    time.sleep(1)
+                    st.rerun()
+                except sqlite3.IntegrityError:
+                    temp_conn.close() # Ensure lock is released on error
+                    st.error(f"🚨 The category '{clean_name}' already exists in your database!")
+                except Exception as e:
+                    temp_conn.close()
+                    st.error(f"Error adding category: {e}")
 
     st.divider()
     st.markdown("<h3 style='text-align: center;'>ALL REGISTERED USERS</h3>", unsafe_allow_html=True)
@@ -813,7 +834,8 @@ with tabs[5]:
                     except: pass
                     st.cache_resource.clear() 
                     st.cache_data.clear() 
-                    if os.path.exists("driveelite_v2.db"): os.remove("driveelite_v2.db")
+                    if os.path.exists("/data/driveelite_v2.db"): os.remove("/data/driveelite_v2.db")
+                    elif os.path.exists("driveelite_v2.db"): os.remove("driveelite_v2.db")
                     if os.path.exists("uploads"):
                         for f in glob.glob("uploads/*"):
                             try: os.remove(f)
