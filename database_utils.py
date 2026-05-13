@@ -2,15 +2,15 @@ import sqlite3
 import os
 
 # --- 1. SINGLE SOURCE OF TRUTH ---
-DB_NAME = "driveelite_v2.db"
-
-# This tells the app to save everything on your permanent Render Disk
+# This tells the app to save everything on your permanent Render Disk mount point
 DB_PATH = "/data/driveelite_v2.db"
 
 def get_connection():
-    import sqlite3
-    # Use the new path here
-    return sqlite3.connect(DB_PATH, check_same_thread=False)
+    """
+    Creates a connection to the SQLite database.
+    Added timeout=15.0 to prevent 'Database is locked' errors during concurrent writes.
+    """
+    return sqlite3.connect(DB_PATH, check_same_thread=False, timeout=15.0)
 
 # --- 2. TABLE INITIALIZATION ---
 def init_db():
@@ -86,15 +86,22 @@ def patch_database():
     """Safely injects missing columns into the database without losing data."""
     conn = get_connection()
     
-    # Patch for Financials (Gateway Fee)
+    # Example patch for Financials (Gateway Fee)
     try:
         conn.execute("ALTER TABLE bookings ADD COLUMN gateway_fee REAL DEFAULT 0.0")
     except sqlite3.OperationalError:
-        pass
+        pass # Column already exists
         
     conn.commit()
     conn.close()
 
 # --- 4. EXECUTION ON LOAD ---
+# This ensures that whenever database_utils is imported, the DB is ready to go.
+if not os.path.exists(os.path.dirname(DB_PATH)):
+    try:
+        os.makedirs(os.path.dirname(DB_PATH))
+    except:
+        pass # In case of permissions issues on local dev
+
 init_db()
 patch_database()
