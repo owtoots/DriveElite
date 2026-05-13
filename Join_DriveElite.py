@@ -1,26 +1,24 @@
-from PIL import Image
-import io
 import streamlit as st
 import pandas as pd
-import random
-import datetime
-import os
-import numpy as np
-from database_utils import get_connection
-from streamlit_drawable_canvas import st_canvas
+import datetime, random, os, io
 import smtplib
 from email.message import EmailMessage
-import subprocess 
-
-# --- THE MAGIC LIBRARY ---
+import numpy as np
+from PIL import Image
 from docxtpl import DocxTemplate, InlineImage
 from docx.shared import Mm
+import subprocess 
+from streamlit_drawable_canvas import st_canvas
+from database_utils import get_connection
 
 # 1. Page Config (Must be the first Streamlit command)
 st.set_page_config(page_title="DriveElite", layout="wide")
 
 # 2. Inject the Logo into the Sidebar
-st.sidebar.image("logo.png", use_container_width=True)
+try:
+    st.sidebar.image("logo.png", use_container_width=True)
+except:
+    pass
 
 # 3. The Universal "Crystal Elite" CSS Engine
 st.markdown("""
@@ -149,13 +147,19 @@ def crop_signature(image_data):
         return Image.fromarray(image_data[y0:y1, x0:x1].astype('uint8'), 'RGBA')
     return Image.fromarray(image_data.astype('uint8'), 'RGBA')
 
+def get_secret(key, default_val=None):
+    # Smart fetcher: Checks Render environment variables first, falls back to secrets
+    return os.environ.get(key) or st.secrets.get(key, default_val)
+
 def send_welcome_email(recipient_email, role, filepath):
     msg = EmailMessage()
     doc_label = "MOA" if role == "AFFILIATE" else "RENTER"
     msg['Subject'] = f'DriveElite: Your Official {doc_label} Agreement'
-    msg['From'] = 'rdalbaojr@gmail.com'
+    
+    sender_email = get_secret("email_sender", "rdalbaojr@gmail.com")
+    msg['From'] = sender_email
     msg['To'] = recipient_email
-    msg['Bcc'] = 'rdalbaojr@gmail.com'
+    msg['Bcc'] = sender_email
 
     msg.set_content(f"Hello,\n\nWelcome to DriveElite! Attached is your signed {doc_label} agreement.\n\nBest,\nThe DriveElite Team")
 
@@ -167,7 +171,8 @@ def send_welcome_email(recipient_email, role, filepath):
 
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login('rdalbaojr@gmail.com', st.secrets["email_app_password"])
+            app_password = get_secret("email_app_password", "")
+            smtp.login(sender_email, app_password)
             smtp.send_message(msg)
     except Exception as e:
         print(f"Email failed: {e}")
@@ -221,7 +226,7 @@ else:
     st.title("🚗 Join DriveElite")
     st.write("Philippines' Premier Peer-to-Peer Car Sharing Platform")
     
-   # ==========================================
+    # ==========================================
     # 🚘 LIVE SHOWROOM PREVIEW (Marketing Hook)
     # ==========================================
     st.markdown("### 🚘 Live Fleet Preview")
@@ -234,7 +239,7 @@ else:
             st.info("Our fleet is currently fully booked or undergoing maintenance. Check back soon!")
         else:
             # Show exactly 4 cars in one row
-            preview_cars = preview_cars.head(4) 
+            preview_cars = preview_cars.head(4).reset_index(drop=True)
             
             # Create 4 columns instead of 2
             grid_cols = st.columns(4)
@@ -359,7 +364,7 @@ else:
                             legal_entity, owner_share_val, agency_share_val, renter_fee_val = "DriveElite Platform", 82, 18, 7
                         
                         # ==========================================
-                        # 📝 INJECTING THE VARIABLES INTO WORD (NO SPACES!)
+                        # 📝 INJECTING THE VARIABLES INTO WORD
                         # ==========================================
                         ctx = {
                             'FULL_NAME': data['full_name'].upper(),
@@ -367,7 +372,6 @@ else:
                             'ADDRESS': data['address'],
                             'NATIONALITY': data['nationality'].upper(),
                             'SIGNATURE': InlineImage(doc, io.BytesIO(sig_bytes), width=Mm(40)),
-                            # --- FIXED JINJA2 VARIABLES ---
                             'PLATFORM': legal_entity,
                             'OWNER_SHARE': f"{owner_share_val}%",
                             'PLATFORM_SHARE': f"{agency_share_val}%",
@@ -394,4 +398,3 @@ else:
                         st.rerun()
                 else:
                     st.error("🚨 Digital signature required to proceed.")
-                
