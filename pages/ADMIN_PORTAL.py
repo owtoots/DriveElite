@@ -491,8 +491,9 @@ with tabs[2]:
 
 # --- TAB 3: FINANCIALS ---
 with tabs[3]:
-    st.markdown("<h2 style='text-align: center;'>🏦 MASTER FINANCIAL LEDGER</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>🏦 MASTER FINANCIAL LEDGER & EARNINGS</h2>", unsafe_allow_html=True)
     try:
+        # 1. Fetch Margin Settings
         settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct FROM platform_settings WHERE id = 1", conn)
         if not settings_df.empty:
             r_markup = float(settings_df.iloc[0]['renter_markup_pct'])
@@ -501,13 +502,97 @@ with tabs[3]:
             r_markup = 0.07 
             a_share = 0.85  
 
-        f_tabs = st.tabs(["💸 BPI VERIFICATION", "📑 MASTER LEDGER", "📤 PROCESS PAYOUTS", "🖨️ ISSUE RECEIPTS"])
+        # 2. Pre-calculate Master Ledger Data (Used by multiple tabs)
+        query = """
+        SELECT b.id, b.booking_ref, b.pickup_time as Date, b.return_time, u_renter.full_name as Renter, u_owner.full_name as Affiliate,
+               b.amount as Total_Paid_By_Renter, b.status as Trip_Status, b.payout_status as Payout_Status,
+               b.gateway_fee, v.bank_name, v.account_no
+        FROM bookings b
+        JOIN vehicles v ON b.vehicle_id = v.id
+        JOIN platform_users u_renter ON b.renter_username = u_renter.username
+        JOIN platform_users u_owner ON v.owner_username = u_owner.username
+        WHERE b.status != 'PENDING' AND b.status != 'CANCELLED' AND b.status != 'VERIFYING'
+        ORDER BY b.id DESC
+        """
+        df = pd.read_sql_query(query, conn)
 
-        # --- SUB-TAB 0: BPI VERIFICATION ---
+        if not df.empty:
+            # Perform deep financial calculations on the whole dataset
+            df['gateway_fee'] = df['gateway_fee'].fillna(0)
+            df['pickup_dt'] = pd.to_datetime(df['Date'], errors='coerce')
+            df['return_dt'] = pd.to_datetime(df['return_time'], errors='coerce')
+            df['Total_Days'] = (df['return_dt'] - df['pickup_dt']).dt.ceil('D').dt.days
+            df['Total_Days'] = df['Total_Days'].fillna(1).clip(lower=1)
+            
+            df['Applied_Markup'] = np.where(df['Total_Days'] >= 4, r_markup, 0.0)
+            df['Platform_Gross_Cut'] = df['Total_Paid_By_Renter'] * (1 - (a_share / (1 + df['Applied_Markup'])))
+            TAX_RATE_L = 0.01 
+            df['Platform_Net_Profit'] = df['Platform_Gross_Cut'] - df['gateway_fee'] - (df['Total_Paid_By_Renter'] * TAX_RATE_L * 0.18)
+            df['Affiliate_Gross_Share'] = df['Total_Paid_By_Renter'] - df['Platform_Gross_Cut']
+            df['EWT_Deduction'] = df['Affiliate_Gross_Share'] * TAX_RATE_L
+            df['Affiliate_Net_Payout'] = df['Affiliate_Gross_Share'] - df['EWT_Deduction']
+            df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
+
+        # 3. Build the Tab UI
+        f_tabs = st.tabs(["📊 REVENUE DASHBOARD", "💸 BPI VERIFICATION", "📑 MASTER LEDGER", "📤 PROCESS PAYOUTS", "🖨️ ISSUE RECEIPTS"])
+
+        # --- SUB-TAB 0: REVENUE DASHBOARD (NEW!) ---
         with f_tabs[0]:
+            st.markdown("### 📈 Live Earnings Analytics")
+            st.caption("Financial performance based entirely on COMPLETED (Paid & Finished) trips.")
+            
+            if df.empty:
+                st.info("No data available to generate revenue reports.")
+            else:
+                # Filter ONLY completed trips for real revenue
+                completed_df = df[df['Trip_Status'] == 'COMPLETED'].copy()
+                
+                if completed_df.empty:
+                    st.info("No completed trips yet to calculate final earnings.")
+                else:
+                    # Top-Level KPIs
+                    total_gsv = completed_df['Total_Paid_By_Renter'].sum()
+                    total_net = completed_df['Platform_Net_Profit'].sum()
+                    total_aff = completed_df['Affiliate_Net_Payout'].sum()
+
+                    m1, m2, m3 = st.columns(3)
+                    with m1:
+                        st.metric("Total Gross Volume (GSV)", f"₱{total_gsv:,.2f}", help="Total money moved through the platform.")
+                    with m2:
+                        st.metric("DriveElite Net Profit", f"₱{total_net:,.2f}", help="Your pure profit after Affiliate splits, EWT, and Gateway Fees.")
+                    with m3:
+                        st.metric("Total Affiliate Earnings", f"₱{total_aff:,.2f}", help="Total net payouts sent to car owners.")
+
+                    st.divider()
+
+                    # Time-based Groupings
+                    completed_df['Month'] = completed_df['pickup_dt'].dt.to_period('M').dt.strftime('%b %Y')
+                    completed_df['Quarter'] = completed_df['pickup_dt'].dt.to_period('Q').astype(str)
+                    completed_df['Year'] = completed_df['pickup_dt'].dt.year.astype(str)
+
+                    chart_tabs = st.tabs(["📅 Monthly", "📊 Quarterly", "🗓️ Yearly"])
+
+                    with chart_tabs[0]:
+                        monthly_summary = completed_df.groupby('Month')[['Total_Paid_By_Renter', 'Platform_Net_Profit']].sum().reset_index()
+                        st.bar_chart(monthly_summary, x='Month', y='Platform_Net_Profit', color="#2563EB")
+                        st.dataframe(monthly_summary.style.format({'Total_Paid_By_Renter': '₱{:,.2f}', 'Platform_Net_Profit': '₱{:,.2f}'}), use_container_width=True, hide_index=True)
+
+                    with chart_tabs[1]:
+                        quarterly_summary = completed_df.groupby('Quarter')[['Total_Paid_By_Renter', 'Platform_Net_Profit']].sum().reset_index()
+                        st.bar_chart(quarterly_summary, x='Quarter', y='Platform_Net_Profit', color="#16A34A")
+                        st.dataframe(quarterly_summary.style.format({'Total_Paid_By_Renter': '₱{:,.2f}', 'Platform_Net_Profit': '₱{:,.2f}'}), use_container_width=True, hide_index=True)
+
+                    with chart_tabs[2]:
+                        yearly_summary = completed_df.groupby('Year')[['Total_Paid_By_Renter', 'Platform_Net_Profit']].sum().reset_index()
+                        st.bar_chart(yearly_summary, x='Year', y='Platform_Net_Profit', color="#9333EA")
+                        st.dataframe(yearly_summary.style.format({'Total_Paid_By_Renter': '₱{:,.2f}', 'Platform_Net_Profit': '₱{:,.2f}'}), use_container_width=True, hide_index=True)
+
+
+        # --- SUB-TAB 1: BPI VERIFICATION ---
+        with f_tabs[1]:
             st.markdown("### 🔍 Awaiting Payment Verification")
             
-            query = """
+            query_pending = """
                 SELECT b.*, u.full_name as renter_name, u.email as renter_email, 
                        v.make, v.model, v.plate 
                 FROM bookings b 
@@ -516,7 +601,7 @@ with tabs[3]:
                 WHERE b.status = 'PENDING' OR b.status = 'VERIFYING'
                 ORDER BY b.id DESC
             """
-            pending_pay = pd.read_sql_query(query, conn)
+            pending_pay = pd.read_sql_query(query_pending, conn)
             
             if pending_pay.empty: 
                 st.info("No payments currently awaiting verification.")
@@ -544,13 +629,9 @@ with tabs[3]:
                                 vehicle_str = f"{row['make']} {row['model']}"
                                 
                                 pdf_bytes = generate_booking_receipt(
-                                    ref_no=row['booking_ref'], 
-                                    renter_name=row['renter_name'], 
-                                    vehicle=vehicle_str, 
-                                    plate=row['plate'], 
-                                    travel_dates=travel_dates, 
-                                    amount=row['amount'], 
-                                    pickup_loc=row.get('pickup_loc', 'N/A'), 
+                                    ref_no=row['booking_ref'], renter_name=row['renter_name'], 
+                                    vehicle=vehicle_str, plate=row['plate'], travel_dates=travel_dates, 
+                                    amount=row['amount'], pickup_loc=row.get('pickup_loc', 'N/A'), 
                                     return_loc=row.get('return_loc', 'N/A')
                                 )
                                 
@@ -570,41 +651,11 @@ with tabs[3]:
                             time.sleep(2)
                             st.rerun()
 
-        # --- PREPARE DATA FOR LEDGER (Excluding Pending) ---
-        query = """
-        SELECT b.id, b.booking_ref, b.pickup_time as Date, b.return_time, u_renter.full_name as Renter, u_owner.full_name as Affiliate,
-               b.amount as Total_Paid_By_Renter, b.status as Trip_Status, b.payout_status as Payout_Status,
-               b.gateway_fee, v.bank_name, v.account_no
-        FROM bookings b
-        JOIN vehicles v ON b.vehicle_id = v.id
-        JOIN platform_users u_renter ON b.renter_username = u_renter.username
-        JOIN platform_users u_owner ON v.owner_username = u_owner.username
-        WHERE b.status != 'PENDING' AND b.status != 'CANCELLED' AND b.status != 'VERIFYING'
-        ORDER BY b.id DESC
-        """
-        df = pd.read_sql_query(query, conn)
-
-        # --- SUB-TAB 1: MASTER LEDGER ---
-        with f_tabs[1]:
+        # --- SUB-TAB 2: MASTER LEDGER ---
+        with f_tabs[2]:
             if df.empty:
                 st.info("No completed financial transactions recorded yet.")
             else:
-                df['gateway_fee'] = df['gateway_fee'].fillna(0)
-                df['pickup_dt'] = pd.to_datetime(df['Date'], errors='coerce')
-                df['return_dt'] = pd.to_datetime(df['return_time'], errors='coerce')
-                df['Total_Days'] = (df['return_dt'] - df['pickup_dt']).dt.ceil('D').dt.days
-                df['Total_Days'] = df['Total_Days'].fillna(1).clip(lower=1)
-                
-                df['Applied_Markup'] = np.where(df['Total_Days'] >= 4, r_markup, 0.0)
-
-                df['Platform_Gross_Cut'] = df['Total_Paid_By_Renter'] * (1 - (a_share / (1 + df['Applied_Markup'])))
-                TAX_RATE_L = 0.01 
-                df['Platform_Net_Profit'] = df['Platform_Gross_Cut'] - df['gateway_fee'] - (df['Total_Paid_By_Renter'] * TAX_RATE_L * 0.18)
-                df['Affiliate_Gross_Share'] = df['Total_Paid_By_Renter'] - df['Platform_Gross_Cut']
-                df['EWT_Deduction'] = df['Affiliate_Gross_Share'] * TAX_RATE_L
-                df['Affiliate_Net_Payout'] = df['Affiliate_Gross_Share'] - df['EWT_Deduction']
-                df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
-
                 st.caption(f"Calculated based on Admin Margins: Renter Fee ({r_markup*100}% - Waived for <4 days) | Owner Share ({a_share*100}%)")
                 display_cols = ['Ref', 'Date', 'Total_Days', 'Affiliate', 'Total_Paid_By_Renter', 'gateway_fee', 'EWT_Deduction', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
                 styled_ledger = df[display_cols].style.format({
@@ -613,8 +664,8 @@ with tabs[3]:
                 })
                 st.dataframe(styled_ledger, use_container_width=True, hide_index=True)
 
-        # --- SUB-TAB 2: PROCESS PAYOUTS ---
-        with f_tabs[2]:
+        # --- SUB-TAB 3: PROCESS PAYOUTS ---
+        with f_tabs[3]:
             if not df.empty:
                 pending_p = df[(df['Trip_Status'] == 'COMPLETED') & (df['Payout_Status'] == 'PENDING')]
                 if pending_p.empty: st.info("No pending payouts at this time.")
@@ -627,8 +678,8 @@ with tabs[3]:
                             st.success("Marked as Paid!")
                             time.sleep(1); st.rerun()
 
-        # --- SUB-TAB 3: ISSUE RECEIPTS (NEW PDF GENERATOR) ---
-        with f_tabs[3]:
+        # --- SUB-TAB 4: ISSUE RECEIPTS ---
+        with f_tabs[4]:
             if not df.empty:
                 st.markdown("#### 🖨️ Download Official PDF Receipts")
                 st.write("Manually generate and download the official DriveElite PDF Booking Receipt for any past transaction.")
@@ -656,25 +707,17 @@ with tabs[3]:
                             vehicle_str = f"{r_row['make']} {r_row['model']}"
                             
                             pdf_bytes = generate_booking_receipt(
-                                ref_no=r_row['booking_ref'], 
-                                renter_name=r_row['renter_name'], 
-                                vehicle=vehicle_str, 
-                                plate=r_row['plate'], 
-                                travel_dates=travel_dates, 
-                                amount=r_row['amount'], 
-                                pickup_loc=r_row.get('pickup_loc', 'N/A'), 
+                                ref_no=r_row['booking_ref'], renter_name=r_row['renter_name'], 
+                                vehicle=vehicle_str, plate=r_row['plate'], travel_dates=travel_dates, 
+                                amount=r_row['amount'], pickup_loc=r_row.get('pickup_loc', 'N/A'), 
                                 return_loc=r_row.get('return_loc', 'N/A')
                             )
                             
                             st.success(f"✅ PDF Receipt Generated for {r_row['renter_name']}!")
-                            
                             st.download_button(
                                 label=f"📥 DOWNLOAD OFFICIAL PDF RECEIPT (#{ref_clean})",
-                                data=pdf_bytes,
-                                file_name=f"Official_Receipt_{ref_clean}.pdf",
-                                mime="application/pdf",
-                                type="primary",
-                                use_container_width=True
+                                data=pdf_bytes, file_name=f"Official_Receipt_{ref_clean}.pdf",
+                                mime="application/pdf", type="primary", use_container_width=True
                             )
                         else:
                             st.warning("Could not find full booking details for this transaction.")
