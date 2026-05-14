@@ -753,9 +753,7 @@ with tabs[0]:
                                 else: 
                                     st.success(f"✅ REFUND CASH TO RENTER NOW: ₱{refund_amount:,.2f}")
 
-                            with c2:
-                            with c2:
-
+                     
                             with c2:
                                 st.write("#### 🖊️ Final Sign-off")
                                 c_sig1, c_sig2 = st.columns(2)
