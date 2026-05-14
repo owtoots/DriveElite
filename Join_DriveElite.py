@@ -140,7 +140,7 @@ for col_name, col_type in [("area_code", "TEXT DEFAULT '+63'"), ("admin_status",
     except: pass
 
 if not os.path.exists("uploads"):
-    os.makedirs("/data/uploads")
+    os.makedirs("/data/uploads", exist_ok=True)
 
 # ==========================================
 # 4. UTILITY FUNCTIONS
