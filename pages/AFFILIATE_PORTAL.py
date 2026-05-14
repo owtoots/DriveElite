@@ -700,8 +700,27 @@ with tabs[0]:
                                 f_ok = st.checkbox("Fuel Full", value=True, key=f"f_{b['id']}")
                                 fuel_fee = (st.number_input("Refuel Receipt (Php)", step=100.0, key=f"f_cost_{b['id']}") + 200.0) if not f_ok else 0.0
                                 
-                                r_ok = st.checkbox("No RFID / Toll Usage", value=True, key=f"r_{b['id']}")
-                                rfid_fee = st.number_input("Toll Amount Used (Php)", step=50.0, key=f"r_cost_{b['id']}") if not r_ok else 0.0
+                               # --- SMART RFID MODULE ---
+                                st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
+                                st.write("##### 🛣️ Tolls & RFID")
+                                rc1, rc2 = st.columns(2)
+                               with rc1: 
+                                   # This is where the Affiliate inputs the USAGE
+                                   rfid_usage = st.number_input("Consumed (₱)", min_value=0.0, step=50.0, value=0.0, key=f"r_use_{b['id']}")
+
+                                with rc2: 
+                                    # This is where the Affiliate inputs the REPLENISHMENT
+                                    rfid_replenished = st.number_input("Loaded (₱)", min_value=0.0, step=50.0, value=0.0, key=f"r_load_{b['id']}")
+                                
+                                fine_amount = 100.0 if rfid_penalty else 0.0
+                                rfid_fee = max(0.0, rfid_usage - rfid_replenished) + fine_amount
+                                
+                                if rfid_fee > 0: 
+                                    st.error(f"Net RFID Deduction: ₱{rfid_fee:,.2f}")
+                                elif rfid_replenished > rfid_usage: 
+                                    st.success(f"Excess load: ₱{(rfid_replenished - rfid_usage):,.2f} (No deduction)")
+                                st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
+                                # -------------------------]}") if not r_ok else 0.0
                                 
                                 c_ok = st.checkbox("Interior Clean & Odor-Free", value=True, key=f"c_{b['id']}")
                                 if not c_ok: st.caption("Industry standard smoking/deep-clean fine is ₱2,500.")
