@@ -94,7 +94,7 @@ st.markdown("""
     }
 
     div.stButton > button:hover {
-        background-color: #1D4ED8 !important;
+        background-color: #1D4ED8  !important;
         box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
         transform: translateY(-1px) !important;
     }
