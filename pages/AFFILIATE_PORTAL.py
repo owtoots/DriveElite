@@ -620,14 +620,14 @@ with tabs[0]:
                                 col_sig1, col_sig2 = st.columns(2)
                                 with col_sig1:
                                     if f"clr_sr_{b['id']}" not in st.session_state: st.session_state[f"clr_sr_{b['id']}"] = 0
-                                    s_r = st_canvas(stroke_width=2, stroke_color="#000", background_color="#eee", height=150, width=300, display_toolbar=False, key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}")
+                                    s_r = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=300, display_toolbar=False, key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}")'id']}_{st.session_state[f'clr_sr_{b['id']}']}")
                                     if st.button("Clear Renter Pad", key=f"btn_sr_{b['id']}", use_container_width=True): 
                                         st.session_state[f"clr_sr_{b['id']}"] += 1
                                         st.rerun()
                                     st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{b['renter_name']}</b></u><br>Renter</div>", unsafe_allow_html=True)
                                 with col_sig2:
                                     if f"clr_sa_{b['id']}" not in st.session_state: st.session_state[f"clr_sa_{b['id']}"] = 0
-                                    s_a = st_canvas(stroke_width=2, stroke_color="#000", background_color="#eee", height=150, width=300, display_toolbar=False, key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}")
+                                    s_a = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=300, display_toolbar=False, key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}")
                                     if st.button("Clear Host Pad", key=f"btn_sa_{b['id']}", use_container_width=True): 
                                         st.session_state[f"clr_sa_{b['id']}"] += 1
                                         st.rerun()
@@ -772,7 +772,7 @@ with tabs[0]:
                                     
                                 with c_sig2:
                                     if f"clr_sreta_{b['id']}" not in st.session_state: st.session_state[f"clr_sreta_{b['id']}"] = 0
-                                    s_reta = st_canvas(stroke_width=2, stroke_color="#000", background_color="#eee", height=150, width=180, key=f"sreta_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}")
+                                    s_reta = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=180, key=f"sreta_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}")
                                     if st.button("Clear Host", key=f"btn_sreta_{b['id']}", use_container_width=True): 
                                         st.session_state[f"clr_sreta_{b['id']}"] += 1
                                         st.rerun()
