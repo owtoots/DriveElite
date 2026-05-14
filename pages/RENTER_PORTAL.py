@@ -405,27 +405,37 @@ with main_tabs[0]:
                                                         conn.commit()
                                                         
                                                         try:
-                                                            SECRET_KEY = st.secrets["paymongo_active_key"]
-                                                            pay_amount = int(grand_total * 100)
-                                                            auth_string = f"{SECRET_KEY}:"
-                                                            base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+                                                            import os
+                                                            # Safely fetch the key from Render or Streamlit Secrets
+                                                            SECRET_KEY = os.environ.get("paymongo_active_key") or st.secrets.get("paymongo_active_key")
                                                             
-                                                            url = "https://api.paymongo.com/v1/links"
-                                                            payload = {"data": {"attributes": {"amount": pay_amount, "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})", "remarks": f"Renter: {renter_user}"}}}
-                                                            
-                                                            req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'))
-                                                            req.add_header('accept', 'application/json')
-                                                            req.add_header('content-type', 'application/json')
-                                                            req.add_header('authorization', f'Basic {base64_auth}')
-                                                            
-                                                            response = urllib.request.urlopen(req)
-                                                            checkout_url = json.loads(response.read().decode('utf-8'))['data']['attributes']['checkout_url']
-                                                            
-                                                            st.success(f"✅ Booking Saved (Ref: #{b_ref})")
-                                                            st.markdown(f"### 💳 [👉 CLICK HERE TO PAY ₱{grand_total:,.2f} VIA PAYMONGO]({checkout_url})")
-                                                            st.info("Complete your payment using the link above. Our system will auto-verify shortly.")
+                                                            if not SECRET_KEY:
+                                                                st.error("🚨 Missing API Key: The 'paymongo_active_key' is not set in your Render Environment Variables.")
+                                                            else:
+                                                                pay_amount = int(grand_total * 100)
+                                                                auth_string = f"{SECRET_KEY}:"
+                                                                base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+                                                                
+                                                                url = "https://api.paymongo.com/v1/links"
+                                                                payload = {"data": {"attributes": {"amount": pay_amount, "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})", "remarks": f"Renter: {renter_user}"}}}
+                                                                
+                                                                req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'))
+                                                                req.add_header('accept', 'application/json')
+                                                                req.add_header('content-type', 'application/json')
+                                                                req.add_header('authorization', f'Basic {base64_auth}')
+                                                                
+                                                                response = urllib.request.urlopen(req)
+                                                                checkout_url = json.loads(response.read().decode('utf-8'))['data']['attributes']['checkout_url']
+                                                                
+                                                                st.success(f"✅ Booking Saved (Ref: #{b_ref})")
+                                                                st.markdown(f"### 💳 [👉 CLICK HERE TO PAY ₱{grand_total:,.2f} VIA PAYMONGO]({checkout_url})")
+                                                                st.info("Complete your payment using the link above. Our system will auto-verify shortly.")
+                                                        
+                                                        except urllib.error.HTTPError as e:
+                                                            error_info = e.read().decode()
+                                                            st.error(f"PayMongo Rejected the Request: {error_info}")
                                                         except Exception as e:
-                                                            st.error("Failed to generate payment link. Please try again or contact support.")
+                                                            st.error(f"System Error generating link: {e}")
                                                     
                                                     else:
                                                         conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
@@ -434,8 +444,6 @@ with main_tabs[0]:
                                                         st.session_state[stage_key] = 1
                                                         st.session_state[ref_key] = b_ref
                                                         st.rerun()
-                                            else: 
-                                                st.warning("⚠️ Please fill all required fields (Destination, Address, and Luzon Agreement).")
 
                                     # -------------------------------------------------------------
                                     # CHECKOUT STAGE 1: VALIDATE BPI PAYMENT 
