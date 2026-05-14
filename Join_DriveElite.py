@@ -23,6 +23,15 @@ except:
 # 3. The Universal "Crystal Elite" CSS Engine
 st.markdown("""
 <style>
+/* =========================================
+       📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
+       ========================================= */
+    div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
+        height: 200px !important;
+        width: 100% !important;
+        object-fit: cover !important;
+        border-radius: 8px !important;
+    }
     /* --- GLOBAL THEME --- */
     [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background-color: #F8FAFC !important;
