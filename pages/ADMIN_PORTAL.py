@@ -449,7 +449,7 @@ with tabs[1]:
                         st.warning("Vehicle Rejected. It will not appear in the showroom.")
                         time.sleep(2); st.rerun()
 
-    # --- ACTIVE FLEET MANAGER (To delete ghosts!) ---
+    # --- ACTIVE FLEET MANAGER ---
     with asset_tabs[1]:
         st.subheader("🚘 Live Showroom Fleet")
         active_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'APPROVED'", conn)
@@ -458,20 +458,20 @@ with tabs[1]:
             st.info("No active vehicles in the showroom.")
         else:
             for _, v in active_cars.iterrows():
-                # Add a ghost emoji if the image file is missing from the server
-                is_ghost = not (v.get('vehicle_img') and os.path.exists(v['vehicle_img']))
-                ghost_flag = " 👻 (MISSING IMAGE)" if is_ghost else ""
-                
-                with st.expander(f"{v['make']} {v['model']} ({v['plate']}) - @{v['owner_username']}{ghost_flag}"):
+                with st.expander(f"{v['make']} {v['model']} ({v['plate']}) - @{v['owner_username']}"):
                     c1, c2 = st.columns([1, 3])
                     with c1:
-                        if not is_ghost: st.image(v['vehicle_img'], use_container_width=True)
-                        else: st.image("https://placehold.co/600x400?text=Missing+Image", use_container_width=True)
+                        if v.get('vehicle_img') and os.path.exists(v['vehicle_img']):
+                            st.image(v['vehicle_img'], use_container_width=True)
+                        else:
+                            st.image("https://placehold.co/600x400?text=No+Image", use_container_width=True)
                     with c2:
                         st.write(f"**Daily Rate:** ₱{v.get('daily_rate') or v.get('approved_price') or 0.0:,.2f}")
                         st.write(f"**Status:** {v['booking_status']}")
                         
-                        if st.button("🗑️ DELETE FROM FLEET", key=f"del_car_{v['id']}", type="primary"):
+                        st.divider()
+                        
+                        if st.button("🗑️ DELETE CAR", key=f"del_car_{v['id']}", type="primary"):
                             conn.execute("DELETE FROM vehicles WHERE id = ?", (v['id'],))
                             conn.commit()
                             st.error(f"Vehicle {v['make']} {v['model']} permanently removed.")
