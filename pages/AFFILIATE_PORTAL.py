@@ -691,7 +691,6 @@ with tabs[0]:
                             st.divider()
 
                             c1, c2 = st.columns(2)
-                           c1, c2 = st.columns(2)
                             
                             with c1:
                                 st.write("#### 🛠️ Agreement Penalties & Usage")
@@ -754,6 +753,7 @@ with tabs[0]:
                                 else: 
                                     st.success(f"✅ REFUND CASH TO RENTER NOW: ₱{refund_amount:,.2f}")
 
+                            with c2:
                             with c2:
 
                             with c2:
