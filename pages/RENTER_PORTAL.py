@@ -406,11 +406,17 @@ with main_tabs[0]:
                                                         
                                                         try:
                                                             import os
-                                                            # Safely fetch the key from Render or Streamlit Secrets
-                                                            SECRET_KEY = os.environ.get("paymongo_active_key") or st.secrets.get("paymongo_active_key")
+                                                            
+                                                            # 🛠️ THE FIX: Look at Render first. If no Streamlit file exists, don't crash!
+                                                            SECRET_KEY = os.environ.get("paymongo_active_key")
+                                                            if not SECRET_KEY:
+                                                                try:
+                                                                    SECRET_KEY = st.secrets.get("paymongo_active_key")
+                                                                except Exception:
+                                                                    pass # Ignore the missing Streamlit file error
                                                             
                                                             if not SECRET_KEY:
-                                                                st.error("🚨 Missing API Key: The 'paymongo_active_key' is not set in your Render Environment Variables.")
+                                                                st.error("🚨 Missing API Key: Please add 'paymongo_active_key' to your Render Environment Variables.")
                                                             else:
                                                                 pay_amount = int(grand_total * 100)
                                                                 auth_string = f"{SECRET_KEY}:"
