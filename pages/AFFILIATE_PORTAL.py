@@ -596,13 +596,17 @@ with tabs[0]:
                             with st.expander("📋 Official Handover & Photo Evidence", expanded=True):
                                 st.write("### 1. Vehicle Checklist")
                                 c1, c2 = st.columns(2)
+                                
                                 with c1:
                                     c_fuel = st.selectbox("Current Fuel Level", ["Full", "3/4", "1/2", "1/4", "Empty"], key=f"fuel_{b['id']}")
                                     c_deposit = st.checkbox("₱5,000 Cash Deposit Received", value=False, key=f"dep_{b['id']}")
+                                    c_aircon = st.checkbox("❄️ Aircon Confirmed (Cold & Working)", value=True, key=f"aircon_{b['id']}")
+                                
                                 with c2:
                                     c_ext = st.checkbox("Exterior inspected (No new damage)", value=True, key=f"ext_{b['id']}")
                                     c_int = st.checkbox("Interior is clean/odor-free", value=True, key=f"int_{b['id']}")
                                     c_tools = st.checkbox("Tools/Spare tire verified", value=True, key=f"tools_{b['id']}")
+                                    c_rfid = st.checkbox("💳 RFID Handover & Reminded to Load", value=True, key=f"rfid_{b['id']}")
                                 
                                 st.divider()
                                 st.write("### 📸 2. Photo Evidence (10 Photos Required)")
