@@ -393,6 +393,19 @@ with main_tabs[0]:
                                                 st.error("Error calculating rate. Please verify your functions.")
                                                 can_book = False
 
+                                        # --- 🚨 THE NEW RFID HARD STOP ---
+                                        st.warning("💳 **RFID POLICY:** You must load your own toll funds. Excess load is **not refunded**. Empty RFID penalty: **₱100 fine** + toll costs.")
+                                        
+                                        # Unique key added so it works inside your car loop!
+                                        agree_to_rfid = st.checkbox("I agree to the RFID rules and ₱100 penalty.", key=f"rfid_agree_{car['id']}_{cat}")
+                                        
+                                        # Button is disabled if dates clash OR they haven't checked the box
+                                        is_disabled = (not can_book) or (not agree_to_rfid)
+
+                                        if st.button("1. CONFIRM BOOKING (SOFT LOCK)", key=f"conf_{car['id']}_{cat}", type="primary", use_container_width=True, disabled=is_disabled):
+                                            if dest and p_exact and r_exact and luzon_agree:
+                                                with st.spinner("Securing your dates..."):
+
                                         if st.button("1. CONFIRM BOOKING (SOFT LOCK)", key=f"conf_{car['id']}_{cat}", type="primary", use_container_width=True, disabled=not can_book):
                                             if dest and p_exact and r_exact and luzon_agree:
                                                 with st.spinner("Securing your dates..."):
