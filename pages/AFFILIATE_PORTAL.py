@@ -26,6 +26,17 @@ st.sidebar.image("logo.png", use_container_width=True)
 # 3. The Universal "Crystal Elite" CSS Engine
 st.markdown("""
 <style>
+/* =========================================
+       🖊️ OFFICIAL "WHITE PAPER" SIGNATURE PADS
+       ========================================= */
+    /* Target the container and the canvas of all signature pads */
+    [data-testid="stSignaturePad"],
+    [data-testid="stSignaturePad"] > div > canvas {
+        background-color: #FFFFFF !important; /* Forces Super White */
+        border: 2px solid #E2E8F0 !important; /* Add a subtle crisp border */
+        border-radius: 12px !important;     /* Keep the modern rounded look */
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.03) !important; /* Add a tiny inner shadow for realism */
+    }
     /* --- GLOBAL THEME --- */
     [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background-color: #F8FAFC !important;
