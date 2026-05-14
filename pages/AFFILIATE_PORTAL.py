@@ -636,7 +636,7 @@ with tabs[0]:
                                         travel_dates = f"{str(b.get('pickup_time'))[:10]} to {str(b.get('return_time'))[:10]}"
                                         pdf_bytes = generate_handover_pdf(b['booking_ref'], f"{b['make']} {b['model']} ({b['plate']})", b['renter_name'], travel_dates, chk_data, r_sig_path, a_sig_path, affiliate_full_name)
                                         
-                                        pdf_filepath = f"uploads/Handover_{b['booking_ref']}.pdf"
+                                        pdf_filepath = f"/data/uploads/Handover_{b['booking_ref']}.pdf"
                                         with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
                                         
                                         photo_paths = [save_file(img) for img in h_photos]
@@ -662,7 +662,7 @@ with tabs[0]:
                         elif b['status'] == 'ONGOING':
                             st.warning("⏱️ This trip is currently active. Coordinate the return below.")
                             
-                            pdf_filepath = f"uploads/Handover_{b['booking_ref']}.pdf"
+                            pdf_filepath = f"/data/uploads/Handover_{b['booking_ref']}.pdf"
                             if os.path.exists(pdf_filepath):
                                 with open(pdf_filepath, "rb") as pdf_file:
                                     st.download_button("📄 DOWNLOAD SIGNED HANDOVER PDF", data=pdf_file.read(), file_name=f"Handover_{b['booking_ref']}.pdf", mime="application/pdf", type="secondary", use_container_width=True)
@@ -765,7 +765,7 @@ with tabs[0]:
                                                     float(total_deduct), float(refund_amount), s_ret.image_data, s_reta.image_data
                                                 )
                                                 
-                                                pdf_filepath = f"uploads/Settlement_{b['booking_ref']}.pdf"
+                                                pdf_filepath = f"/data/uploads/Settlement_{b['booking_ref']}.pdf"
                                                 with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
                                                 
                                                 if b.get('renter_email'):
