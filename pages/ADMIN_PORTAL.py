@@ -29,6 +29,8 @@ except:
     pass
 
 st.markdown("""
+
+<style>
 /* =========================================
        🚀 LOGO MAGNIFIER
        ========================================= */
@@ -38,7 +40,6 @@ st.markdown("""
         transform-origin: center center !important;
         margin-bottom: 20px !important; /* Adds some breathing room below the newly enlarged logo */
     }
-<style>
     /* --- GLOBAL THEME --- */
     [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background-color: #F8FAFC !important;
