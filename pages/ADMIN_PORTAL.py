@@ -242,9 +242,27 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
 def generate_booking_receipt(ref_no, renter_name, vehicle, plate, travel_dates, amount, pickup_loc, return_loc):
     pdf = FPDF(orientation='L', unit='mm', format='A5')
     pdf.add_page()
-    try: pdf.image("logo.png", x=15, y=12, w=40)
-    except: pass
+    
+    # --- 1. CENTER THE LOGO ---
+    try: 
+        pdf.image("logo.png", x=82.5, y=10, w=45)
+    except: 
+        pass
         
+    # --- 2. CENTER THE HEADER TEXT BELOW THE LOGO ---
+    pdf.set_y(38) # Moves text below the logo
+    pdf.set_font("Helvetica", 'B', 16)
+    pdf.cell(0, 6, "DRIVEELITE PLATFORM", ln=True, align='C')
+    pdf.set_font("Helvetica", '', 10)
+    pdf.cell(0, 5, "Official Booking Receipt", ln=True, align='C')
+    pdf.cell(0, 5, f"Date: {datetime.date.today()}", ln=True, align='C')
+    
+    # --- 3. DRAW THE DIVIDER LINE ---
+    pdf.ln(5)
+    pdf.set_line_width(0.5)
+    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+    pdf.ln(8)
+    
     pdf.set_y(15)
     pdf.set_font("Helvetica", 'B', 16)
     pdf.cell(0, 6, "DRIVEELITE PLATFORM", ln=True, align='R')
