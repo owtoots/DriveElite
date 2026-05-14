@@ -138,7 +138,7 @@ def patch_database_tables():
     except: pass
 
 patch_database_tables()
-if not os.path.exists("uploads/chat_images"): os.makedirs("uploads/chat_images")
+if not os.path.exists("uploads/chat_images"): os.makedirs("/data/uploads/chat_imagess")
 
 # --- FETCH DYNAMIC PLATFORM SETTINGS ---
 try:
@@ -200,7 +200,7 @@ def clear_renter_chat(b_ref):
 
 def save_chat_image(img_file, b_ref):
     """Saves an uploaded image from the chat to the server."""
-    path = f"uploads/chat_images/{b_ref}_{img_file.name}"
+    path = f"/data/uploads/chat_images/{b_ref}_{img_file.name}"
     with open(path, "wb") as f:
         f.write(img_file.getbuffer())
     return path
@@ -491,7 +491,7 @@ with main_tabs[0]:
                                                     with st.spinner("Transmitting to Admin..."):
                                                         conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE booking_ref = ?", (receipt_bytes, b_ref))
                                                         
-                                                        receipt_path = f"uploads/chat_images/receipt_{b_ref}.jpg"
+                                                        receipt_path = f"/data/uploads/chat_images/receipt_{b_ref}.jpg"
                                                         with open(receipt_path, "wb") as f: f.write(receipt_bytes)
                                                         
                                                         owner_username = pd.read_sql_query("SELECT owner_username FROM vehicles WHERE id=?", conn, params=(car['id'],)).iloc[0]['owner_username']
