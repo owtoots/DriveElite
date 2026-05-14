@@ -751,8 +751,8 @@ with tabs[3]:
 with tabs[4]: 
     st.header("🗄️ Master Digital Filing Cabinet")
     st.write("View legally binding contracts, download them, or instantly email a copy to the user.")
-    if os.path.exists("uploads"):
-        all_files = os.listdir("uploads")
+    if os.path.exists("/data/uploads"):
+        all_files = os.listdir("/data/uploads")
         pdf_files = [f for f in all_files if f.endswith('.pdf')]
         
         if len(pdf_files) > 0:
@@ -768,7 +768,7 @@ with tabs[4]:
             else:
                 cols = st.columns(4)
                 for i, file_name in enumerate(filtered_files):
-                    file_path = os.path.join("uploads", file_name)
+                    file_path = os.path.join("/data/uploads", file_name)
                     display_card_text = file_name 
                     uname, target_email = "", ""
                     
