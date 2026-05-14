@@ -140,7 +140,7 @@ for col_name, col_type in [("area_code", "TEXT DEFAULT '+63'"), ("admin_status",
     except: pass
 
 if not os.path.exists("uploads"):
-    os.makedirs("uploads")
+    os.makedirs("/data/uploads")
 
 # ==========================================
 # 4. UTILITY FUNCTIONS
@@ -209,7 +209,7 @@ if st.session_state.get('otp_pending'):
                 try:
                     un, role, email = payload[0], payload[2], payload[4]
                     prefix = "MOA" if role == "AFFILIATE" else "RENTER"
-                    pdf_p, docx_p = f"uploads/{prefix}_{un}.pdf", f"uploads/{prefix}_{un}.docx"
+                    pdf_p, docx_p = f"/data/uploads/{prefix}_{un}.pdf", f"/data/uploads/{prefix}_{un}.docx"
                     final_p = pdf_p if os.path.exists(pdf_p) else docx_p
                             
                     send_welcome_email(email, role, final_p)
@@ -390,10 +390,10 @@ else:
                         doc.render(ctx)
                         
                         prefix = "MOA" if reg_type == "Affiliate" else "RENTER"
-                        docx_fn = f"uploads/{prefix}_{data['username']}.docx"
+                        docx_fn = f"/data/uploads/{prefix}_{data['username']}.docx"
                         doc.save(docx_fn)
                         
-                        try: subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', docx_fn, '--outdir', 'uploads/'], check=True)
+                        try: subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', docx_fn, '--outdir', '/data/uploads/'], check=True)
                         except: pass
                         
                         st.session_state.reg_payload = (
