@@ -235,7 +235,7 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
 def generate_booking_receipt(ref_no, renter_name, vehicle, plate, travel_dates, amount, pickup_loc, return_loc):
     pdf = FPDF(orientation='L', unit='mm', format='A5')
     pdf.add_page()
-    try: pdf.image("logo.png", x=15, y=12, w=25)
+    try: pdf.image("logo.png", x=15, y=12, w=40)
     except: pass
         
     pdf.set_y(15)
