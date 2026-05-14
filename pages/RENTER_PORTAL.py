@@ -402,10 +402,6 @@ with main_tabs[0]:
                                         # Button is disabled if dates clash OR they haven't checked the box
                                         is_disabled = (not can_book) or (not agree_to_rfid)
 
-                                        if st.button("1. CONFIRM BOOKING (SOFT LOCK)", key=f"conf_{car['id']}_{cat}", type="primary", use_container_width=True, disabled=is_disabled):
-                                            if dest and p_exact and r_exact and luzon_agree:
-                                                with st.spinner("Securing your dates..."):
-
                                         if st.button("1. CONFIRM BOOKING (SOFT LOCK)", key=f"conf_{car['id']}_{cat}", type="primary", use_container_width=True, disabled=not can_book):
                                             if dest and p_exact and r_exact and luzon_agree:
                                                 with st.spinner("Securing your dates..."):
