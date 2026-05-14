@@ -298,7 +298,7 @@ def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, da
     pdf.cell(0, 8, f"Fuel Replacement: Php {fuel:,.2f}", ln=True)
     pdf.cell(0, 8, f"Cleaning Penalty: Php {clean:,.2f}", ln=True)
     pdf.cell(0, 8, f"Damage Penalty: Php {damage:,.2f}", ln=True)
-    pdf.cell(0, 8, f"RFID Load Used: Php {rfid_fee:,.2f}", ln=True)
+    pdf.cell(0, 8, f"Net RFID & Toll Deductions: Php {rfid_fee:,.2f}", ln=True)
     pdf.cell(0, 8, f"Late Penalty: Php {late:,.2f}", ln=True)
     if is_with_driver: pdf.cell(0, 8, f"Driver OT Fee: Php {ot_fee:,.2f}", ln=True)
     pdf.ln(5); pdf.line(10, pdf.get_y(), 200, pdf.get_y()); pdf.ln(5)
@@ -691,6 +691,8 @@ with tabs[0]:
                             st.divider()
 
                             c1, c2 = st.columns(2)
+                           c1, c2 = st.columns(2)
+                            
                             with c1:
                                 st.write("#### 🛠️ Agreement Penalties & Usage")
                                 
@@ -699,28 +701,6 @@ with tabs[0]:
                                 
                                 f_ok = st.checkbox("Fuel Full", value=True, key=f"f_{b['id']}")
                                 fuel_fee = (st.number_input("Refuel Receipt (Php)", step=100.0, key=f"f_cost_{b['id']}") + 200.0) if not f_ok else 0.0
-                                
-                               # --- SMART RFID MODULE ---
-                                st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
-                                st.write("##### 🛣️ Tolls & RFID")
-                                rc1, rc2 = st.columns(2)
-                               with rc1: 
-                                   # This is where the Affiliate inputs the USAGE
-                                   rfid_usage = st.number_input("Consumed (₱)", min_value=0.0, step=50.0, value=0.0, key=f"r_use_{b['id']}")
-
-                                with rc2: 
-                                    # This is where the Affiliate inputs the REPLENISHMENT
-                                    rfid_replenished = st.number_input("Loaded (₱)", min_value=0.0, step=50.0, value=0.0, key=f"r_load_{b['id']}")
-                                
-                                fine_amount = 100.0 if rfid_penalty else 0.0
-                                rfid_fee = max(0.0, rfid_usage - rfid_replenished) + fine_amount
-                                
-                                if rfid_fee > 0: 
-                                    st.error(f"Net RFID Deduction: ₱{rfid_fee:,.2f}")
-                                elif rfid_replenished > rfid_usage: 
-                                    st.success(f"Excess load: ₱{(rfid_replenished - rfid_usage):,.2f} (No deduction)")
-                                st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
-                                # -------------------------]}") if not r_ok else 0.0
                                 
                                 c_ok = st.checkbox("Interior Clean & Odor-Free", value=True, key=f"c_{b['id']}")
                                 if not c_ok: st.caption("Industry standard smoking/deep-clean fine is ₱2,500.")
@@ -738,7 +718,27 @@ with tabs[0]:
                                             with d_cols[idx % 3]:
                                                 st.image(dmg_file, use_container_width=True, caption=f"New Damage {idx+1}")
                                     damage_fee = st.number_input("Estimated Damage Amount (Php)", step=500.0, key=f"d_est_{b['id']}")
-                                    
+                                
+                                # --- SMART RFID MODULE ---
+                                st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
+                                st.write("##### 🛣️ Tolls & RFID")
+                                rc1, rc2 = st.columns(2)
+                                with rc1: 
+                                    rfid_usage = st.number_input("Consumed (₱)", min_value=0.0, step=50.0, value=0.0, key=f"r_use_{b['id']}")
+                                with rc2: 
+                                    rfid_replenished = st.number_input("Loaded (₱)", min_value=0.0, step=50.0, value=0.0, key=f"r_load_{b['id']}")
+                                
+                                rfid_penalty = st.checkbox("Apply ₱100 fine (Failure to load)", key=f"r_pen_{b['id']}")
+                                fine_amount = 100.0 if rfid_penalty else 0.0
+                                rfid_fee = max(0.0, rfid_usage - rfid_replenished) + fine_amount
+                                
+                                if rfid_fee > 0: 
+                                    st.error(f"Net RFID Deduction: ₱{rfid_fee:,.2f}")
+                                elif rfid_replenished > rfid_usage: 
+                                    st.success(f"Excess load: ₱{(rfid_replenished - rfid_usage):,.2f} (No deduction)")
+                                st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
+                                
+                                # --- MASTER CALCULATION ---
                                 total_deduct = late_fee + fuel_fee + cleaning_fee + damage_fee + rfid_fee
                                 refund_amount = max(0, 5000.0 - total_deduct)
                                 
@@ -753,6 +753,8 @@ with tabs[0]:
                                     st.error(f"🚨 RENTER OWES EXTRA: ₱{(total_deduct - 5000.0):,.2f}. (Please collect this directly from the Renter before they leave).")
                                 else: 
                                     st.success(f"✅ REFUND CASH TO RENTER NOW: ₱{refund_amount:,.2f}")
+
+                            with c2:
 
                             with c2:
                                 st.write("#### 🖊️ Final Sign-off")
