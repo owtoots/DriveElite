@@ -138,7 +138,7 @@ def patch_database_tables():
     except: pass
 
 patch_database_tables()
-if not os.path.exists("uploads/chat_images"): os.makedirs("/data/uploads/chat_imagess")
+os.makeos.makedirs("/data/uploads/chat_images", exist_ok=True)
 
 # --- FETCH DYNAMIC PLATFORM SETTINGS ---
 try:
