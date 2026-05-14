@@ -251,7 +251,6 @@ def generate_booking_receipt(ref_no, renter_name, vehicle, plate, travel_dates, 
     pdf.set_font("Helvetica", '', 10)
     pdf.cell(0, 5, "Official Booking Receipt", ln=True, align='R')
     pdf.cell(0, 5, f"Date: {datetime.date.today()}", ln=True, align='R')
-    pdf.cell(0, 5, f"Receipt No: {ref_no}", ln=True, align='R')
     
     pdf.ln(8)
     pdf.set_line_width(0.5)
@@ -271,6 +270,14 @@ def generate_booking_receipt(ref_no, renter_name, vehicle, plate, travel_dates, 
     pdf.ln(5)
     pdf.set_font("Helvetica", 'B', 10)
     pdf.cell(0, 6, "IN FULL PAYMENT FOR RESERVATION:", ln=1)
+    
+    # --- ADDED: BIG BOLD BOOKING REFERENCE ---
+    pdf.set_font("Helvetica", '', 10)
+    pdf.cell(30, 6, "Booking Ref:", ln=0)
+    pdf.set_font("Helvetica", 'B', 10)
+    pdf.cell(0, 6, f"#{ref_no}", ln=1)
+    
+    # --- RESET FONT FOR THE REST ---
     pdf.set_font("Helvetica", '', 10)
     pdf.cell(30, 6, "Vehicle:", ln=0)
     pdf.cell(0, 6, f"{vehicle} ({plate})", ln=1)
