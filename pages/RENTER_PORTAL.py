@@ -31,6 +31,15 @@ except:
 st.markdown("""
 <style>
 /* =========================================
+       🚀 LOGO MAGNIFIER
+       ========================================= */
+    /* Target the exact image container in the sidebar */
+    [data-testid="stSidebarUserContent"] [data-testid="stImage"] {
+        transform: scale(1.3) !important; /* 1.3 means 130% size. Change to 1.4 or 1.5 if you want it even BIGGER! */
+        transform-origin: center center !important;
+        margin-bottom: 20px !important; /* Adds some breathing room below the newly enlarged logo */
+    }
+/* =========================================
        📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
        ========================================= */
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
