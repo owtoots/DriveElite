@@ -1,3 +1,4 @@
+
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -372,7 +373,7 @@ if not st.session_state.get('logged_in') or st.session_state.get('role') != 'AFF
 aff_info = pd.read_sql_query("SELECT full_name FROM platform_users WHERE username=?", conn, params=(st.session_state.username,))
 affiliate_full_name = aff_info.iloc[0]['full_name'] if not aff_info.empty else st.session_state.username
 
-# --- HEADER (REMOVED DUPLICATE LOGO) ---
+# --- HEADER ---
 st.markdown("<h1 style='text-align: center;'>💼 AFFILIATE COMMAND CENTER</h1>", unsafe_allow_html=True)
 top_col1, top_col2 = st.columns([5, 1])
 with top_col2:
@@ -429,7 +430,7 @@ with tabs[0]:
                 vehicle_info = f"{str(b['pickup_time'])[:16]} | {b['make']} {b['model']} ({b['plate']})"
                 
                 # ---------------------------------------------------------
-                # SCENARIO A: PENDING OR VERIFYING (Flat, Unclickable Container)
+                # SCENARIO A: PENDING OR VERIFYING
                 # ---------------------------------------------------------
                 if b['status'] in ['PENDING', 'VERIFYING']:
                     with st.container(border=True):
@@ -438,14 +439,13 @@ with tabs[0]:
                         with c_info:
                             st.write(f"**Ref: {b_ref_display}** | {vehicle_info}")
                             
-                            # Give the affiliate exact details on what is happening
                             if b['status'] == 'PENDING':
                                 st.warning("🔒 **AWAITING RENTER PAYMENT.** Renter reserved the dates but hasn't uploaded a receipt yet.")
                             elif b['status'] == 'VERIFYING':
                                 st.info("🔒 **VERIFYING RECEIPT.** Renter uploaded proof of payment. Waiting for Admin to confirm the funds.")
 
                 # ---------------------------------------------------------
-                # SCENARIO B: CONFIRMED OR ONGOING (Clickable Expander)
+                # SCENARIO B: CONFIRMED OR ONGOING 
                 # ---------------------------------------------------------
                 else:
                     if b['status'] == 'CONFIRMED':
@@ -478,10 +478,6 @@ with tabs[0]:
                                 st.info("💡 **7-Day Rule:** Platform fee was waived for this short trip.")
                         st.divider()
                         
-                        # ... [The rest of your Chat & Handover code stays exactly the same below this line] ...
-
-                        st.divider()
-
                         col1, col2 = st.columns(2)
                         
                         # --- UPGRADED FLEXBOX CHAT SECTION ---
@@ -620,7 +616,7 @@ with tabs[0]:
                                 col_sig1, col_sig2 = st.columns(2)
                                 with col_sig1:
                                     if f"clr_sr_{b['id']}" not in st.session_state: st.session_state[f"clr_sr_{b['id']}"] = 0
-                                   s_r = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=300, display_toolbar=False, key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}")
+                                    s_r = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=300, display_toolbar=False, key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}")
                                     if st.button("Clear Renter Pad", key=f"btn_sr_{b['id']}", use_container_width=True): 
                                         st.session_state[f"clr_sr_{b['id']}"] += 1
                                         st.rerun()
@@ -757,23 +753,22 @@ with tabs[0]:
                                 else: 
                                     st.success(f"✅ REFUND CASH TO RENTER NOW: ₱{refund_amount:,.2f}")
 
-                     
                             with c2:
                                 st.write("#### 🖊️ Final Sign-off")
                                 c_sig1, c_sig2 = st.columns(2)
                                 
                                 with c_sig1:
                                     if f"clr_sret_{b['id']}" not in st.session_state: st.session_state[f"clr_sret_{b['id']}"] = 0
-                                    s_ret = st_canvas(stroke_width=2, stroke_color="#000", background_color="#eee", height=150, width=180, key=f"sret_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}")
-                                    if st.button("Clear Renter", key=f"btn_sret_{b['id']}", use_container_width=True): 
+                                    s_ret = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=180, display_toolbar=False, key=f"sret_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}")
+                                    if st.button("Clear Renter Pad", key=f"btn_sret_{b['id']}", use_container_width=True): 
                                         st.session_state[f"clr_sret_{b['id']}"] += 1
                                         st.rerun()
                                     st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{b['renter_name']}</b></u><br>Renter</div>", unsafe_allow_html=True)
                                     
                                 with c_sig2:
                                     if f"clr_sreta_{b['id']}" not in st.session_state: st.session_state[f"clr_sreta_{b['id']}"] = 0
-                                    s_reta = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=180, key=f"sreta_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}")
-                                    if st.button("Clear Host", key=f"btn_sreta_{b['id']}", use_container_width=True): 
+                                    s_reta = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=180, display_toolbar=False, key=f"sreta_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}")
+                                    if st.button("Clear Host Pad", key=f"btn_sreta_{b['id']}", use_container_width=True): 
                                         st.session_state[f"clr_sreta_{b['id']}"] += 1
                                         st.rerun()
                                     st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
@@ -870,7 +865,7 @@ with tabs[2]:
             if ma and mo and pl and bn and an and vi and len(or_cr_files) >= 1 and ins:
                 new_ref_no = str(random.randint(100000, 999999))
                 
-                or_path = save_file(or_cr_files[0]) if len(or_cr_files) > 0 else ""
+                or_path = save_file(or_cr_files[0]) if len(or_cr_files)
                 cr_path = save_file(or_cr_files[1]) if len(or_cr_files) > 1 else or_path
                 
                 conn.execute("""
