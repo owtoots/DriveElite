@@ -586,57 +586,43 @@ with tabs[3]:
         # 3. Build the Tab UI
         f_tabs = st.tabs(["📊 REVENUE DASHBOARD", "💸 BPI VERIFICATION", "📑 MASTER LEDGER", "📤 PROCESS PAYOUTS", "🖨️ ISSUE RECEIPTS"])
 
-        # --- SUB-TAB 0: REVENUE DASHBOARD (NEW!) ---
-        with f_tabs[0]:
-            st.markdown("### 📈 Live Earnings Analytics")
-            st.caption("Financial performance based entirely on COMPLETED (Paid & Finished) trips.")
+        # --- SUB-TAB: REVENUE DASHBOARD ---
+        with sub_tabs[0]: # (Make sure this matches your Revenue tab index!)
+            st.markdown("### 📊 Platform Revenue Overview")
             
-            if df.empty:
-                st.info("No data available to generate revenue reports.")
-            else:
-                # Filter ONLY completed trips for real revenue
-                completed_df = df[df['Trip_Status'] == 'COMPLETED'].copy()
+            try:
+                # 1. Fetch only COMPLETED trips (Realized Revenue)
+                rev_df = pd.read_sql_query("SELECT amount, pickup_time FROM bookings WHERE status = 'COMPLETED'", conn)
                 
-                if completed_df.empty:
-                    st.info("No completed trips yet to calculate final earnings.")
+                if not rev_df.empty:
+                    # Convert text timestamps to real Datetime math
+                    rev_df['pickup_time'] = pd.to_datetime(rev_df['pickup_time'])
+                    rev_df['amount'] = pd.to_numeric(rev_df['amount'], errors='coerce').fillna(0)
+                    
+                    now = pd.Timestamp.now()
+                    
+                    # 2. Calculate the Running Totals
+                    monthly_rev = rev_df[(rev_df['pickup_time'].dt.month == now.month) & (rev_df['pickup_time'].dt.year == now.year)]['amount'].sum()
+                    quarterly_rev = rev_df[(rev_df['pickup_time'].dt.quarter == now.quarter) & (rev_df['pickup_time'].dt.year == now.year)]['amount'].sum()
+                    yearly_rev = rev_df[rev_df['pickup_time'].dt.year == now.year]['amount'].sum()
+                    total_rev = rev_df['amount'].sum()
+                    
+                    # 3. Render the Crystal Elite Metrics
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1: 
+                        with st.container(border=True): st.metric("This Month", f"₱{monthly_rev:,.2f}")
+                    with col2: 
+                        with st.container(border=True): st.metric("This Quarter", f"₱{quarterly_rev:,.2f}")
+                    with col3: 
+                        with st.container(border=True): st.metric("This Year", f"₱{yearly_rev:,.2f}")
+                    with col4: 
+                        with st.container(border=True): st.metric("All-Time Gross", f"₱{total_rev:,.2f}")
+                
                 else:
-                    # Top-Level KPIs
-                    total_gsv = completed_df['Total_Paid_By_Renter'].sum()
-                    total_net = completed_df['Platform_Net_Profit'].sum()
-                    total_aff = completed_df['Affiliate_Net_Payout'].sum()
-
-                    m1, m2, m3 = st.columns(3)
-                    with m1:
-                        st.metric("Total Gross Volume (GSV)", f"₱{total_gsv:,.2f}", help="Total money moved through the platform.")
-                    with m2:
-                        st.metric("DriveElite Net Profit", f"₱{total_net:,.2f}", help="Your pure profit after Affiliate splits, EWT, and Gateway Fees.")
-                    with m3:
-                        st.metric("Total Affiliate Earnings", f"₱{total_aff:,.2f}", help="Total net payouts sent to car owners.")
-
-                    st.divider()
-
-                    # Time-based Groupings
-                    completed_df['Month'] = completed_df['pickup_dt'].dt.to_period('M').dt.strftime('%b %Y')
-                    completed_df['Quarter'] = completed_df['pickup_dt'].dt.to_period('Q').astype(str)
-                    completed_df['Year'] = completed_df['pickup_dt'].dt.year.astype(str)
-
-                    chart_tabs = st.tabs(["📅 Monthly", "📊 Quarterly", "🗓️ Yearly"])
-
-                    with chart_tabs[0]:
-                        monthly_summary = completed_df.groupby('Month')[['Total_Paid_By_Renter', 'Platform_Net_Profit']].sum().reset_index()
-                        st.bar_chart(monthly_summary, x='Month', y='Platform_Net_Profit', color="#2563EB")
-                        st.dataframe(monthly_summary.style.format({'Total_Paid_By_Renter': '₱{:,.2f}', 'Platform_Net_Profit': '₱{:,.2f}'}), use_container_width=True, hide_index=True)
-
-                    with chart_tabs[1]:
-                        quarterly_summary = completed_df.groupby('Quarter')[['Total_Paid_By_Renter', 'Platform_Net_Profit']].sum().reset_index()
-                        st.bar_chart(quarterly_summary, x='Quarter', y='Platform_Net_Profit', color="#16A34A")
-                        st.dataframe(quarterly_summary.style.format({'Total_Paid_By_Renter': '₱{:,.2f}', 'Platform_Net_Profit': '₱{:,.2f}'}), use_container_width=True, hide_index=True)
-
-                    with chart_tabs[2]:
-                        yearly_summary = completed_df.groupby('Year')[['Total_Paid_By_Renter', 'Platform_Net_Profit']].sum().reset_index()
-                        st.bar_chart(yearly_summary, x='Year', y='Platform_Net_Profit', color="#9333EA")
-                        st.dataframe(yearly_summary.style.format({'Total_Paid_By_Renter': '₱{:,.2f}', 'Platform_Net_Profit': '₱{:,.2f}'}), use_container_width=True, hide_index=True)
-
+                    st.info("Vault is clean. Revenue metrics will generate automatically as soon as the first trip is COMPLETED!")
+            
+            except Exception as e:
+                st.error(f"Could not calculate revenue: {e}")
 
         # --- SUB-TAB 1: BPI VERIFICATION ---
         with f_tabs[1]:
