@@ -724,34 +724,7 @@ with tabs[3]: # Make sure this index matches your FINANCIALS tab!
             except Exception as e:
                 st.error(f"Database lookup error: {e}")
                     
-    # ==========================================
-    # 📈 CATEGORY MANAGER (BULLETPROOF SQL FIX)
-    # ==========================================
-    with col_cat:
-        st.subheader("📈 Category Manager")
-        n = st.text_input("New Category (e.g., Pickup, Luxury)")
-        p = st.number_input("Daily Rate (₱)", min_value=500.0, step=100.0, value=2500.0)
-        
-        if st.button("ADD NEW CATEGORY", type="primary"):
-            if not n.strip():
-                st.warning("⚠️ Please type a name for the category before adding.")
-            else:
-                clean_name = n.strip().title()
-                # Use a fresh, temporary connection to prevent SQLite lockups
-                temp_conn = get_connection()
-                try:
-                    temp_conn.execute("INSERT INTO vehicle_categories (name, default_price) VALUES (?, ?)", (clean_name, p))
-                    temp_conn.commit()
-                    temp_conn.close() # INSTANT RELEASE
-                    st.success(f"✅ '{clean_name}' added successfully!")
-                    time.sleep(1)
-                    st.rerun()
-                except sqlite3.IntegrityError:
-                    temp_conn.close() # Ensure lock is released on error
-                    st.error(f"🚨 The category '{clean_name}' already exists in your database!")
-                except Exception as e:
-                    temp_conn.close()
-                    st.error(f"Error adding category: {e}")
+    
 
     st.divider()
     st.markdown("<h3 style='text-align: center;'>ALL REGISTERED USERS</h3>", unsafe_allow_html=True)
