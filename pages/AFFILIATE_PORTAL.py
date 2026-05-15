@@ -865,7 +865,7 @@ with tabs[2]:
             if ma and mo and pl and bn and an and vi and len(or_cr_files) >= 1 and ins:
                 new_ref_no = str(random.randint(100000, 999999))
                 
-                or_path = save_file(or_cr_files[0]) if len(or_cr_files)
+                or_path = save_file(or_cr_files[0]) if len(or_cr_files) > 0 else ""
                 cr_path = save_file(or_cr_files[1]) if len(or_cr_files) > 1 else or_path
                 
                 conn.execute("""
