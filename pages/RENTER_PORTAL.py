@@ -613,7 +613,9 @@ with main_tabs[1]:
                                 st.rerun()
 
                     # --- THE REVIEW SYSTEM ---
-                    if pd.isna(b['rating']) or b['rating'] == "" or b['rating'] == 0:
+                    if b['status'] == 'COMPLETED':
+                        st.divider()
+                        if pd.isna(b['rating']) or b['rating'] == "" or b['rating'] == 0:
                             with st.expander("⭐ Leave a Review for this Trip!", expanded=True):
                                 
                                 st.write("**Rate your experience:**")
