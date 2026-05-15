@@ -239,7 +239,7 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
     except: 
         return False
 
-def generate_official_receipt(b_ref, renter_name, amount, vehicle, dates, p_loc, r_loc):
+def generate_booking_receipt(b_ref, renter_name, amount, vehicle, dates, p_loc, r_loc):
     pdf = FPDF()
     pdf.add_page()
 
