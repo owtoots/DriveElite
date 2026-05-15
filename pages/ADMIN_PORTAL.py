@@ -18,106 +18,106 @@ from PIL import Image
 from fpdf import FPDF
 
 # --- AUTHENTICATION & PAGE CONFIG ---
-st.set_page_config(page_title="DriveElite Admin", layout="wide")
+st.set_page_config(page_title="DriveElite Admin Portal", layout="wide")
 
 # ==========================================
-# 🚨 "CRYSTAL ELITE" CSS ENGINE 🚨
+# 🚨 PASTE THE NEW CSS RIGHT HERE 🚨
 # ==========================================
-try:
-    st.sidebar.image("logo.png", use_container_width=True)
-except:
-    pass
-
 st.markdown("""
 <style>
-/* =========================================
-       📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
-       ========================================= */
+    /* 🖊️ OFFICIAL "WHITE PAPER" SIGNATURE PADS */
+    [data-testid="stSignaturePad"],
+    [data-testid="stSignaturePad"] > div > canvas {
+        background-color: #FFFFFF !important; 
+        border: 2px solid #E2E8F0 !important; 
+        border-radius: 12px !important;     
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.03) !important; 
+    }
+
+    /* 1. Main Background and Page Theme */
+    [data-testid="stAppViewContainer"] {
+        background-color: #121212 !important;
+        color: #ffffff !important;
+        font-family: sans-serif !important;
+    }
+    
+    [data-testid="stHeader"] {
+        background-color: #121212 !important;
+    }
+
+    /* 2. Login Container (Streamlit Forms) */
+    [data-testid="stForm"], div[data-testid="stExpander"], div.stMetric {
+        background-color: #1e1e1e !important;
+        padding: 20px !important;
+        border-radius: 8px !important;
+        border: 1px solid #333 !important;
+        margin: 0 auto !important;
+    }
+
+    /* 3. Input Fields */
+    div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
+        background-color: #2a2a2a !important;
+        border: 1px solid #444 !important;
+        border-radius: 4px !important;
+    }
+    
+    /* Make input text white */
+    div[data-baseweb="input"] input, div[data-baseweb="select"] div {
+        color: #ffffff !important;
+    }
+
+    /* 4. Login Button - Styled to match the green car emoji */
+    [data-testid="stFormSubmitButton"] > button, div.stButton > button {
+        background-color: #2c8c80 !important; 
+        color: #ffffff !important;
+        font-weight: bold !important;
+        border: none !important;
+        border-radius: 4px !important;
+        width: 100% !important;
+    }
+
+    [data-testid="stFormSubmitButton"] > button:hover, div.stButton > button:hover {
+        background-color: #20685e !important;
+        color: #ffffff !important;
+    }
+
+    /* 5. Typography Fix (Ensures invisible text becomes visible) */
+    h1, h2, h3, p, label, .stMarkdown p {
+        color: #ffffff !important;
+    }
+    
+    /* 6. Force Sidebar to be Dark */
+    [data-testid="stSidebar"] {
+        background-color: #262626 !important;
+    }
+    
+    /* UNIFORM CAR IMAGES */
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
         height: 200px !important;
         width: 100% !important;
         object-fit: cover !important;
         border-radius: 8px !important;
     }
-    /* --- GLOBAL THEME --- */
-    [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
-        background-color: #F8FAFC !important;
-        color: #0F172A !important;
-        font-family: 'Inter', -apple-system, sans-serif !important;
-    }
-    
-    /* --- SIDEBAR & LOGO REORDER HACK --- */
-    [data-testid="stSidebar"] {
-        background-color: #FFFFFF !important;
-        border-right: 1px solid #E2E8F0 !important;
-    }
-    
-    [data-testid="stSidebarContent"] {
-        display: flex !important;
-        flex-direction: column !important;
-    }
-    
-    [data-testid="stSidebarUserContent"] {
-        order: 1 !important;
-        padding-top: 0rem !important;
-        margin-top: -1.5rem !important; 
-        padding-bottom: 1rem !important;
-    }
-
-    [data-testid="stSidebarNav"] {
-        order: 2 !important;
-        padding-top: 0rem !important; 
-    }
-
-    /* --- CARDS & BUTTONS --- */
-    [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
-        background-color: #FFFFFF !important;
-        padding: 20px !important;
-        border-radius: 16px !important;
-        border: 1px solid #E2E8F0 !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
-    }
-
-    div.stButton > button, [data-testid="stFormSubmitButton"] > button {
-        background-color: #2563EB !important;
-        color: #FFFFFF !important;
-        border: none !important;
-        font-weight: 700 !important;
-        border-radius: 10px !important;
-        padding: 10px 24px !important;
-        text-transform: uppercase !important;
-        transition: all 0.2s ease !important;
-    }
-    
-    div.stButton > button p, [data-testid="stFormSubmitButton"] > button p {
-        color: #FFFFFF !important;
-    }
-
-    div.stButton > button:hover {
-        background-color: #1D4ED8 !important;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
-        transform: translateY(-1px) !important;
-    }
-
-    /* --- TYPOGRAPHY & INPUTS --- */
-    div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
-        background-color: #FFFFFF !important;
-        border: 1px solid #CBD5E1 !important;
-        border-radius: 8px !important;
-    }
-    input { color: #1E293B !important; }
-    h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
-    label { color: #475569 !important; font-weight: 600 !important; }
 </style>
 """, unsafe_allow_html=True)
 
+try:
+    st.sidebar.image("logo.png", use_container_width=True)
+except:
+    pass
+
 # ==========================================
-# 2. DIRECTORY VISIBILITY
+# 2. DIRECTORY VISIBILITY & VAULT SETUP
 # ==========================================
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
+
+# PERMANENT VAULT MIGRATION
+UPLOAD_DIR = "/data/uploads"
+if not os.path.exists(UPLOAD_DIR):
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # ==========================================
 # 3. MODULE VALIDATION & IMPORTS
@@ -139,11 +139,9 @@ from finance import get_days_before_pickup, calculate_moa_cancellation_40_60
 # 4. GLOBAL CONSTANTS & CONFIGURATION
 # ==========================================
 def get_secret(key, default_val=None):
-    # 1. Try to get it from Render's Environment Variables first
     val = os.environ.get(key)
     if val: 
         return val
-    # 2. If not found, try Streamlit's Secret vault
     try:
         return st.secrets.get(key, default_val)
     except:
@@ -425,89 +423,30 @@ with tabs[0]:
         except Exception as e:
             st.warning(f"Could not load Driver database: {e}")
 
-# --- TAB 1: ASSETS (Vehicle Approvals & Fleet Manager) ---
+# --- TAB 1: ASSETS ---
 with tabs[1]:
-    asset_tabs = st.tabs(["⏳ Pending Approvals", "🚘 Active Fleet (Live)"])
-    
-    # --- PENDING APPROVALS ---
-    with asset_tabs[0]:
-        st.subheader("🚗 Vehicle Onboarding Queue")
-        pending_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'PENDING'", conn)
-        
-        if pending_cars.empty:
-            st.info("No vehicles currently waiting for approval.")
+    try:
+        pv = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'PENDING'", conn)
+        if pv.empty: 
+            st.info("No vehicles currently pending approval.")
         else:
-            for _, v in pending_cars.iterrows():
-                with st.expander(f"Review: {v['make']} {v['model']} ({v['plate']}) - Owner: @{v['owner_username']}"):
-                    st.markdown("#### 📸 Vehicle Photo")
-                    if v.get('vehicle_img') and os.path.exists(v['vehicle_img']):
-                        st.image(v['vehicle_img'], width=400)
-                    else:
-                        st.warning("No vehicle photo uploaded.")
-                    
+            for i, r in pv.iterrows():
+                with st.expander(f"🚗 {r['make']} {r['model']} ({r['plate']})"):
+                    st.write("### Vehicle Documents")
+                    c_doc1, c_doc2, c_doc3 = st.columns(3)
+                    with c_doc1: display_document(r.get('or_img'), "Official Receipt (OR)")
+                    with c_doc2: display_document(r.get('cr_img'), "Certificate of Reg (CR)")
+                    with c_doc3: display_document(r.get('insurance_img'), "Insurance Policy")
                     st.divider()
-                    st.markdown("#### 📄 Legal Documents")
-                    c_or, c_cr, c_ins = st.columns(3)
-                    
-                    def render_document(col, title, file_path):
-                        with col:
-                            st.write(f"**{title}**")
-                            if file_path and os.path.exists(file_path):
-                                if file_path.lower().endswith('.pdf'):
-                                    with open(file_path, "rb") as f:
-                                        st.download_button(label=f"📄 Download (PDF)", data=f, file_name=os.path.basename(file_path), key=f"dl_{title}_{v['id']}", use_container_width=True)
-                                else:
-                                    st.image(file_path, use_container_width=True)
-                            else:
-                                st.error("Missing File")
-
-                    render_document(c_or, "Official Receipt (OR)", v.get('or_img'))
-                    render_document(c_cr, "Certificate of Reg (CR)", v.get('cr_img'))
-                    render_document(c_ins, "Insurance Policy", v.get('insurance_img'))
-                    st.divider()
-                    
-                    c_app, c_rej = st.columns(2)
-                    if c_app.button("✅ APPROVE & LIST VEHICLE", key=f"app_{v['id']}", type="primary", use_container_width=True):
-                        conn.execute("UPDATE vehicles SET admin_status = 'APPROVED', booking_status = 'AVAILABLE' WHERE id = ?", (v['id'],))
+                    if st.button("✅ APPROVE & ACTIVATE", key=f"v_app_{r['id']}", type="primary", use_container_width=True):
+                        conn.execute("UPDATE vehicles SET admin_status = 'APPROVED', booking_status = 'AVAILABLE' WHERE id = ?", (r['id'],))
                         conn.commit()
-                        st.success(f"{v['make']} {v['model']} Approved! It is now live in the Renter Showroom.")
-                        time.sleep(2); st.rerun()
-                        
-                    if c_rej.button("❌ REJECT VEHICLE", key=f"rej_{v['id']}", use_container_width=True):
-                        conn.execute("UPDATE vehicles SET admin_status = 'REJECTED' WHERE id = ?", (v['id'],))
-                        conn.commit()
-                        st.warning("Vehicle Rejected. It will not appear in the showroom.")
-                        time.sleep(2); st.rerun()
+                        st.success(f"Success! {r['plate']} is now visible in the Showroom.")
+                        time.sleep(1); st.rerun()
+    except Exception as e:
+        st.warning(f"Could not load Vehicles database: {e}")
 
-    # --- ACTIVE FLEET MANAGER ---
-    with asset_tabs[1]:
-        st.subheader("🚘 Live Showroom Fleet")
-        active_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'APPROVED'", conn)
-        
-        if active_cars.empty:
-            st.info("No active vehicles in the showroom.")
-        else:
-            for _, v in active_cars.iterrows():
-                with st.expander(f"{v['make']} {v['model']} ({v['plate']}) - @{v['owner_username']}"):
-                    c1, c2 = st.columns([1, 3])
-                    with c1:
-                        if v.get('vehicle_img') and os.path.exists(v['vehicle_img']):
-                            st.image(v['vehicle_img'], use_container_width=True)
-                        else:
-                            st.image("https://placehold.co/600x400?text=No+Image", use_container_width=True)
-                    with c2:
-                        st.write(f"**Daily Rate:** ₱{v.get('daily_rate') or v.get('approved_price') or 0.0:,.2f}")
-                        st.write(f"**Status:** {v['booking_status']}")
-                        
-                        st.divider()
-                        
-                        if st.button("🗑️ DELETE CAR", key=f"del_car_{v['id']}", type="primary"):
-                            conn.execute("DELETE FROM vehicles WHERE id = ?", (v['id'],))
-                            conn.commit()
-                            st.error(f"Vehicle {v['make']} {v['model']} permanently removed.")
-                            time.sleep(1); st.rerun()
-
-# --- TAB 2: LOGISTICS ---
+# --- TAB 2: LOGISTICS (PAYMONGO ALIGNED) ---
 with tabs[2]:
     st.subheader("Active Logistics & Payment Status")
     try:
@@ -531,7 +470,7 @@ with tabs[2]:
                     st.write(f"**Affiliate:** {r['affiliate_name']}")
                     
                     if r['status'] == 'PENDING':
-                        st.warning("⏳ This renter is currently at the checkout screen.")
+                        st.warning("⏳ This renter is currently at the PayMongo checkout screen. If they paid via manual GCash transfer instead, you can override and confirm the booking below.")
                         if st.button("Verify Payment & Confirm Booking", key=f"force_conf_{r['id']}"):
                             conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE id = ?", (r['id'],))
                             conn.commit()
@@ -539,192 +478,248 @@ with tabs[2]:
                             time.sleep(1); st.rerun()
     except Exception as e: st.error(f"Error loading logistics data: {e}")
 
-# ==========================================
-# 💰 MASTER FINANCIALS SECTION
-# ==========================================
-with tabs[3]: # Make sure this index matches your FINANCIALS tab!
-    st.markdown("<h2 style='text-align: center;'>🏢 MASTER FINANCIAL LEDGER & EARNINGS</h2>", unsafe_allow_html=True)
-    
-    # 🚨 This is the crucial line that creates the doorways!
-    sub_tabs = st.tabs(["📊 REVENUE DASHBOARD", "💸 BPI VERIFICATION", "📑 MASTER LEDGER", "📤 PROCESS PAYOUTS", "🖨️ ISSUE RECEIPTS"])
-    
-    # ---------------------------------------------------------
-    # SUB-TAB 0: REVENUE DASHBOARD
-    # ---------------------------------------------------------
-    with sub_tabs[0]:
-        st.markdown("### 📊 Platform Revenue Overview")
-        try:
-            rev_df = pd.read_sql_query("SELECT amount, pickup_time FROM bookings WHERE status = 'COMPLETED'", conn)
-            if not rev_df.empty:
-                rev_df['pickup_time'] = pd.to_datetime(rev_df['pickup_time'])
-                rev_df['amount'] = pd.to_numeric(rev_df['amount'], errors='coerce').fillna(0)
-                
-                now = pd.Timestamp.now()
-                monthly_rev = rev_df[(rev_df['pickup_time'].dt.month == now.month) & (rev_df['pickup_time'].dt.year == now.year)]['amount'].sum()
-                quarterly_rev = rev_df[(rev_df['pickup_time'].dt.quarter == now.quarter) & (rev_df['pickup_time'].dt.year == now.year)]['amount'].sum()
-                yearly_rev = rev_df[rev_df['pickup_time'].dt.year == now.year]['amount'].sum()
-                total_rev = rev_df['amount'].sum()
-                
-                col1, col2, col3, col4 = st.columns(4)
-                with col1: 
-                    with st.container(border=True): st.metric("This Month", f"₱{monthly_rev:,.2f}")
-                with col2: 
-                    with st.container(border=True): st.metric("This Quarter", f"₱{quarterly_rev:,.2f}")
-                with col3: 
-                    with st.container(border=True): st.metric("This Year", f"₱{yearly_rev:,.2f}")
-                with col4: 
-                    with st.container(border=True): st.metric("All-Time Gross", f"₱{total_rev:,.2f}")
-            else:
-                st.info("Vault is clean. Revenue metrics will generate automatically as soon as the first trip is COMPLETED!")
-        except Exception as e:
-            st.error(f"Could not calculate revenue: {e}")
+# --- TAB 3: FINANCIALS (BPI VERIFICATION, DYNAMIC MARGINS & 4-DAY RULE) ---
+with tabs[3]:
+    st.markdown("<h2 style='text-align: center;'>🏦 MASTER FINANCIAL LEDGER</h2>", unsafe_allow_html=True)
+    try:
+        # 1. Pull dynamic settings from the DB
+        settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct FROM platform_settings WHERE id = 1", conn)
+        if not settings_df.empty:
+            r_markup = float(settings_df.iloc[0]['renter_markup_pct'])
+            a_share = float(settings_df.iloc[0]['affiliate_share_pct'])
+        else:
+            r_markup = 0.07 # Default 7%
+            a_share = 0.85  # Default 85%
 
-    # ---------------------------------------------------------
-    # SUB-TAB 1: BPI VERIFICATION
-    # ---------------------------------------------------------
-    with sub_tabs[1]:
-        st.markdown("### 💸 Manual Payment Verification")
-        st.write("Review renter bank transfer receipts to officially lock in their dates.")
-        try:
-            ver_df = pd.read_sql_query("SELECT * FROM bookings WHERE status = 'VERIFYING'", conn)
-            if ver_df.empty:
-                st.success("All caught up! No pending bank transfers to verify.")
-            else:
-                for _, b in ver_df.iterrows():
-                    with st.container(border=True):
-                        st.markdown(f"**Ref #{b['booking_ref']}** | Renter: {b['renter_username']} | Amount Expected: ₱{b['amount']:,.2f}")
-                        
-                        if b.get('receipt_img'):
-                            st.image(b['receipt_img'], caption="Uploaded BPI Receipt", width=300)
-                        else:
-                            st.warning("No image found in database for this receipt.")
-                            
-                        c_app, c_rej = st.columns(2)
-                        if c_app.button("✅ APPROVE PAYMENT", key=f"app_pay_{b['id']}", use_container_width=True):
-                            conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE id = ?", (b['id'],))
-                            conn.commit()
-                            st.success("Payment Approved! Handover unlocked.")
-                            time.sleep(1)
-                            st.rerun()
-                            
-                        if c_rej.button("❌ REJECT (INVALID)", key=f"rej_pay_{b['id']}", use_container_width=True):
-                            conn.execute("UPDATE bookings SET status = 'PENDING', receipt_img = NULL WHERE id = ?", (b['id'],))
-                            conn.commit()
-                            st.error("Receipt Rejected. Renter must upload a new one.")
-                            time.sleep(1)
-                            st.rerun()
-        except Exception as e:
-            st.error(f"Error loading verifications: {e}")
+        # 2. Setup the Sub-Tabs (Adding BPI Verification as the first step)
+        f_tabs = st.tabs(["💸 BPI VERIFICATION", "📑 MASTER LEDGER", "📤 PROCESS PAYOUTS", "🎫 ISSUE RECEIPTS"])
 
-    # ---------------------------------------------------------
-    # SUB-TAB 2: MASTER LEDGER
-    # ---------------------------------------------------------
-    with sub_tabs[2]:
-        st.markdown("### 📑 The Master Ledger")
-        st.write("Raw financial data for all system transactions.")
-        try:
-            ledger_df = pd.read_sql_query("""
-                SELECT id, booking_ref, renter_username, vehicle_id, amount, status, pickup_time 
-                FROM bookings ORDER BY id DESC
-            """, conn)
-            if not ledger_df.empty:
-                st.dataframe(ledger_df, use_container_width=True, hide_index=True)
-            else:
-                st.info("The ledger is currently empty.")
-        except Exception as e:
-            st.error(f"Could not load ledger: {e}")
-
-    # ---------------------------------------------------------
-    # SUB-TAB 3: PROCESS PAYOUTS
-    # ---------------------------------------------------------
-    with sub_tabs[3]:
-        st.markdown("### 📤 Affiliate Payout Center")
-        st.write("Process final settlements for Affiliates after their trips are closed out.")
-        try:
-            payout_df = pd.read_sql_query("""
-                SELECT b.*, v.make, v.model, v.owner_username, v.bank_name, v.account_no 
-                FROM bookings b JOIN vehicles v ON b.vehicle_id = v.id 
-                WHERE b.status = 'COMPLETED' AND b.payout_status = 'PENDING'
+        # --- SUB-TAB 0: BPI VERIFICATION ---
+        with f_tabs[0]:
+            st.markdown("#### 🔍 Awaiting BPI Confirmation")
+            # We look specifically for PENDING bookings
+            pending_bpi = pd.read_sql_query("""
+                SELECT b.*, u.full_name as Renter, v.make, v.model
+                FROM bookings b 
+                JOIN platform_users u ON b.renter_username = u.username 
+                JOIN vehicles v ON b.vehicle_id = v.id
+                WHERE b.status = 'PENDING' 
+                ORDER BY b.id DESC
             """, conn)
             
-            if payout_df.empty:
-                st.success("No pending payouts at this time!")
+            if pending_bpi.empty:
+                st.info("No bookings currently awaiting payment verification.")
             else:
-                for _, p in payout_df.iterrows():
+                for _, row in pending_bpi.iterrows():
                     with st.container(border=True):
-                        st.markdown(f"#### Trip Ref: #{p['booking_ref']}")
-                        st.write(f"**Affiliate:** {p['owner_username']} | **Vehicle:** {p['make']} {p['model']}")
-                        st.write(f"**Bank Details:** {p['bank_name']} - {p['account_no']}")
-                        
-                        # Affiliate Share Math
-                        base_amt = float(p['amount']) if pd.notnull(p['amount']) else 0.0
-                        share = base_amt * 0.85 # Assumes 85% share
-                        
-                        # Add any extra fees the Renter owed during closeout
-                        late = float(p.get('late_fee', 0.0))
-                        fuel = float(p.get('fuel_fee', 0.0))
-                        clean = float(p.get('cleaning_fee', 0.0))
-                        damage = float(p.get('damage_fee', 0.0))
-                        rfid = float(p.get('rfid_fee', 0.0))
-                        
-                        total_extras = late + fuel + clean + damage + rfid
-                        final_payout = share + max(0.0, total_extras - 5000.0) # Add extras exceeding deposit
-                        
-                        st.markdown(f"<h3 style='color: #27ae60;'>Amount to Send: ₱{final_payout:,.2f}</h3>", unsafe_allow_html=True)
-                        
-                        if st.button("Mark as PAID", key=f"pay_{p['id']}", type="primary"):
+                        c_info, c_acts = st.columns([2, 1])
+                        with c_info:
+                            st.write(f"**Ref:** #{row['booking_ref']} | **Renter:** {row['Renter']}")
+                            st.write(f"**Vehicle:** {row['make']} {row['model']}")
+                            st.write(f"**Amount to Verify:** :green[₱{row['amount']:,.2f}]")
+                            st.caption(f"Pickup: {row['pickup_time']} | Destination: {row['destination']}")
+                        with st.expander("👁️ View Chat & Receipts"):
+                                msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(row['booking_ref'],))
+                                if msgs.empty:
+                                    st.info("No messages or receipts uploaded yet.")
+                                else:
+                                    for _, m in msgs.iterrows():
+                                        st.write(f"**{m['sender_username']}:** {m['message_text']}")
+                                        if m.get('image_path') and os.path.exists(m['image_path']):
+                                            st.image(m['image_path'], width=200)
+                        with c_acts:
+                            if st.button("✅ CONFIRM PAYMENT", key=f"verify_{row['booking_ref']}", type="primary", use_container_width=True):
+                                conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE booking_ref = ?", (row['booking_ref'],))
+                                conn.commit()
+                                st.success(f"Verified! Booking #{row['booking_ref']} moved to Ledger.")
+                                time.sleep(1)
+                                st.rerun()
+                            
+                            if st.button("❌ REJECT / CANCEL", key=f"reject_{row['booking_ref']}", use_container_width=True):
+                                conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE booking_ref = ?", (row['booking_ref'],))
+                                conn.commit()
+                                st.rerun()
+
+        # --- PREPARE DATA FOR LEDGER (Excluding Pending) ---
+        query = """
+        SELECT b.id, b.booking_ref, b.pickup_time as Date, b.return_time, u_renter.full_name as Renter, u_owner.full_name as Affiliate,
+               b.amount as Total_Paid_By_Renter, b.status as Trip_Status, b.payout_status as Payout_Status,
+               b.gateway_fee, v.bank_name, v.account_no
+        FROM bookings b
+        JOIN vehicles v ON b.vehicle_id = v.id
+        JOIN platform_users u_renter ON b.renter_username = u_renter.username
+        JOIN platform_users u_owner ON v.owner_username = u_owner.username
+        WHERE b.status != 'PENDING' AND b.status != 'CANCELLED' 
+        ORDER BY b.id DESC
+        """
+        df = pd.read_sql_query(query, conn)
+
+        # --- SUB-TAB 1: MASTER LEDGER ---
+        with f_tabs[1]:
+            if df.empty:
+                st.info("No completed financial transactions recorded yet.")
+            else:
+                df['gateway_fee'] = df['gateway_fee'].fillna(0)
+                df['pickup_dt'] = pd.to_datetime(df['Date'], errors='coerce')
+                df['return_dt'] = pd.to_datetime(df['return_time'], errors='coerce')
+                df['Total_Days'] = (df['return_dt'] - df['pickup_dt']).dt.ceil('D').dt.days
+                df['Total_Days'] = df['Total_Days'].fillna(1).clip(lower=1)
+                
+                # 4-Day Rule Logic
+                import numpy as np
+                df['Applied_Markup'] = np.where(df['Total_Days'] >= 4, r_markup, 0.0)
+
+                # Financial Math
+                df['Platform_Gross_Cut'] = df['Total_Paid_By_Renter'] * (1 - (a_share / (1 + df['Applied_Markup'])))
+                TAX_RATE = 0.01 # Adjust to your current TAX_RATE variable
+                df['Platform_Net_Profit'] = df['Platform_Gross_Cut'] - df['gateway_fee'] - (df['Total_Paid_By_Renter'] * TAX_RATE * 0.18)
+                df['Affiliate_Gross_Share'] = df['Total_Paid_By_Renter'] - df['Platform_Gross_Cut']
+                df['EWT_Deduction'] = df['Affiliate_Gross_Share'] * TAX_RATE
+                df['Affiliate_Net_Payout'] = df['Affiliate_Gross_Share'] - df['EWT_Deduction']
+                df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
+
+                st.caption(f"Calculated based on Admin Margins: Renter Fee ({r_markup*100}% - Waived for <4 days) | Owner Share ({a_share*100}%)")
+                display_cols = ['Ref', 'Date', 'Total_Days', 'Affiliate', 'Total_Paid_By_Renter', 'gateway_fee', 'EWT_Deduction', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
+                styled_ledger = df[display_cols].style.format({
+                    'Total_Paid_By_Renter': '{:,.2f}', 'gateway_fee': '{:,.2f}', 'EWT_Deduction': '{:,.2f}', 
+                    'Affiliate_Net_Payout': '{:,.2f}', 'Platform_Net_Profit': '{:,.2f}'
+                })
+                st.dataframe(styled_ledger, use_container_width=True, hide_index=True)
+
+        # --- SUB-TAB 2: PROCESS PAYOUTS ---
+        with f_tabs[2]:
+            if not df.empty:
+                pending_p = df[(df['Trip_Status'] == 'COMPLETED') & (df['Payout_Status'] == 'PENDING')]
+                if pending_p.empty: st.info("No pending payouts at this time.")
+                for _, p in pending_p.iterrows():
+                    with st.expander(f"{p['Ref']} | {p['Affiliate']} | Net: ₱{p['Affiliate_Net_Payout']:,.2f}"):
+                        st.write(f"**Final Remittance:** ₱{p['Affiliate_Net_Payout']:,.2f}")
+                        if st.button("MARK AS PAID", key=f"p_{p['id']}", type="primary", use_container_width=True):
                             conn.execute("UPDATE bookings SET payout_status = 'PAID' WHERE id = ?", (p['id'],))
                             conn.commit()
-                            st.success(f"Marked as Paid to {p['owner_username']}!")
-                            time.sleep(1)
-                            st.rerun()
-        except Exception as e:
-            st.error(f"Error loading payouts: {e}")
+                            st.success("Marked as Paid!")
+                            time.sleep(1); st.rerun()
 
-    # ---------------------------------------------------------
-    # SUB-TAB 4: ISSUE RECEIPTS
-    # ---------------------------------------------------------
-    with sub_tabs[4]:
-        st.markdown("### 🖨️ Download Official PDF Receipts")
-        st.write("Manually generate and download the official DriveElite PDF Booking Receipt for any past transaction.")
-        
-        target_ref = st.text_input("Select Transaction Reference:")
-        if target_ref:
-            try:
-                b_data = pd.read_sql_query("""
-                    SELECT b.*, v.make, v.model, r.full_name as renter_name
-                    FROM bookings b 
-                    JOIN vehicles v ON b.vehicle_id = v.id 
-                    JOIN platform_users r ON b.renter_username = r.username
-                    WHERE b.booking_ref = ?
-                """, conn, params=(target_ref,))
-                
-                if b_data.empty:
-                    st.error("Transaction not found. Check the reference number.")
-                else:
-                    b_row = b_data.iloc[0]
-                    travel_dates = f"{str(b_row['pickup_time'])[:10]} to {str(b_row['return_time'])[:10]}"
-                    
-                    if st.button("📄 GENERATE PDF RECEIPT", type="primary"):
-                        try:
-                            # Note: Make sure the generate_booking_receipt function is defined higher up in ADMIN_PORTAL.py
-                            pdf_bytes = generate_booking_receipt(
-                                str(b_row['booking_ref']), str(b_row['renter_name']), float(b_row['amount']), 
-                                f"{b_row['make']} {b_row['model']}", travel_dates, str(b_row['pickup_loc']), str(b_row['return_loc'])
-                            )
-                            st.download_button(
-                                label="⬇️ DOWNLOAD OFFICIAL RECEIPT",
-                                data=pdf_bytes,
-                                file_name=f"Official_Receipt_{b_row['booking_ref']}.pdf",
-                                mime="application/pdf",
-                                use_container_width=True
-                            )
-                        except Exception as e:
-                            st.error(f"Error generating PDF: {e}")
-            except Exception as e:
-                st.error(f"Database lookup error: {e}")
-                    
+        # --- SUB-TAB 3: ISSUE RECEIPTS ---
+        with f_tabs[3]:
+            if not df.empty:
+                st.markdown("#### Manual POS Issuance")
+                target_ref = st.selectbox("Select Transaction Reference", df['Ref'].tolist())
+                if st.button("Generate POS Receipt", type="primary"):
+                    ref_clean = str(target_ref).replace("#", "").replace("DRV-", "")
+                    b_data = df[df['Ref'] == target_ref].iloc[0]
+                    st.code(generate_pos_receipt(b_data), language='text')
     
+    except Exception as e:
+        st.error(f"Financial Error: {e}")
+
+# --- TAB 4: FILING CABINET ---
+with tabs[4]: 
+    st.header("🗄️ Master Digital Filing Cabinet")
+    st.write("View legally binding contracts, download them, or instantly email a copy to the user.")
+    if os.path.exists(UPLOAD_DIR):
+        all_files = os.listdir(UPLOAD_DIR)
+        pdf_files = [f for f in all_files if f.endswith('.pdf')]
+        
+        if len(pdf_files) > 0:
+            st.divider()
+            role_filter = st.radio("Filter Contracts:", ["All", "💼 Affiliates (MOA)", "🚙 Renters (Agreements)"], horizontal=True)
+            st.divider()
+            
+            if role_filter == "💼 Affiliates (MOA)": filtered_files = [f for f in pdf_files if f.startswith("MOA_")]
+            elif role_filter == "🚙 Renters (Agreements)": filtered_files = [f for f in pdf_files if f.startswith("RENTER_")]
+            else: filtered_files = pdf_files
+            
+            if not filtered_files: st.info(f"No documents found matching the filter.")
+            else:
+                cols = st.columns(4)
+                for i, file_name in enumerate(filtered_files):
+                    file_path = os.path.join(UPLOAD_DIR, file_name)
+                    display_card_text = file_name 
+                    uname, target_email = "", ""
+                    
+                    if file_name.startswith("MOA_") or file_name.startswith("RENTER_"):
+                        uname = file_name.replace("MOA_", "").replace("RENTER_", "").replace(".pdf", "")
+                        try:
+                            user_df = pd.read_sql_query("SELECT full_name, email FROM platform_users WHERE username=?", conn, params=(uname,))
+                            if not user_df.empty:
+                                target_email, full_name = user_df.iloc[0]['email'], user_df.iloc[0]['full_name']
+                                display_card_text = f"{full_name} / {uname}" if full_name else f"(@{uname})"
+                        except: pass 
+                    
+                    with cols[i % 4]:
+                        with st.container(border=True):
+                            st.write(f"📄 **{display_card_text}**")
+                            btn_col1, btn_col2 = st.columns(2)
+                            with btn_col1:
+                                with open(file_path, "rb") as pdf_file:
+                                    st.download_button(label="⬇️ DL", data=pdf_file.read(), file_name=file_name, mime="application/pdf", key=f"dl_{file_name}", use_container_width=True)
+                            with btn_col2:
+                                if st.button("📧 Email", key=f"em_{file_name}", use_container_width=True):
+                                    if not target_email: st.toast(f"❌ No email found for @{uname}", icon="⚠️")
+                                    else:
+                                        with st.spinner("Sending..."):
+                                            success, msg = send_email(
+                                                to_email=target_email, 
+                                                subject=f"Contract Copy: {file_name}", 
+                                                body="Please find your signed contract attached to this email.", 
+                                                attachment_path=file_path, 
+                                                attachment_name=file_name
+                                            )
+                                            if success: st.toast(f"✅ Contract sent to {target_email}", icon="🚀")
+                                            else: st.error(f"Failed: {msg}")
+        else: st.info("No contracts have been signed yet.")
+    else: st.warning("The uploads folder does not exist yet. It will be created when the first user registers.")
+
+# --- TAB 5: PROMOS & DB ---
+with tabs[5]:
+    # 1. ADDED: Render dynamic platform settings (Fee % / Share %)
+    render_platform_settings(conn)
+    st.divider()
+
+    # 2. Existing Duration Discounts
+    render_admin_discount_table(conn)
+    st.divider()
+
+    col_promo, col_cat = st.columns(2)
+    with col_promo:
+        st.subheader("📢 Broadcast Manager")
+        try:
+            current_active = pd.read_sql_query("SELECT id FROM admin_promos WHERE active = 1", conn)
+            banner_is_on = not current_active.empty
+            turn_on = st.toggle("📡 Master Broadcast Switch (Turn ON / OFF)", value=banner_is_on)
+            if turn_on != banner_is_on:
+                if turn_on: conn.execute("UPDATE admin_promos SET active = 1 WHERE id = (SELECT MAX(id) FROM admin_promos)")
+                else: conn.execute("UPDATE admin_promos SET active = 0")
+                conn.commit(); st.rerun()
+        except Exception as e:
+            st.warning(f"Could not load broadcast system: {e}")
+            
+        st.divider()
+
+        with st.form("promo"):
+            t = st.text_input("Broadcast Title")
+            m = st.text_area("Broadcast Message")
+            target = st.radio("Target Audience:", ["RENTERS", "AFFILIATES", "ALL USERS"], horizontal=True)
+            if st.form_submit_button("PUBLISH NEW BROADCAST"):
+                if t and m:
+                    try: conn.execute("ALTER TABLE admin_promos ADD COLUMN target TEXT DEFAULT 'ALL USERS'"); conn.commit()
+                    except: pass
+                    conn.execute("UPDATE admin_promos SET active = 0")
+                    conn.execute("INSERT INTO admin_promos (title, message, target) VALUES (?, ?, ?)", (t, m, target))
+                    conn.commit()
+                    st.success(f"Live! Broadcast successfully published to {target}.")
+                    time.sleep(1); st.rerun()
+                    
+    with col_cat:
+        st.subheader("📈 Category Manager")
+        with st.form("add_cat", clear_on_submit=True):
+            n = st.text_input("New Category (e.g., Pickup, Luxury)")
+            p = st.number_input("Daily Rate (₱)", min_value=500.0, step=100.0, value=2500.0)
+            if st.form_submit_button("ADD NEW CATEGORY"):
+                if n:
+                    try: conn.execute("INSERT INTO vehicle_categories (name, default_price) VALUES (?, ?)", (n.title(), p)); conn.commit()
+                    except Exception as e: st.error(f"Error adding category: {e}")
 
     st.divider()
     st.markdown("<h3 style='text-align: center;'>ALL REGISTERED USERS</h3>", unsafe_allow_html=True)
@@ -754,8 +749,8 @@ with tabs[3]: # Make sure this index matches your FINANCIALS tab!
                     st.cache_data.clear() 
                     if os.path.exists("/data/driveelite_v2.db"): os.remove("/data/driveelite_v2.db")
                     elif os.path.exists("driveelite_v2.db"): os.remove("driveelite_v2.db")
-                    if os.path.exists("uploads"):
-                        for f in glob.glob("uploads/*"):
+                    if os.path.exists(UPLOAD_DIR):
+                        for f in glob.glob(f"{UPLOAD_DIR}/*"):
                             try: os.remove(f)
                             except: pass
                     st.success("✅ FACTORY RESET COMPLETE! Rebooting system...")
@@ -919,6 +914,7 @@ with tabs[9]:
     st.markdown("### 💳 Payment Gateway Control")
     st.info("Toggle the payment system between automated PayMongo and manual BPI QR. This updates the Renter checkout experience instantly.")
     
+    # Fetch current settings to see what is currently active
     try:
         settings_df = pd.read_sql_query("SELECT payment_mode FROM platform_settings WHERE id = 1", conn)
         current_mode = settings_df.iloc[0]['payment_mode'] if not settings_df.empty else "MANUAL_QR"
@@ -931,13 +927,7 @@ with tabs[9]:
 
     if st.button("Save Payment Settings", type="primary"):
         try:
-            check = pd.read_sql_query("SELECT id FROM platform_settings WHERE id = 1", conn)
-            
-            if check.empty:
-                conn.execute("INSERT INTO platform_settings (id, payment_mode) VALUES (1, ?)", (new_mode,))
-            else:
-                conn.execute("UPDATE platform_settings SET payment_mode = ? WHERE id = 1", (new_mode,))
-                
+            conn.execute("UPDATE platform_settings SET payment_mode = ? WHERE id = 1", (new_mode,))
             conn.commit()
             st.success(f"✅ System successfully updated to use {new_mode}!")
             time.sleep(1)
