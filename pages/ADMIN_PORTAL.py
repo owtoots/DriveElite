@@ -239,81 +239,79 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
     except: 
         return False
 
-def generate_booking_receipt(ref_no, renter_name, vehicle, plate, travel_dates, amount, pickup_loc, return_loc):
-    pdf = FPDF(orientation='L', unit='mm', format='A5')
+def generate_official_receipt(b_ref, renter_name, amount, vehicle, dates, p_loc, r_loc):
+    pdf = FPDF()
     pdf.add_page()
-    
-    # --- 1. CENTER THE LOGO ---
-    try: 
-        pdf.image("logo.png", x=82.5, y=10, w=45)
-    except: 
+
+    # --- 1. LOGO AT TOP LEFT ---
+    # x=10, y=10 puts it perfectly in the corner. w=40 scales it nicely.
+    try:
+        pdf.image("logo.png", x=10, y=10, w=40)
+    except Exception:
         pass
-        
-    # --- 2. CENTER THE HEADER TEXT BELOW THE LOGO ---
-    pdf.set_y(38) # Moves text below the logo
+
+    # --- 2. HEADER AT TOP RIGHT ---
     pdf.set_font("Helvetica", 'B', 16)
-    pdf.cell(0, 6, "DRIVEELITE PLATFORM", ln=True, align='C')
-    pdf.set_font("Helvetica", '', 10)
-    pdf.cell(0, 5, "Official Booking Receipt", ln=True, align='C')
-    pdf.cell(0, 5, f"Date: {datetime.date.today()}", ln=True, align='C')
-    
-    # --- 3. DRAW THE DIVIDER LINE ---
-    pdf.ln(5)
-    pdf.set_line_width(0.5)
-    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
-    pdf.ln(8)
-    
-    pdf.set_y(15)
-    pdf.set_font("Helvetica", 'B', 16)
-    pdf.cell(0, 6, "DRIVEELITE PLATFORM", ln=True, align='R')
-    pdf.set_font("Helvetica", '', 10)
-    pdf.cell(0, 5, "Official Booking Receipt", ln=True, align='R')
-    pdf.cell(0, 5, f"Date: {datetime.date.today()}", ln=True, align='R')
-    
-    pdf.ln(8)
-    pdf.set_line_width(0.5)
-    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
-    pdf.ln(8)
+    pdf.cell(0, 8, "DRIVEELITE PLATFORM", ln=True, align='R')
     
     pdf.set_font("Helvetica", '', 12)
-    pdf.cell(35, 8, "Received From:", ln=0)
-    pdf.set_font("Helvetica", 'B', 12)
-    pdf.cell(0, 8, f"{renter_name}", ln=1)
-    
+    pdf.cell(0, 6, "Official Booking Receipt", ln=True, align='R')
+    pdf.cell(0, 6, f"Date: {datetime.date.today()}", ln=True, align='R')
+
+    # --- 3. FORCE CURSOR DOWN ---
+    # This prevents the line and text from smashing into the logo
+    pdf.set_y(40)
+
+    # --- 4. SEPARATOR LINE ---
+    pdf.set_line_width(0.5)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(8) # Add space below the line
+
+    # --- 5. RECEIPT BODY (PAYMENT INFO) ---
     pdf.set_font("Helvetica", '', 12)
-    pdf.cell(35, 8, "The Sum Of:", ln=0)
+    pdf.cell(35, 8, "Received From:", border=0)
     pdf.set_font("Helvetica", 'B', 12)
-    pdf.cell(0, 8, f"Php {amount:,.2f}", ln=1)
+    pdf.cell(0, 8, f"{renter_name}", border=0, ln=True)
+
+    pdf.set_font("Helvetica", '', 12)
+    pdf.cell(35, 8, "The Sum Of:", border=0)
+    pdf.set_font("Helvetica", 'B', 12)
+    pdf.cell(0, 8, f"Php {amount:,.2f}", border=0, ln=True)
+
+    pdf.ln(8) # Spacer
+
+    # --- 6. BOOKING DETAILS (TABULAR ALIGNMENT) ---
+    pdf.set_font("Helvetica", 'B', 11)
+    pdf.cell(0, 8, "IN FULL PAYMENT FOR RESERVATION:", ln=True)
+
+    pdf.set_font("Helvetica", '', 11)
     
+    pdf.cell(35, 6, "Booking Ref:")
+    pdf.set_font("Helvetica", 'B', 11)
+    pdf.cell(0, 6, f"#{b_ref}", ln=True)
+    pdf.set_font("Helvetica", '', 11)
+
+    pdf.cell(35, 6, "Vehicle:")
+    pdf.cell(0, 6, f"{vehicle}", ln=True)
+
+    pdf.cell(35, 6, "Travel Dates:")
+    pdf.cell(0, 6, f"{dates}", ln=True)
+
+    pdf.cell(35, 6, "Pickup Loc:")
+    pdf.cell(0, 6, f"{p_loc}", ln=True)
+
+    pdf.cell(35, 6, "Return Loc:")
+    pdf.cell(0, 6, f"{r_loc}", ln=True)
+
+    # --- 7. FOOTER ---
+    pdf.ln(15)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(5)
-    pdf.set_font("Helvetica", 'B', 10)
-    pdf.cell(0, 6, "IN FULL PAYMENT FOR RESERVATION:", ln=1)
-    
-    # --- ADDED: BIG BOLD BOOKING REFERENCE ---
-    pdf.set_font("Helvetica", '', 10)
-    pdf.cell(30, 6, "Booking Ref:", ln=0)
-    pdf.set_font("Helvetica", 'B', 10)
-    pdf.cell(0, 6, f"#{ref_no}", ln=1)
-    
-    # --- RESET FONT FOR THE REST ---
-    pdf.set_font("Helvetica", '', 10)
-    pdf.cell(30, 6, "Vehicle:", ln=0)
-    pdf.cell(0, 6, f"{vehicle} ({plate})", ln=1)
-    pdf.cell(30, 6, "Travel Dates:", ln=0)
-    pdf.cell(0, 6, f"{travel_dates}", ln=1)
-    pdf.cell(30, 6, "Pickup Loc:", ln=0)
-    pdf.cell(0, 6, f"{pickup_loc}", ln=1)
-    pdf.cell(30, 6, "Return Loc:", ln=0)
-    pdf.cell(0, 6, f"{return_loc}", ln=1)
-    
-    pdf.ln(5)
-    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
-    pdf.ln(5)
-    
-    pdf.set_font("Helvetica", 'I', 8)
-    pdf.cell(0, 4, "This is a system-generated Official Booking Receipt.", align='C', ln=1)
-    pdf.cell(0, 4, "Valid for corporate reimbursement and proof of reservation payment. No physical signature required.", align='C', ln=1)
-    
+
+    pdf.set_font("Helvetica", 'I', 9)
+    pdf.cell(0, 5, "This is a system-generated Official Booking Receipt.", align='C', ln=True)
+    pdf.cell(0, 5, "Valid for corporate reimbursement and proof of reservation payment. No physical signature required.", align='C', ln=True)
+
     return pdf.output(dest="S").encode("latin-1")
 
 @st.cache_data(ttl=300, show_spinner=False)
