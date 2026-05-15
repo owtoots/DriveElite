@@ -909,8 +909,7 @@ with tabs[2]:
                 conn.commit()
                 st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
             else: 
-                st.error("Please fill all required fields and upload all documents (At least 1 OR/CR file is required).")equired).")
-
+                st.error("Please fill all required fields and upload all documents (At least 1 OR/CR file is required).")
 # --- TAB 3: ADD DRIVER ---
 with tabs[3]:
     st.markdown("<h3 style='text-align: center;'>REGISTER A DRIVER</h3>", unsafe_allow_html=True)
