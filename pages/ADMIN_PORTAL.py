@@ -239,12 +239,11 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
     except: 
         return False
 
-def generate_booking_receipt(b_ref, renter_name, amount, vehicle, dates, p_loc, r_loc):
+def generate_booking_receipt(ref_no, renter_name, amount, vehicle, dates, p_loc, r_loc):
     pdf = FPDF()
     pdf.add_page()
 
     # --- 1. LOGO AT TOP LEFT ---
-    # x=10, y=10 puts it perfectly in the corner. w=40 scales it nicely.
     try:
         pdf.image("logo.png", x=10, y=10, w=40)
     except Exception:
@@ -259,13 +258,12 @@ def generate_booking_receipt(b_ref, renter_name, amount, vehicle, dates, p_loc, 
     pdf.cell(0, 6, f"Date: {datetime.date.today()}", ln=True, align='R')
 
     # --- 3. FORCE CURSOR DOWN ---
-    # This prevents the line and text from smashing into the logo
     pdf.set_y(40)
 
     # --- 4. SEPARATOR LINE ---
     pdf.set_line_width(0.5)
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(8) # Add space below the line
+    pdf.ln(8)
 
     # --- 5. RECEIPT BODY (PAYMENT INFO) ---
     pdf.set_font("Helvetica", '', 12)
@@ -288,7 +286,7 @@ def generate_booking_receipt(b_ref, renter_name, amount, vehicle, dates, p_loc, 
     
     pdf.cell(35, 6, "Booking Ref:")
     pdf.set_font("Helvetica", 'B', 11)
-    pdf.cell(0, 6, f"#{b_ref}", ln=True)
+    pdf.cell(0, 6, f"#{ref_no}", ln=True)
     pdf.set_font("Helvetica", '', 11)
 
     pdf.cell(35, 6, "Vehicle:")
