@@ -1,4 +1,3 @@
-
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -22,7 +21,10 @@ from streamlit_drawable_canvas import st_canvas
 st.set_page_config(page_title="DriveElite Affiliate", layout="wide")
 
 # 2. Inject the Logo into the Sidebar
-st.sidebar.image("logo.png", use_container_width=True)
+try:
+    st.sidebar.image("logo.png", use_container_width=True)
+except:
+    pass
 
 # 3. The Universal "Crystal Elite" CSS Engine
 st.markdown("""
@@ -30,13 +32,12 @@ st.markdown("""
 /* =========================================
        🖊️ OFFICIAL "WHITE PAPER" SIGNATURE PADS
        ========================================= */
-    /* Target the container and the canvas of all signature pads */
     [data-testid="stSignaturePad"],
     [data-testid="stSignaturePad"] > div > canvas {
-        background-color: #FFFFFF !important; /* Forces Super White */
-        border: 2px solid #E2E8F0 !important; /* Add a subtle crisp border */
-        border-radius: 12px !important;     /* Keep the modern rounded look */
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.03) !important; /* Add a tiny inner shadow for realism */
+        background-color: #FFFFFF !important; 
+        border: 2px solid #E2E8F0 !important; 
+        border-radius: 12px !important;     
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.03) !important; 
     }
     /* --- GLOBAL THEME --- */
     [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
@@ -189,7 +190,8 @@ def patch_database():
 
 patch_database()
 
-if not os.path.exists("uploads"): os.makedirs("uploads")
+# ENSURE THE PERMANENT VAULT DIRECTORY EXISTS
+if not os.path.exists("/data/uploads"): os.makedirs("/data/uploads", exist_ok=True)
 
 # --- FETCH DYNAMIC PLATFORM SETTINGS ---
 try:
@@ -207,7 +209,7 @@ def save_file(uploaded_file):
     if uploaded_file:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{timestamp}_{uploaded_file.name}"
-        path = os.path.join("uploads", filename)
+        path = os.path.join("/data/uploads", filename)
         with open(path, "wb") as f: f.write(uploaded_file.getbuffer())
         return path
     return None
@@ -216,7 +218,7 @@ def save_chat_image(uploaded_file, booking_ref):
     if uploaded_file:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"chat_{booking_ref}_{timestamp}_{uploaded_file.name}"
-        path = os.path.join("uploads", filename)
+        path = os.path.join("/data/uploads", filename)
         with open(path, "wb") as f: f.write(uploaded_file.getbuffer())
         return path
     return ""
@@ -227,8 +229,9 @@ def save_canvas_image(image_data, prefix):
         background = Image.new("RGB", img.size, (255, 255, 255))
         background.paste(img, mask=img.split()[3])
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = os.path.join("uploads", f"{prefix}_{timestamp}.png")
-        background.save(filename)
+        # Save as JPEG - FPDF handles JPEGs much better!
+        filename = os.path.join("/data/uploads", f"{prefix}_{timestamp}.jpg")
+        background.save(filename, "JPEG")
         return filename
     return None
 
@@ -266,10 +269,19 @@ def generate_handover_pdf(ref_no, car_name, renter_name, travel_dates, checklist
     pdf.cell(0, 10, "DIGITAL SIGNATORIES:", ln=True)
     
     y_sig = pdf.get_y()
-    if r_sig_path and os.path.exists(r_sig_path):
-        pdf.image(r_sig_path, x=30, y=y_sig, w=50)
-    if a_sig_path and os.path.exists(a_sig_path):
-        pdf.image(a_sig_path, x=120, y=y_sig, w=50)
+    
+    # 🛡️ Bulletproof Image Loading
+    try:
+        if r_sig_path and os.path.exists(r_sig_path):
+            pdf.image(r_sig_path, x=30, y=y_sig, w=50)
+    except Exception:
+        pdf.text(30, y_sig + 10, "[Signature Registered]")
+        
+    try:
+        if a_sig_path and os.path.exists(a_sig_path):
+            pdf.image(a_sig_path, x=120, y=y_sig, w=50)
+    except Exception:
+        pdf.text(120, y_sig + 10, "[Signature Registered]")
     
     pdf.set_y(y_sig + 30)
     pdf.set_font("Helvetica", 'U', 11)
@@ -289,6 +301,7 @@ def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, da
         pdf.set_y(45) 
     except Exception: 
         pdf.set_y(20)
+        
     pdf.set_font("Helvetica", 'B', 16)
     pdf.cell(0, 10, "DRIVEELITE RETURN & SETTLEMENT RECEIPT", ln=True, align='C')
     pdf.set_font("Helvetica", '', 12)
@@ -308,29 +321,44 @@ def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, da
     pdf.cell(0, 8, f"Less Initial Deposit: (Php 5,000.00)", ln=True)
     pdf.ln(2) 
     pdf.set_font("Helvetica", 'B', 12)
+    
     if total_deduct > 5000.0:
         amount_payable = total_deduct - 5000.0
         pdf.cell(0, 10, f"NET PAYABLE TO AFFILIATE: Php {amount_payable:,.2f}", ln=True)
     else:
         pdf.cell(0, 10, f"NET REFUND TO RENTER: Php {refund:,.2f}", ln=True)
+        
     current_y = pdf.get_y() + 15
+    
+    # 🛡️ Bulletproof Dynamic Signature Saving
     try:
         if sig_ret is not None:
-            Image.fromarray(sig_ret.astype('uint8'), 'RGBA').convert('RGB').save("tret.jpg", "JPEG")
-            pdf.image("tret.jpg", x=20, y=current_y, w=50)
+            r_path = f"/data/uploads/ret_r_{booking_ref}.jpg"
+            Image.fromarray(sig_ret.astype('uint8'), 'RGBA').convert('RGB').save(r_path, "JPEG")
+            pdf.image(r_path, x=20, y=current_y, w=50)
+    except Exception: 
+        pass
+        
+    try:
         if sig_reta is not None:
-            Image.fromarray(sig_reta.astype('uint8'), 'RGBA').convert('RGB').save("treta.jpg", "JPEG")
-            pdf.image("treta.jpg", x=120, y=current_y, w=50)
-    except Exception: pass
+            a_path = f"/data/uploads/ret_a_{booking_ref}.jpg"
+            Image.fromarray(sig_reta.astype('uint8'), 'RGBA').convert('RGB').save(a_path, "JPEG")
+            pdf.image(a_path, x=120, y=current_y, w=50)
+    except Exception: 
+        pass
+        
     pdf.set_xy(20, current_y + 40); pdf.cell(50, 5, "Renter Final Sign-off", align='C')
     pdf.set_xy(120, current_y + 40); pdf.cell(50, 5, "Affiliate Final Sign-off", align='C')
     pdf.ln(20); pdf.set_font("Helvetica", 'I', 9); pdf.cell(0, 5, "Legally generated by DriveElite Platform", align='C')
+    
     return pdf.output(dest="S").encode("latin-1")
 
 def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
     sender_email = "rdalbaojr@gmail.com" 
-    try: app_password = st.secrets["email_app_password"]
-    except: return False
+    try: 
+        app_password = st.secrets["email_app_password"]
+    except: 
+        return False
         
     msg = MIMEMultipart()
     msg['From'] = f"DriveElite Admin <{sender_email}>"
@@ -645,29 +673,31 @@ with tabs[0]:
                                         
                                         chk_data = {'fuel': c_fuel, 'ext': c_ext, 'int': c_int, 'tools': c_tools, 'deposit': c_deposit}
                                         travel_dates = f"{str(b.get('pickup_time'))[:10]} to {str(b.get('return_time'))[:10]}"
-                                        pdf_bytes = generate_handover_pdf(b['booking_ref'], f"{b['make']} {b['model']} ({b['plate']})", b['renter_name'], travel_dates, chk_data, r_sig_path, a_sig_path, affiliate_full_name)
                                         
-                                        pdf_filepath = f"/data/uploads/Handover_{b['booking_ref']}.pdf"
-                                        with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
-                                        
-                                        photo_paths = [save_file(img) for img in h_photos]
-                                        photo_string = ",".join(filter(None, photo_paths))
-                                        
-                                        conn.execute("""
-                                            UPDATE bookings 
-                                            SET status = 'ONGOING', handover_photos = ?, handover_sig_renter = ?, handover_sig_affiliate = ? 
-                                            WHERE id = ?
-                                        """, (photo_string, r_sig_path, a_sig_path, b['id']))
-                                        conn.commit()
-                                        
-                                        if b['renter_email']:
-                                            success = send_pdf_email(b['renter_email'], f"DriveElite: Digital Handover Record (#{b['booking_ref']})", "Attached is the official digital handover record with checklists and signatures. Please drive safely!", pdf_bytes, f"Handover_{b['booking_ref']}.pdf")
-                                            if success: st.toast("📧 Secure PDF Handover record sent to renter!", icon="✅")
-                                            else: st.error("⚠️ Email failed. PDF saved locally.")
-                                        
-                                        st.success("✅ Handover Secured! PDF Generated and Trip started.")
-                                        time.sleep(3)
-                                        st.rerun()
+                                        with st.spinner("Building Handover Record..."):
+                                            pdf_bytes = generate_handover_pdf(b['booking_ref'], f"{b['make']} {b['model']} ({b['plate']})", b['renter_name'], travel_dates, chk_data, r_sig_path, a_sig_path, affiliate_full_name)
+                                            
+                                            pdf_filepath = f"/data/uploads/Handover_{b['booking_ref']}.pdf"
+                                            with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
+                                            
+                                            photo_paths = [save_file(img) for img in h_photos]
+                                            photo_string = ",".join(filter(None, photo_paths))
+                                            
+                                            conn.execute("""
+                                                UPDATE bookings 
+                                                SET status = 'ONGOING', handover_photos = ?, handover_sig_renter = ?, handover_sig_affiliate = ? 
+                                                WHERE id = ?
+                                            """, (photo_string, r_sig_path, a_sig_path, b['id']))
+                                            conn.commit()
+                                            
+                                            if b['renter_email']:
+                                                success = send_pdf_email(b['renter_email'], f"DriveElite: Digital Handover Record (#{b['booking_ref']})", "Attached is the official digital handover record with checklists and signatures. Please drive safely!", pdf_bytes, f"Handover_{b['booking_ref']}.pdf")
+                                                if success: st.toast("📧 Secure PDF Handover record sent to renter!", icon="✅")
+                                                else: st.error("⚠️ Email failed. PDF saved locally.")
+                                            
+                                            st.success("✅ Handover Secured! PDF Generated and Trip started.")
+                                            time.sleep(3)
+                                            st.rerun()
 
                         # --- ESCROW-FREE FINAL SETTLEMENT ---
                         elif b['status'] == 'ONGOING':
