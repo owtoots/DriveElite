@@ -21,85 +21,92 @@ from fpdf import FPDF
 st.set_page_config(page_title="DriveElite Admin Portal", layout="wide")
 
 # ==========================================
-# 🚨 PASTE THE NEW CSS RIGHT HERE 🚨
+# 💎 2. THE "CRYSTAL ELITE" CSS ENGINE
 # ==========================================
 st.markdown("""
 <style>
-    /* 🖊️ OFFICIAL "WHITE PAPER" SIGNATURE PADS */
-    [data-testid="stSignaturePad"],
-    [data-testid="stSignaturePad"] > div > canvas {
-        background-color: #FFFFFF !important; 
-        border: 2px solid #E2E8F0 !important; 
-        border-radius: 12px !important;     
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.03) !important; 
-    }
 
-    /* 1. Main Background and Page Theme */
-    [data-testid="stAppViewContainer"] {
-        background-color: #121212 !important;
-        color: #ffffff !important;
-        font-family: sans-serif !important;
-    }
-    
-    [data-testid="stHeader"] {
-        background-color: #121212 !important;
-    }
-
-    /* 2. Login Container (Streamlit Forms) */
-    [data-testid="stForm"], div[data-testid="stExpander"], div.stMetric {
-        background-color: #1e1e1e !important;
-        padding: 20px !important;
-        border-radius: 8px !important;
-        border: 1px solid #333 !important;
-        margin: 0 auto !important;
-    }
-
-    /* 3. Input Fields */
-    div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
-        background-color: #2a2a2a !important;
-        border: 1px solid #444 !important;
-        border-radius: 4px !important;
-    }
-    
-    /* Make input text white */
-    div[data-baseweb="input"] input, div[data-baseweb="select"] div {
-        color: #ffffff !important;
-    }
-
-    /* 4. Login Button - Styled to match the green car emoji */
-    [data-testid="stFormSubmitButton"] > button, div.stButton > button {
-        background-color: #2c8c80 !important; 
-        color: #ffffff !important;
-        font-weight: bold !important;
-        border: none !important;
-        border-radius: 4px !important;
-        width: 100% !important;
-    }
-
-    [data-testid="stFormSubmitButton"] > button:hover, div.stButton > button:hover {
-        background-color: #20685e !important;
-        color: #ffffff !important;
-    }
-
-    /* 5. Typography Fix (Ensures invisible text becomes visible) */
-    h1, h2, h3, p, label, .stMarkdown p {
-        color: #ffffff !important;
-    }
-    
-    /* 6. Force Sidebar to be Dark */
-    [data-testid="stSidebar"] {
-        background-color: #262626 !important;
-    }
-    
-    /* UNIFORM CAR IMAGES */
+/* =========================================
+       📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
+       ========================================= */
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
         height: 200px !important;
         width: 100% !important;
         object-fit: cover !important;
         border-radius: 8px !important;
     }
+    /* --- GLOBAL THEME --- */
+    [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: #F8FAFC !important;
+        color: #0F172A !important;
+        font-family: 'Inter', -apple-system, sans-serif !important;
+    }
+    
+    /* --- SIDEBAR & LOGO REORDER HACK --- */
+    [data-testid="stSidebar"] {
+        background-color: #FFFFFF !important;
+        border-right: 1px solid #E2E8F0 !important;
+    }
+    
+    [data-testid="stSidebarContent"] {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    
+    [data-testid="stSidebarUserContent"] {
+        order: 1 !important;
+        padding-top: 0rem !important;
+        margin-top: -1.5rem !important; 
+        padding-bottom: 1rem !important;
+    }
+
+    [data-testid="stSidebarNav"] {
+        order: 2 !important;
+        padding-top: 0rem !important; 
+    }
+
+    /* --- CARDS & BUTTONS --- */
+    [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
+        background-color: #FFFFFF !important;
+        padding: 20px !important;
+        border-radius: 16px !important;
+        border: 1px solid #E2E8F0 !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    div.stButton > button, [data-testid="stFormSubmitButton"] > button {
+        background-color: #2563EB !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        font-weight: 700 !important;
+        border-radius: 10px !important;
+        padding: 10px 24px !important;
+        text-transform: uppercase !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    div.stButton > button p, [data-testid="stFormSubmitButton"] > button p {
+        color: #FFFFFF !important;
+    }
+
+    div.stButton > button:hover {
+        background-color: #1D4ED8  !important;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    /* --- TYPOGRAPHY & INPUTS --- */
+    div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
+        background-color: #FFFFFF !important;
+        border: 1px solid #CBD5E1 !important;
+        border-radius: 8px !important;
+    }
+    input { color: #1E293B !important; }
+    h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
+    label { color: #475569 !important; font-weight: 600 !important; }
 </style>
 """, unsafe_allow_html=True)
+
 
 try:
     st.sidebar.image("logo.png", use_container_width=True)
