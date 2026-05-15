@@ -539,324 +539,190 @@ with tabs[2]:
                             time.sleep(1); st.rerun()
     except Exception as e: st.error(f"Error loading logistics data: {e}")
 
-# --- TAB 3: FINANCIALS ---
-with tabs[3]:
-    st.markdown("<h2 style='text-align: center;'>🏦 MASTER FINANCIAL LEDGER & EARNINGS</h2>", unsafe_allow_html=True)
-    try:
-        # 1. Fetch Margin Settings
-        settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct FROM platform_settings WHERE id = 1", conn)
-        if not settings_df.empty:
-            r_markup = float(settings_df.iloc[0]['renter_markup_pct'])
-            a_share = float(settings_df.iloc[0]['affiliate_share_pct'])
-        else:
-            r_markup = 0.07 
-            a_share = 0.85  
-
-        # 2. Pre-calculate Master Ledger Data (Used by multiple tabs)
-        query = """
-        SELECT b.id, b.booking_ref, b.pickup_time as Date, b.return_time, u_renter.full_name as Renter, u_owner.full_name as Affiliate,
-               b.amount as Total_Paid_By_Renter, b.status as Trip_Status, b.payout_status as Payout_Status,
-               b.gateway_fee, v.bank_name, v.account_no
-        FROM bookings b
-        JOIN vehicles v ON b.vehicle_id = v.id
-        JOIN platform_users u_renter ON b.renter_username = u_renter.username
-        JOIN platform_users u_owner ON v.owner_username = u_owner.username
-        WHERE b.status != 'PENDING' AND b.status != 'CANCELLED' AND b.status != 'VERIFYING'
-        ORDER BY b.id DESC
-        """
-        df = pd.read_sql_query(query, conn)
-
-        if not df.empty:
-            # Perform deep financial calculations on the whole dataset
-            df['gateway_fee'] = df['gateway_fee'].fillna(0)
-            df['pickup_dt'] = pd.to_datetime(df['Date'], errors='coerce')
-            df['return_dt'] = pd.to_datetime(df['return_time'], errors='coerce')
-            df['Total_Days'] = (df['return_dt'] - df['pickup_dt']).dt.ceil('D').dt.days
-            df['Total_Days'] = df['Total_Days'].fillna(1).clip(lower=1)
-            
-            df['Applied_Markup'] = np.where(df['Total_Days'] >= 4, r_markup, 0.0)
-            df['Platform_Gross_Cut'] = df['Total_Paid_By_Renter'] * (1 - (a_share / (1 + df['Applied_Markup'])))
-            TAX_RATE_L = 0.01 
-            df['Platform_Net_Profit'] = df['Platform_Gross_Cut'] - df['gateway_fee'] - (df['Total_Paid_By_Renter'] * TAX_RATE_L * 0.18)
-            df['Affiliate_Gross_Share'] = df['Total_Paid_By_Renter'] - df['Platform_Gross_Cut']
-            df['EWT_Deduction'] = df['Affiliate_Gross_Share'] * TAX_RATE_L
-            df['Affiliate_Net_Payout'] = df['Affiliate_Gross_Share'] - df['EWT_Deduction']
-            df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
-
-        # 3. Build the Tab UI
-        f_tabs = st.tabs(["📊 REVENUE DASHBOARD", "💸 BPI VERIFICATION", "📑 MASTER LEDGER", "📤 PROCESS PAYOUTS", "🖨️ ISSUE RECEIPTS"])
-
-        # --- SUB-TAB: REVENUE DASHBOARD ---
-        with sub_tabs[0]: # (Make sure this matches your Revenue tab index!)
-            st.markdown("### 📊 Platform Revenue Overview")
-            
-            try:
-                # 1. Fetch only COMPLETED trips (Realized Revenue)
-                rev_df = pd.read_sql_query("SELECT amount, pickup_time FROM bookings WHERE status = 'COMPLETED'", conn)
+# ==========================================
+# 💰 MASTER FINANCIALS SECTION
+# ==========================================
+with tabs[3]: # Make sure this index matches your FINANCIALS tab!
+    st.markdown("<h2 style='text-align: center;'>🏢 MASTER FINANCIAL LEDGER & EARNINGS</h2>", unsafe_allow_html=True)
+    
+    # 🚨 This is the crucial line that creates the doorways!
+    sub_tabs = st.tabs(["📊 REVENUE DASHBOARD", "💸 BPI VERIFICATION", "📑 MASTER LEDGER", "📤 PROCESS PAYOUTS", "🖨️ ISSUE RECEIPTS"])
+    
+    # ---------------------------------------------------------
+    # SUB-TAB 0: REVENUE DASHBOARD
+    # ---------------------------------------------------------
+    with sub_tabs[0]:
+        st.markdown("### 📊 Platform Revenue Overview")
+        try:
+            rev_df = pd.read_sql_query("SELECT amount, pickup_time FROM bookings WHERE status = 'COMPLETED'", conn)
+            if not rev_df.empty:
+                rev_df['pickup_time'] = pd.to_datetime(rev_df['pickup_time'])
+                rev_df['amount'] = pd.to_numeric(rev_df['amount'], errors='coerce').fillna(0)
                 
-                if not rev_df.empty:
-                    # Convert text timestamps to real Datetime math
-                    rev_df['pickup_time'] = pd.to_datetime(rev_df['pickup_time'])
-                    rev_df['amount'] = pd.to_numeric(rev_df['amount'], errors='coerce').fillna(0)
-                    
-                    now = pd.Timestamp.now()
-                    
-                    # 2. Calculate the Running Totals
-                    monthly_rev = rev_df[(rev_df['pickup_time'].dt.month == now.month) & (rev_df['pickup_time'].dt.year == now.year)]['amount'].sum()
-                    quarterly_rev = rev_df[(rev_df['pickup_time'].dt.quarter == now.quarter) & (rev_df['pickup_time'].dt.year == now.year)]['amount'].sum()
-                    yearly_rev = rev_df[rev_df['pickup_time'].dt.year == now.year]['amount'].sum()
-                    total_rev = rev_df['amount'].sum()
-                    
-                    # 3. Render the Crystal Elite Metrics
-                    col1, col2, col3, col4 = st.columns(4)
-                    with col1: 
-                        with st.container(border=True): st.metric("This Month", f"₱{monthly_rev:,.2f}")
-                    with col2: 
-                        with st.container(border=True): st.metric("This Quarter", f"₱{quarterly_rev:,.2f}")
-                    with col3: 
-                        with st.container(border=True): st.metric("This Year", f"₱{yearly_rev:,.2f}")
-                    with col4: 
-                        with st.container(border=True): st.metric("All-Time Gross", f"₱{total_rev:,.2f}")
+                now = pd.Timestamp.now()
+                monthly_rev = rev_df[(rev_df['pickup_time'].dt.month == now.month) & (rev_df['pickup_time'].dt.year == now.year)]['amount'].sum()
+                quarterly_rev = rev_df[(rev_df['pickup_time'].dt.quarter == now.quarter) & (rev_df['pickup_time'].dt.year == now.year)]['amount'].sum()
+                yearly_rev = rev_df[rev_df['pickup_time'].dt.year == now.year]['amount'].sum()
+                total_rev = rev_df['amount'].sum()
                 
-                else:
-                    st.info("Vault is clean. Revenue metrics will generate automatically as soon as the first trip is COMPLETED!")
-            
-            except Exception as e:
-                st.error(f"Could not calculate revenue: {e}")
-
-        # --- SUB-TAB 1: BPI VERIFICATION ---
-        with f_tabs[1]:
-            st.markdown("### 🔍 Awaiting Payment Verification")
-            
-            query_pending = """
-                SELECT b.*, u.full_name as renter_name, u.email as renter_email, 
-                       v.make, v.model, v.plate 
-                FROM bookings b 
-                JOIN platform_users u ON b.renter_username = u.username 
-                JOIN vehicles v ON b.vehicle_id = v.id
-                WHERE b.status = 'PENDING' OR b.status = 'VERIFYING'
-                ORDER BY b.id DESC
-            """
-            pending_pay = pd.read_sql_query(query_pending, conn)
-            
-            if pending_pay.empty: 
-                st.info("No payments currently awaiting verification.")
+                col1, col2, col3, col4 = st.columns(4)
+                with col1: 
+                    with st.container(border=True): st.metric("This Month", f"₱{monthly_rev:,.2f}")
+                with col2: 
+                    with st.container(border=True): st.metric("This Quarter", f"₱{quarterly_rev:,.2f}")
+                with col3: 
+                    with st.container(border=True): st.metric("This Year", f"₱{yearly_rev:,.2f}")
+                with col4: 
+                    with st.container(border=True): st.metric("All-Time Gross", f"₱{total_rev:,.2f}")
             else:
-                for _, row in pending_pay.iterrows():
+                st.info("Vault is clean. Revenue metrics will generate automatically as soon as the first trip is COMPLETED!")
+        except Exception as e:
+            st.error(f"Could not calculate revenue: {e}")
+
+    # ---------------------------------------------------------
+    # SUB-TAB 1: BPI VERIFICATION
+    # ---------------------------------------------------------
+    with sub_tabs[1]:
+        st.markdown("### 💸 Manual Payment Verification")
+        st.write("Review renter bank transfer receipts to officially lock in their dates.")
+        try:
+            ver_df = pd.read_sql_query("SELECT * FROM bookings WHERE status = 'VERIFYING'", conn)
+            if ver_df.empty:
+                st.success("All caught up! No pending bank transfers to verify.")
+            else:
+                for _, b in ver_df.iterrows():
                     with st.container(border=True):
-                        st.write(f"**Ref:** #{row['booking_ref']} | **Renter:** {row['renter_name']}")
-                        st.write(f"**Vehicle:** {row['make']} {row['model']} ({row['plate']})")
-                        st.write(f"**Amount to Verify:** :blue[₱{row['amount']:,.2f}]")
+                        st.markdown(f"**Ref #{b['booking_ref']}** | Renter: {b['renter_username']} | Amount Expected: ₱{b['amount']:,.2f}")
                         
-                        if row.get('receipt_img'):
-                            with st.expander("👁️ View Uploaded Payment Receipt"):
-                                st.image(row['receipt_img'], caption="Renter's Uploaded Proof of Payment")
+                        if b.get('receipt_img'):
+                            st.image(b['receipt_img'], caption="Uploaded BPI Receipt", width=300)
                         else:
-                            st.warning("⏳ Renter has not uploaded a receipt yet.")
-
-                        c1, c2 = st.columns(2)
-                        
-                        if c1.button("✅ CONFIRM & SEND RECEIPT", key=f"vpay_{row['id']}", type="primary", use_container_width=True):
-                            with st.spinner("Confirming payment and generating PDF receipt..."):
-                                conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE id = ?", (row['id'],))
-                                conn.commit()
-                                
-                                travel_dates = f"{str(row['pickup_time'])[:10]} to {str(row['return_time'])[:10]}"
-                                vehicle_str = f"{row['make']} {row['model']}"
-                                
-                                pdf_bytes = generate_booking_receipt(
-                                    ref_no=row['booking_ref'], renter_name=row['renter_name'], 
-                                    vehicle=vehicle_str, plate=row['plate'], travel_dates=travel_dates, 
-                                    amount=row['amount'], pickup_loc=row.get('pickup_loc', 'N/A'), 
-                                    return_loc=row.get('return_loc', 'N/A')
-                                )
-                                
-                                if row['renter_email']:
-                                    subject = f"DriveElite: Payment Confirmed - Official Receipt (#{row['booking_ref']})"
-                                    body = f"Hello {row['renter_name']},\n\nYour payment has been successfully verified! Your booking for the {vehicle_str} is now CONFIRMED.\n\nPlease find your Official Booking Receipt attached to this email.\n\nThank you for choosing DriveElite!"
-                                    send_pdf_email(row['renter_email'], subject, body, pdf_bytes, f"Receipt_{row['booking_ref']}.pdf")
-                                
-                                st.success("✅ Payment Confirmed and Receipt emailed to the Renter!")
-                                time.sleep(2)
-                                st.rerun()
-                        
-                        if c2.button("❌ REJECT & FREE CAR", key=f"rej_{row['id']}", use_container_width=True):
-                            conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE id = ?", (row['id'],))
+                            st.warning("No image found in database for this receipt.")
+                            
+                        c_app, c_rej = st.columns(2)
+                        if c_app.button("✅ APPROVE PAYMENT", key=f"app_pay_{b['id']}", use_container_width=True):
+                            conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE id = ?", (b['id'],))
                             conn.commit()
-                            st.error(f"Booking #{row['booking_ref']} cancelled. The vehicle calendar is now free.")
-                            time.sleep(2)
+                            st.success("Payment Approved! Handover unlocked.")
+                            time.sleep(1)
                             st.rerun()
+                            
+                        if c_rej.button("❌ REJECT (INVALID)", key=f"rej_pay_{b['id']}", use_container_width=True):
+                            conn.execute("UPDATE bookings SET status = 'PENDING', receipt_img = NULL WHERE id = ?", (b['id'],))
+                            conn.commit()
+                            st.error("Receipt Rejected. Renter must upload a new one.")
+                            time.sleep(1)
+                            st.rerun()
+        except Exception as e:
+            st.error(f"Error loading verifications: {e}")
 
-        # --- SUB-TAB 2: MASTER LEDGER ---
-        with f_tabs[2]:
-            if df.empty:
-                st.info("No completed financial transactions recorded yet.")
+    # ---------------------------------------------------------
+    # SUB-TAB 2: MASTER LEDGER
+    # ---------------------------------------------------------
+    with sub_tabs[2]:
+        st.markdown("### 📑 The Master Ledger")
+        st.write("Raw financial data for all system transactions.")
+        try:
+            ledger_df = pd.read_sql_query("""
+                SELECT id, booking_ref, renter_username, vehicle_id, amount, status, pickup_time 
+                FROM bookings ORDER BY id DESC
+            """, conn)
+            if not ledger_df.empty:
+                st.dataframe(ledger_df, use_container_width=True, hide_index=True)
             else:
-                st.caption(f"Calculated based on Admin Margins: Renter Fee ({r_markup*100}% - Waived for <4 days) | Owner Share ({a_share*100}%)")
-                display_cols = ['Ref', 'Date', 'Total_Days', 'Affiliate', 'Total_Paid_By_Renter', 'gateway_fee', 'EWT_Deduction', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
-                styled_ledger = df[display_cols].style.format({
-                    'Total_Paid_By_Renter': '{:,.2f}', 'gateway_fee': '{:,.2f}', 'EWT_Deduction': '{:,.2f}', 
-                    'Affiliate_Net_Payout': '{:,.2f}', 'Platform_Net_Profit': '{:,.2f}'
-                })
-                st.dataframe(styled_ledger, use_container_width=True, hide_index=True)
+                st.info("The ledger is currently empty.")
+        except Exception as e:
+            st.error(f"Could not load ledger: {e}")
 
-        # --- SUB-TAB 3: PROCESS PAYOUTS ---
-        with f_tabs[3]:
-            if not df.empty:
-                pending_p = df[(df['Trip_Status'] == 'COMPLETED') & (df['Payout_Status'] == 'PENDING')]
-                if pending_p.empty: st.info("No pending payouts at this time.")
-                for _, p in pending_p.iterrows():
-                    with st.expander(f"{p['Ref']} | {p['Affiliate']} | Net: ₱{p['Affiliate_Net_Payout']:,.2f}"):
-                        st.write(f"**Final Remittance:** ₱{p['Affiliate_Net_Payout']:,.2f}")
-                        if st.button("MARK AS PAID", key=f"p_{p['id']}", type="primary", use_container_width=True):
+    # ---------------------------------------------------------
+    # SUB-TAB 3: PROCESS PAYOUTS
+    # ---------------------------------------------------------
+    with sub_tabs[3]:
+        st.markdown("### 📤 Affiliate Payout Center")
+        st.write("Process final settlements for Affiliates after their trips are closed out.")
+        try:
+            payout_df = pd.read_sql_query("""
+                SELECT b.*, v.make, v.model, v.owner_username, v.bank_name, v.account_no 
+                FROM bookings b JOIN vehicles v ON b.vehicle_id = v.id 
+                WHERE b.status = 'COMPLETED' AND b.payout_status = 'PENDING'
+            """, conn)
+            
+            if payout_df.empty:
+                st.success("No pending payouts at this time!")
+            else:
+                for _, p in payout_df.iterrows():
+                    with st.container(border=True):
+                        st.markdown(f"#### Trip Ref: #{p['booking_ref']}")
+                        st.write(f"**Affiliate:** {p['owner_username']} | **Vehicle:** {p['make']} {p['model']}")
+                        st.write(f"**Bank Details:** {p['bank_name']} - {p['account_no']}")
+                        
+                        # Affiliate Share Math
+                        base_amt = float(p['amount']) if pd.notnull(p['amount']) else 0.0
+                        share = base_amt * 0.85 # Assumes 85% share
+                        
+                        # Add any extra fees the Renter owed during closeout
+                        late = float(p.get('late_fee', 0.0))
+                        fuel = float(p.get('fuel_fee', 0.0))
+                        clean = float(p.get('cleaning_fee', 0.0))
+                        damage = float(p.get('damage_fee', 0.0))
+                        rfid = float(p.get('rfid_fee', 0.0))
+                        
+                        total_extras = late + fuel + clean + damage + rfid
+                        final_payout = share + max(0.0, total_extras - 5000.0) # Add extras exceeding deposit
+                        
+                        st.markdown(f"<h3 style='color: #27ae60;'>Amount to Send: ₱{final_payout:,.2f}</h3>", unsafe_allow_html=True)
+                        
+                        if st.button("Mark as PAID", key=f"pay_{p['id']}", type="primary"):
                             conn.execute("UPDATE bookings SET payout_status = 'PAID' WHERE id = ?", (p['id'],))
                             conn.commit()
-                            st.success("Marked as Paid!")
-                            time.sleep(1); st.rerun()
-
-        # --- SUB-TAB 4: ISSUE RECEIPTS ---
-        with f_tabs[4]:
-            if not df.empty:
-                st.markdown("#### 🖨️ Download Official PDF Receipts")
-                st.write("Manually generate and download the official DriveElite PDF Booking Receipt for any past transaction.")
-                
-                tx_options = ["-- Select a Transaction --"] + df['Ref'].tolist()
-                selected_tx = st.selectbox("Select Transaction Reference:", tx_options)
-                
-                if selected_tx != "-- Select a Transaction --":
-                    ref_clean = selected_tx.replace("#", "")
-                    
-                    query_receipt = """
-                        SELECT b.*, u_renter.full_name as renter_name, v.make, v.model, v.plate
-                        FROM bookings b
-                        JOIN platform_users u_renter ON b.renter_username = u_renter.username
-                        JOIN vehicles v ON b.vehicle_id = v.id
-                        WHERE b.booking_ref = ?
-                    """
-                    try:
-                        receipt_data = pd.read_sql_query(query_receipt, conn, params=(ref_clean,))
-                        
-                        if not receipt_data.empty:
-                            r_row = receipt_data.iloc[0]
-                            
-                            travel_dates = f"{str(r_row['pickup_time'])[:10]} to {str(r_row['return_time'])[:10]}"
-                            vehicle_str = f"{r_row['make']} {r_row['model']}"
-                            
-                            pdf_bytes = generate_booking_receipt(
-                                ref_no=r_row['booking_ref'], renter_name=r_row['renter_name'], 
-                                vehicle=vehicle_str, plate=r_row['plate'], travel_dates=travel_dates, 
-                                amount=r_row['amount'], pickup_loc=r_row.get('pickup_loc', 'N/A'), 
-                                return_loc=r_row.get('return_loc', 'N/A')
-                            )
-                            
-                            st.success(f"✅ PDF Receipt Generated for {r_row['renter_name']}!")
-                            st.download_button(
-                                label=f"📥 DOWNLOAD OFFICIAL PDF RECEIPT (#{ref_clean})",
-                                data=pdf_bytes, file_name=f"Official_Receipt_{ref_clean}.pdf",
-                                mime="application/pdf", type="primary", use_container_width=True
-                            )
-                        else:
-                            st.warning("Could not find full booking details for this transaction.")
-                    except Exception as e:
-                        st.error(f"Error generating PDF: {e}")
-
-    except Exception as e:
-        st.error(f"Financial Error: {e}")
-
-# --- TAB 4: FILING CABINET ---
-with tabs[4]: 
-    st.header("🗄️ Master Digital Filing Cabinet")
-    st.write("View legally binding contracts, download them, or instantly email a copy to the user.")
-    if os.path.exists("/data/uploads"):
-        all_files = os.listdir("/data/uploads")
-        pdf_files = [f for f in all_files if f.endswith('.pdf')]
-        
-        if len(pdf_files) > 0:
-            st.divider()
-            role_filter = st.radio("Filter Contracts:", ["All", "💼 Affiliates (MOA)", "🚙 Renters (Agreements)"], horizontal=True)
-            st.divider()
-            
-            if role_filter == "💼 Affiliates (MOA)": filtered_files = [f for f in pdf_files if f.startswith("MOA_")]
-            elif role_filter == "🚙 Renters (Agreements)": filtered_files = [f for f in pdf_files if f.startswith("RENTER_")]
-            else: filtered_files = pdf_files
-            
-            if not filtered_files: st.info(f"No documents found matching the filter.")
-            else:
-                cols = st.columns(4)
-                for i, file_name in enumerate(filtered_files):
-                    file_path = os.path.join("/data/uploads", file_name)
-                    display_card_text = file_name 
-                    uname, target_email = "", ""
-                    
-                    if file_name.startswith("MOA_") or file_name.startswith("RENTER_"):
-                        uname = file_name.replace("MOA_", "").replace("RENTER_", "").replace(".pdf", "")
-                        try:
-                            user_df = pd.read_sql_query("SELECT full_name, email FROM platform_users WHERE username=?", conn, params=(uname,))
-                            if not user_df.empty:
-                                target_email, full_name = user_df.iloc[0]['email'], user_df.iloc[0]['full_name']
-                                display_card_text = f"{full_name} / {uname}" if full_name else f"(@{uname})"
-                        except: pass 
-                    
-                    with cols[i % 4]:
-                        with st.container(border=True):
-                            st.write(f"📄 **{display_card_text}**")
-                            btn_col1, btn_col2 = st.columns(2)
-                            with btn_col1:
-                                with open(file_path, "rb") as pdf_file:
-                                    st.download_button(label="⬇️ DL", data=pdf_file.read(), file_name=file_name, mime="application/pdf", key=f"dl_{file_name}", use_container_width=True)
-                            with btn_col2:
-                                if st.button("📧 Email", key=f"em_{file_name}", use_container_width=True):
-                                    if not target_email: st.toast(f"❌ No email found for @{uname}", icon="⚠️")
-                                    else:
-                                        with st.spinner("Sending..."):
-                                            success, msg = send_email(
-                                                to_email=target_email, 
-                                                subject=f"Contract Copy: {file_name}", 
-                                                body="Please find your signed contract attached to this email.", 
-                                                attachment_path=file_path, 
-                                                attachment_name=file_name
-                                            )
-                                            if success: st.toast(f"✅ Contract sent to {target_email}", icon="🚀")
-                                            else: st.error(f"Failed: {msg}")
-        else: st.info("No contracts have been signed yet.")
-    else: st.warning("The uploads folder does not exist yet. It will be created when the first user registers.")
-
-# --- TAB 5: PROMOS & DB ---
-with tabs[5]:
-    render_platform_settings(conn)
-    st.divider()
-    render_admin_discount_table(conn)
-    st.divider()
-
-    col_promo, col_cat = st.columns(2)
-    with col_promo:
-        st.subheader("📢 Broadcast Manager")
-        try:
-            current_active = pd.read_sql_query("SELECT id FROM admin_promos WHERE active = 1", conn)
-            banner_is_on = not current_active.empty
-            turn_on = st.toggle("📡 Master Broadcast Switch (Turn ON / OFF)", value=banner_is_on)
-            if turn_on != banner_is_on:
-                if turn_on: conn.execute("UPDATE admin_promos SET active = 1 WHERE id = (SELECT MAX(id) FROM admin_promos)")
-                else: conn.execute("UPDATE admin_promos SET active = 0")
-                conn.commit(); st.rerun()
+                            st.success(f"Marked as Paid to {p['owner_username']}!")
+                            time.sleep(1)
+                            st.rerun()
         except Exception as e:
-            st.warning(f"Could not load broadcast system: {e}")
-            
-        st.divider()
+            st.error(f"Error loading payouts: {e}")
 
-        with st.form("promo"):
-            t = st.text_input("Broadcast Title")
-            m = st.text_area("Broadcast Message")
-            target = st.radio("Target Audience:", ["RENTERS", "AFFILIATES", "ALL USERS"], horizontal=True)
-            if st.form_submit_button("PUBLISH NEW BROADCAST"):
-                if t and m:
-                    try: conn.execute("ALTER TABLE admin_promos ADD COLUMN target TEXT DEFAULT 'ALL USERS'"); conn.commit()
-                    except: pass
-                    conn.execute("UPDATE admin_promos SET active = 0")
-                    conn.execute("INSERT INTO admin_promos (title, message, target) VALUES (?, ?, ?)", (t, m, target))
-                    conn.commit()
-                    st.success(f"Live! Broadcast successfully published to {target}.")
-                    time.sleep(1); st.rerun()
+    # ---------------------------------------------------------
+    # SUB-TAB 4: ISSUE RECEIPTS
+    # ---------------------------------------------------------
+    with sub_tabs[4]:
+        st.markdown("### 🖨️ Download Official PDF Receipts")
+        st.write("Manually generate and download the official DriveElite PDF Booking Receipt for any past transaction.")
+        
+        target_ref = st.text_input("Select Transaction Reference:")
+        if target_ref:
+            try:
+                b_data = pd.read_sql_query("""
+                    SELECT b.*, v.make, v.model, r.full_name as renter_name
+                    FROM bookings b 
+                    JOIN vehicles v ON b.vehicle_id = v.id 
+                    JOIN platform_users r ON b.renter_username = r.username
+                    WHERE b.booking_ref = ?
+                """, conn, params=(target_ref,))
+                
+                if b_data.empty:
+                    st.error("Transaction not found. Check the reference number.")
+                else:
+                    b_row = b_data.iloc[0]
+                    travel_dates = f"{str(b_row['pickup_time'])[:10]} to {str(b_row['return_time'])[:10]}"
+                    
+                    if st.button("📄 GENERATE PDF RECEIPT", type="primary"):
+                        try:
+                            # Note: Make sure the generate_booking_receipt function is defined higher up in ADMIN_PORTAL.py
+                            pdf_bytes = generate_booking_receipt(
+                                str(b_row['booking_ref']), str(b_row['renter_name']), float(b_row['amount']), 
+                                f"{b_row['make']} {b_row['model']}", travel_dates, str(b_row['pickup_loc']), str(b_row['return_loc'])
+                            )
+                            st.download_button(
+                                label="⬇️ DOWNLOAD OFFICIAL RECEIPT",
+                                data=pdf_bytes,
+                                file_name=f"Official_Receipt_{b_row['booking_ref']}.pdf",
+                                mime="application/pdf",
+                                use_container_width=True
+                            )
+                        except Exception as e:
+                            st.error(f"Error generating PDF: {e}")
+            except Exception as e:
+                st.error(f"Database lookup error: {e}")
                     
     # ==========================================
     # 📈 CATEGORY MANAGER (BULLETPROOF SQL FIX)
