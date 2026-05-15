@@ -201,10 +201,12 @@ def clear_renter_chat(b_ref):
 
 def save_chat_image(img_file, b_ref):
     """Saves an uploaded image from the chat to the server."""
-    path = f"/data/uploads/chat_images/{b_ref}_{img_file.name}"
-    with open(path, "wb") as f:
-        f.write(img_file.getbuffer())
-    return path
+    if img_file:
+        path = f"/data/uploads/chat_images/{b_ref}_{img_file.name}"
+        with open(path, "wb") as f:
+            f.write(img_file.getbuffer())
+        return path
+    return ""
 
 # ==========================================
 # 5. AUTHENTICATION FLOW
@@ -291,7 +293,6 @@ with main_tabs[0]:
                                 # --- BOTTOM: POPOVER CHECKOUT MANAGER ---
                                 with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
                                     
-                                    # 🛠️ THE FIX: Appended _{cat} to every single key!
                                     stage_key = f"chk_stage_{car['id']}_{cat}"
                                     ref_key = f"pend_ref_{car['id']}_{cat}"
                                     if stage_key not in st.session_state: st.session_state[stage_key] = 0
@@ -393,16 +394,12 @@ with main_tabs[0]:
                                                 st.error("Error calculating rate. Please verify your functions.")
                                                 can_book = False
 
-                                        # --- 🚨 THE NEW RFID HARD STOP ---
                                         st.warning("💳 **RFID POLICY:** You must load your own toll funds. Excess load is **not refunded**. Empty RFID penalty: **₱100 fine** + toll costs.")
                                         
-                                        # Unique key added so it works inside your car loop!
                                         agree_to_rfid = st.checkbox("I agree to the RFID rules and ₱100 penalty.", key=f"rfid_agree_{car['id']}_{cat}")
-                                        
-                                        # Button is disabled if dates clash OR they haven't checked the box
                                         is_disabled = (not can_book) or (not agree_to_rfid)
 
-                                        if st.button("1. CONFIRM BOOKING (SOFT LOCK)", key=f"conf_{car['id']}_{cat}", type="primary", use_container_width=True, disabled=not can_book):
+                                        if st.button("1. CONFIRM BOOKING (SOFT LOCK)", key=f"conf_{car['id']}_{cat}", type="primary", use_container_width=True, disabled=is_disabled):
                                             if dest and p_exact and r_exact and luzon_agree:
                                                 with st.spinner("Securing your dates..."):
                                                     b_ref = str(random.randint(100000, 999999))
@@ -415,15 +412,12 @@ with main_tabs[0]:
                                                         conn.commit()
                                                         
                                                         try:
-                                                            import os
-                                                            
-                                                            # 🛠️ THE FIX: Look at Render first. If no Streamlit file exists, don't crash!
                                                             SECRET_KEY = os.environ.get("paymongo_active_key")
                                                             if not SECRET_KEY:
                                                                 try:
                                                                     SECRET_KEY = st.secrets.get("paymongo_active_key")
                                                                 except Exception:
-                                                                    pass # Ignore the missing Streamlit file error
+                                                                    pass 
                                                             
                                                             if not SECRET_KEY:
                                                                 st.error("🚨 Missing API Key: Please add 'paymongo_active_key' to your Render Environment Variables.")
@@ -446,7 +440,7 @@ with main_tabs[0]:
                                                                 st.success(f"✅ Booking Saved (Ref: #{b_ref})")
                                                                 st.markdown(f"### 💳 [👉 CLICK HERE TO PAY ₱{grand_total:,.2f} VIA PAYMONGO]({checkout_url})")
                                                                 st.info("Complete your payment using the link above. Our system will auto-verify shortly.")
-                                                        
+                                                                
                                                         except urllib.error.HTTPError as e:
                                                             error_info = e.read().decode()
                                                             st.error(f"PayMongo Rejected the Request: {error_info}")
@@ -494,7 +488,7 @@ with main_tabs[0]:
                                                 st.session_state[stage_key] = 0
                                                 del st.session_state[ref_key]
                                                 st.rerun()
-                                                
+                                            
                                             if c_val.button("2. VALIDATE PAYMENT SENT", type="primary", use_container_width=True, key=f"val_{car['id']}_{cat}"):
                                                 if receipt_file:
                                                     receipt_bytes = receipt_file.read()
@@ -516,3 +510,128 @@ with main_tabs[0]:
                                                         st.rerun()
                                                 else:
                                                     st.error("🚨 Please upload a screenshot of your receipt.")
+
+# ==========================================
+# 📅 MY BOOKINGS (MAIN TAB 1)
+# ==========================================
+with main_tabs[1]:
+    st.header("📅 My Booking History")
+    
+    try:
+        # Fetch all bookings for this specific renter
+        my_bookings = pd.read_sql_query("""
+            SELECT b.*, v.make, v.model, v.plate, v.owner_username
+            FROM bookings b
+            JOIN vehicles v ON b.vehicle_id = v.id
+            WHERE b.renter_username = ?
+            ORDER BY b.id DESC
+        """, conn, params=(renter_user,))
+        
+        if my_bookings.empty:
+            st.info("You haven't made any bookings yet. Head over to the Vehicle Showroom to start your journey!")
+        else:
+            for _, b in my_bookings.iterrows():
+                with st.container(border=True):
+                    c1, c2 = st.columns([3, 1])
+                    with c1:
+                        st.markdown(f"#### {b['make']} {b['model']} ({b['plate']})")
+                        b_ref = b.get('booking_ref') if pd.notnull(b.get('booking_ref')) else f"DRV-{b['id']:05d}"
+                        st.caption(f"Ref: #{b_ref} | Dates: {str(b['pickup_time'])[:10]} to {str(b['return_time'])[:10]}")
+                    
+                    with c2:
+                        if b['status'] == 'COMPLETED': st.success("COMPLETED")
+                        elif b['status'] == 'ONGOING': st.warning("ONGOING")
+                        elif b['status'] == 'VERIFYING': st.info("VERIFYING PAYMENT")
+                        else: st.info(b['status'])
+
+                    # --- CHAT SYSTEM (For Active Trips) ---
+                    if b['status'] in ['PENDING', 'VERIFYING', 'CONFIRMED', 'ONGOING']:
+                        st.divider()
+                        st.markdown("#### 💬 Message the Host")
+                        b_ref_str = str(b['booking_ref'])
+                        
+                        chat_win = st.container(height=300, border=True)
+                        with chat_win:
+                            try:
+                                msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref_str,))
+                                if msgs.empty:
+                                    st.info("👋 Chat is empty. Say hello to your host to coordinate the handover!")
+                                else:
+                                    for _, m in msgs.iterrows():
+                                        if m['sender_username'] == renter_user:
+                                            st.markdown(f"""
+                                            <div style="display: flex; justify-content: flex-end; margin-bottom: 5px;">
+                                                <div style="background-color: #2563EB; color: white; padding: 12px 16px; border-radius: 20px 20px 4px 20px; max-width: 75%; box-shadow: 1px 2px 5px rgba(0,0,0,0.2);">
+                                                    {m['message_text']}
+                                                </div>
+                                            </div>
+                                            """, unsafe_allow_html=True)
+                                            if m.get('image_path') and os.path.exists(m['image_path']): 
+                                                c_space, c_img = st.columns([2, 1])
+                                                with c_img: st.image(m['image_path'], use_container_width=True)
+                                        else:
+                                            st.markdown(f"""
+                                            <div style="display: flex; justify-content: flex-start; margin-bottom: 5px;">
+                                                <div style="background-color: #2b2b2b; color: white; padding: 12px 16px; border-radius: 20px 20px 20px 4px; max-width: 75%; border: 1px solid #444; box-shadow: 1px 2px 5px rgba(0,0,0,0.2);">
+                                                    <div class="sender-tag" style="color: #cbd5e1; font-size: 0.8em; margin-bottom: 4px;">@{m['sender_username']} (Host)</div>
+                                                    {m['message_text']}
+                                                </div>
+                                            </div>
+                                            """, unsafe_allow_html=True)
+                                            if m.get('image_path') and os.path.exists(m['image_path']): 
+                                                c_img, c_space = st.columns([1, 2])
+                                                with c_img: st.image(m['image_path'], use_container_width=True)
+                            except Exception as e:
+                                st.error("Could not load chat.")
+
+                        c_img, c_msg = st.columns([1, 4])
+                        with c_img: 
+                            r_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"r_img_{b_ref_str}", label_visibility="collapsed")
+                        with c_msg: 
+                            st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_renter_chat, args=(b_ref_str,), placeholder="Type message and press Enter...")
+
+                        btn_clicked = st.button("Send", key=f"r_btn_{b_ref_str}", use_container_width=True)
+                        enter_pressed = st.session_state.get(f"trigger_send_{b_ref_str}", False)
+
+                        if btn_clicked or enter_pressed:
+                            box_val = st.session_state.get(f"chat_{b_ref_str}", "")
+                            final_text = st.session_state.temp_msg_renter if enter_pressed else box_val
+                            
+                            has_text = bool(final_text.strip())
+                            has_img = bool(r_img)
+                            
+                            if has_text or has_img:
+                                img_path = save_chat_image(r_img, b_ref_str) if has_img else ""
+                                text_to_save = final_text if has_text else "📸 Sent a photo."
+                                
+                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                            (b_ref_str, renter_user, b['owner_username'], text_to_save, img_path))
+                                conn.commit()
+                                st.session_state.temp_msg_renter = ""
+                                st.session_state[f"chat_{b_ref_str}"] = ""
+                                st.session_state[f"trigger_send_{b_ref_str}"] = False
+                                st.rerun()
+
+                    # --- THE REVIEW SYSTEM ---
+                    if b['status'] == 'COMPLETED':
+                        st.divider()
+                        if pd.isna(b['rating']) or b['rating'] == "" or b['rating'] == 0:
+                            with st.expander("⭐ Leave a Review for this Trip!", expanded=True):
+                                with st.form(key=f"rev_form_{b['id']}"):
+                                    new_rating = st.slider("Rate your experience (1-5 Stars)", min_value=1, max_value=5, value=5)
+                                    new_review = st.text_area("Share your thoughts about the vehicle and host...")
+                                    
+                                    if st.form_submit_button("Submit Review", type="primary"):
+                                        conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (new_rating, new_review, b['id']))
+                                        conn.commit()
+                                        st.success("Thank you! Your review has been published.")
+                                        time.sleep(1.5)
+                                        st.rerun()
+                        else:
+                            stars = int(float(b['rating'])) * '⭐'
+                            st.markdown(f"**Your Rating:** {stars}")
+                            if pd.notna(b['review']) and str(b['review']).strip():
+                                st.info(f"💬 \"{b['review']}\"")
+                                
+    except Exception as e:
+        st.error(f"Could not load bookings: {e}")
