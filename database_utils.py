@@ -10,6 +10,8 @@ def get_connection():
     Creates a connection to the SQLite database.
     Added timeout=15.0 to prevent 'Database is locked' errors during concurrent writes.
     """
+    # Ensure the /data directory actually exists before trying to connect
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     return sqlite3.connect(DB_PATH, check_same_thread=False, timeout=15.0)
 
 # --- 2. TABLE INITIALIZATION ---
@@ -52,7 +54,7 @@ def init_db():
     conn.execute('''CREATE TABLE IF NOT EXISTS vehicles (
                     id INTEGER PRIMARY KEY AUTOINCREMENT, owner_username TEXT, make TEXT, model TEXT,
                     year TEXT, plate TEXT, bank_name TEXT, account_no TEXT, vehicle_img TEXT,
-                    or_cr_img TEXT, insurance_img TEXT, category TEXT, approved_price REAL, 
+                    or_cr_img TEXT, or_img TEXT, cr_img TEXT, insurance_img TEXT, category TEXT, approved_price REAL, 
                     daily_rate REAL, admin_status TEXT DEFAULT 'PENDING', 
                     booking_status TEXT DEFAULT 'AVAILABLE', ref_no TEXT)''')
 
@@ -85,33 +87,51 @@ def init_db():
 def patch_database():
     """Safely injects missing columns into the database without losing data."""
     conn = get_connection()
-    try: 
-        conn.execute("ALTER TABLE bookings ADD COLUMN gateway_fee REAL DEFAULT 0.0")
+    
+    # Financial Patches
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN gateway_fee REAL DEFAULT 0.0")
     except: pass
     
-    try: 
-        conn.execute("ALTER TABLE bookings ADD COLUMN receipt_img BLOB")
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN receipt_img BLOB")
     except: pass
     
-    # --- NEW PATCH: Injecting the missing evidence columns ---
-    try: 
-        conn.execute("ALTER TABLE bookings ADD COLUMN handover_photos TEXT")
+    # Handover Patches
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN handover_photos TEXT")
     except: pass
     
-    try: 
-        conn.execute("ALTER TABLE bookings ADD COLUMN damage_img TEXT")
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN damage_img TEXT")
+    except: pass
+
+    # --- Vehicle Document Split (Required for Affiliate Portal) ---
+    try: conn.execute("ALTER TABLE vehicles ADD COLUMN or_img TEXT")
+    except: pass
+
+    try: conn.execute("ALTER TABLE vehicles ADD COLUMN cr_img TEXT")
     except: pass
     
+    # --- New Fee Categories (Required for Settlement Logic) ---
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN damage_fee REAL DEFAULT 0.0")
+    except: pass
+
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN late_fee REAL DEFAULT 0.0")
+    except: pass
+
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN fuel_fee REAL DEFAULT 0.0")
+    except: pass
+
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN cleaning_fee REAL DEFAULT 0.0")
+    except: pass
+
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN rfid_fee REAL DEFAULT 0.0")
+    except: pass
+
+    try: conn.execute("ALTER TABLE bookings ADD COLUMN dispute_status TEXT DEFAULT 'CLEAN'")
+    except: pass
+
     conn.commit()
     conn.close()
 
 # --- 4. EXECUTION ON LOAD ---
 # This ensures that whenever database_utils is imported, the DB is ready to go.
-if not os.path.exists(os.path.dirname(DB_PATH)):
-    try:
-        os.makedirs(os.path.dirname(DB_PATH))
-    except:
-        pass # In case of permissions issues on local dev
-
 init_db()
 patch_database()
