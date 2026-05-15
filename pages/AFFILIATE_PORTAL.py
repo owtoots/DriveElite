@@ -895,18 +895,21 @@ with tabs[2]:
             if ma and mo and pl and bn and an and vi and len(or_cr_files) >= 1 and ins:
                 new_ref_no = str(random.randint(100000, 999999))
                 
+                # Safely save the files exactly once and store their string paths
+                car_img_path = save_file(vi)
                 or_path = save_file(or_cr_files[0]) if len(or_cr_files) > 0 else ""
                 cr_path = save_file(or_cr_files[1]) if len(or_cr_files) > 1 else or_path
+                ins_path = save_file(ins)
                 
                 conn.execute("""
                     INSERT INTO vehicles (owner_username, make, model, year, plate, bank_name, account_no, vehicle_img, or_img, cr_img, insurance_img, category, approved_price, ref_no, admin_status, booking_status) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE')
-                """, (st.session_state.username, ma.title(), mo.title(), ye, pl.upper(), bn, an, save_file(vi), or_path, cr_path, save_file(ins), cat, FIXED_RATES.get(cat,0), new_ref_no))
+                """, (st.session_state.username, ma.title(), mo.title(), ye, pl.upper(), bn, an, car_img_path, or_path, cr_path, ins_path, cat, FIXED_RATES.get(cat,0), new_ref_no))
                 
                 conn.commit()
                 st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
             else: 
-                st.error("Please fill all required fields and upload all documents (At least 1 OR/CR file is required).")
+                st.error("Please fill all required fields and upload all documents (At least 1 OR/CR file is required).")equired).")
 
 # --- TAB 3: ADD DRIVER ---
 with tabs[3]:
