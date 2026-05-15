@@ -613,16 +613,21 @@ with main_tabs[1]:
                                 st.rerun()
 
                     # --- THE REVIEW SYSTEM ---
-                    if b['status'] == 'COMPLETED':
-                        st.divider()
-                        if pd.isna(b['rating']) or b['rating'] == "" or b['rating'] == 0:
+                    if pd.isna(b['rating']) or b['rating'] == "" or b['rating'] == 0:
                             with st.expander("⭐ Leave a Review for this Trip!", expanded=True):
-                                with st.form(key=f"rev_form_{b['id']}"):
-                                    new_rating = st.slider("Rate your experience (1-5 Stars)", min_value=1, max_value=5, value=5)
-                                    new_review = st.text_area("Share your thoughts about the vehicle and host...")
-                                    
-                                    if st.form_submit_button("Submit Review", type="primary"):
-                                        conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (new_rating, new_review, b['id']))
+                                
+                                st.write("**Rate your experience:**")
+                                # Native interactive stars (returns 0 for 1 star, 4 for 5 stars)
+                                star_click = st.feedback("stars", key=f"stars_{b['id']}")
+                                
+                                new_review = st.text_area("Share your thoughts about the vehicle and host...", key=f"rev_text_{b['id']}")
+                                
+                                if st.button("Submit Review", type="primary", key=f"sub_rev_{b['id']}"):
+                                    if star_click is None:
+                                        st.error("🚨 Please click on the stars to leave a rating!")
+                                    else:
+                                        final_rating = star_click + 1  # Converts 0-4 math to a 1-5 scale
+                                        conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (final_rating, new_review, b['id']))
                                         conn.commit()
                                         st.success("Thank you! Your review has been published.")
                                         time.sleep(1.5)
