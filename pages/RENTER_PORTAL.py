@@ -239,13 +239,13 @@ with col_r:
 st.divider()
 
 # ==========================================
-# 📢 STATIC BROADCAST BANNER (Green, Centered, Bigger)
+# 📢 STATIC BROADCAST BANNER (Color Coordinated)
 # ==========================================
 try:
     # ⚠️ IMPORTANT: 
     # Use ('RENTER', 'ALL USERS') for your Renter script.
     # Use ('AFFILIATE', 'ALL USERS') for your Affiliate script.
-    promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('RENTER', 'ALL USERS') LIMIT 1", conn)
+    promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('AFFILIATE', 'ALL USERS') LIMIT 1", conn)
     
     if not promo_df.empty:
         title = promo_df.iloc[0]['title']
@@ -255,18 +255,19 @@ try:
             <style>
             .broadcast-box {{ 
                 padding: 25px 20px; 
-                background-color: #27ae60; /* Professional Solid Green */
+                background-color: #2563EB; /* Brand Blue - Matches your buttons */
                 color: white; 
                 border-radius: 12px; 
                 margin-bottom: 25px; 
-                text-align: center; /* Centers the text */
-                font-size: 22px; /* Makes the text significantly bigger */
-                display: flex; /* Flexbox for perfect center-to-center alignment */
+                text-align: center; 
+                font-size: 22px; 
+                display: flex; 
                 flex-direction: row;
                 justify-content: center;
                 align-items: center;
-                flex-wrap: wrap; /* Allows wrapping on smaller screens */
+                flex-wrap: wrap; 
                 box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.15); /* Adds a subtle premium shine */
             }}
             .broadcast-title {{
                 font-weight: 900;
@@ -280,6 +281,7 @@ try:
             </div>
         """, unsafe_allow_html=True)
 except Exception: pass 
+# ==========================================
 # ==========================================
 # ==========================================
 
