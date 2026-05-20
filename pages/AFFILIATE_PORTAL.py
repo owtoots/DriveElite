@@ -411,10 +411,13 @@ with top_col2:
 st.divider()
 
 # ==========================================
-# 📢 STATIC BROADCAST BANNER
+# 📢 STATIC BROADCAST BANNER (Green, Centered, Bigger)
 # ==========================================
 try:
-    promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('AFFILIATE', 'ALL USERS') LIMIT 1", conn)
+    # ⚠️ IMPORTANT: 
+    # Use ('RENTER', 'ALL USERS') for your Renter script.
+    # Use ('AFFILIATE', 'ALL USERS') for your Affiliate script.
+    promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('RENTER', 'ALL USERS') LIMIT 1", conn)
     
     if not promo_df.empty:
         title = promo_df.iloc[0]['title']
@@ -423,17 +426,33 @@ try:
         st.markdown(f"""
             <style>
             .broadcast-box {{ 
-                padding: 15px; 
-                background-color: #ff4b4b; 
+                padding: 25px 20px; 
+                background-color: #27ae60; /* Professional Solid Green */
                 color: white; 
-                border-radius: 10px; 
-                margin-bottom: 20px; 
-                border-left: 5px solid #800000; 
+                border-radius: 12px; 
+                margin-bottom: 25px; 
+                text-align: center; /* Centers the text */
+                font-size: 22px; /* Makes the text significantly bigger */
+                display: flex; /* Flexbox for perfect center-to-center alignment */
+                flex-direction: row;
+                justify-content: center;
+                align-items: center;
+                flex-wrap: wrap; /* Allows wrapping on smaller screens */
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }}
+            .broadcast-title {{
+                font-weight: 900;
+                margin-right: 12px;
+                letter-spacing: 0.5px;
             }}
             </style>
-            <div class="broadcast-box"><strong>📢 {title}:</strong> {msg}</div>
+            <div class="broadcast-box">
+                <span class="broadcast-title">📢 {title}:</span> 
+                <span>{msg}</span>
+            </div>
         """, unsafe_allow_html=True)
 except Exception: pass 
+# ==========================================
 # ========================================== 
 # ==========================================
 
