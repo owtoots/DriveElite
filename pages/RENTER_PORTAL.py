@@ -266,8 +266,6 @@ except Exception: pass
 
 main_tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
 
-main_tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
-
 # ==========================================
 # 🚘 RENTER SHOWROOM (MAIN TAB 0)
 # ==========================================
