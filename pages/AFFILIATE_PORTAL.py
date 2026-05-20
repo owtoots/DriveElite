@@ -411,10 +411,10 @@ with top_col2:
 st.divider()
 
 # ==========================================
-# 📢 SMART COLOR-CHANGING BROADCAST BANNER
+# 📢 STATIC BROADCAST BANNER
 # ==========================================
 try:
-    promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('AFFILIATES', 'ALL USERS') LIMIT 1", conn)
+    promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('AFFILIATE', 'ALL USERS') LIMIT 1", conn)
     
     if not promo_df.empty:
         title = promo_df.iloc[0]['title']
@@ -422,12 +422,19 @@ try:
         
         st.markdown(f"""
             <style>
-            @keyframes slow-prefix {{ 0% {{ opacity: 0.8; }} 50% {{ opacity: 1; }} 100% {{ opacity: 0.8; }} }}
-            .broadcast-box {{ padding: 15px; background-color: #ff4b4b; color: white; border-radius: 10px; margin-bottom: 20px; border-left: 5px solid #800000; animation: slow-prefix 3s infinite ease-in-out; }}
+            .broadcast-box {{ 
+                padding: 15px; 
+                background-color: #ff4b4b; 
+                color: white; 
+                border-radius: 10px; 
+                margin-bottom: 20px; 
+                border-left: 5px solid #800000; 
+            }}
             </style>
             <div class="broadcast-box"><strong>📢 {title}:</strong> {msg}</div>
         """, unsafe_allow_html=True)
 except Exception: pass 
+# ========================================== 
 # ==========================================
 
 # --- TABS ---
