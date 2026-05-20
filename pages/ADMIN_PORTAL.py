@@ -707,16 +707,39 @@ with tabs[5]:
         with st.form("promo"):
             t = st.text_input("Broadcast Title")
             m = st.text_area("Broadcast Message")
+            # Keep the UI friendly (plural), but we will map these to DB roles below
             target = st.radio("Target Audience:", ["RENTERS", "AFFILIATES", "ALL USERS"], horizontal=True)
+            
             if st.form_submit_button("PUBLISH NEW BROADCAST"):
                 if t and m:
-                    try: conn.execute("ALTER TABLE admin_promos ADD COLUMN target TEXT DEFAULT 'ALL USERS'"); conn.commit()
-                    except: pass
+                    # 1. Ensure column exists
+                    try: 
+                        conn.execute("ALTER TABLE admin_promos ADD COLUMN target TEXT DEFAULT 'ALL USERS'")
+                        conn.commit()
+                    except: 
+                        pass
+                    
+                    # 2. Map UI text to your actual singular database roles
+                    target_map = {
+                        "RENTERS": "RENTER", 
+                        "AFFILIATES": "AFFILIATE", 
+                        "ALL USERS": "ALL USERS"
+                    }
+                    db_target = target_map[target]
+                    
+                    # 3. Deactivate old broadcasts
                     conn.execute("UPDATE admin_promos SET active = 0")
-                    conn.execute("INSERT INTO admin_promos (title, message, target) VALUES (?, ?, ?)", (t, m, target))
+                    
+                    # 4. Insert the new broadcast AND explicitly set active = 1
+                    conn.execute(
+                        "INSERT INTO admin_promos (title, message, target, active) VALUES (?, ?, ?, 1)", 
+                        (t, m, db_target)
+                    )
                     conn.commit()
+                    
                     st.success(f"Live! Broadcast successfully published to {target}.")
-                    time.sleep(1); st.rerun()
+                    time.sleep(1)
+                    st.rerun()
                     
     with col_cat:
         st.subheader("📈 Category Manager")
