@@ -238,6 +238,34 @@ with col_r:
         st.rerun()
 st.divider()
 
+# ==========================================
+# 📢 STATIC BROADCAST BANNER
+# ==========================================
+try:
+    promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('RENTER', 'ALL USERS') LIMIT 1", conn)
+    
+    if not promo_df.empty:
+        title = promo_df.iloc[0]['title']
+        msg = promo_df.iloc[0]['message']
+        
+        st.markdown(f"""
+            <style>
+            .broadcast-box {{ 
+                padding: 15px; 
+                background-color: #ff4b4b; 
+                color: white; 
+                border-radius: 10px; 
+                margin-bottom: 20px; 
+                border-left: 5px solid #800000; 
+            }}
+            </style>
+            <div class="broadcast-box"><strong>📢 {title}:</strong> {msg}</div>
+        """, unsafe_allow_html=True)
+except Exception: pass 
+# ==========================================
+
+main_tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
+
 main_tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
 
 # ==========================================
