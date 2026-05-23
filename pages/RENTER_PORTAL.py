@@ -584,12 +584,12 @@ with main_tabs[0]:
                                                         affiliate_name = aff_data.iloc[0]['full_name']
                                                         
                                                         # 1. Email to Admin (You)
-                                                        admin_email = "rdalbaojrh@gmail.com" 
-                                                        send_alert_email(
-                                                            to_email=admin_email,
-                                                            subject=f"💳 ACTION REQUIRED: Payment Verification for #{b_ref}",
-                                                            body=f"Renter @{renter_user} has booked a {car['make']} {car['model']} and uploaded a manual payment receipt.\n\nPlease log into the Admin Command Center to verify the BPI payment and confirm the booking."
-                                                        )
+                                                    admin_email = "rdalbaojrh@gmail.com" 
+                                                    send_alert_email(
+                                                        to_email=admin_email,
+                                                        subject=f"💳 ACTION REQUIRED: Payment Verification for #{b_ref}",
+                                                        body=f"Renter @{renter_user} has booked a {car['make']} {car['model']} and uploaded a manual payment receipt.\n\nPlease log into the Admin Command Center to verify the BPI payment and confirm the booking."
+                                                    )
                                                         
                                                         # 2. Email to Affiliate (Vehicle Owner)
                                                         send_alert_email(
