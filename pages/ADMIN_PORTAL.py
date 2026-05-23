@@ -370,6 +370,29 @@ with head_col2:
     if st.button("🔒 LOGOUT", use_container_width=True):
         st.session_state.clear()
         st.rerun()
+# ==========================================
+# 7.5. SYSTEM ALERTS (PENDINGS & PAYMENTS)
+# ==========================================
+try:
+    # Scan the database for anything requiring Admin approval
+    pending_renters = conn.execute("SELECT COUNT(*) FROM platform_users WHERE (admin_status = 'PENDING' OR admin_status IS NULL) AND role = 'RENTER'").fetchone()[0]
+    pending_affiliates = conn.execute("SELECT COUNT(*) FROM platform_users WHERE (admin_status = 'PENDING' OR admin_status IS NULL) AND role = 'AFFILIATE'").fetchone()[0]
+    pending_drivers = conn.execute("SELECT COUNT(*) FROM drivers WHERE admin_status = 'PENDING'").fetchone()[0]
+    pending_payments = conn.execute("SELECT COUNT(*) FROM bookings WHERE status = 'PENDING'").fetchone()[0]
+
+    total_pendings = pending_renters + pending_affiliates + pending_drivers + pending_payments
+
+    if total_pendings > 0:
+        st.warning("🚨 **ACTION REQUIRED: You have pending items awaiting your review!**")
+        alert_cols = st.columns(4)
+        if pending_renters > 0: alert_cols[0].error(f"👤 {pending_renters} Renters")
+        if pending_affiliates > 0: alert_cols[1].error(f"💼 {pending_affiliates} Affiliates")
+        if pending_drivers > 0: alert_cols[2].error(f"🧑‍✈️ {pending_drivers} Drivers")
+        if pending_payments > 0: alert_cols[3].error(f"💳 {pending_payments} Payments")
+        
+        st.toast(f"Master, you have {total_pendings} pending items to clear.", icon="🚨")
+except Exception as e:
+    pass
 
 # ==========================================
 # 8. MAIN INTERFACE TABS
