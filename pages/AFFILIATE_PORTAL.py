@@ -1004,32 +1004,33 @@ with tabs[3]:
     my_drivers = pd.read_sql_query("SELECT first_name, last_name, contact_number, admin_status FROM drivers WHERE owner_username = ?", conn, params=(st.session_state.username,))
     if not my_drivers.empty: 
         st.dataframe(my_drivers, hide_index=True, use_container_width=True)
-    
-    # 4. Show Existing Drivers
-    my_drivers = pd.read_sql_query("SELECT first_name, last_name, contact_number, admin_status FROM drivers WHERE owner_username = ?", conn, params=(st.session_state.username,))
-    if not my_drivers.empty: 
-        st.dataframe(my_drivers, hide_index=True, use_container_width=True)
 
-        # ==========================================
-        # 🚨 SEND EMAIL ALERT TO ADMIN
-        # ==========================================
-        try:
-            admin_email = "rdalbaojrh@gmail.com" 
-            subject = "🚨 Action Required: New Driver Pending Approval"
-            body = f"Hello Admin,\n\nAffiliate @{st.session_state.username} has just registered a new driver: {f_name} {l_name}.\n\nPlease log into the Admin Command Center (Approvals Tab) to review their Government ID and Professional License."
-            
-            send_alert_email(admin_email, subject, body)
-        except Exception as e:
-            pass 
-
-        # THIS LINE must align perfectly with 'try:' and 'conn.commit()'
-        st.success("SUCCESS: Driver Submitted!")
-            else: 
-                st.error("Please fill required fields.")
-    
-    my_drivers = pd.read_sql_query("SELECT first_name, last_name, contact_number, admin_status FROM drivers WHERE owner_username = ?", conn, params=(st.session_state.username,))
-    if not my_drivers.empty: 
-        st.dataframe(my_drivers, hide_index=True, use_container_width=True)
+# --- TAB 4: REVIEWS ---
+with tabs[4]:
+    st.markdown("<h3 style='text-align: center;'>⭐ Guest Reviews</h3>", unsafe_allow_html=True)
+    query_reviews = """
+        SELECT b.rating, b.review, b.pickup_time, u.full_name as renter_name, v.make, v.model, v.plate
+        FROM bookings b JOIN vehicles v ON b.vehicle_id = v.id JOIN platform_users u ON b.renter_username = u.username
+        WHERE v.owner_username = ? AND b.rating IS NOT NULL ORDER BY b.id DESC
+    """
+    try:
+        reviews_df = pd.read_sql_query(query_reviews, conn, params=(st.session_state.username,))
+        if reviews_df.empty: 
+            st.info("No reviews yet!")
+        else:
+            for _, rev in reviews_df.iterrows():
+                with st.container(border=True):
+                    if pd.notna(rev['rating']) and rev['rating'] != "":
+                        stars = '⭐' * int(float(rev['rating']))
+                    else:
+                        stars = "No rating provided"
+                        
+                    st.markdown(f"#### {stars} - {rev['make']} {rev['model']} ({rev['plate']})")
+                    st.caption(f"🕵️‍♂️ Renter: {rev['renter_name']} | 📅 Date: {str(rev['pickup_time'])[:10]}")
+                    if pd.notna(rev['review']) and str(rev['review']).strip(): 
+                        st.info(f"💬 \"{rev['review']}\"")
+    except Exception as e: 
+        pass
 
 # --- TAB 4: REVIEWS ---
 with tabs[4]:
