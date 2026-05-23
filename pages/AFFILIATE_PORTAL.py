@@ -1,6 +1,6 @@
 import smtplib
 from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
+from email.mime.base import MIMEBaset
 from email.mime.text import MIMEText
 from email import encoders
 import streamlit as st
@@ -14,6 +14,7 @@ import numpy as np
 from fpdf import FPDF
 from database_utils import get_connection
 from streamlit_drawable_canvas import st_canvas
+
 
 # ==========================================
 # 1. Page Config (Must be the first Streamlit command)
@@ -955,6 +956,17 @@ with tabs[3]:
             if df_first and df_last and d_contact and d_gov and d_lic:
                 conn.execute("INSERT INTO drivers (owner_username, first_name, middle_name, last_name, age, address, contact_number, is_owner, govt_id_img, license_img, admin_status) VALUES (?,?,?,?,?,?,?,?,?,?, 'PENDING')", (st.session_state.username, df_first, df_mid, df_last, d_age, d_address, d_contact, 1 if is_owner else 0, save_file(d_lic), save_file(d_gov)))
                 conn.commit()
+# ==========================================
+        # 🚨 SEND EMAIL ALERT TO ADMIN
+        # ==========================================
+        try:
+            admin_email = "rdalbaojrh@gmail.com" 
+            subject = "🚨 Action Required: New Driver Pending Approval"
+            body = f"Hello Admin,\n\nAffiliate @{st.session_state.username} has just registered a new driver: {f_name} {l_name}.\n\nPlease log into the Admin Command Center (Approvals Tab) to review their Government ID and Professional License."
+            
+            send_alert_email(admin_email, subject, body)
+        except Exception as e:
+            pass # Fails silently if email has an error so the app doesn't crash
                 st.success("SUCCESS: Driver Submitted!")
             else: 
                 st.error("Please fill required fields.")
