@@ -956,7 +956,12 @@ with tabs[3]:
             if df_first and df_last and d_contact and d_gov and d_lic:
                 conn.execute("INSERT INTO drivers (owner_username, first_name, middle_name, last_name, age, address, contact_number, is_owner, govt_id_img, license_img, admin_status) VALUES (?,?,?,?,?,?,?,?,?,?, 'PENDING')", (st.session_state.username, df_first, df_mid, df_last, d_age, d_address, d_contact, 1 if is_owner else 0, save_file(d_lic), save_file(d_gov)))
                 conn.commit()
-# ==========================================
+                # Your existing database insert
+        conn.execute("INSERT INTO drivers (owner_username, first_name, last_name, age, contact_number, govt_id_img, license_img, admin_status) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')", 
+                     (st.session_state.username, f_name, l_name, age, contact, govt_path, lic_path))
+        conn.commit()
+
+        # ==========================================
         # 🚨 SEND EMAIL ALERT TO ADMIN
         # ==========================================
         try:
@@ -966,8 +971,10 @@ with tabs[3]:
             
             send_alert_email(admin_email, subject, body)
         except Exception as e:
-            pass # Fails silently if email has an error so the app doesn't crash
-                st.success("SUCCESS: Driver Submitted!")
+            pass 
+
+        # THIS LINE must align perfectly with 'try:' and 'conn.commit()'
+        st.success("SUCCESS: Driver Submitted!")
             else: 
                 st.error("Please fill required fields.")
     
