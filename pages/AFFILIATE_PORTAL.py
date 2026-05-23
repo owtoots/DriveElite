@@ -1004,6 +1004,11 @@ with tabs[3]:
     my_drivers = pd.read_sql_query("SELECT first_name, last_name, contact_number, admin_status FROM drivers WHERE owner_username = ?", conn, params=(st.session_state.username,))
     if not my_drivers.empty: 
         st.dataframe(my_drivers, hide_index=True, use_container_width=True)
+    
+    # 4. Show Existing Drivers
+    my_drivers = pd.read_sql_query("SELECT first_name, last_name, contact_number, admin_status FROM drivers WHERE owner_username = ?", conn, params=(st.session_state.username,))
+    if not my_drivers.empty: 
+        st.dataframe(my_drivers, hide_index=True, use_container_width=True)
 
         # ==========================================
         # 🚨 SEND EMAIL ALERT TO ADMIN
