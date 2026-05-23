@@ -573,41 +573,33 @@ with main_tabs[0]:
                                                         conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
                                                                      (b_ref, renter_user, owner_username, "Payment Receipt Uploaded for Admin Verification.", receipt_path))
                                                         conn.commit()
-                                                # ==========================================
-                                                # 🚨 SEND AUTOMATED EMAIL ALERTS
-                                                # ==========================================
-                                                try:
-                                                    # Fetch affiliate's email
-                                                    aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
-                                                    if not aff_data.empty:
-                                                        affiliate_email = aff_data.iloc[0]['email']
-                                                        affiliate_name = aff_data.iloc[0]['full_name']
                                                         
-                                                        # 1. Email to Admin (You)
-                                                    admin_email = "rdalbaojrh@gmail.com" 
-                                                    send_alert_email(
-                                                        to_email=admin_email,
-                                                        subject=f"💳 ACTION REQUIRED: Payment Verification for #{b_ref}",
-                                                        body=f"Renter @{renter_user} has booked a {car['make']} {car['model']} and uploaded a manual payment receipt.\n\nPlease log into the Admin Command Center to verify the BPI payment and confirm the booking."
-                                                    )
+                                                        # ==========================================
+                                                        # 🚨 SEND AUTOMATED EMAIL ALERTS
+                                                        # ==========================================
+                                                        try:
+                                                            aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
+                                                            if not aff_data.empty:
+                                                                affiliate_email = aff_data.iloc[0]['email']
+                                                                affiliate_name = aff_data.iloc[0]['full_name']
+                                                                
+                                                                # 1. Email to Admin
+                                                                admin_email = "rdalbaojrh@gmail.com" 
+                                                                send_alert_email(
+                                                                    to_email=admin_email,
+                                                                    subject=f"💳 ACTION REQUIRED: Payment Verification for #{b_ref}",
+                                                                    body=f"Renter @{renter_user} has booked a {car['make']} {car['model']} and uploaded a manual payment receipt.\n\nPlease log into the Admin Command Center to verify the BPI payment and confirm the booking."
+                                                                )
+                                                                
+                                                                # 2. Email to Affiliate
+                                                                send_alert_email(
+                                                                    to_email=affiliate_email,
+                                                                    subject=f"🚗 DriveElite: New Booking Verifying (#{b_ref})",
+                                                                    body=f"Hello {affiliate_name},\n\nA renter has booked your {car['make']} {car['model']} and submitted their payment.\n\nAdmin is currently verifying the receipt. Once confirmed, this will appear in your Logistics tab!"
+                                                                )
+                                                        except Exception as e:
+                                                            pass
                                                         
-                                                        # 2. Email to Affiliate (Vehicle Owner)
-                                                        send_alert_email(
-                                                            to_email=affiliate_email,
-                                                            subject=f"🚗 DriveElite: New Booking Verifying (#{b_ref})",
-                                                            body=f"Hello {affiliate_name},\n\nA renter has booked your {car['make']} {car['model']} and submitted their payment.\n\nAdmin is currently verifying the receipt. Once confirmed, this will appear in your Logistics tab!"
-                                                        )
-                                                except Exception as e:
-                                                    pass # Prevents the app from crashing if email fails
-                                                        
-                                                        # 2. Email to Affiliate (Vehicle Owner)
-                                                        send_alert_email(
-                                                            to_email=affiliate_email,
-                                                            subject=f"🚗 DriveElite: New Booking Verifying (#{b_ref})",
-                                                            body=f"Hello {affiliate_name},\n\nA renter has booked your {car['make']} {car['model']} and submitted their payment.\n\nAdmin is currently verifying the receipt. Once confirmed, this will appear in your Logistics tab!"
-                                                        )
-                                                except Exception as e:
-                                                    pass # Prevents the app from crashing if email fails
                                                         st.toast("✅ Receipt Sent to Admin!")
                                                         st.session_state[stage_key] = 0
                                                         del st.session_state[ref_key]
