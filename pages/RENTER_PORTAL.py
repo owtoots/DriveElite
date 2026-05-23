@@ -207,7 +207,31 @@ def save_chat_image(img_file, b_ref):
             f.write(img_file.getbuffer())
         return path
     return ""
+# --- EMAIL ALERT SYSTEM ---
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
+def send_alert_email(to_email, subject, body):
+    sender_email = "driveelite.alerts@gmail.com" # Replace with your system email
+    sender_password = "your_google_app_password" # Replace with your 16-character App Password
+    
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+        
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+        return False
 # ==========================================
 # 5. AUTHENTICATION FLOW
 # ==========================================
