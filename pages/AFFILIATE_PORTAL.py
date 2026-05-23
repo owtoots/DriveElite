@@ -15,7 +15,31 @@ from fpdf import FPDF
 from database_utils import get_connection
 from streamlit_drawable_canvas import st_canvas
 
+# --- EMAIL ALERT SYSTEM ---
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
+def send_alert_email(to_email, subject, body):
+    sender_email = "driveelite.alerts@gmail.com" # Replace with your system email
+    sender_password = "your_google_app_password" # Replace with your 16-character App Password
+    
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+        
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+        return False
 # ==========================================
 # 1. Page Config (Must be the first Streamlit command)
 # ==========================================
@@ -952,14 +976,34 @@ with tabs[3]:
         is_owner = st.checkbox("I am the driver (Owner driving)")
         d_gov = st.file_uploader("Upload Govt ID", type=['jpg','png'])
         d_lic = st.file_uploader("Upload Professional License", type=['jpg','png'])
+        
         if st.form_submit_button("SUBMIT DRIVER FOR APPROVAL", type="primary"):
             if df_first and df_last and d_contact and d_gov and d_lic:
-                conn.execute("INSERT INTO drivers (owner_username, first_name, middle_name, last_name, age, address, contact_number, is_owner, govt_id_img, license_img, admin_status) VALUES (?,?,?,?,?,?,?,?,?,?, 'PENDING')", (st.session_state.username, df_first, df_mid, df_last, d_age, d_address, d_contact, 1 if is_owner else 0, save_file(d_lic), save_file(d_gov)))
+                
+                # 1. Save to Database
+                conn.execute("INSERT INTO drivers (owner_username, first_name, middle_name, last_name, age, address, contact_number, is_owner, govt_id_img, license_img, admin_status) VALUES (?,?,?,?,?,?,?,?,?,?, 'PENDING')", 
+                             (st.session_state.username, df_first, df_mid, df_last, d_age, d_address, d_contact, 1 if is_owner else 0, save_file(d_lic), save_file(d_gov)))
                 conn.commit()
-                # Your existing database insert
-        conn.execute("INSERT INTO drivers (owner_username, first_name, last_name, age, contact_number, govt_id_img, license_img, admin_status) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')", 
-                     (st.session_state.username, f_name, l_name, age, contact, govt_path, lic_path))
-        conn.commit()
+
+                # 2. Send Email Alert
+                try:
+                    admin_email = "rdalbaojrh@gmail.com" 
+                    subject = "🚨 Action Required: New Driver Pending Approval"
+                    body = f"Hello Admin,\n\nAffiliate @{st.session_state.username} has just registered a new driver: {df_first} {df_last}.\n\nPlease log into the Admin Command Center (Approvals Tab) to review their Government ID and Professional License."
+                    
+                    send_alert_email(admin_email, subject, body)
+                except Exception as e:
+                    pass 
+
+                # 3. Success Message
+                st.success("SUCCESS: Driver Submitted!")
+            else: 
+                st.error("Please fill required fields.")
+    
+    # 4. Show Existing Drivers
+    my_drivers = pd.read_sql_query("SELECT first_name, last_name, contact_number, admin_status FROM drivers WHERE owner_username = ?", conn, params=(st.session_state.username,))
+    if not my_drivers.empty: 
+        st.dataframe(my_drivers, hide_index=True, use_container_width=True)
 
         # ==========================================
         # 🚨 SEND EMAIL ALERT TO ADMIN
