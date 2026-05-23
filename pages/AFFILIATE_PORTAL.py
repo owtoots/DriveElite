@@ -961,7 +961,7 @@ with tabs[2]:
                 st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
             else: 
                 st.error("Please fill all required fields and upload all documents (At least 1 OR/CR file is required).")
-## --- TAB 3: ADD DRIVER ---
+# --- TAB 3: ADD DRIVER ---
 with tabs[3]:
     st.markdown("<h3 style='text-align: center;'>REGISTER A DRIVER</h3>", unsafe_allow_html=True)
     with st.form("add_d"):
@@ -999,11 +999,6 @@ with tabs[3]:
                 st.success("SUCCESS: Driver Submitted!")
             else: 
                 st.error("Please fill required fields.")
-    
-    # 4. Show Existing Drivers
-    my_drivers = pd.read_sql_query("SELECT first_name, last_name, contact_number, admin_status FROM drivers WHERE owner_username = ?", conn, params=(st.session_state.username,))
-    if not my_drivers.empty: 
-        st.dataframe(my_drivers, hide_index=True, use_container_width=True)
     
     # 4. Show Existing Drivers
     my_drivers = pd.read_sql_query("SELECT first_name, last_name, contact_number, admin_status FROM drivers WHERE owner_username = ?", conn, params=(st.session_state.username,))
