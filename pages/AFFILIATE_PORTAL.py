@@ -1031,27 +1031,3 @@ with tabs[4]:
                         st.info(f"💬 \"{rev['review']}\"")
     except Exception as e: 
         pass
-
-# --- TAB 4: REVIEWS ---
-with tabs[4]:
-    st.markdown("<h3 style='text-align: center;'>⭐ Guest Reviews</h3>", unsafe_allow_html=True)
-    query_reviews = """
-        SELECT b.rating, b.review, b.pickup_time, u.full_name as renter_name, v.make, v.model, v.plate
-        FROM bookings b JOIN vehicles v ON b.vehicle_id = v.id JOIN platform_users u ON b.renter_username = u.username
-        WHERE v.owner_username = ? AND b.rating IS NOT NULL ORDER BY b.id DESC
-    """
-    try:
-        reviews_df = pd.read_sql_query(query_reviews, conn, params=(st.session_state.username,))
-        if reviews_df.empty: st.info("No reviews yet!")
-        else:
-            for _, rev in reviews_df.iterrows():
-                with st.container(border=True):
-                    if pd.notna(rev['rating']) and rev['rating'] != "":
-                        stars = '⭐' * int(float(rev['rating']))
-                    else:
-                        stars = "No rating provided"
-                        
-                    st.markdown(f"#### {stars} - {rev['make']} {rev['model']} ({rev['plate']})")
-                    st.caption(f"🕵️‍♂️ Renter: {rev['renter_name']} | 📅 Date: {str(rev['pickup_time'])[:10]}")
-                    if pd.notna(rev['review']) and str(rev['review']).strip(): st.info(f"💬 \"{rev['review']}\"")
-    except: pass
