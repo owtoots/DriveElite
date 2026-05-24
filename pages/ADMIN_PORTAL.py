@@ -16,6 +16,8 @@ import random
 import math
 from PIL import Image
 from fpdf import FPDF
+from database_utils import get_connection, init_db, patch_database, send_sms_alert
+
 
 # --- AUTHENTICATION & PAGE CONFIG ---
 st.set_page_config(page_title="DriveElite Admin Portal", layout="wide")
@@ -568,7 +570,34 @@ with tabs[3]:
                             if st.button("❌ REJECT / CANCEL", key=f"reject_{row['booking_ref']}", use_container_width=True):
                                 conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE booking_ref = ?", (row['booking_ref'],))
                                 conn.commit()
+                                   if st.button("✅ CONFIRM PAYMENT", key=f"verify_{row['booking_ref']}", type="primary", use_container_width=True):
+                                conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE booking_ref = ?", (row['booking_ref'],))
+                                conn.commit()
+                                
+                                # --- NEW SMS LOGIC ---
+                                try:
+                                    # Get the Affiliate's phone number based on the vehicle booked
+                                    aff_data = conn.execute("""
+                                        SELECT u.contact_number, v.make, v.model
+                                        FROM bookings b
+                                        JOIN vehicles v ON b.vehicle_id = v.id
+                                        JOIN platform_users u ON v.owner_username = u.username
+                                        WHERE b.booking_ref = ?
+                                    """, (row['booking_ref'],)).fetchone()
+                                    
+                                    if aff_data and aff_data[0]:
+                                        aff_phone = aff_data[0]
+                                        car_name = f"{aff_data[1]} {aff_data[2]}"
+                                        send_sms_alert(aff_phone, f"DriveElite: Great news! The payment for your {car_name} (Ref: #{row['booking_ref']}) is verified. Please prepare the vehicle!")
+                                except Exception:
+                                    pass
+                                # ----------------------
+
+                                st.success(f"Verified! Booking #{row['booking_ref']} moved to Ledger.")
+                                time.sleep(1)
                                 st.rerun()
+                              
+                                   
 
         # --- PREPARE DATA FOR LEDGER (Excluding Pending) ---
         query = """
