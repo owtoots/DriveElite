@@ -200,10 +200,22 @@ if st.session_state.get('otp_pending'):
         if otp_input == st.session_state.generated_otp:
             payload = st.session_state.reg_payload
             cursor = conn.cursor()
-            cursor.execute('''INSERT INTO platform_users 
-            (username, password, role, full_name, email, age, nationality, address, area_code, contact_number, govt_id_img, license_img, signature_img) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
-            conn.commit()
+            
+            try:
+                cursor.execute('''INSERT INTO platform_users 
+                (username, password, role, full_name, email, age, nationality, address, area_code, contact_number, govt_id_img, license_img, signature_img) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
+                
+                conn.commit()
+                st.success("✅ Registration Successful! You can now log in.")
+                
+            except sqlite3.IntegrityError:
+                # CATCHES DUPLICATE USERNAMES
+                st.error("🚨 That Username is already taken! Please refresh and choose a different username.")
+                
+            except Exception as e:
+                # CATCHES GENERAL ERRORS
+                st.error(f"⚠️ Registration failed due to a system error: {e}")
             
             # ==========================================
             # 🚨 SEND SMS ALERT TO ADMIN
@@ -213,6 +225,7 @@ if st.session_state.get('otp_pending'):
                 new_role = payload[2] # Will be "RENTER" or "AFFILIATE"
                 new_name = payload[3] # User's full name
                 
+                from database_utils import send_sms_alert
                 send_sms_alert(admin_phone, f"DriveElite Admin: A new {new_role} ({new_name}) just registered! Please review their documents in the Admin Portal.")
             except Exception:
                 pass
@@ -240,6 +253,10 @@ if st.session_state.get('otp_pending'):
             if st.button("GO TO LOGIN"): st.rerun()
         else:
             st.error("🚨 Invalid OTP. Please try again.")
+
+# ==========================================
+# 6. 🚗 MAIN REGISTRATION SCREEN
+# ==========================================
 
 # ==========================================
 # 6. 🚗 MAIN REGISTRATION SCREEN
