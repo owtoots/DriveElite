@@ -217,7 +217,8 @@ def send_email(to_email, subject, body, attachment_path=None, attachment_name=No
             msg['From'] = f"DriveElite Admin <{SENDER_EMAIL}>"
             msg['To'] = to_email
             
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            # Yahoo uses smtp.mail.yahoo.com
+            with smtplib.SMTP_SSL('smtp.mail.yahoo.com', 465) as smtp:
             smtp.login(SENDER_EMAIL, EMAIL_APP_PASSWORD)
             smtp.send_message(msg)
         return True, "Email sent successfully!"
@@ -239,10 +240,14 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
         part.add_header('Content-Disposition', f"attachment; filename= {filename}")
         msg.attach(part)
         
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        # 🚨 UPDATED: Yahoo SMTP Server Settings
+        with smtplib.SMTP_SSL('smtp.mail.yahoo.com', 465) as server:
             server.login(SENDER_EMAIL, EMAIL_APP_PASSWORD)
             server.send_message(msg)
         return True
+    except Exception as e: 
+        print(f"Email error: {e}") # Added print so you can see why it fails in logs
+        return False
     except: 
         return False
 
