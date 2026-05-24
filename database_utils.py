@@ -8,7 +8,6 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-
 # --- 1. SINGLE SOURCE OF TRUTH ---
 DB_PATH = "/data/driveelite_v2.db"
 
@@ -17,7 +16,7 @@ def get_connection():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     return sqlite3.connect(DB_PATH, check_same_thread=False, timeout=15.0)
 
-# --- 2. SMS UTILITY (NEW) ---
+# --- 2. SMS UTILITY ---
 def send_sms_alert(number, message):
     """Sends an SMS via Semaphore API."""
     try:
@@ -39,8 +38,8 @@ def send_sms_alert(number, message):
     except Exception as e:
         print(f"SMS Failed to send: {e}")
         return False
-# --- ADD THIS TO database_utils.py ---
 
+# --- 3. EMAIL UTILITY ---
 def send_alert_email(to_email, subject, body):
     """Sends an email via Yahoo SMTP server."""
     # Use environment variables
@@ -68,12 +67,11 @@ def send_alert_email(to_email, subject, body):
         print(f"Failed to send email: {e}")
         return False
 
-# --- 3. TABLE INITIALIZATION ---
+# --- 4. TABLE INITIALIZATION ---
 def init_db():
     """Initializes all required tables for DriveElite V2."""
     conn = get_connection()
     
-    # SUPPORT CHATS 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS support_chats (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,7 +82,6 @@ def init_db():
         )
     """)
 
-    # PLATFORM USERS TABLE
     conn.execute('''
         CREATE TABLE IF NOT EXISTS platform_users (
             id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -104,7 +101,6 @@ def init_db():
         )
     ''')
 
-    # VEHICLES TABLE
     conn.execute('''CREATE TABLE IF NOT EXISTS vehicles (
                         id INTEGER PRIMARY KEY AUTOINCREMENT, owner_username TEXT, make TEXT, model TEXT,
                         year TEXT, plate TEXT, bank_name TEXT, account_no TEXT, vehicle_img TEXT,
@@ -112,7 +108,6 @@ def init_db():
                         daily_rate REAL, admin_status TEXT DEFAULT 'PENDING', 
                         booking_status TEXT DEFAULT 'AVAILABLE', ref_no TEXT)''')
 
-    # BOOKINGS TABLE
     conn.execute('''CREATE TABLE IF NOT EXISTS bookings (
                         id INTEGER PRIMARY KEY AUTOINCREMENT, vehicle_id INTEGER, renter_username TEXT,
                         status TEXT, pickup_loc TEXT, return_loc TEXT, destination TEXT, pickup_time TEXT,
@@ -124,24 +119,20 @@ def init_db():
                         delivery_fee REAL DEFAULT 0, return_fee REAL DEFAULT 0, 
                         deposit_collected INTEGER DEFAULT 0, penalties REAL DEFAULT 0.0, booking_ref TEXT)''')
 
-    # DRIVERS TABLE
     conn.execute('''CREATE TABLE IF NOT EXISTS drivers (
                         id INTEGER PRIMARY KEY AUTOINCREMENT, owner_username TEXT, first_name TEXT, 
                         middle_name TEXT, last_name TEXT, age INTEGER, address TEXT, contact_number TEXT, 
                         is_owner INTEGER DEFAULT 0, govt_id_img TEXT, license_img TEXT, admin_status TEXT DEFAULT 'PENDING')''')
 
-    # CATEGORIES & PROMOS
     conn.execute('CREATE TABLE IF NOT EXISTS vehicle_categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, default_price REAL)')
     conn.execute('CREATE TABLE IF NOT EXISTS admin_promos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, target TEXT DEFAULT "ALL USERS", active INTEGER DEFAULT 1)')
 
     conn.commit()
     conn.close()
 
-# --- 4. PATCHING SYSTEM ---
+# --- 5. PATCHING SYSTEM ---
 def patch_database():
     conn = get_connection()
-    
-    # List of alterations to apply
     patches = [
         "ALTER TABLE platform_users ADD COLUMN area_code TEXT DEFAULT '+63'",
         "ALTER TABLE bookings ADD COLUMN gateway_fee REAL DEFAULT 0.0",
@@ -157,14 +148,12 @@ def patch_database():
         "ALTER TABLE bookings ADD COLUMN rfid_fee REAL DEFAULT 0.0",
         "ALTER TABLE bookings ADD COLUMN dispute_status TEXT DEFAULT 'CLEAN'"
     ]
-    
     for patch in patches:
         try: conn.execute(patch)
         except: pass
-
     conn.commit()
     conn.close()
 
-# --- 5. EXECUTION ---
+# --- 6. EXECUTION ---
 init_db()
 patch_database()
