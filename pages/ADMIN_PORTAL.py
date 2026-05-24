@@ -563,7 +563,36 @@ with tabs[3]:
                             if st.button("✅ CONFIRM PAYMENT", key=f"verify_{row['booking_ref']}", type="primary", use_container_width=True):
                                 conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE booking_ref = ?", (row['booking_ref'],))
                                 conn.commit()
-                                st.success(f"Verified! Booking #{row['booking_ref']} moved to Ledger.")
+                                
+                                # ==========================================
+                                # 🚨 SEND SMS ALERT TO AFFILIATE
+                                # ==========================================
+                                try:
+                                    # Fetch the affiliate's phone number based on the vehicle booked
+                                    aff_query = """
+                                        SELECT u.contact_number, v.make, v.model, u.full_name
+                                        FROM bookings b
+                                        JOIN vehicles v ON b.vehicle_id = v.id
+                                        JOIN platform_users u ON v.owner_username = u.username
+                                        WHERE b.booking_ref = ?
+                                    """
+                                    aff_data = conn.execute(aff_query, (row['booking_ref'],)).fetchone()
+                                    
+                                    if aff_data and aff_data[0]:
+                                        aff_phone = str(aff_data[0])
+                                        car_name = f"{aff_data[1]} {aff_data[2]}"
+                                        aff_name = aff_data[3].split()[0] # Get first name
+                                        
+                                        # Import the function locally if it's not at the top of the file
+                                        from database_utils import send_sms_alert
+                                        
+                                        message = f"DriveElite: Hi {aff_name}, payment for your {car_name} (Ref: #{row['booking_ref']}) is VERIFIED! Please prepare the vehicle."
+                                        send_sms_alert(aff_phone, message)
+                                except Exception as e:
+                                    pass # Fail silently so the app doesn't crash if SMS fails
+                                # ==========================================
+
+                                st.success(f"Verified! Booking #{row['booking_ref']} moved to Ledger and Affiliate Notified.")
                                 time.sleep(1)
                                 st.rerun()
                             
