@@ -14,6 +14,7 @@ import numpy as np
 from fpdf import FPDF
 from database_utils import get_connection
 from streamlit_drawable_canvas import st_canvas
+from database_utils import get_connection, send_sms_alert
 
 # --- EMAIL ALERT SYSTEM ---
 import smtplib
@@ -958,6 +959,8 @@ with tabs[2]:
                 """, (st.session_state.username, ma.title(), mo.title(), ye, pl.upper(), bn, an, car_img_path, or_path, cr_path, ins_path, cat, FIXED_RATES.get(cat,0), new_ref_no))
                 
                 conn.commit()
+                admin_phone = "09688811400" # REPLACE WITH YOUR PHONE NUMBER
+                send_sms_alert(admin_phone, f"DriveElite Admin: Affiliate @{st.session_state.username} submitted a new vehicle ({ma} {mo}) for approval.")
                 st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
             else: 
                 st.error("Please fill all required fields and upload all documents (At least 1 OR/CR file is required).")
@@ -984,6 +987,8 @@ with tabs[3]:
                 conn.execute("INSERT INTO drivers (owner_username, first_name, middle_name, last_name, age, address, contact_number, is_owner, govt_id_img, license_img, admin_status) VALUES (?,?,?,?,?,?,?,?,?,?, 'PENDING')", 
                              (st.session_state.username, df_first, df_mid, df_last, d_age, d_address, d_contact, 1 if is_owner else 0, save_file(d_lic), save_file(d_gov)))
                 conn.commit()
+                admin_phone = "09688811400" # REPLACE WITH YOUR PHONE NUMBER
+                send_sms_alert(admin_phone, f"DriveElite Admin: Affiliate @{st.session_state.username} registered a new driver ({df_first} {df_last}) for approval.")
 
                 # 2. Send Email Alert
                 try:
