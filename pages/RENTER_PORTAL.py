@@ -213,7 +213,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 def send_alert_email(to_email, subject, body):
-    sender_email = "driveelite.alerts@gmail.com" # Replace with your system email
+    sender_email = "driveelite@myyahoo.com" # Replace with your system email
     sender_password = "your_google_app_password" # Replace with your 16-character App Password
     
     try:
@@ -223,7 +223,7 @@ def send_alert_email(to_email, subject, body):
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
         
-        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server = smtplib.SMTP('smtp.yahoo.com', 465)
         server.starttls()
         server.login(sender_email, sender_password)
         server.send_message(msg)
@@ -584,7 +584,7 @@ with main_tabs[0]:
                                                                 affiliate_name = aff_data.iloc[0]['full_name']
                                                                 
                                                                 # 1. Email to Admin
-                                                                admin_email = "rdalbaojrh@gmail.com" 
+                                                                admin_email = "driveelite@myyahoo.com" 
                                                                 send_alert_email(
                                                                     to_email=admin_email,
                                                                     subject=f"💳 ACTION REQUIRED: Payment Verification for #{b_ref}",
