@@ -12,7 +12,7 @@ import json
 import base64
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from database_utils import get_connection
+from database_utils import get_connection, send_sms_alert
 import calendar
 from datetime import timedelta
 
