@@ -3,7 +3,10 @@ import os
 import urllib.parse
 import urllib.request
 import json
-import streamlit as st
+import streamlit as stimport smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 
 # --- 1. SINGLE SOURCE OF TRUTH ---
 DB_PATH = "/data/driveelite_v2.db"
@@ -34,6 +37,34 @@ def send_sms_alert(number, message):
         return True
     except Exception as e:
         print(f"SMS Failed to send: {e}")
+        return False
+# --- ADD THIS TO database_utils.py ---
+
+def send_alert_email(to_email, subject, body):
+    """Sends an email via Yahoo SMTP server."""
+    # Use environment variables
+    sender_email = os.environ.get("EMAIL_SENDER", "driveelite@myyahoo.com")
+    sender_password = os.environ.get("email_app_password")
+    
+    if not sender_password:
+        print("Email failed: No password provided in environment variables.")
+        return False
+        
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Yahoo SMTP Settings
+        server = smtplib.SMTP_SSL('smtp.mail.yahoo.com', 465)
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Failed to send email: {e}")
         return False
 
 # --- 3. TABLE INITIALIZATION ---
