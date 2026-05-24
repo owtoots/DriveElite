@@ -219,17 +219,29 @@ if st.session_state.get('otp_pending'):
                 st.error(f"⚠️ Registration failed due to a system error: {e}")
             
             # ==========================================
-            # 🚨 SEND SMS ALERT TO ADMIN
+            # 🚨 SEND ALERTS TO ADMIN
             # ==========================================
             try:
-                admin_phone = "09688811400" # REPLACE WITH YOUR ADMIN PHONE NUMBER
-                new_role = payload[2] # Will be "RENTER" or "AFFILIATE"
-                new_name = payload[3] # User's full name
+                admin_phone = "09688811400" 
+                admin_email = "driveelite@myyahoo.com" # Put your receiving email here
+                new_role = payload[2] 
+                new_name = payload[3] 
                 
-                from database_utils import send_sms_alert
-                send_sms_alert(admin_phone, f"DriveElite Admin: A new {new_role} ({new_name}) just registered! Please review their documents in the Admin Portal.")
+                # Import both tools from your master utility file
+                from database_utils import send_sms_alert, send_alert_email
+                
+                # 1. Send the SMS
+                sms_msg = f"DriveElite Admin: A new {new_role} ({new_name}) just registered! Please review their documents."
+                send_sms_alert(admin_phone, sms_msg)
+                
+                # 2. Send the Email
+                email_sub = f"🚨 New {new_role} Registration: {new_name}"
+                email_body = f"Hello Admin,\n\nA new {new_role} named {new_name} has successfully verified their account.\n\nPlease log into the Admin Command Center to review their ID and License."
+                send_alert_email(admin_email, email_sub, email_body)
+                
             except Exception:
                 pass
+            # ==========================================
             # ==========================================
             
             with st.spinner("Processing documents and emailing your copy..."):
