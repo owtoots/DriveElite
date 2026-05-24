@@ -1,20 +1,42 @@
 import sqlite3
 import os
+import urllib.parse
+import urllib.request
+import json
+import streamlit as st
 
 # --- 1. SINGLE SOURCE OF TRUTH ---
-# This tells the app to save everything on your permanent Render Disk mount point
 DB_PATH = "/data/driveelite_v2.db"
 
 def get_connection():
-    """
-    Creates a connection to the SQLite database.
-    Added timeout=15.0 to prevent 'Database is locked' errors during concurrent writes.
-    """
-    # Ensure the /data directory actually exists before trying to connect
+    """Creates a connection to the SQLite database."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     return sqlite3.connect(DB_PATH, check_same_thread=False, timeout=15.0)
 
-# --- 2. TABLE INITIALIZATION ---
+# --- 2. SMS UTILITY (NEW) ---
+def send_sms_alert(number, message):
+    """Sends an SMS via Semaphore API."""
+    try:
+        apikey = st.secrets.get("semaphore_api_key", os.environ.get("semaphore_api_key"))
+        if not apikey: return False
+
+        url = "https://api.semaphore.co/api/v4/messages"
+        payload = {
+            'apikey': apikey,
+            'number': number,
+            'message': message,
+            'sendername': 'SEMAPHORE'
+        }
+        
+        data = urllib.parse.urlencode(payload).encode('utf-8')
+        req = urllib.request.Request(url, data=data)
+        response = urllib.request.urlopen(req)
+        return True
+    except Exception as e:
+        print(f"SMS Failed to send: {e}")
+        return False
+
+# --- 3. TABLE INITIALIZATION ---
 def init_db():
     """Initializes all required tables for DriveElite V2."""
     conn = get_connection()
@@ -52,29 +74,29 @@ def init_db():
 
     # VEHICLES TABLE
     conn.execute('''CREATE TABLE IF NOT EXISTS vehicles (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, owner_username TEXT, make TEXT, model TEXT,
-                    year TEXT, plate TEXT, bank_name TEXT, account_no TEXT, vehicle_img TEXT,
-                    or_cr_img TEXT, or_img TEXT, cr_img TEXT, insurance_img TEXT, category TEXT, approved_price REAL, 
-                    daily_rate REAL, admin_status TEXT DEFAULT 'PENDING', 
-                    booking_status TEXT DEFAULT 'AVAILABLE', ref_no TEXT)''')
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, owner_username TEXT, make TEXT, model TEXT,
+                        year TEXT, plate TEXT, bank_name TEXT, account_no TEXT, vehicle_img TEXT,
+                        or_cr_img TEXT, or_img TEXT, cr_img TEXT, insurance_img TEXT, category TEXT, approved_price REAL, 
+                        daily_rate REAL, admin_status TEXT DEFAULT 'PENDING', 
+                        booking_status TEXT DEFAULT 'AVAILABLE', ref_no TEXT)''')
 
     # BOOKINGS TABLE
     conn.execute('''CREATE TABLE IF NOT EXISTS bookings (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, vehicle_id INTEGER, renter_username TEXT,
-                    status TEXT, pickup_loc TEXT, return_loc TEXT, destination TEXT, pickup_time TEXT,
-                    return_time TEXT, amount REAL, payment_method TEXT, front_img TEXT, back_img TEXT, 
-                    left_img TEXT, right_img TEXT, odometer_img TEXT, dseat_img TEXT, pseat_img TEXT, 
-                    tire_img TEXT, trunk_img TEXT, actual_dl_img TEXT, damage_img TEXT, 
-                    payout_status TEXT DEFAULT 'PENDING', with_driver INTEGER DEFAULT 0, 
-                    assigned_driver TEXT, rating INTEGER, review TEXT, gateway_fee REAL DEFAULT 0.0,
-                    delivery_fee REAL DEFAULT 0, return_fee REAL DEFAULT 0, 
-                    deposit_collected INTEGER DEFAULT 0, penalties REAL DEFAULT 0.0, booking_ref TEXT)''')
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, vehicle_id INTEGER, renter_username TEXT,
+                        status TEXT, pickup_loc TEXT, return_loc TEXT, destination TEXT, pickup_time TEXT,
+                        return_time TEXT, amount REAL, payment_method TEXT, front_img TEXT, back_img TEXT, 
+                        left_img TEXT, right_img TEXT, odometer_img TEXT, dseat_img TEXT, pseat_img TEXT, 
+                        tire_img TEXT, trunk_img TEXT, actual_dl_img TEXT, damage_img TEXT, 
+                        payout_status TEXT DEFAULT 'PENDING', with_driver INTEGER DEFAULT 0, 
+                        assigned_driver TEXT, rating INTEGER, review TEXT, gateway_fee REAL DEFAULT 0.0,
+                        delivery_fee REAL DEFAULT 0, return_fee REAL DEFAULT 0, 
+                        deposit_collected INTEGER DEFAULT 0, penalties REAL DEFAULT 0.0, booking_ref TEXT)''')
 
     # DRIVERS TABLE
     conn.execute('''CREATE TABLE IF NOT EXISTS drivers (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT, owner_username TEXT, first_name TEXT, 
-                    middle_name TEXT, last_name TEXT, age INTEGER, address TEXT, contact_number TEXT, 
-                    is_owner INTEGER DEFAULT 0, govt_id_img TEXT, license_img TEXT, admin_status TEXT DEFAULT 'PENDING')''')
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, owner_username TEXT, first_name TEXT, 
+                        middle_name TEXT, last_name TEXT, age INTEGER, address TEXT, contact_number TEXT, 
+                        is_owner INTEGER DEFAULT 0, govt_id_img TEXT, license_img TEXT, admin_status TEXT DEFAULT 'PENDING')''')
 
     # CATEGORIES & PROMOS
     conn.execute('CREATE TABLE IF NOT EXISTS vehicle_categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, default_price REAL)')
@@ -83,55 +105,34 @@ def init_db():
     conn.commit()
     conn.close()
 
-# --- 3. PATCHING SYSTEM ---
+# --- 4. PATCHING SYSTEM ---
 def patch_database():
-    """Safely injects missing columns into the database without losing data."""
     conn = get_connection()
     
-    # Financial Patches
-    try: conn.execute("ALTER TABLE bookings ADD COLUMN gateway_fee REAL DEFAULT 0.0")
-    except: pass
+    # List of alterations to apply
+    patches = [
+        "ALTER TABLE platform_users ADD COLUMN area_code TEXT DEFAULT '+63'",
+        "ALTER TABLE bookings ADD COLUMN gateway_fee REAL DEFAULT 0.0",
+        "ALTER TABLE bookings ADD COLUMN receipt_img BLOB",
+        "ALTER TABLE bookings ADD COLUMN handover_photos TEXT",
+        "ALTER TABLE bookings ADD COLUMN damage_img TEXT",
+        "ALTER TABLE vehicles ADD COLUMN or_img TEXT",
+        "ALTER TABLE vehicles ADD COLUMN cr_img TEXT",
+        "ALTER TABLE bookings ADD COLUMN damage_fee REAL DEFAULT 0.0",
+        "ALTER TABLE bookings ADD COLUMN late_fee REAL DEFAULT 0.0",
+        "ALTER TABLE bookings ADD COLUMN fuel_fee REAL DEFAULT 0.0",
+        "ALTER TABLE bookings ADD COLUMN cleaning_fee REAL DEFAULT 0.0",
+        "ALTER TABLE bookings ADD COLUMN rfid_fee REAL DEFAULT 0.0",
+        "ALTER TABLE bookings ADD COLUMN dispute_status TEXT DEFAULT 'CLEAN'"
+    ]
     
-    try: conn.execute("ALTER TABLE bookings ADD COLUMN receipt_img BLOB")
-    except: pass
-    
-    # Handover Patches
-    try: conn.execute("ALTER TABLE bookings ADD COLUMN handover_photos TEXT")
-    except: pass
-    
-    try: conn.execute("ALTER TABLE bookings ADD COLUMN damage_img TEXT")
-    except: pass
-
-    # --- Vehicle Document Split (Required for Affiliate Portal) ---
-    try: conn.execute("ALTER TABLE vehicles ADD COLUMN or_img TEXT")
-    except: pass
-
-    try: conn.execute("ALTER TABLE vehicles ADD COLUMN cr_img TEXT")
-    except: pass
-    
-    # --- New Fee Categories (Required for Settlement Logic) ---
-    try: conn.execute("ALTER TABLE bookings ADD COLUMN damage_fee REAL DEFAULT 0.0")
-    except: pass
-
-    try: conn.execute("ALTER TABLE bookings ADD COLUMN late_fee REAL DEFAULT 0.0")
-    except: pass
-
-    try: conn.execute("ALTER TABLE bookings ADD COLUMN fuel_fee REAL DEFAULT 0.0")
-    except: pass
-
-    try: conn.execute("ALTER TABLE bookings ADD COLUMN cleaning_fee REAL DEFAULT 0.0")
-    except: pass
-
-    try: conn.execute("ALTER TABLE bookings ADD COLUMN rfid_fee REAL DEFAULT 0.0")
-    except: pass
-
-    try: conn.execute("ALTER TABLE bookings ADD COLUMN dispute_status TEXT DEFAULT 'CLEAN'")
-    except: pass
+    for patch in patches:
+        try: conn.execute(patch)
+        except: pass
 
     conn.commit()
     conn.close()
 
-# --- 4. EXECUTION ON LOAD ---
-# This ensures that whenever database_utils is imported, the DB is ready to go.
+# --- 5. EXECUTION ---
 init_db()
 patch_database()
