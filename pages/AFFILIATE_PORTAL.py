@@ -1,8 +1,3 @@
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email.mime.text import MIMEText
-from email import encoders
 import streamlit as st
 import pandas as pd
 import datetime
@@ -12,38 +7,12 @@ import time
 from PIL import Image
 import numpy as np
 from fpdf import FPDF
-from database_utils import get_connection
 from streamlit_drawable_canvas import st_canvas
+# Import everything you need in ONE line
 from database_utils import get_connection, send_sms_alert, send_alert_email
 
-# --- EMAIL ALERT SYSTEM ---
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-
-def send_alert_email(to_email, subject, body):
-    sender_email = "driveelite.alerts@gmail.com" # Replace with your system email
-    sender_password = "your_google_app_password" # Replace with your 16-character App Password
-    
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = sender_email
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain'))
-        
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.send_message(msg)
-        server.quit()
-        return True
-    except Exception as e:
-        print(f"Failed to send email: {e}")
-        return False
-# ==========================================
-# 1. Page Config (Must be the first Streamlit command)
-# ==========================================
+# --- Now proceed to your logic ---
+# Delete lines 19-23 entirely from this file!        
 st.set_page_config(page_title="DriveElite Affiliate", layout="wide")
 
 # 2. Inject the Logo into the Sidebar
