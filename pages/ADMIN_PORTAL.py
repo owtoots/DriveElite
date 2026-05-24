@@ -220,7 +220,7 @@ def send_email(to_email, subject, body, attachment_path=None, attachment_name=No
             # Yahoo uses smtp.mail.yahoo.com
             with smtplib.SMTP_SSL('smtp.mail.yahoo.com', 465) as smtp:
                 smtp.login(SENDER_EMAIL, EMAIL_APP_PASSWORD)
-                  smtp.send_message(msg)
+                smtp.send_message(msg)
             return True, "Email sent successfully!"
     except Exception as e:
         return False, f"Failed to send email: {str(e)}"
