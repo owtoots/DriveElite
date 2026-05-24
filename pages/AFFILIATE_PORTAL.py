@@ -8,20 +8,29 @@ from PIL import Image
 import numpy as np
 from fpdf import FPDF
 from streamlit_drawable_canvas import st_canvas
-# Import everything you need in ONE line
+
+# --- Re-added Email Imports for the PDF function ---
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email.mime.text import MIMEText
+from email import encoders
+
 from database_utils import get_connection, send_sms_alert, send_alert_email
 
-# --- Now proceed to your logic ---
-# Delete lines 19-23 entirely from this file!        
+# ==========================================
+# 1. PAGE CONFIG & LOGO (Must be first!)
+# ==========================================
 st.set_page_config(page_title="DriveElite Affiliate", layout="wide")
 
-# 2. Inject the Logo into the Sidebar
 try:
     st.sidebar.image("logo.png", use_container_width=True)
 except:
     pass
 
-# 3. The Universal "Crystal Elite" CSS Engine
+# ==========================================
+# 2. THE "CRYSTAL ELITE" CSS ENGINE
+# ==========================================
 st.markdown("""
 <style>
 /* =========================================
@@ -111,7 +120,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- DATABASE CONNECTION & SELF-REPAIR ---
+# ==========================================
+# 3. DATABASE CONNECTION & SELF-REPAIR
+# ==========================================
 conn = get_connection()
 
 try: conn.execute("ALTER TABLE vehicles ADD COLUMN or_img TEXT"); conn.commit()
@@ -199,7 +210,9 @@ try:
 except:
     r_markup, a_share_pct = 0.07, 0.85
 
-# --- UTILITIES & HELPERS ---
+# ==========================================
+# 4. UTILITIES & HELPERS
+# ==========================================
 def save_file(uploaded_file):
     if uploaded_file:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -349,28 +362,38 @@ def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, da
     return pdf.output(dest="S").encode("latin-1")
 
 def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
-    sender_email = "driveelite@myyahoo.com" 
-    try: 
-        app_password = st.secrets["email_app_password"]
-    except: 
+    """Sends the PDF document using the centralized Yahoo logic."""
+    sender_email = os.environ.get("EMAIL_SENDER", "driveelite@myyahoo.com") 
+    sender_password = os.environ.get("email_app_password")
+    
+    if not sender_password: 
         return False
         
-    msg = MIMEMultipart()
-    msg['From'] = f"DriveElite Admin <{sender_email}>"
-    msg['To'] = to_email
-    msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'plain'))
-    
-    part = MIMEBase('application', 'octet-stream')
-    part.set_payload(pdf_bytes)
-    encoders.encode_base64(part)
-    part.add_header('Content-Disposition', f"attachment; filename= {filename}")
-    msg.attach(part)
-    
-    except: 
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"DriveElite Admin <{sender_email}>"
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+        
+        part = MIMEBase('application', 'octet-stream')
+        part.set_payload(pdf_bytes)
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', f"attachment; filename= {filename}")
+        msg.attach(part)
+        
+        # FIXED: Correct Yahoo SMTP execution block
+        with smtplib.SMTP_SSL('smtp.mail.yahoo.com', 465) as server:
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+        return True
+    except Exception as e: 
+        print(f"PDF Email Error: {e}")
         return False
 
-# --- LOGIN FLOW ---
+# ==========================================
+# 5. LOGIN FLOW
+# ==========================================
 if not st.session_state.get('logged_in') or st.session_state.get('role') != 'AFFILIATE':
     st.markdown("<h2 style='text-align: center;'>💼 AFFILIATE LOGIN</h2>", unsafe_allow_html=True)
     with st.form("login", clear_on_submit=True):
@@ -404,9 +427,6 @@ st.divider()
 # 📢 STATIC BROADCAST BANNER (Color Coordinated)
 # ==========================================
 try:
-    # ⚠️ IMPORTANT: 
-    # Use ('RENTER', 'ALL USERS') for your Renter script.
-    # Use ('AFFILIATE', 'ALL USERS') for your Affiliate script.
     promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('AFFILIATE', 'ALL USERS') LIMIT 1", conn)
     
     if not promo_df.empty:
@@ -417,7 +437,7 @@ try:
             <style>
             .broadcast-box {{ 
                 padding: 25px 20px; 
-                background-color: #2563EB; /* Brand Blue - Matches your buttons */
+                background-color: #2563EB; 
                 color: white; 
                 border-radius: 12px; 
                 margin-bottom: 25px; 
@@ -429,7 +449,7 @@ try:
                 align-items: center;
                 flex-wrap: wrap; 
                 box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.15); /* Adds a subtle premium shine */
+                border: 1px solid rgba(255, 255, 255, 0.15); 
             }}
             .broadcast-title {{
                 font-weight: 900;
@@ -445,8 +465,8 @@ try:
 except Exception: pass 
 
 # ==========================================
-
-# --- TABS ---
+# 6. TABS
+# ==========================================
 tabs = st.tabs(["BOOKINGS & HANDOVER", "MY ASSETS", "ADD ASSET", "ADD DRIVER", "REVIEWS"])
 
 # --- TAB 0: BOOKINGS & HANDOVER ---
@@ -928,6 +948,7 @@ with tabs[2]:
                 st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
             else: 
                 st.error("Please fill all required fields and upload all documents (At least 1 OR/CR file is required).")
+
 # --- TAB 3: ADD DRIVER ---
 with tabs[3]:
     st.markdown("<h3 style='text-align: center;'>REGISTER A DRIVER</h3>", unsafe_allow_html=True)
@@ -954,12 +975,11 @@ with tabs[3]:
                 admin_phone = "09688811400" # REPLACE WITH YOUR PHONE NUMBER
                 send_sms_alert(admin_phone, f"DriveElite Admin: Affiliate @{st.session_state.username} registered a new driver ({df_first} {df_last}) for approval.")
 
-                # 2. Send Email Alert
+                # 2. Send Email Alert using the imported shared function
                 try:
                     admin_email = "driveelite@myyahoo.com" 
                     subject = "🚨 Action Required: New Driver Pending Approval"
                     body = f"Hello Admin,\n\nAffiliate @{st.session_state.username} has just registered a new driver: {df_first} {df_last}.\n\nPlease log into the Admin Command Center (Approvals Tab) to review their Government ID and Professional License."
-                    
                     send_alert_email(admin_email, subject, body)
                 except Exception as e:
                     pass 
