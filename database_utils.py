@@ -3,7 +3,8 @@ import os
 import urllib.parse
 import urllib.request
 import json
-import streamlit as stimport smtplib
+import streamlit as st
+import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
