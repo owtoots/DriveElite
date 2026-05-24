@@ -205,6 +205,19 @@ if st.session_state.get('otp_pending'):
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
             conn.commit()
             
+            # ==========================================
+            # 🚨 SEND SMS ALERT TO ADMIN
+            # ==========================================
+            try:
+                admin_phone = "09688811400" # REPLACE WITH YOUR ADMIN PHONE NUMBER
+                new_role = payload[2] # Will be "RENTER" or "AFFILIATE"
+                new_name = payload[3] # User's full name
+                
+                send_sms_alert(admin_phone, f"DriveElite Admin: A new {new_role} ({new_name}) just registered! Please review their documents in the Admin Portal.")
+            except Exception:
+                pass
+            # ==========================================
+            
             with st.spinner("Processing documents and emailing your copy..."):
                 try:
                     un, role, email = payload[0], payload[2], payload[4]
