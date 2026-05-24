@@ -349,7 +349,7 @@ def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, da
     return pdf.output(dest="S").encode("latin-1")
 
 def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
-    sender_email = "rdalbaojr@gmail.com" 
+    sender_email = "driveelite@myyahoo.com" 
     try: 
         app_password = st.secrets["email_app_password"]
     except: 
@@ -367,11 +367,6 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
     part.add_header('Content-Disposition', f"attachment; filename= {filename}")
     msg.attach(part)
     
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(sender_email, app_password)
-            server.send_message(msg)
-        return True
     except: 
         return False
 
@@ -961,7 +956,7 @@ with tabs[3]:
 
                 # 2. Send Email Alert
                 try:
-                    admin_email = "rdalbaojrh@gmail.com" 
+                    admin_email = "driveelite@myyahoo.com" 
                     subject = "🚨 Action Required: New Driver Pending Approval"
                     body = f"Hello Admin,\n\nAffiliate @{st.session_state.username} has just registered a new driver: {df_first} {df_last}.\n\nPlease log into the Admin Command Center (Approvals Tab) to review their Government ID and Professional License."
                     
