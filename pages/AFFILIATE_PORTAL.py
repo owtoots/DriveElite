@@ -14,7 +14,7 @@ import numpy as np
 from fpdf import FPDF
 from database_utils import get_connection
 from streamlit_drawable_canvas import st_canvas
-from database_utils import get_connection, send_sms_alert
+from database_utils import get_connection, send_sms_alert, send_alert_email
 
 # --- EMAIL ALERT SYSTEM ---
 import smtplib
