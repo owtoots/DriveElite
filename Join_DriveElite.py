@@ -165,7 +165,7 @@ def send_welcome_email(recipient_email, role, filepath):
     doc_label = "MOA" if role == "AFFILIATE" else "RENTER"
     msg['Subject'] = f'DriveElite: Your Official {doc_label} Agreement'
     
-    sender_email = get_secret("email_sender", "rdalbaojr@gmail.com")
+    sender_email = get_secret("email_sender", "driveelite@myyahoo.com") # Updated default
     msg['From'] = sender_email
     msg['To'] = recipient_email
     msg['Bcc'] = sender_email
@@ -179,7 +179,8 @@ def send_welcome_email(recipient_email, role, filepath):
     msg.add_attachment(file_data, maintype='application', subtype=ext, filename=f"DriveElite_{doc_label}.{ext}")
 
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+        # UPDATED TO YAHOO SMTP
+        with smtplib.SMTP_SSL('smtp.mail.yahoo.com', 465) as smtp:
             app_password = get_secret("email_app_password", "")
             smtp.login(sender_email, app_password)
             smtp.send_message(msg)
