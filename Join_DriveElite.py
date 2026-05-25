@@ -10,6 +10,7 @@ from docx.shared import Mm
 import subprocess 
 from streamlit_drawable_canvas import st_canvas
 from database_utils import get_connection
+from database_utils import send_otp
 
 # 1. Page Config (Must be the first Streamlit command)
 st.set_page_config(page_title="DriveElite", layout="wide")
@@ -439,14 +440,30 @@ else:
                         try: subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', docx_fn, '--outdir', '/data/uploads/'], check=True)
                         except: pass
                         
+                        # ... (previous code where the PDF is generated) ...
+                        
                         st.session_state.reg_payload = (
                             data["username"], data["password"], reg_type.upper(), data["full_name"], 
                             data["email"], data["age"], data["nationality"], data["address"], 
                             data["area_code"], data["contact"], data["gov_id"], data["lic_id"], sig_bytes
                         )
                         st.session_state.verify_contact = data["contact"]
-                        st.session_state.generated_otp = str(random.randint(100000, 999999))
-                        st.session_state.otp_pending = True
-                        st.rerun()
+                        
+                        # ==========================================
+                        # 📩 NEW CENTRALIZED OTP LOGIC STARTS HERE
+                        # ==========================================
+                        otp_code = str(random.randint(100000, 999999))
+                        st.session_state.generated_otp = otp_code
+                        
+                        # Call the dispatcher (Set to EMAIL for now!)
+                        success = send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
+                        
+                        if success:
+                            st.session_state.otp_pending = True
+                            st.rerun()
+                        else:
+                            st.error("🚨 Failed to send verification. Please try again.")
+                        # ==========================================
+                        
                 else:
                     st.error("🚨 Digital signature required to proceed.")
