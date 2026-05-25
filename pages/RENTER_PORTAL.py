@@ -446,7 +446,7 @@ with main_tabs[0]:
                                     cal_html += "</table></div>"
                                     
                                     # Use st.html instead of st.markdown for bulletproof rendering
-                                    st.html(cal_html)
+                                        st.html(cal_html)
                                     # ==========================================
                                         
                                         d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}_{cat}")
