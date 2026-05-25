@@ -438,7 +438,7 @@ with tabs[3]:
                 FROM bookings b 
                 JOIN platform_users u ON b.renter_username = u.username 
                 JOIN vehicles v ON b.vehicle_id = v.id
-                WHERE b.status = 'PENDING' 
+                WHERE b.status IN ('PENDING', 'VERIFYING')
                 ORDER BY b.id DESC
             """, conn)
             
