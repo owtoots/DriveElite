@@ -3,6 +3,7 @@ import os
 import smtplib
 import sqlite3
 import pandas as pd
+import numpy as np
 import datetime
 import time
 import random
