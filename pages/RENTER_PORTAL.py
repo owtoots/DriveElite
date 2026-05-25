@@ -446,20 +446,20 @@ with main_tabs[0]:
                                     cal_html += "</table></div>"
                                     
                                     # Use st.html instead of st.markdown for bulletproof rendering
-                                        st.html(cal_html)
+                                    st.html(cal_html)
                                     # ==========================================
                                         
-                                        d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}_{cat}")
-                                        t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
-                                        d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}")
-                                        t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
+                                    d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}_{cat}")
+                                    t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
+                                    d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}")
+                                    t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
                                         
-                                        can_book = True
-                                        requested_days = set([d1 + datetime.timedelta(days=j) for j in range((d2 - d1).days + 1)])
-                                        clashes = requested_days.intersection(unavailable_dates)
-                                        if clashes:
-                                            can_book = False
-                                            st.error(f"🚨 Vehicle booked on: {', '.join([d.strftime('%b %d') for d in sorted(list(clashes))])}")
+                                    can_book = True
+                                    requested_days = set([d1 + datetime.timedelta(days=j) for j in range((d2 - d1).days + 1)])
+                                    clashes = requested_days.intersection(unavailable_dates)
+                                    if clashes:
+                                        can_book = False
+                                        st.error(f"🚨 Vehicle booked on: {', '.join([d.strftime('%b %d') for d in sorted(list(clashes))])}")
 
                                         drive_mode = st.radio("Mode", ["Self-Drive", "With Driver (+₱1k/day)"], key=f"dm_{car['id']}_{cat}")
                                         dest = st.text_input("Destination", key=f"dest_{car['id']}_{cat}")
