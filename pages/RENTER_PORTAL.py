@@ -370,50 +370,7 @@ with main_tabs[0]:
                                     
                                     unavailable_dates = get_booked_dates(car['id'], conn)
                                     
-                                    # -------------------------------------------------------------
-                                    # CHECKOUT STAGE 0: SELECT DATES & CONFIRM SOFT LOCK
-                                    # -------------------------------------------------------------
-                                    if st.session_state[stage_key] == 0:
-                                        existing_bookings = pd.read_sql_query("SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status NOT IN ('CANCELLED', 'REJECTED')", conn, params=(car['id'],))
-                                        booked_dates = set()
-                                        for _, row in existing_bookings.iterrows():
-                                            try:
-                                                s_dt, e_dt = pd.to_datetime(row['pickup_time']).date(), pd.to_datetime(row['return_time']).date()
-                                                for i in range((e_dt - s_dt).days + 1): booked_dates.add((s_dt + datetime.timedelta(days=i)).strftime("%Y-%m-%d"))
-                                            except: pass
-
-                                        today = datetime.date.today()
-                                    # ==========================================
-                                        # 🗓️ VISUAL HTML CALENDAR GRID
-                                        # ==========================================
-                                        cal_year = today.year
-                                        cal_month = today.month
-                                        month_matrix = calendar.monthcalendar(cal_year, cal_month)
-                                        month_name = calendar.month_name[cal_month]
-                                        
-                                       # Built line-by-line to prevent Streamlit from turning it into raw text
-                                        cal_html = "<div style='background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 15px; margin-bottom: 20px;'>"
-                                        cal_html += f"<h4 style='text-align: center; color: #0F172A; margin-top: 0px; margin-bottom: 10px; font-size: 16px;'>{month_name} {cal_year} Availability</h4>"
-                                        cal_html += "<table style='width: 100%; border-collapse: separate; border-spacing: 4px; text-align: center; font-size: 13px;'>"
-                                        cal_html += "<tr><th>Mo</th><th>Tu</th><th>We</th><th>Th</th><th>Fr</th><th>Sa</th><th>Su</th></tr>"
-                                        
-                                        for week in month_matrix:
-                                            cal_html += "<tr>"
-                                            for day in week:
-                                                if day == 0:
-                                                    cal_html += "<td></td>"
-                                                else:
-                                                    current_iter_date = datetime.date(cal_year, cal_month, day)
-                                                    if current_iter_date in unavailable_dates:
-                                                        cal_html += f"<td><div style='background-color: #FEE2E2; color: #EF4444; text-decoration: line-through; border-radius: 6px; padding: 6px 0; font-weight: bold;'>{day}</div></td>"
-                                                    elif current_iter_date < today:
-                                                        cal_html += f"<td><div style='color: #CBD5E1; padding: 6px 0;'>{day}</div></td>"
-                                                    else:
-                                                        cal_html += f"<td><div style='background-color: #DCFCE7; color: #16A34A; border-radius: 6px; padding: 6px 0; font-weight: bold; border: 1px solid #BBF7D0;'>{day}</div></td>"
-                                            cal_html += "</tr>"
-                                        cal_html += "</table></div>"
-                                        
-                                        st.markdown(cal_html, unsafe_allow_html=True)
+                                   st.markdown(cal_html, unsafe_allow_html=True
                                         # ==========================================
                                     # ==========================================
                                         
