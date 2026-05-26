@@ -370,7 +370,7 @@ with main_tabs[0]:
                                     
                                     unavailable_dates = get_booked_dates(car['id'], conn)
                                     
-                                   st.markdown(cal_html, unsafe_allow_html=True
+                                    st.markdown(cal_html, unsafe_allow_html=True
                                         # ==========================================
                                     # ==========================================
                                         
