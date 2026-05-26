@@ -376,15 +376,14 @@ with main_tabs[0]:
                                     if st.session_state[stage_key] == 0:
                                         today = datetime.date.today()
                                         
-                                        # 1. MOVED DATE PICKERS TO TOP
+                                        # 1. DATE PICKERS
                                         d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}_{cat}")
                                         t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
                                         d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}")
                                         t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
 
                                         # 2. BULLETPROOF FLAT HTML CALENDAR
-                                        cal_year = d1.year
-                                        cal_month = d1.month
+                                        cal_year, cal_month = d1.year, d1.month
                                         month_matrix = calendar.monthcalendar(cal_year, cal_month)
                                         month_name = calendar.month_name[cal_month]
                                         
@@ -393,8 +392,7 @@ with main_tabs[0]:
                                         for week in month_matrix:
                                             cal_html += "<tr>"
                                             for day in week:
-                                                if day == 0:
-                                                    cal_html += "<td></td>"
+                                                if day == 0: cal_html += "<td></td>"
                                                 else:
                                                     d_iter = datetime.date(cal_year, cal_month, day)
                                                     if d_iter in unavailable_dates:
