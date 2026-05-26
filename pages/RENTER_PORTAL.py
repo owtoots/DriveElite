@@ -30,7 +30,6 @@ except:
 # ==========================================
 st.markdown("""
 <style>
-
 /* =========================================
        📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
        ========================================= */
@@ -207,10 +206,6 @@ def save_chat_image(img_file, b_ref):
             f.write(img_file.getbuffer())
         return path
     return ""
-# --- EMAIL ALERT SYSTEM ---
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 def send_alert_email(to_email, subject, body):
     sender_email = "driveelite@myyahoo.com" # Replace with your system email
@@ -232,6 +227,7 @@ def send_alert_email(to_email, subject, body):
     except Exception as e:
         print(f"Failed to send email: {e}")
         return False
+
 # ==========================================
 # 5. AUTHENTICATION FLOW
 # ==========================================
@@ -263,13 +259,10 @@ with col_r:
 st.divider()
 
 # ==========================================
-# 📢 STATIC BROADCAST BANNER (Color Coordinated)
+# 📢 STATIC BROADCAST BANNER
 # ==========================================
 try:
-    # ⚠️ IMPORTANT: 
-    # Use ('RENTER', 'ALL USERS') for your Renter script.
-    # Use ('AFFILIATE', 'ALL USERS') for your Affiliate script.
-    promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('AFFILIATE', 'ALL USERS') LIMIT 1", conn)
+    promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('RENTER', 'ALL USERS') LIMIT 1", conn)
     
     if not promo_df.empty:
         title = promo_df.iloc[0]['title']
@@ -279,7 +272,7 @@ try:
             <style>
             .broadcast-box {{ 
                 padding: 25px 20px; 
-                background-color: #2563EB; /* Brand Blue - Matches your buttons */
+                background-color: #2563EB;
                 color: white; 
                 border-radius: 12px; 
                 margin-bottom: 25px; 
@@ -291,7 +284,7 @@ try:
                 align-items: center;
                 flex-wrap: wrap; 
                 box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.15); /* Adds a subtle premium shine */
+                border: 1px solid rgba(255, 255, 255, 0.15);
             }}
             .broadcast-title {{
                 font-weight: 900;
@@ -305,9 +298,6 @@ try:
             </div>
         """, unsafe_allow_html=True)
 except Exception: pass 
-# ==========================================
-# ==========================================
-# ==========================================
 
 main_tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
 
@@ -357,7 +347,7 @@ with main_tabs[0]:
                                 else: 
                                     st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
                                 
-                                # --- MIDDLE: Details (WITH Price) ---
+                                # --- MIDDLE: Details ---
                                 base_rate = float(car.get('daily_rate') or car.get('approved_price') or 0.0)
                                 st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}\n\n<h5 style='color: #2563EB;'>₱{base_rate:,.2f} / day</h5>", unsafe_allow_html=True)
                                 
@@ -376,14 +366,15 @@ with main_tabs[0]:
                                     if st.session_state[stage_key] == 0:
                                         today = datetime.date.today()
                                         
-                                        # 1. DATE PICKERS
+                                        # 1. MOVED DATE PICKERS TO TOP
                                         d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}_{cat}")
                                         t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
                                         d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}")
                                         t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
 
                                         # 2. BULLETPROOF FLAT HTML CALENDAR
-                                        cal_year, cal_month = d1.year, d1.month
+                                        cal_year = d1.year
+                                        cal_month = d1.month
                                         month_matrix = calendar.monthcalendar(cal_year, cal_month)
                                         month_name = calendar.month_name[cal_month]
                                         
@@ -392,7 +383,8 @@ with main_tabs[0]:
                                         for week in month_matrix:
                                             cal_html += "<tr>"
                                             for day in week:
-                                                if day == 0: cal_html += "<td></td>"
+                                                if day == 0:
+                                                    cal_html += "<td></td>"
                                                 else:
                                                     d_iter = datetime.date(cal_year, cal_month, day)
                                                     if d_iter in unavailable_dates:
@@ -582,40 +574,6 @@ with main_tabs[0]:
                                                         conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
                                                                      (b_ref, renter_user, owner_username, "Payment Receipt Uploaded for Admin Verification.", receipt_path))
                                                         conn.commit()
-                                                        
-                                                        # ==========================================
-                                                        # 🚨 SEND AUTOMATED EMAIL ALERTS
-                                                        # ==========================================
-                                                        try:
-                                                            aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
-                                                            if not aff_data.empty:
-                                                                affiliate_email = aff_data.iloc[0]['email']
-                                                                affiliate_name = aff_data.iloc[0]['full_name']
-                                                                
-                                                                # 1. Email to Admin
-                                                                admin_email = "driveelite@myyahoo.com" 
-                                                                send_alert_email(
-                                                                    to_email=admin_email,
-                                                                    subject=f"💳 ACTION REQUIRED: Payment Verification for #{b_ref}",
-                                                                    body=f"Renter @{renter_user} has booked a {car['make']} {car['model']} and uploaded a manual payment receipt.\n\nPlease log into the Admin Command Center to verify the BPI payment and confirm the booking."
-                                                                )
-                                                                
-                                                                # 2. Email to Affiliate
-                                                                send_alert_email(
-                                                                    to_email=affiliate_email,
-                                                                    subject=f"🚗 DriveElite: New Booking Verifying (#{b_ref})",
-                                                                    body=f"Hello {affiliate_name},\n\nA renter has booked your {car['make']} {car['model']} and submitted their payment.\n\nAdmin is currently verifying the receipt. Once confirmed, this will appear in your Logistics tab!"
-                                                                )
-                                                        except Exception as e:
-                                                            pass
-                                                        
-                                                        st.toast("✅ Receipt Sent to Admin!")
-                                                        st.session_state[stage_key] = 0
-                                                        del st.session_state[ref_key]
-                                                        time.sleep(2)
-                                                        st.rerun()
-                                                else:
-                                                    st.error("🚨 Please upload a screenshot of your receipt.")
                                                         
                                                         # ==========================================
                                                         # 🚨 SEND AUTOMATED EMAIL ALERTS
