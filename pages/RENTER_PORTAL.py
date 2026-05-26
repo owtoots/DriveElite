@@ -370,21 +370,51 @@ with main_tabs[0]:
                                     
                                     unavailable_dates = get_booked_dates(car['id'], conn)
                                     
-                                    st.markdown(cal_html, unsafe_allow_html=True
-                                        # ==========================================
-                                    # ==========================================
+                                    # -------------------------------------------------------------
+                                    # CHECKOUT STAGE 0: SELECT DATES & CONFIRM SOFT LOCK
+                                    # -------------------------------------------------------------
+                                    if st.session_state[stage_key] == 0:
+                                        today = datetime.date.today()
                                         
-                                    d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}_{cat}")
-                                    t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
-                                    d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}")
-                                    t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
+                                        # 1. MOVED DATE PICKERS TO TOP
+                                        d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}_{cat}")
+                                        t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
+                                        d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}")
+                                        t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
+
+                                        # 2. BULLETPROOF FLAT HTML CALENDAR
+                                        cal_year = d1.year
+                                        cal_month = d1.month
+                                        month_matrix = calendar.monthcalendar(cal_year, cal_month)
+                                        month_name = calendar.month_name[cal_month]
                                         
-                                    can_book = True
-                                    requested_days = set([d1 + datetime.timedelta(days=j) for j in range((d2 - d1).days + 1)])
-                                    clashes = requested_days.intersection(unavailable_dates)
-                                    if clashes:
-                                        can_book = False
-                                        st.error(f"🚨 Vehicle booked on: {', '.join([d.strftime('%b %d') for d in sorted(list(clashes))])}")
+                                        cal_html = f"<div style='background-color:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:15px; margin-bottom:20px; margin-top:15px;'><h4 style='text-align:center; color:#0F172A; margin-top:0px; margin-bottom:10px; font-size:16px;'>{month_name} {cal_year} Availability</h4><table style='width:100%; border-collapse:separate; border-spacing:4px; text-align:center; font-size:13px;'><tr><th style='color:#64748B;'>Mo</th><th style='color:#64748B;'>Tu</th><th style='color:#64748B;'>We</th><th style='color:#64748B;'>Th</th><th style='color:#64748B;'>Fr</th><th style='color:#64748B;'>Sa</th><th style='color:#64748B;'>Su</th></tr>"
+                                        
+                                        for week in month_matrix:
+                                            cal_html += "<tr>"
+                                            for day in week:
+                                                if day == 0:
+                                                    cal_html += "<td></td>"
+                                                else:
+                                                    d_iter = datetime.date(cal_year, cal_month, day)
+                                                    if d_iter in unavailable_dates:
+                                                        cal_html += f"<td><div style='background-color:#FEE2E2; color:#EF4444; text-decoration:line-through; border-radius:6px; padding:6px 0; font-weight:bold;'>{day}</div></td>"
+                                                    elif d_iter < today:
+                                                        cal_html += f"<td><div style='color:#CBD5E1; padding:6px 0;'>{day}</div></td>"
+                                                    else:
+                                                        cal_html += f"<td><div style='background-color:#DCFCE7; color:#16A34A; border-radius:6px; padding:6px 0; font-weight:bold; border:1px solid #BBF7D0;'>{day}</div></td>"
+                                            cal_html += "</tr>"
+                                        cal_html += "</table></div>"
+                                        
+                                        st.markdown(cal_html, unsafe_allow_html=True)
+                                        
+                                        # 3. COLLISION DETECTION
+                                        can_book = True
+                                        requested_days = set([d1 + datetime.timedelta(days=j) for j in range((d2 - d1).days + 1)])
+                                        clashes = requested_days.intersection(unavailable_dates)
+                                        if clashes:
+                                            can_book = False
+                                            st.error(f"🚨 Vehicle booked on: {', '.join([d.strftime('%b %d') for d in sorted(list(clashes))])}")
 
                                         drive_mode = st.radio("Mode", ["Self-Drive", "With Driver (+₱1k/day)"], key=f"dm_{car['id']}_{cat}")
                                         dest = st.text_input("Destination", key=f"dest_{car['id']}_{cat}")
@@ -441,15 +471,6 @@ with main_tabs[0]:
                                                 
                                                 st.markdown(bill_html, unsafe_allow_html=True)
                                                 st.divider()
-
-                                                is_overlapping = False
-                                                for _, row in pd.read_sql_query("SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status NOT IN ('CANCELLED', 'REJECTED')", conn, params=(car['id'],)).iterrows():
-                                                    if p_dt_obj < pd.to_datetime(row['return_time']) and r_dt_obj > pd.to_datetime(row['pickup_time']):
-                                                        is_overlapping = True; break
-                                                
-                                                if is_overlapping:
-                                                    st.error("🚨 **DATE UNAVAILABLE:** Your exact times overlap with an existing reservation.")
-                                                    can_book = False 
 
                                             except Exception as e:
                                                 st.error("Error calculating rate. Please verify your functions.")
@@ -563,6 +584,40 @@ with main_tabs[0]:
                                                         conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
                                                                      (b_ref, renter_user, owner_username, "Payment Receipt Uploaded for Admin Verification.", receipt_path))
                                                         conn.commit()
+                                                        
+                                                        # ==========================================
+                                                        # 🚨 SEND AUTOMATED EMAIL ALERTS
+                                                        # ==========================================
+                                                        try:
+                                                            aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
+                                                            if not aff_data.empty:
+                                                                affiliate_email = aff_data.iloc[0]['email']
+                                                                affiliate_name = aff_data.iloc[0]['full_name']
+                                                                
+                                                                # 1. Email to Admin
+                                                                admin_email = "driveelite@myyahoo.com" 
+                                                                send_alert_email(
+                                                                    to_email=admin_email,
+                                                                    subject=f"💳 ACTION REQUIRED: Payment Verification for #{b_ref}",
+                                                                    body=f"Renter @{renter_user} has booked a {car['make']} {car['model']} and uploaded a manual payment receipt.\n\nPlease log into the Admin Command Center to verify the BPI payment and confirm the booking."
+                                                                )
+                                                                
+                                                                # 2. Email to Affiliate
+                                                                send_alert_email(
+                                                                    to_email=affiliate_email,
+                                                                    subject=f"🚗 DriveElite: New Booking Verifying (#{b_ref})",
+                                                                    body=f"Hello {affiliate_name},\n\nA renter has booked your {car['make']} {car['model']} and submitted their payment.\n\nAdmin is currently verifying the receipt. Once confirmed, this will appear in your Logistics tab!"
+                                                                )
+                                                        except Exception as e:
+                                                            pass
+                                                        
+                                                        st.toast("✅ Receipt Sent to Admin!")
+                                                        st.session_state[stage_key] = 0
+                                                        del st.session_state[ref_key]
+                                                        time.sleep(2)
+                                                        st.rerun()
+                                                else:
+                                                    st.error("🚨 Please upload a screenshot of your receipt.")
                                                         
                                                         # ==========================================
                                                         # 🚨 SEND AUTOMATED EMAIL ALERTS
