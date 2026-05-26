@@ -620,7 +620,7 @@ with main_tabs[0]:
                                                         # ==========================================
                                                         # 🚨 SEND AUTOMATED EMAIL ALERTS
                                                         # ==========================================
-                                                    try:
+                                                        try:
                                                             aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
                                                             if not aff_data.empty:
                                                                 affiliate_email = aff_data.iloc[0]['email']
