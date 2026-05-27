@@ -562,9 +562,23 @@ with tabs[3]:
                 
                 df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
 
-                # 1. DISPLAY EXISTING MASTER LEDGER
+                # 1. DISPLAY EXISTING MASTER LEDGER & EXPORT BUTTON
                 st.subheader("📑 Master Ledger")
                 st.caption(f"Calculated based on MOA: Owner Share ({a_share*100}%) minus Gateway Fee | Platform Share ({100 - a_share*100}%)")
+                
+                # --- CSV EXPORT FEATURE ---
+                export_cols = ['Ref', 'Date', 'Renter', 'Affiliate', 'Total_Paid_By_Renter', 'gateway_fee', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
+                csv_data = df[export_cols].to_csv(index=False).encode('utf-8')
+                
+                st.download_button(
+                    label="📥 Download Monthly Bookkeeper Export (CSV)",
+                    data=csv_data,
+                    file_name=f"DriveElite_Financial_Export_{datetime.date.today().strftime('%Y_%m')}.csv",
+                    mime="text/csv",
+                    type="primary"
+                )
+                st.write("") 
+                # --------------------------
                 
                 display_cols = ['Ref', 'Date', 'Affiliate', 'Total_Paid_By_Renter', 'gateway_fee', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
                 
@@ -584,7 +598,7 @@ with tabs[3]:
                 quarterly_data = df.groupby(pd.Grouper(key='Date', freq='QE'))[['Platform_Net_Profit']].sum()
                 yearly_data = df.groupby(pd.Grouper(key='Date', freq='YE'))[['Platform_Net_Profit']].sum()
 
-                # 3. DISPLAY PERFORMANCE METRICS (Top Row)
+                # 3. DISPLAY PERFORMANCE METRICS
                 col1, col2, col3 = st.columns(3)
                 col1.metric("Monthly Platform Revenue", f"₱{monthly_data['Platform_Net_Profit'].iloc[-1]:,.2f}")
                 col2.metric("Quarterly Platform Revenue", f"₱{quarterly_data['Platform_Net_Profit'].iloc[-1]:,.2f}")
