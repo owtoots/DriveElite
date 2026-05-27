@@ -702,7 +702,50 @@ with tabs[4]:
                                             else: st.error("Failed to send email.")
         else: st.info("No contracts have been signed yet.")
     else: st.warning("The uploads folder does not exist yet. It will be created when the first user registers.")
-
+# --- ACTIVE AFFILIATE DIRECTORY ---
+    st.divider()
+    st.markdown("### 💼 Approved Affiliates Directory")
+    st.write("View active partners and their submitted legal documents.")
+    
+    try:
+        # Fetch only approved affiliates
+        app_affiliates = pd.read_sql_query("SELECT * FROM platform_users WHERE admin_status = 'APPROVED' AND role = 'AFFILIATE'", conn)
+        
+        if app_affiliates.empty: 
+            st.info("No approved affiliates in the system yet.")
+        else:
+            for i, r in app_affiliates.iterrows():
+                with st.expander(f"✅ {r['full_name']} (@{r['username']}) - {r['contact_number']}"):
+                    c_img1, c_img2, c_img3 = st.columns(3)
+                    
+                    # Fetching the images safely
+                    gov = r.get('gov_id') if pd.notna(r.get('gov_id')) else r.get('govt_id_img')
+                    lic = r.get('lic_id') if pd.notna(r.get('lic_id')) else r.get('license_img')
+                    sig = r.get('signature') if pd.notna(r.get('signature')) else r.get('signature_img')
+                    
+                    # Displaying Govt ID
+                    if pd.notna(gov) and gov:
+                        if isinstance(gov, str): c_img1.image(gov, caption="Passport / Govt ID")
+                        else: c_img1.image(bytes(gov), caption="Passport / Govt ID")
+                    
+                    # Displaying License
+                    if pd.notna(lic) and lic:
+                        if isinstance(lic, str): c_img2.image(lic, caption="Driver's License")
+                        else: c_img2.image(bytes(lic), caption="Driver's License")
+                        
+                    # Displaying MOA Signature
+                    if pd.notna(sig) and sig:
+                        if isinstance(sig, str): c_img3.image(sig, caption="Digitally Signed MOA")
+                        else: c_img3.image(bytes(sig), caption="Digitally Signed MOA")
+                        
+                    # Optional: A button to revoke approval if they violate terms
+                    if st.button("Revoke Approval / Suspend", key=f"suspend_{r['id']}"):
+                        conn.execute("UPDATE platform_users SET admin_status = 'SUSPENDED' WHERE id = ?", (r['id'],))
+                        conn.commit()
+                        st.rerun()
+                        
+    except Exception as e:
+        st.warning(f"Could not load Affiliate directory: {e}")
 # --- TAB 5: PROMOS & DB ---
 with tabs[5]:
     render_platform_settings(conn)
