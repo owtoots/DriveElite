@@ -761,6 +761,9 @@ with tabs[0]:
                             with c1:
                                 st.write("#### 🛠️ Agreement Penalties & Usage")
                                 
+                                # --- TRIP TYPE TOGGLE ---
+                                settlement_type = st.radio("Trip Type:", ["Self-Drive", "With Driver"], key=f"type_{b['id']}", horizontal=True)
+                                
                                 l_ok = st.checkbox("Returned on Time", value=True, key=f"l_{b['id']}")
                                 late_fee = st.number_input("Hours Late (Php 300/hr)", min_value=1, step=1, key=f"l_hrs_{b['id']}") * 300.0 if not l_ok else 0.0
                                 
@@ -771,40 +774,47 @@ with tabs[0]:
                                 if not c_ok: st.caption("Industry standard smoking/deep-clean fine is ₱2,500.")
                                 cleaning_fee = st.number_input("Cleaning/Smoking Fine (Php)", value=2500.0, step=500.0, key=f"c_fine_{b['id']}") if not c_ok else 0.0
                                 
-                                d_ok = st.checkbox("No Damage Found", value=True, key=f"d_{b['id']}")
                                 damage_fee = 0.0
                                 img_damage = None
                                 
-                                if not d_ok:
-                                    img_damage = st.file_uploader("Upload Damage Photos (Drag & Drop multiple)", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"p_dam_{b['id']}")
-                                    if img_damage:
-                                        d_cols = st.columns(3)
-                                        for idx, dmg_file in enumerate(img_damage):
-                                            with d_cols[idx % 3]:
-                                                st.image(dmg_file, use_container_width=True, caption=f"New Damage {idx+1}")
-                                    damage_fee = st.number_input("Estimated Damage Amount (Php)", step=500.0, key=f"d_est_{b['id']}")
+                                # --- DAMAGE LOGIC BASED ON TRIP TYPE ---
+                                if settlement_type == "Self-Drive":
+                                    d_ok = st.checkbox("No Damage Found", value=True, key=f"d_{b['id']}")
+                                    if not d_ok:
+                                        img_damage = st.file_uploader("Upload Damage Photos (Drag & Drop multiple)", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"p_dam_{b['id']}")
+                                        if img_damage:
+                                            d_cols = st.columns(3)
+                                            for idx, dmg_file in enumerate(img_damage):
+                                                with d_cols[idx % 3]:
+                                                    st.image(dmg_file, use_container_width=True, caption=f"New Damage {idx+1}")
+                                        damage_fee = st.number_input("Estimated Damage Amount (Php)", step=500.0, key=f"d_est_{b['id']}")
+                                else:
+                                    st.info("🛡️ **With Driver Mode:** The Driver is responsible for the vehicle. Damage liability is waived for the Renter.")
                                 
-                                # --- SMART RFID MODULE ---
+                                # --- TOLLS, PARKING & DRIVER EXTRAS ---
                                 st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
-                                st.write("##### 🛣️ Tolls & RFID")
+                                st.write("##### 🛣️ Tolls & Travel Expenses")
                                 rc1, rc2 = st.columns(2)
                                 with rc1: 
-                                    rfid_usage = st.number_input("Consumed (₱)", min_value=0.0, step=50.0, value=0.0, key=f"r_use_{b['id']}")
+                                    rfid_usage = st.number_input("Tolls Consumed (₱)", min_value=0.0, step=50.0, value=0.0, key=f"r_use_{b['id']}")
                                 with rc2: 
-                                    rfid_replenished = st.number_input("Loaded (₱)", min_value=0.0, step=50.0, value=0.0, key=f"r_load_{b['id']}")
+                                    rfid_replenished = st.number_input("Tolls Loaded (₱)", min_value=0.0, step=50.0, value=0.0, key=f"r_load_{b['id']}")
                                 
                                 rfid_penalty = st.checkbox("Apply ₱100 fine (Failure to load)", key=f"r_pen_{b['id']}")
                                 fine_amount = 100.0 if rfid_penalty else 0.0
                                 rfid_fee = max(0.0, rfid_usage - rfid_replenished) + fine_amount
                                 
-                                if rfid_fee > 0: 
-                                    st.error(f"Net RFID Deduction: ₱{rfid_fee:,.2f}")
-                                elif rfid_replenished > rfid_usage: 
-                                    st.success(f"Excess load: ₱{(rfid_replenished - rfid_usage):,.2f} (No deduction)")
-                                st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
+                                driver_extras = 0.0
+                                if settlement_type == "With Driver":
+                                    st.write("--- 🧑‍✈️ Driver Allowances & Extras ---")
+                                    p_fee = st.number_input("Parking Fees (₱)", min_value=0.0, step=20.0, key=f"park_{b['id']}")
+                                    n_diff = st.number_input("Night Differential (₱)", min_value=0.0, step=100.0, key=f"ndiff_{b['id']}")
+                                    m_allow = st.number_input("Meal Allowance (₱)", min_value=0.0, step=50.0, key=f"meal_{b['id']}")
+                                    l_allow = st.number_input("Lodging Allowance (₱)", min_value=0.0, step=100.0, key=f"lodge_{b['id']}")
+                                    driver_extras = p_fee + n_diff + m_allow + l_allow
                                 
                                 # --- MASTER CALCULATION ---
-                                total_deduct = late_fee + fuel_fee + cleaning_fee + damage_fee + rfid_fee
+                                total_deduct = late_fee + fuel_fee + cleaning_fee + damage_fee + rfid_fee + driver_extras
                                 refund_amount = max(0, 5000.0 - total_deduct)
                                 
                                 st.markdown(f"""
@@ -847,16 +857,17 @@ with tabs[0]:
                                     
                                     if not has_sig or not has_sig_a:
                                         st.error("Both Renter and Affiliate signatures are required to close the trip.")
-                                    elif not d_ok and not img_damage:
+                                    elif settlement_type == "Self-Drive" and not d_ok and not img_damage:
                                         st.error("Upload damage photos to proceed.")
                                     else:
                                         d_img_path = ",".join([save_file(img) for img in img_damage]) if img_damage else None
                                         
                                         with st.spinner("Generating Settlement PDF and closing trip..."):
                                             try:
+                                                # Included driver_extras into the receipt generator where the 0.0 used to be
                                                 pdf_bytes = generate_return_receipt(
                                                     b['booking_ref'], b['renter_name'], f"{b['make']} {b['model']}", b['plate'], 
-                                                    float(fuel_fee), float(cleaning_fee), float(damage_fee), float(late_fee), 0.0, float(rfid_fee), 
+                                                    float(fuel_fee), float(cleaning_fee), float(damage_fee), float(late_fee), float(driver_extras), float(rfid_fee), 
                                                     float(total_deduct), float(refund_amount), s_ret.image_data, s_reta.image_data
                                                 )
                                                 
@@ -868,12 +879,13 @@ with tabs[0]:
                                                     body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: ₱{total_deduct:,.2f}\nRefund Amount: ₱{refund_amount:,.2f}"
                                                     send_pdf_email(b['renter_email'], subject, body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
                                                 
+                                                # Combined rfid_fee and driver_extras here so it saves safely to your DB without causing a crash
                                                 conn.execute("""
                                                     UPDATE bookings 
                                                     SET status = 'COMPLETED', payout_status = 'PENDING',
                                                         damage_img = ?, rfid_fee = ?, damage_fee = ?, late_fee = ?, fuel_fee = ?, cleaning_fee = ?, dispute_status = 'CLEAN' 
                                                     WHERE id = ?
-                                                """, (d_img_path, float(rfid_fee), float(damage_fee), float(late_fee), float(fuel_fee), float(cleaning_fee), b['id']))
+                                                """, (d_img_path, float(rfid_fee + driver_extras), float(damage_fee), float(late_fee), float(fuel_fee), float(cleaning_fee), b['id']))
                                                 
                                                 conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
                                                 conn.commit()
@@ -884,7 +896,6 @@ with tabs[0]:
                                                 
                                             except Exception as e:
                                                 st.error(f"Error finalizing settlement: {e}")
-                                        
     except Exception as e:
         st.error(f"System Error loading bookings: {e}")
 
