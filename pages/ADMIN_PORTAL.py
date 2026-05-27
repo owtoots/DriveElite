@@ -547,27 +547,31 @@ with tabs[3]:
             if df.empty:
                 st.info("No completed financial transactions recorded yet.")
             else:
-                # 0. CALCULATE LEDGER METRICS (EWT REMOVED)
+                # 0. CALCULATE LEDGER METRICS
                 df['gateway_fee'] = df['gateway_fee'].fillna(0)
                 df['pickup_dt'] = pd.to_datetime(df['Date'], errors='coerce')
                 df['return_dt'] = pd.to_datetime(df['return_time'], errors='coerce')
                 
-                # Affiliate & Platform Splits
+                # Affiliate & Platform Gross Splits
                 df['Affiliate_Gross_Share'] = df['Total_Paid_By_Renter'] * a_share
                 df['Platform_Gross_Cut'] = df['Total_Paid_By_Renter'] - df['Affiliate_Gross_Share']
                 
-                # Final Net Computations (Affiliate absorbs gateway fee, Platform keeps pure margin)
+                # Affiliate Net Payout (Absorbs the payment gateway fee)
                 df['Affiliate_Net_Payout'] = df['Affiliate_Gross_Share'] - df['gateway_fee']
-                df['Platform_Net_Profit'] = df['Platform_Gross_Cut']
+                
+                # Platform EWT & Net Income (Calculates 2% tax provision on the platform's share)
+                PLATFORM_TAX_RATE = 0.02
+                df['Platform_EWT'] = df['Platform_Gross_Cut'] * PLATFORM_TAX_RATE
+                df['Platform_Net_Income'] = df['Platform_Gross_Cut'] - df['Platform_EWT']
                 
                 df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
 
                 # 1. DISPLAY EXISTING MASTER LEDGER & EXPORT BUTTON
                 st.subheader("📑 Master Ledger")
-                st.caption(f"Calculated based on MOA: Owner Share ({a_share*100}%) minus Gateway Fee | Platform Share ({100 - a_share*100}%)")
+                st.caption(f"Calculated based on MOA: Owner Share ({a_share*100}%) | Platform Share ({100 - a_share*100}%) minus {PLATFORM_TAX_RATE*100}% EWT")
                 
                 # --- CSV EXPORT FEATURE ---
-                export_cols = ['Ref', 'Date', 'Renter', 'Affiliate', 'Total_Paid_By_Renter', 'gateway_fee', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
+                export_cols = ['Ref', 'Date', 'Renter', 'Affiliate', 'Total_Paid_By_Renter', 'gateway_fee', 'Affiliate_Net_Payout', 'Platform_Gross_Cut', 'Platform_EWT', 'Platform_Net_Income', 'Payout_Status']
                 csv_data = df[export_cols].to_csv(index=False).encode('utf-8')
                 
                 st.download_button(
@@ -580,11 +584,11 @@ with tabs[3]:
                 st.write("") 
                 # --------------------------
                 
-                display_cols = ['Ref', 'Date', 'Affiliate', 'Total_Paid_By_Renter', 'gateway_fee', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
+                display_cols = ['Ref', 'Date', 'Affiliate', 'Total_Paid_By_Renter', 'Affiliate_Net_Payout', 'Platform_Gross_Cut', 'Platform_EWT', 'Platform_Net_Income', 'Payout_Status']
                 
                 styled_ledger = df[display_cols].style.format({
-                    'Total_Paid_By_Renter': '₱{:,.2f}', 'gateway_fee': '₱{:,.2f}', 
-                    'Affiliate_Net_Payout': '₱{:,.2f}', 'Platform_Net_Profit': '₱{:,.2f}'
+                    'Total_Paid_By_Renter': '₱{:,.2f}', 'Affiliate_Net_Payout': '₱{:,.2f}', 
+                    'Platform_Gross_Cut': '₱{:,.2f}', 'Platform_EWT': '₱{:,.2f}', 'Platform_Net_Income': '₱{:,.2f}'
                 })
                 st.dataframe(styled_ledger, use_container_width=True, hide_index=True)
                 
@@ -594,24 +598,24 @@ with tabs[3]:
                 # 2. PERFORM TIME-BASED GROUPING
                 df['Date'] = pd.to_datetime(df['Date'])
                 
-                monthly_data = df.groupby(pd.Grouper(key='Date', freq='ME'))[['Platform_Net_Profit']].sum()
-                quarterly_data = df.groupby(pd.Grouper(key='Date', freq='QE'))[['Platform_Net_Profit']].sum()
-                yearly_data = df.groupby(pd.Grouper(key='Date', freq='YE'))[['Platform_Net_Profit']].sum()
+                monthly_data = df.groupby(pd.Grouper(key='Date', freq='ME'))[['Platform_Gross_Cut', 'Platform_EWT', 'Platform_Net_Income']].sum()
+                quarterly_data = df.groupby(pd.Grouper(key='Date', freq='QE'))[['Platform_Gross_Cut', 'Platform_EWT', 'Platform_Net_Income']].sum()
+                yearly_data = df.groupby(pd.Grouper(key='Date', freq='YE'))[['Platform_Gross_Cut', 'Platform_EWT', 'Platform_Net_Income']].sum()
 
                 # 3. DISPLAY PERFORMANCE METRICS
                 col1, col2, col3 = st.columns(3)
-                col1.metric("Monthly Platform Revenue", f"₱{monthly_data['Platform_Net_Profit'].iloc[-1]:,.2f}")
-                col2.metric("Quarterly Platform Revenue", f"₱{quarterly_data['Platform_Net_Profit'].iloc[-1]:,.2f}")
-                col3.metric("Yearly Platform Revenue", f"₱{yearly_data['Platform_Net_Profit'].iloc[-1]:,.2f}")
-                
+                col1.metric("Monthly Platform Net", f"₱{monthly_data['Platform_Net_Income'].iloc[-1]:,.2f}", f"Gross: ₱{monthly_data['Platform_Gross_Cut'].iloc[-1]:,.2f}")
+                col2.metric("Quarterly Platform Net", f"₱{quarterly_data['Platform_Net_Income'].iloc[-1]:,.2f}", f"Gross: ₱{quarterly_data['Platform_Gross_Cut'].iloc[-1]:,.2f}")
+                col3.metric("Yearly Platform Net", f"₱{yearly_data['Platform_Net_Income'].iloc[-1]:,.2f}", f"Gross: ₱{yearly_data['Platform_Gross_Cut'].iloc[-1]:,.2f}")
+
                 st.divider()
                 
-                # 4. EWT MONTHLY FILING REPORT
-                st.markdown("### 🧾 Platform EWT Monthly Filing Summary")
-                st.write("This table helps you track the total Expanded Withholding Tax (EWT) to be remitted per month.")
+                # 4. PLATFORM EWT MONTHLY REPORT
+                st.markdown("### 🧾 Platform Tax Provision Summary")
+                st.write("This tracks the estimated EWT/Percentage Tax on your platform's revenue to set aside for BIR filing.")
                 
-                ewt_report = monthly_data[['EWT_Deduction']].rename(columns={'EWT_Deduction': 'Total EWT Collected'})
-                ewt_report.index = ewt_report.index.strftime('%B %Y') # Converts timestamp to 'May 2026' format
+                ewt_report = monthly_data[['Platform_Gross_Cut', 'Platform_EWT', 'Platform_Net_Income']]
+                ewt_report.index = ewt_report.index.strftime('%B %Y') 
                 
                 st.dataframe(ewt_report.style.format('₱{:,.2f}'), use_container_width=True)
 
