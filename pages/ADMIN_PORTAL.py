@@ -322,12 +322,15 @@ with tabs[0]:
                     st.write(f"Age: {r['age']} | Nat: {r.get('nationality', 'Filipino')} | Contact: {r['contact_number']}")
                     c_img1, c_img2 = st.columns(2)
                     
-                    # Bulletproof BLOB extraction & Byte Conversion
                     gov = r.get('gov_id') if pd.notna(r.get('gov_id')) else r.get('govt_id_img')
                     lic = r.get('lic_id') if pd.notna(r.get('lic_id')) else r.get('license_img')
                     
-                    if pd.notna(gov) and gov: c_img1.image(bytes(gov), caption="Passport / Govt ID")
-                    if pd.notna(lic) and lic: c_img2.image(bytes(lic), caption="Driver's License")
+                    if pd.notna(gov) and gov:
+                        if isinstance(gov, str): c_img1.image(gov, caption="Passport / Govt ID")
+                        else: c_img1.image(bytes(gov), caption="Passport / Govt ID")
+                    if pd.notna(lic) and lic:
+                        if isinstance(lic, str): c_img2.image(lic, caption="Driver's License")
+                        else: c_img2.image(bytes(lic), caption="Driver's License")
                     
                     if st.button("APPROVE RENTER", key=f"ra_{r['id']}", type="primary", use_container_width=True):
                         conn.execute("UPDATE platform_users SET admin_status = 'APPROVED' WHERE id = ?", (r['id'],))
@@ -344,14 +347,19 @@ with tabs[0]:
                     st.write(f"Age: {r['age']} | Nat: {r.get('nationality', 'Filipino')} | Contact: {r['contact_number']}")
                     c_img1, c_img2 = st.columns(2)
                     
-                    # Bulletproof BLOB extraction & Byte Conversion
                     gov = r.get('gov_id') if pd.notna(r.get('gov_id')) else r.get('govt_id_img')
                     lic = r.get('lic_id') if pd.notna(r.get('lic_id')) else r.get('license_img')
                     sig = r.get('signature') if pd.notna(r.get('signature')) else r.get('signature_img')
                     
-                    if pd.notna(gov) and gov: c_img1.image(bytes(gov), caption="Passport / Govt ID")
-                    if pd.notna(lic) and lic: c_img2.image(bytes(lic), caption="Driver's License") 
-                    if pd.notna(sig) and sig: st.image(bytes(sig), caption=f"Digitally Signed MOA", width=300)
+                    if pd.notna(gov) and gov:
+                        if isinstance(gov, str): c_img1.image(gov, caption="Passport / Govt ID")
+                        else: c_img1.image(bytes(gov), caption="Passport / Govt ID")
+                    if pd.notna(lic) and lic:
+                        if isinstance(lic, str): c_img2.image(lic, caption="Driver's License")
+                        else: c_img2.image(bytes(lic), caption="Driver's License")
+                    if pd.notna(sig) and sig:
+                        if isinstance(sig, str): st.image(sig, caption="Digitally Signed MOA", width=300)
+                        else: st.image(bytes(sig), caption="Digitally Signed MOA", width=300)
                     
                     if st.button("APPROVE AFFILIATE", key=f"aa_{r['id']}", type="primary", use_container_width=True):
                         conn.execute("UPDATE platform_users SET admin_status = 'APPROVED' WHERE id = ?", (r['id'],))
@@ -368,12 +376,15 @@ with tabs[0]:
                     st.write(f"Age: {d['age']} | Contact: {d['contact_number']}")
                     c_img1, c_img2 = st.columns(2)
                     
-                    # Bulletproof BLOB extraction & Byte Conversion
                     gov = d.get('gov_id') if pd.notna(d.get('gov_id')) else d.get('govt_id_img')
                     lic = d.get('lic_id') if pd.notna(d.get('lic_id')) else d.get('license_img')
                     
-                    if pd.notna(gov) and gov: c_img1.image(bytes(gov), caption="Govt ID")
-                    if pd.notna(lic) and lic: c_img2.image(bytes(lic), caption="Professional License")
+                    if pd.notna(gov) and gov:
+                        if isinstance(gov, str): c_img1.image(gov, caption="Govt ID")
+                        else: c_img1.image(bytes(gov), caption="Govt ID")
+                    if pd.notna(lic) and lic:
+                        if isinstance(lic, str): c_img2.image(lic, caption="Professional License")
+                        else: c_img2.image(bytes(lic), caption="Professional License")
                     
                     if st.button("APPROVE DRIVER", key=f"da_{d['id']}", type="primary", use_container_width=True):
                         conn.execute("UPDATE drivers SET admin_status = 'APPROVED' WHERE id = ?", (d['id'],))
