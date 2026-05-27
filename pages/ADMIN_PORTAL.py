@@ -150,12 +150,18 @@ conn = get_connection()
 init_db()
 patch_database()
 init_discount_db(conn)
+
+try: 
+    conn.execute("ALTER TABLE platform_users ADD COLUMN penalty_balance REAL DEFAULT 0.0")
+    conn.commit()
+except: 
+    pass
+
 try:
     conn.execute("ALTER TABLE platform_settings ADD COLUMN payment_mode TEXT DEFAULT 'MANUAL_QR'")
     conn.commit()
 except:
     pass
-
 # ==========================================
 # 6. UTILITY FUNCTIONS (CACHE & POS)
 # ==========================================
@@ -311,6 +317,7 @@ tabs = st.tabs(["📋 APPROVALS", "🚙 ASSETS", "🚚 LOGISTICS", "🏦 FINANCI
 # --- TAB 0: PENDING APPROVALS ---
 with tabs[0]:
     st.markdown("<h3 style='text-align: center;'>📋 PENDING APPROVALS</h3>", unsafe_allow_html=True)
+    
     p_tabs = st.tabs(["🚙 PENDING RENTERS", "💼 PENDING AFFILIATES", "👨‍✈️ PENDING DRIVERS"])
     
     with p_tabs[0]:
@@ -625,13 +632,52 @@ with tabs[3]:
                 pending_p = df[(df['Trip_Status'] == 'COMPLETED') & (df['Payout_Status'] == 'PENDING')]
                 if pending_p.empty: st.info("No pending payouts at this time.")
                 for _, p in pending_p.iterrows():
-                    with st.expander(f"{p['Ref']} | {p['Affiliate']} | Net: ₱{p['Affiliate_Net_Payout']:,.2f}"):
-                        st.write(f"**Final Remittance:** ₱{p['Affiliate_Net_Payout']:,.2f}")
+                    with st.expander(f"{p['Ref']} | {p['Affiliate']} | Trip Net: ₱{p['Affiliate_Net_Payout']:,.2f}"):
+                        
+                        # 1. Look up the affiliate's username and current penalty balance
+                        try:
+                            aff_data = conn.execute("""
+                                SELECT u.username, u.penalty_balance 
+                                FROM platform_users u
+                                JOIN vehicles v ON v.owner_username = u.username
+                                JOIN bookings b ON b.vehicle_id = v.id
+                                WHERE b.id = ?
+                            """, (p['id'],)).fetchone()
+                            
+                            aff_username = aff_data[0] if aff_data else ""
+                            current_penalty = aff_data[1] if aff_data and aff_data[1] else 0.0
+                        except:
+                            aff_username, current_penalty = "", 0.0
+                        
+                        final_payout = p['Affiliate_Net_Payout']
+                        penalty_to_deduct = 0.0
+                        
+                        # 2. Automatically calculate deductions if they owe the platform money
+                        if current_penalty > 0:
+                            st.warning(f"⚠️ {p['Affiliate']} has an outstanding penalty balance of ₱{current_penalty:,.2f}.")
+                            
+                            # We can only deduct up to what they actually earned on this trip
+                            penalty_to_deduct = min(final_payout, current_penalty)
+                            final_payout -= penalty_to_deduct
+                            
+                            st.error(f"➖ Automatically Deducting Penalty: ₱{penalty_to_deduct:,.2f}")
+                        
+                        st.write(f"### **Final Remittance:** ₱{final_payout:,.2f}")
+                        st.caption(f"Bank: {p.get('bank_name', 'N/A')} | Acct: {p.get('account_no', 'N/A')}")
+                        
+                        # 3. Process the payout and update the ledger
                         if st.button("MARK AS PAID", key=f"p_{p['id']}", type="primary", use_container_width=True):
+                            # Mark the trip as paid
                             conn.execute("UPDATE bookings SET payout_status = 'PAID' WHERE id = ?", (p['id'],))
+                            
+                            # Reduce their penalty balance in the database
+                            if penalty_to_deduct > 0:
+                                conn.execute("UPDATE platform_users SET penalty_balance = penalty_balance - ? WHERE username = ?", (penalty_to_deduct, aff_username))
+                            
                             conn.commit()
-                            st.success("Marked as Paid!")
-                            time.sleep(1); st.rerun()
+                            st.success("✅ Payout Recorded and Ledger Updated!")
+                            time.sleep(1.5)
+                            st.rerun()
 
         # --- SUB-TAB 3: ISSUE RECEIPTS ---
         with f_tabs[3]:
@@ -811,10 +857,48 @@ with tabs[5]:
                     try: conn.execute("INSERT INTO vehicle_categories (name, default_price) VALUES (?, ?)", (n.title(), p)); conn.commit()
                     except Exception as e: st.error(f"Error adding category: {e}")
 
+    # =========================================================
+    # 🚨 PASTE THE PENALTY MANAGER RIGHT HERE! 🚨
+    # =========================================================
+    st.divider()
+    st.markdown("<h3 style='text-align: center;'>⚖️ AFFILIATE PENALTY MANAGER</h3>", unsafe_allow_html=True)
+    st.write("Apply No-Show or Cancellation fines. These will be automatically tracked against their ledger.")
+    
+    try:
+        affiliates_df = pd.read_sql_query("SELECT id, username, full_name, penalty_balance FROM platform_users WHERE role = 'AFFILIATE'", conn)
+        
+        if not affiliates_df.empty:
+            with st.form("apply_penalty_form"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    aff_options = affiliates_df.apply(lambda x: f"{x['full_name']} (@{x['username']}) | Owes: ₱{x['penalty_balance']:,.2f}", axis=1).tolist()
+                    selected_aff = st.selectbox("Select Affiliate to Penalize:", aff_options)
+                    target_username = selected_aff.split("(@")[1].split(")")[0]
+                
+                with col2:
+                    penalty_amount = st.number_input("Penalty Amount (₱)", min_value=0.0, step=500.0)
+                    penalty_reason = st.text_input("Reason (e.g., No-Show Ref #12345)")
+                
+                submit_penalty = st.form_submit_button("APPLY PENALTY TO LEDGER", type="primary")
+                
+                if submit_penalty and penalty_amount > 0:
+                    conn.execute("UPDATE platform_users SET penalty_balance = penalty_balance + ? WHERE username = ?", (penalty_amount, target_username))
+                    conn.commit()
+                    st.success(f"✅ ₱{penalty_amount:,.2f} penalty applied to {target_username} for: {penalty_reason}")
+                    time.sleep(1.5)
+                    st.rerun()
+    except Exception as e:
+        st.error(f"Error loading penalty manager: {e}")
+    # =========================================================
+
+
+    # This is the section you are looking for to paste ABOVE:
     st.divider()
     st.markdown("<h3 style='text-align: center;'>ALL REGISTERED USERS</h3>", unsafe_allow_html=True)
     try:
         db_tabs = st.tabs(["🚗 RENTERS", "💼 AFFILIATES", "🧑‍✈️ DRIVERS"])
+        # ... rest of your code ...
         q_renters = "SELECT full_name as 'FULLNAME', address as 'ADDRESS', contact_number as 'CONTACT NO.', admin_status as 'STATUS' FROM platform_users WHERE role='RENTER'"
         with db_tabs[0]: st.dataframe(pd.read_sql_query(q_renters, conn), hide_index=True, use_container_width=True)
         q_affiliates = "SELECT full_name as 'FULLNAME', address as 'ADDRESS', contact_number as 'CONTACT NO.', admin_status as 'STATUS' FROM platform_users WHERE role='AFFILIATE'"
