@@ -570,9 +570,9 @@ with tabs[3]:
                 # 2. PERFORM TIME-BASED GROUPING
                 df['Date'] = pd.to_datetime(df['Date'])
                 
-                monthly_data = df.groupby(pd.Grouper(key='Date', freq='M'))[['Platform_Net_Profit', 'EWT_Deduction']].sum()
-                quarterly_data = df.groupby(pd.Grouper(key='Date', freq='Q'))[['Platform_Net_Profit', 'EWT_Deduction']].sum()
-                yearly_data = df.groupby(pd.Grouper(key='Date', freq='Y'))[['Platform_Net_Profit', 'EWT_Deduction']].sum()
+                monthly_data = df.groupby(pd.Grouper(key='Date', freq='ME'))[['Platform_Net_Profit', 'EWT_Deduction']].sum()
+                quarterly_data = df.groupby(pd.Grouper(key='Date', freq='QE'))[['Platform_Net_Profit', 'EWT_Deduction']].sum()
+                yearly_data = df.groupby(pd.Grouper(key='Date', freq='YE'))[['Platform_Net_Profit', 'EWT_Deduction']].sum()
 
                 # 3. DISPLAY PERFORMANCE METRICS (Top Row)
                 col1, col2, col3 = st.columns(3)
