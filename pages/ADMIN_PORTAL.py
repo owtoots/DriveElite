@@ -547,49 +547,48 @@ with tabs[3]:
             if df.empty:
                 st.info("No completed financial transactions recorded yet.")
             else:
-                # 0. CALCULATE LEDGER METRICS
+                # 0. CALCULATE LEDGER METRICS (EWT REMOVED)
                 df['gateway_fee'] = df['gateway_fee'].fillna(0)
                 df['pickup_dt'] = pd.to_datetime(df['Date'], errors='coerce')
                 df['return_dt'] = pd.to_datetime(df['return_time'], errors='coerce')
-                df['Total_Days'] = (df['return_dt'] - df['pickup_dt']).dt.ceil('D').dt.days
-                df['Total_Days'] = df['Total_Days'].fillna(1).clip(lower=1)
                 
-                df['Applied_Markup'] = np.where(df['Total_Days'] >= 4, r_markup, 0.0)
-
-                df['Platform_Gross_Cut'] = df['Total_Paid_By_Renter'] * (1 - (a_share / (1 + df['Applied_Markup'])))
-                TAX_RATE = 0.01 
-                df['Platform_Net_Profit'] = df['Platform_Gross_Cut'] - df['gateway_fee'] - (df['Total_Paid_By_Renter'] * TAX_RATE * 0.18)
-                df['Affiliate_Gross_Share'] = df['Total_Paid_By_Renter'] - df['Platform_Gross_Cut']
-                df['EWT_Deduction'] = df['Affiliate_Gross_Share'] * TAX_RATE
-                df['Affiliate_Net_Payout'] = df['Affiliate_Gross_Share'] - df['EWT_Deduction']
+                # Affiliate & Platform Splits
+                df['Affiliate_Gross_Share'] = df['Total_Paid_By_Renter'] * a_share
+                df['Platform_Gross_Cut'] = df['Total_Paid_By_Renter'] - df['Affiliate_Gross_Share']
+                
+                # Final Net Computations (Affiliate absorbs gateway fee, Platform keeps pure margin)
+                df['Affiliate_Net_Payout'] = df['Affiliate_Gross_Share'] - df['gateway_fee']
+                df['Platform_Net_Profit'] = df['Platform_Gross_Cut']
+                
                 df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
 
                 # 1. DISPLAY EXISTING MASTER LEDGER
                 st.subheader("📑 Master Ledger")
-                st.caption(f"Calculated based on Admin Margins: Renter Fee ({r_markup*100}% - Waived for <4 days) | Owner Share ({a_share*100}%)")
-                display_cols = ['Ref', 'Date', 'Total_Days', 'Affiliate', 'Total_Paid_By_Renter', 'EWT_Deduction', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
+                st.caption(f"Calculated based on MOA: Owner Share ({a_share*100}%) minus Gateway Fee | Platform Share ({100 - a_share*100}%)")
+                
+                display_cols = ['Ref', 'Date', 'Affiliate', 'Total_Paid_By_Renter', 'gateway_fee', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
                 
                 styled_ledger = df[display_cols].style.format({
-                    'Total_Paid_By_Renter': '₱{:,.2f}', 'EWT_Deduction': '₱{:,.2f}', 
+                    'Total_Paid_By_Renter': '₱{:,.2f}', 'gateway_fee': '₱{:,.2f}', 
                     'Affiliate_Net_Payout': '₱{:,.2f}', 'Platform_Net_Profit': '₱{:,.2f}'
                 })
                 st.dataframe(styled_ledger, use_container_width=True, hide_index=True)
                 
                 st.divider()
-                st.subheader("📊 Revenue & EWT Analytics")
+                st.subheader("📊 Platform Revenue Analytics")
                 
                 # 2. PERFORM TIME-BASED GROUPING
                 df['Date'] = pd.to_datetime(df['Date'])
                 
-                monthly_data = df.groupby(pd.Grouper(key='Date', freq='ME'))[['Platform_Net_Profit', 'EWT_Deduction']].sum()
-                quarterly_data = df.groupby(pd.Grouper(key='Date', freq='QE'))[['Platform_Net_Profit', 'EWT_Deduction']].sum()
-                yearly_data = df.groupby(pd.Grouper(key='Date', freq='YE'))[['Platform_Net_Profit', 'EWT_Deduction']].sum()
+                monthly_data = df.groupby(pd.Grouper(key='Date', freq='ME'))[['Platform_Net_Profit']].sum()
+                quarterly_data = df.groupby(pd.Grouper(key='Date', freq='QE'))[['Platform_Net_Profit']].sum()
+                yearly_data = df.groupby(pd.Grouper(key='Date', freq='YE'))[['Platform_Net_Profit']].sum()
 
                 # 3. DISPLAY PERFORMANCE METRICS (Top Row)
                 col1, col2, col3 = st.columns(3)
-                col1.metric("Monthly Net Revenue", f"₱{monthly_data['Platform_Net_Profit'].iloc[-1]:,.2f}")
-                col2.metric("Quarterly Net Revenue", f"₱{quarterly_data['Platform_Net_Profit'].iloc[-1]:,.2f}")
-                col3.metric("Yearly Net Revenue", f"₱{yearly_data['Platform_Net_Profit'].iloc[-1]:,.2f}")
+                col1.metric("Monthly Platform Revenue", f"₱{monthly_data['Platform_Net_Profit'].iloc[-1]:,.2f}")
+                col2.metric("Quarterly Platform Revenue", f"₱{quarterly_data['Platform_Net_Profit'].iloc[-1]:,.2f}")
+                col3.metric("Yearly Platform Revenue", f"₱{yearly_data['Platform_Net_Profit'].iloc[-1]:,.2f}")
                 
                 st.divider()
                 
