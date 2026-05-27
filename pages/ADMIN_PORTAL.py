@@ -519,15 +519,45 @@ with tabs[3]:
                                 st.rerun()
 
         # --- SUB-TAB 1: MASTER LEDGER & ANALYTICS ---
+        query = """
+        SELECT b.id, b.booking_ref, b.pickup_time as Date, b.return_time, u_renter.full_name as Renter, u_owner.full_name as Affiliate,
+               b.amount as Total_Paid_By_Renter, b.status as Trip_Status, b.payout_status as Payout_Status,
+               b.gateway_fee, v.bank_name, v.account_no
+        FROM bookings b
+        JOIN vehicles v ON b.vehicle_id = v.id
+        JOIN platform_users u_renter ON b.renter_username = u_renter.username
+        JOIN platform_users u_owner ON v.owner_username = u_owner.username
+        WHERE b.status != 'PENDING' AND b.status != 'CANCELLED' 
+        ORDER BY b.id DESC
+        """
+        df = pd.read_sql_query(query, conn)
+
         with f_tabs[1]:
             if df.empty:
                 st.info("No completed financial transactions recorded yet.")
             else:
+                # 0. CALCULATE LEDGER METRICS
+                df['gateway_fee'] = df['gateway_fee'].fillna(0)
+                df['pickup_dt'] = pd.to_datetime(df['Date'], errors='coerce')
+                df['return_dt'] = pd.to_datetime(df['return_time'], errors='coerce')
+                df['Total_Days'] = (df['return_dt'] - df['pickup_dt']).dt.ceil('D').dt.days
+                df['Total_Days'] = df['Total_Days'].fillna(1).clip(lower=1)
+                
+                df['Applied_Markup'] = np.where(df['Total_Days'] >= 4, r_markup, 0.0)
+
+                df['Platform_Gross_Cut'] = df['Total_Paid_By_Renter'] * (1 - (a_share / (1 + df['Applied_Markup'])))
+                TAX_RATE = 0.01 
+                df['Platform_Net_Profit'] = df['Platform_Gross_Cut'] - df['gateway_fee'] - (df['Total_Paid_By_Renter'] * TAX_RATE * 0.18)
+                df['Affiliate_Gross_Share'] = df['Total_Paid_By_Renter'] - df['Platform_Gross_Cut']
+                df['EWT_Deduction'] = df['Affiliate_Gross_Share'] * TAX_RATE
+                df['Affiliate_Net_Payout'] = df['Affiliate_Gross_Share'] - df['EWT_Deduction']
+                df['Ref'] = df.apply(lambda x: f"#{x['booking_ref']}" if pd.notnull(x.get('booking_ref')) else f"DRV-{x['id']:05d}", axis=1)
+
                 # 1. DISPLAY EXISTING MASTER LEDGER
                 st.subheader("📑 Master Ledger")
+                st.caption(f"Calculated based on Admin Margins: Renter Fee ({r_markup*100}% - Waived for <4 days) | Owner Share ({a_share*100}%)")
                 display_cols = ['Ref', 'Date', 'Total_Days', 'Affiliate', 'Total_Paid_By_Renter', 'EWT_Deduction', 'Affiliate_Net_Payout', 'Platform_Net_Profit', 'Payout_Status']
                 
-                # We style it exactly as you have it, then display
                 styled_ledger = df[display_cols].style.format({
                     'Total_Paid_By_Renter': '₱{:,.2f}', 'EWT_Deduction': '₱{:,.2f}', 
                     'Affiliate_Net_Payout': '₱{:,.2f}', 'Platform_Net_Profit': '₱{:,.2f}'
@@ -538,10 +568,8 @@ with tabs[3]:
                 st.subheader("📊 Revenue & EWT Analytics")
                 
                 # 2. PERFORM TIME-BASED GROUPING
-                # Ensure the 'Date' column is true datetime format
                 df['Date'] = pd.to_datetime(df['Date'])
                 
-                # Group by Month, Quarter, and Year
                 monthly_data = df.groupby(pd.Grouper(key='Date', freq='M'))[['Platform_Net_Profit', 'EWT_Deduction']].sum()
                 quarterly_data = df.groupby(pd.Grouper(key='Date', freq='Q'))[['Platform_Net_Profit', 'EWT_Deduction']].sum()
                 yearly_data = df.groupby(pd.Grouper(key='Date', freq='Y'))[['Platform_Net_Profit', 'EWT_Deduction']].sum()
