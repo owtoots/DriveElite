@@ -925,6 +925,12 @@ with tabs[2]:
         FIXED_RATES = {"Sedan": 1500.0} 
         
     with st.form("add_v"):
+        # --- NEW: Master Service Type Toggle ---
+        st.write("#### 🛡️ Service Type")
+        service_type = st.radio("How will this vehicle be rented?", ["Self-Drive Only", "With Driver Included"], horizontal=True)
+        is_with_driver = 1 if service_type == "With Driver Included" else 0
+        st.divider()
+
         cat = st.selectbox("CATEGORY", list(FIXED_RATES.keys()))
         c1, c2 = st.columns(2)
         ma = c1.text_input("MAKE (e.g., Nissan)")
@@ -948,10 +954,16 @@ with tabs[2]:
                 cr_path = save_file(or_cr_files[1]) if len(or_cr_files) > 1 else or_path
                 ins_path = save_file(ins)
                 
+                # Updated SQL INSERT to include the is_with_driver flag
                 conn.execute("""
-                    INSERT INTO vehicles (owner_username, make, model, year, plate, bank_name, account_no, vehicle_img, or_img, cr_img, insurance_img, category, approved_price, ref_no, admin_status, booking_status) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE')
-                """, (st.session_state.username, ma.title(), mo.title(), ye, pl.upper(), bn, an, car_img_path, or_path, cr_path, ins_path, cat, FIXED_RATES.get(cat,0), new_ref_no))
+                    INSERT INTO vehicles (
+                        owner_username, make, model, year, plate, bank_name, account_no, 
+                        vehicle_img, or_img, cr_img, insurance_img, category, 
+                        approved_price, ref_no, admin_status, booking_status, is_with_driver
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE', ?)
+                """, (st.session_state.username, ma.title(), mo.title(), ye, pl.upper(), bn, an, 
+                      car_img_path, or_path, cr_path, ins_path, cat, 
+                      FIXED_RATES.get(cat,0), new_ref_no, is_with_driver))
                 
                 conn.commit()
                 admin_phone = "09688811400" # REPLACE WITH YOUR PHONE NUMBER
