@@ -910,8 +910,61 @@ with tabs[5]:
         
     st.divider()
     st.markdown("<h3 style='text-align: center; color: #e74c3c;'>⚠️ DANGER ZONE</h3>", unsafe_allow_html=True)
+    
+    # --- NEW: SELECTIVE DELETION TOOL ---
+    with st.expander("🗑️ SELECTIVE DELETION (Remove Specific Users or Bookings)"):
+        st.write("Use this to silently clean up test accounts, dummy vehicles, and fake bookings without wiping your real data.")
+        
+        col_del1, col_del2 = st.columns(2)
+        
+        with col_del1:
+            st.markdown("#### 1. Delete a User")
+            st.caption("Warning: Deleting an Affiliate will also delete their registered vehicles and drivers.")
+            all_users = pd.read_sql_query("SELECT username, full_name, role FROM platform_users", conn)
+            
+            if not all_users.empty:
+                user_opts = ["-- Select User --"] + all_users.apply(lambda x: f"{x['full_name']} (@{x['username']}) - {x['role']}", axis=1).tolist()
+                user_to_del = st.selectbox("Select Dummy User to Delete:", user_opts)
+                
+                if st.button("🗑️ DELETE USER", type="primary"):
+                    if user_to_del != "-- Select User --":
+                        del_username = user_to_del.split("(@")[1].split(")")[0]
+                        
+                        # Execute deep deletion to prevent orphaned data
+                        conn.execute("DELETE FROM platform_users WHERE username = ?", (del_username,))
+                        conn.execute("DELETE FROM vehicles WHERE owner_username = ?", (del_username,))
+                        conn.execute("DELETE FROM drivers WHERE owner_username = ?", (del_username,))
+                        conn.commit()
+                        
+                        st.success(f"✅ Erased user @{del_username} and their assets from the database.")
+                        time.sleep(1.5)
+                        st.rerun()
+
+        with col_del2:
+            st.markdown("#### 2. Delete a Booking")
+            st.caption("Warning: This completely erases the transaction and its chat history from the ledger.")
+            all_bks = pd.read_sql_query("SELECT booking_ref, status FROM bookings", conn)
+            
+            if not all_bks.empty:
+                bk_opts = ["-- Select Booking --"] + all_bks.apply(lambda x: f"#{x['booking_ref']} - {x['status']}", axis=1).tolist()
+                bk_to_del = st.selectbox("Select Dummy Booking to Delete:", bk_opts)
+                
+                if st.button("🗑️ DELETE BOOKING", type="primary"):
+                    if bk_to_del != "-- Select Booking --":
+                        del_ref = bk_to_del.split(" - ")[0].replace("#", "")
+                        
+                        # Erase booking and associated chat history
+                        conn.execute("DELETE FROM bookings WHERE booking_ref = ?", (del_ref,))
+                        conn.execute("DELETE FROM chat_messages WHERE booking_ref = ?", (del_ref,))
+                        conn.commit()
+                        
+                        st.success(f"✅ Erased booking #{del_ref} from the financial ledger.")
+                        time.sleep(1.5)
+                        st.rerun()
+
+    # --- EXISTING: CLOUD FACTORY RESET ---
     with st.expander("🧨 CLOUD FACTORY RESET (Wipe All Data)"):
-        st.warning("WARNING: This will permanently delete the live database and all uploaded files.")
+        st.warning("WARNING: This will permanently delete the live database and all uploaded files. DO NOT USE IF YOU HAVE REAL AFFILIATES.")
         confirm_text = st.text_input("Type 'DELETE EVERYTHING' to confirm:")
         if st.button("🔥 INITIATE FACTORY RESET", type="primary", use_container_width=True):
             if confirm_text == "DELETE EVERYTHING":
