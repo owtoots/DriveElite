@@ -129,6 +129,8 @@ try: conn.execute("ALTER TABLE vehicles ADD COLUMN or_img TEXT"); conn.commit()
 except: pass
 try: conn.execute("ALTER TABLE vehicles ADD COLUMN cr_img TEXT"); conn.commit()
 except: pass
+try: conn.execute("ALTER TABLE vehicles ADD COLUMN is_with_driver INTEGER DEFAULT 0"); conn.commit()
+except: pass  
 
 # --- CHAT INPUT RESET LOGIC ---
 if "temp_msg_affiliate" not in st.session_state:
