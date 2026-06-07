@@ -23,7 +23,6 @@ except:
 
 # 3. The Universal "Crystal Elite" CSS Engine
 st.markdown("""
-st.markdown("""
 <style>
     /* ... (Your existing Crystal Elite CSS will be up here) ... */
 
