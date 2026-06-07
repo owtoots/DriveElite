@@ -25,15 +25,17 @@ except:
 st.markdown("""
 <style>
    /* ==========================================
-       MOBILE SIDEBAR FIX 
+       MOBILE SIDEBAR FIX (Auto Light/Dark Mode)
        Forces the menu arrow to be a highly visible button
        ========================================== */
+       
+    /* 1. DEFAULT (Light Mode) */
     [data-testid="collapsedControl"] {
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        background-color: #F8FAFC !important; /* Light background so the arrow pops */
-        border: 1px solid #CBD5E1 !important; /* Subtle border */
+        background-color: #F8FAFC !important; /* Light Background */
+        border: 1px solid #CBD5E1 !important;
         border-radius: 8px !important;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
         margin: 10px !important;
@@ -42,9 +44,22 @@ st.markdown("""
     
     [data-testid="collapsedControl"] svg {
         fill: #1D4ED8 !important; /* DriveElite Dark Blue */
-        color: #1D4ED8 !important; /* DriveElite Dark Blue */
+        color: #1D4ED8 !important;
         width: 24px !important;
         height: 24px !important;
+    }
+
+    /* 2. DARK MODE OVERRIDE */
+    @media (prefers-color-scheme: dark) {
+        [data-testid="collapsedControl"] {
+            background-color: #1E293B !important; /* Dark Slate Background */
+            border: 1px solid #334155 !important; /* Darker border */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5) !important;
+        }
+        [data-testid="collapsedControl"] svg {
+            fill: #60A5FA !important; /* Bright, neon-ish blue to pop on dark mode */
+            color: #60A5FA !important;
+        }
     }
     /* UNIFORM CAR IMAGES (PERFECT ALIGNMENT) */
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
