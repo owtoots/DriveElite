@@ -23,7 +23,34 @@ except:
 
 # 3. The Universal "Crystal Elite" CSS Engine
 st.markdown("""
+st.markdown("""
 <style>
+    /* ... (Your existing Crystal Elite CSS will be up here) ... */
+
+    /* ==========================================
+       🚨 MOBILE SIDEBAR FIX 
+       Forces the menu arrow to be a highly visible blue button
+       ========================================== */
+    [data-testid="collapsedControl"] {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background-color: #2563EB !important; /* DriveElite Blue */
+        border-radius: 8px !important;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4) !important;
+        margin: 10px !important;
+        z-index: 999999 !important;
+    }
+    
+    [data-testid="collapsedControl"] svg {
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
+        width: 24px !important;
+        height: 24px !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 /* =========================================
        📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
        ========================================= */
