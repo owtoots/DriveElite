@@ -381,7 +381,7 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
     sender_email = 'contact@driveelite.ph'
     
     # 🚨 Replace this with your actual dotPH email password!
-    sender_password = "TYPE_YOUR_PASSWORD_HERE" 
+    sender_password = os.environ.get("EMAIL_PASSWORD")
     
     if not sender_password: 
         return False
