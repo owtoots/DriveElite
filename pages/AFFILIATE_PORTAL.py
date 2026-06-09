@@ -249,7 +249,7 @@ def save_canvas_image(image_data, prefix):
         return filename
     return None
 
-def generate_handover_pdf(ref_no, car_name, renter_name, travel_dates, checklist, r_sig_path, a_sig_path, affiliate_name):
+def generate_handover_pdf(ref_no, car_name, renter_name, travel_dates, checklist, r_sig_path, a_sig_path, affiliate_name, tire_pressure="Standard", preferred_fuel="Unleaded"):
     pdf = FPDF()
     pdf.add_page()
     try:
@@ -277,6 +277,15 @@ def generate_handover_pdf(ref_no, car_name, renter_name, travel_dates, checklist
     pdf.cell(0, 8, f"3. Exterior Inspected: {'YES' if checklist['ext'] else 'NO'}", ln=True)
     pdf.cell(0, 8, f"4. Interior Clean: {'YES' if checklist['int'] else 'NO'}", ln=True)
     pdf.cell(0, 8, f"5. Tools/Spare Tire Verified: {'YES' if checklist['tools'] else 'NO'}", ln=True)
+    pdf.ln(5)
+
+    # --- NEW: IMPORTANT REMINDERS SECTION ---
+    pdf.set_font("Helvetica", 'B', 12)
+    pdf.cell(0, 10, "⚠️ IMPORTANT REMINDERS FOR RENTER:", ln=True)
+    pdf.set_font("Helvetica", '', 10)
+    pdf.multi_cell(0, 6, f"1. Tire Pressure: Please maintain the tire pressure at {tire_pressure} to ensure safety and optimal fuel efficiency.")
+    pdf.multi_cell(0, 6, f"2. Preferred Fuel: This vehicle requires {preferred_fuel}. Please ensure the correct fuel type is used to avoid engine damage charges.")
+    pdf.multi_cell(0, 6, "3. Speed Limits & Violations: Strictly adhere to all local traffic rules. Any NCAP camera citations, traffic violations, or fines incurred during the rental period will be charged directly to the renter to protect the vehicle's LTO demerit points.")
     pdf.ln(10)
     
     pdf.set_font("Helvetica", 'B', 12)
@@ -929,47 +938,53 @@ with tabs[2]:
         FIXED_RATES = {"Sedan": 1500.0} 
         
     with st.form("add_v"):
-        # --- NEW: Master Service Type Toggle ---
-        st.write("#### 🛡️ Service Type")
-        service_type = st.radio("How will this vehicle be rented?", ["Self-Drive Only", "With Driver Included"], horizontal=True)
-        is_with_driver = 1 if service_type == "With Driver Included" else 0
-        st.divider()
+            st.write("#### 🛡️ Service Type")
+            service_type = st.radio("How will this vehicle be rented?", ["Self-Drive Only", "With Driver Included"], horizontal=True)
+            is_with_driver = 1 if service_type == "With Driver Included" else 0
+            st.divider()
 
-        cat = st.selectbox("CATEGORY", list(FIXED_RATES.keys()))
-        c1, c2 = st.columns(2)
-        ma = c1.text_input("MAKE (e.g., Nissan)")
-        mo = c2.text_input("MODEL (e.g., Terra VE)")
-        ye = c1.text_input("YEAR")
-        pl = c2.text_input("PLATE")
-        bn = c1.text_input("PAYOUT BANK")
-        an = c2.text_input("ACCOUNT NUMBER")
-    
-        vi = st.file_uploader("Vehicle Photo", type=['jpg','png'])
-        or_cr_files = st.file_uploader("Upload OR & CR (Drop 2 files here)", type=['jpg','png','pdf'], accept_multiple_files=True)
-        ins = st.file_uploader("Comprehensive Insurance Policy", type=['pdf','jpg','png'])
+            # --- NEW: OPERATIONAL SPECS ---
+            st.write("#### ⚙️ Vehicle Operational Specs")
+            c_spec1, c_spec2 = st.columns(2)
+            tire_pressure = c_spec1.text_input("Tire Pressure", placeholder="e.g., 32 PSI Front / 34 PSI Rear")
+            preferred_fuel = c_spec2.selectbox("Preferred Fuel", ["Premium Unleaded (95+ Octane)", "Regular Unleaded (91 Octane)", "Diesel", "Fully Electric (EV)"])
+            st.divider()
+
+            cat = st.selectbox("CATEGORY", list(FIXED_RATES.keys()))
+            c1, c2 = st.columns(2)
+            ma = c1.text_input("MAKE (e.g., Nissan)")
+            mo = c2.text_input("MODEL (e.g., Terra VE)")
+            ye = c1.text_input("YEAR")
+            pl = c2.text_input("PLATE")
+            bn = c1.text_input("PAYOUT BANK")
+            an = c2.text_input("ACCOUNT NUMBER")
         
-        if st.form_submit_button("SUBMIT FOR APPROVAL", type="primary"):
-            if ma and mo and pl and bn and an and vi and len(or_cr_files) >= 1 and ins:
-                new_ref_no = str(random.randint(100000, 999999))
-                
-                # Safely save the files exactly once and store their string paths
-                car_img_path = save_file(vi)
-                or_path = save_file(or_cr_files[0]) if len(or_cr_files) > 0 else ""
-                cr_path = save_file(or_cr_files[1]) if len(or_cr_files) > 1 else or_path
-                ins_path = save_file(ins)
-                
-                # Updated SQL INSERT to include the is_with_driver flag
-                conn.execute("""
-                    INSERT INTO vehicles (
-                        owner_username, make, model, year, plate, bank_name, account_no, 
-                        vehicle_img, or_img, cr_img, insurance_img, category, 
-                        approved_price, ref_no, admin_status, booking_status, is_with_driver
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE', ?)
-                """, (st.session_state.username, ma.title(), mo.title(), ye, pl.upper(), bn, an, 
-                      car_img_path, or_path, cr_path, ins_path, cat, 
-                      FIXED_RATES.get(cat,0), new_ref_no, is_with_driver))
-                
-                conn.commit()
+            vi = st.file_uploader("Vehicle Photo", type=['jpg','png'])
+            or_cr_files = st.file_uploader("Upload OR & CR (Drop 2 files here)", type=['jpg','png','pdf'], accept_multiple_files=True)
+            ins = st.file_uploader("Comprehensive Insurance Policy", type=['pdf','jpg','png'])
+            
+            if st.form_submit_button("SUBMIT FOR APPROVAL", type="primary"):
+                if ma and mo and pl and bn and an and vi and len(or_cr_files) >= 1 and ins:
+                    new_ref_no = str(random.randint(100000, 999999))
+                    
+                    car_img_path = save_file(vi)
+                    or_path = save_file(or_cr_files[0]) if len(or_cr_files) > 0 else ""
+                    cr_path = save_file(or_cr_files[1]) if len(or_cr_files) > 1 else or_path
+                    ins_path = save_file(ins)
+                    
+                    # --- UPDATED SQL TO SAVE SPECS ---
+                    conn.execute("""
+                        INSERT INTO vehicles (
+                            owner_username, make, model, year, plate, bank_name, account_no, 
+                            vehicle_img, or_img, cr_img, insurance_img, category, 
+                            approved_price, ref_no, admin_status, booking_status, is_with_driver,
+                            tire_pressure, preferred_fuel
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE', ?, ?, ?)
+                    """, (st.session_state.username, ma.title(), mo.title(), ye, pl.upper(), bn, an, 
+                          car_img_path, or_path, cr_path, ins_path, cat, 
+                          FIXED_RATES.get(cat,0), new_ref_no, is_with_driver, tire_pressure, preferred_fuel))
+                    
+                    conn.commit()
                 admin_phone = "09688811400" # REPLACE WITH YOUR PHONE NUMBER
                 send_sms_alert(admin_phone, f"DriveElite Admin: Affiliate @{st.session_state.username} submitted a new vehicle ({ma} {mo}) for approval.")
                 st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
