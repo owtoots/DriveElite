@@ -1022,10 +1022,11 @@ with tabs[3]:
                 # 2. Send Email Alert using the imported shared function
                 try:
                     # 2. Send Email Alert using the imported shared function
+                # 2. Send Email Alert using the imported shared function
                 try:
-                    admin_email = "contact@driveelite.ph" 
+                    admin_email = "contact@driveelite.ph"
                     subject = "🚨 Action Required: New Driver Pending Approval"
-                    body = f"Hello Admin,\n\nAffiliate @{st.session_state.username} has just registered a new driver: {df_first} {df_last}.\n\nPlease log into the Admin Command Center (Approvals Tab) to review their Government ID and Professional License."
+                    body = f"Hello Admin,\n\nAffiliate @{st.session_state.username} has just registered a new driver..."
                     send_alert_email(admin_email, subject, body)
                 except Exception as e:
                     pass 
