@@ -132,7 +132,7 @@ except: pass
 try: conn.execute("ALTER TABLE vehicles ADD COLUMN is_with_driver INTEGER DEFAULT 0"); conn.commit()
 except: pass  
 
-# --- CHAT INPUT RESET LOGIC ---
+# --- CHAT INPUT RESET LOGIC ---f
 if "temp_msg_affiliate" not in st.session_state:
     st.session_state.temp_msg_affiliate = ""
 
@@ -1006,23 +1006,20 @@ with tabs[3]:
         
         if st.form_submit_button("SUBMIT DRIVER FOR APPROVAL", type="primary"):
             if df_first and df_last and d_contact and d_gov and d_lic:
-                
                 # 1. Save to Database
                 conn.execute("INSERT INTO drivers (owner_username, first_name, middle_name, last_name, age, address, contact_number, is_owner, govt_id_img, license_img, admin_status) VALUES (?,?,?,?,?,?,?,?,?,?, 'PENDING')", 
                              (st.session_state.username, df_first, df_mid, df_last, d_age, d_address, d_contact, 1 if is_owner else 0, save_file(d_lic), save_file(d_gov)))
                 conn.commit()
-                admin_phone = "09688811400" # REPLACE WITH YOUR PHONE NUMBER
-                send_sms_alert(admin_phone, f"DriveElite Admin: Affiliate @{st.session_state.username} registered a new driver ({df_first} {df_last}) for approval.")
-                # 2. Send Email Alert using the imported shared function
-                try:
-                    admin_email = "contact@driveelite.ph"
-                    subject = "🚨 Action Required: New Driver Pending Approval"
-                    body = f"Hello Admin,\n\nAffiliate @{st.session_state.username} has just registered a new driver..."
-                    send_alert_email(admin_email, subject, body)
-                except Exception as e:
-                    pass 
+                
+                # 2. Alert Admin
+                admin_phone = "09688811400"
+                admin_email = "contact@driveelite.ph"
+                subject = "🚨 Action Required: New Driver Pending Approval"
+                body = f"Hello Admin,\n\nAffiliate @{st.session_state.username} has just registered a new driver: {df_first} {df_last}.\n\nPlease review documents."
+                
+                send_sms_alert(admin_phone, f"DriveElite Admin: Affiliate @{st.session_state.username} registered a new driver.")
+                send_alert_email(admin_email, subject, body)
 
-                # 3. Success Message
                 st.success("SUCCESS: Driver Submitted!")
             else: 
                 st.error("Please fill required fields.")
