@@ -1062,7 +1062,7 @@ with tabs[7]:
                             WHERE b.booking_ref = ?
                         """
                         aff_data = pd.read_sql_query(aff_q, conn, params=(booking_to_cancel,))
-                        target_email = aff_data.iloc[0]['email'] if not aff_data.empty else "driveelite@myyahoo.com"
+                        target_email = aff_data.iloc[0]['email'] if not aff_data.empty else "contact@driveelite.ph"
 
                         email_success = send_alert_email(target_email, f"DriveElite Cancellation Notice: #{booking_to_cancel}", sample_receipt_text)
                         
