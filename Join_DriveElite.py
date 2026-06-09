@@ -223,17 +223,47 @@ def send_welcome_email(recipient_email, role, filepath):
             smtp.login(sender_email, app_password)
             smtp.send_message(msg)
     except Exception as e:
-        # CATCHES GENERAL ERRORS
-        st.error(f"⚠️ Registration failed due to a system error: {e}")
+        print(f"Email failed: {e}")
+
+# ==========================================
+# 5. 🔐 OTP VERIFICATION SCREEN
+# ==========================================
+if st.session_state.get('otp_pending'):
+    st.title("🔐 Account Verification")
+    st.divider()
+    st.info(f"An OTP has been sent to your mobile number: **{st.session_state.verify_contact}**")
+    otp_input = st.text_input("Enter 6-digit OTP", key="otp_verify")
+    st.caption(f"(Dev Mode: Your OTP is {st.session_state.generated_otp})")
+    
+    if st.button("VERIFY & FINALIZE", type="primary"):
+        if otp_input == st.session_state.generated_otp:
+            payload = st.session_state.reg_payload
+            cursor = conn.cursor()
+            
+            try:
+                cursor.execute('''INSERT INTO platform_users 
+                (username, password, role, full_name, email, age, nationality, address, area_code, contact_number, govt_id_img, license_img, signature_img) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
                 
-    # ==========================================
-    # 🚨 SEND ALERTS TO ADMIN
-    # ==========================================
-    try:
-        admin_phone = "09688811400" 
-        admin_email = "contact@driveelite.ph" # UPDATED CORPORATE RECEIVER
-        new_role = payload[2] 
-        new_name = payload[3] 
+                conn.commit()
+                st.success("✅ Registration Successful! You can now log in.")
+                
+            except sqlite3.IntegrityError:
+                # CATCHES DUPLICATE USERNAMES
+                st.error("🚨 That Username is already taken! Please refresh and choose a different username.")
+                
+            except Exception as e:
+                # CATCHES GENERAL ERRORS
+                st.error(f"⚠️ Registration failed due to a system error: {e}")
+            
+            # ==========================================
+            # 🚨 SEND ALERTS TO ADMIN
+            # ==========================================
+            try:
+                admin_phone = "09688811400" 
+                admin_email = "contact@driveelite.ph" # UPDATED CORPORATE RECEIVER
+                new_role = payload[2] 
+                new_name = payload[3] 
                 
                 # Import both tools from your master utility file
                 from database_utils import send_sms_alert, send_alert_email
@@ -249,7 +279,6 @@ def send_welcome_email(recipient_email, role, filepath):
                 
             except Exception:
                 pass
-            # ==========================================
             # ==========================================
             
             with st.spinner("Processing documents and emailing your copy..."):
@@ -274,7 +303,6 @@ def send_welcome_email(recipient_email, role, filepath):
             if st.button("GO TO LOGIN"): st.rerun()
         else:
             st.error("🚨 Invalid OTP. Please try again.")
-
 # ==========================================
 # 6. 🚗 MAIN REGISTRATION SCREEN
 # ==========================================
