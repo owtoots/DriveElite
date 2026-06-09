@@ -223,16 +223,17 @@ def send_welcome_email(recipient_email, role, filepath):
             smtp.login(sender_email, app_password)
             smtp.send_message(msg)
     except Exception as e:
-        print(f"Email failed: {e}")
-
-# ==========================================
-            # 🚨 SEND ALERTS TO ADMIN
-            # ==========================================
-            try:
-                admin_phone = "09688811400" 
-                admin_email = "contact@driveelite.ph" # UPDATED CORPORATE RECEIVER
-                new_role = payload[2] 
-                new_name = payload[3] 
+        # CATCHES GENERAL ERRORS
+        st.error(f"⚠️ Registration failed due to a system error: {e}")
+                
+    # ==========================================
+    # 🚨 SEND ALERTS TO ADMIN
+    # ==========================================
+    try:
+        admin_phone = "09688811400" 
+        admin_email = "contact@driveelite.ph" # UPDATED CORPORATE RECEIVER
+        new_role = payload[2] 
+        new_name = payload[3] 
                 
                 # Import both tools from your master utility file
                 from database_utils import send_sms_alert, send_alert_email
