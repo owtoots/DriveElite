@@ -146,6 +146,10 @@ def clear_affiliate_chat(b_ref):
         st.session_state[unique_key] = ""
 
 def patch_database():
+    try: conn.execute("ALTER TABLE vehicles ADD COLUMN tire_pressure TEXT DEFAULT 'Standard specs'"); conn.commit()
+    except: pass
+    try: conn.execute("ALTER TABLE vehicles ADD COLUMN preferred_fuel TEXT DEFAULT 'Standard Unleaded'"); conn.commit()
+    except: pass
     try: conn.execute("ALTER TABLE platform_users ADD COLUMN document_url TEXT"); conn.commit()
     except: pass
     try: conn.execute("ALTER TABLE vehicles ADD COLUMN admin_status TEXT DEFAULT 'PENDING'"); conn.commit()
