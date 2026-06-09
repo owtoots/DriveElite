@@ -45,22 +45,24 @@ def send_sms_alert(number, message):
         return False
 
 def send_alert_email(to_email, subject, body):
-    """Sends an email via Yahoo SMTP server."""
-    sender_email = os.environ.get("EMAIL_SENDER", "driveelite@myyahoo.com")
-    sender_password = os.environ.get("email_app_password")
+    """Sends an email via Corporate DriveElite SMTP server."""
+    sender_email = "contact@driveelite.ph"
+    # Securely fetches the password from Render's Environment Variables
+    sender_password = os.environ.get("EMAIL_PASSWORD") 
     
     if not sender_password: 
-        print("Email failed: No password provided.")
+        print("Email failed: No password provided in Render environment variables.")
         return False
         
     try:
         msg = MIMEMultipart()
-        msg['From'] = sender_email
+        msg['From'] = f"DriveElite Security <{sender_email}>"
         msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
         
-        with smtplib.SMTP_SSL('smtp.mail.yahoo.com', 465) as server:
+        # Connect to the dotPH corporate server
+        with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as server:
             server.login(sender_email, sender_password)
             server.send_message(msg)
         return True
