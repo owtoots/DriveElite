@@ -933,65 +933,60 @@ with tabs[1]:
 # --- TAB 2: ADD ASSET ---
 with tabs[2]:
     st.markdown("<h3 style='text-align: center;'>REGISTER A VEHICLE</h3>", unsafe_allow_html=True)
-    try:
-        cat_df = pd.read_sql_query("SELECT name, default_price FROM vehicle_categories", conn)
-        FIXED_RATES = dict(zip(cat_df['name'], cat_df['default_price']))
-    except Exception: 
-        FIXED_RATES = {"Sedan": 1500.0} 
-        
+    
     with st.form("add_v"):
-            st.write("#### 🛡️ Service Type")
-            service_type = st.radio("How will this vehicle be rented?", ["Self-Drive Only", "With Driver Included"], horizontal=True)
-            is_with_driver = 1 if service_type == "With Driver Included" else 0
-            st.divider()
-
-            # --- NEW: OPERATIONAL SPECS ---
-            st.write("#### ⚙️ Vehicle Operational Specs")
-            c_spec1, c_spec2 = st.columns(2)
-            tire_pressure = c_spec1.text_input("Tire Pressure", placeholder="e.g., 32 PSI Front / 34 PSI Rear")
-            preferred_fuel = c_spec2.selectbox("Preferred Fuel", ["Premium Unleaded (95+ Octane)", "Regular Unleaded (91 Octane)", "Diesel", "Fully Electric (EV)"])
-            st.divider()
-
-            cat = st.selectbox("CATEGORY", list(FIXED_RATES.keys()))
-            c1, c2 = st.columns(2)
-            ma = c1.text_input("MAKE (e.g., Nissan)")
-            mo = c2.text_input("MODEL (e.g., Terra VE)")
-            ye = c1.text_input("YEAR")
-            pl = c2.text_input("PLATE")
-            bn = c1.text_input("PAYOUT BANK")
-            an = c2.text_input("ACCOUNT NUMBER")
+        # ROW 1: Category, Make, Model
+        c1, c2, c3 = st.columns(3)
+        cat = c1.selectbox("CATEGORY", list(FIXED_RATES.keys()))
+        ma = c2.text_input("MAKE")
+        mo = c3.text_input("MODEL")
         
-            vi = st.file_uploader("Vehicle Photo", type=['jpg','png'])
-            or_cr_files = st.file_uploader("Upload OR & CR (Drop 2 files here)", type=['jpg','png','pdf'], accept_multiple_files=True)
-            ins = st.file_uploader("Comprehensive Insurance Policy", type=['pdf','jpg','png'])
-            
-            if st.form_submit_button("SUBMIT FOR APPROVAL", type="primary"):
-                if ma and mo and pl and bn and an and vi and len(or_cr_files) >= 1 and ins:
-                    new_ref_no = str(random.randint(100000, 999999))
-                    
-                    car_img_path = save_file(vi)
-                    or_path = save_file(or_cr_files[0]) if len(or_cr_files) > 0 else ""
-                    cr_path = save_file(or_cr_files[1]) if len(or_cr_files) > 1 else or_path
-                    ins_path = save_file(ins)
-                    
-                    # --- UPDATED SQL TO SAVE SPECS ---
-                    conn.execute("""
-                        INSERT INTO vehicles (
-                            owner_username, make, model, year, plate, bank_name, account_no, 
-                            vehicle_img, or_img, cr_img, insurance_img, category, 
-                            approved_price, ref_no, admin_status, booking_status, is_with_driver,
-                            tire_pressure, preferred_fuel
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE', ?, ?, ?)
-                    """, (st.session_state.username, ma.title(), mo.title(), ye, pl.upper(), bn, an, 
-                          car_img_path, or_path, cr_path, ins_path, cat, 
-                          FIXED_RATES.get(cat,0), new_ref_no, is_with_driver, tire_pressure, preferred_fuel))
-                    
-                    conn.commit()
-                admin_phone = "09688811400" # REPLACE WITH YOUR PHONE NUMBER
-                send_sms_alert(admin_phone, f"DriveElite Admin: Affiliate @{st.session_state.username} submitted a new vehicle ({ma} {mo}) for approval.")
+        # ROW 2: Year, Plate, Tire Pressure, Preferred Fuel
+        c4, c5, c6, c7 = st.columns(4)
+        ye = c4.text_input("YEAR")
+        pl = c5.text_input("PLATE")
+        tp = c6.text_input("TIRE PRESSURE", placeholder="e.g., 32 PSI")
+        pf = c7.selectbox("PREF. FUEL", ["Premium Unleaded", "Regular Unleaded", "Diesel", "EV"])
+        
+        # ROW 3: Banking Info
+        c8, c9 = st.columns(2)
+        bn = c8.text_input("PAYOUT BANK")
+        an = c9.text_input("ACCOUNT NUMBER")
+        
+        # ROW 4: Uploads
+        vi = st.file_uploader("Vehicle Photo", type=['jpg','png'])
+        or_cr_files = st.file_uploader("Upload OR & CR (Drop 2 files)", type=['jpg','png','pdf'], accept_multiple_files=True)
+        ins = st.file_uploader("Insurance Policy", type=['pdf','jpg','png'])
+        
+        # Service Type Toggle
+        st.divider()
+        service_type = st.radio("Service Type", ["Self-Drive Only", "With Driver Included"], horizontal=True)
+        is_with_driver = 1 if service_type == "With Driver Included" else 0
+        
+        if st.form_submit_button("SUBMIT FOR APPROVAL", type="primary"):
+            if ma and mo and pl and bn and an and vi and len(or_cr_files) >= 1 and ins:
+                new_ref_no = str(random.randint(100000, 999999))
+                
+                car_img_path = save_file(vi)
+                or_path = save_file(or_cr_files[0]) if len(or_cr_files) > 0 else ""
+                cr_path = save_file(or_cr_files[1]) if len(or_cr_files) > 1 else or_path
+                ins_path = save_file(ins)
+                
+                conn.execute("""
+                    INSERT INTO vehicles (
+                        owner_username, make, model, year, plate, bank_name, account_no, 
+                        vehicle_img, or_img, cr_img, insurance_img, category, 
+                        approved_price, ref_no, admin_status, booking_status, is_with_driver,
+                        tire_pressure, preferred_fuel
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE', ?, ?, ?)
+                """, (st.session_state.username, ma.title(), mo.title(), ye, pl.upper(), bn, an, 
+                      car_img_path, or_path, cr_path, ins_path, cat, 
+                      FIXED_RATES.get(cat,0), new_ref_no, is_with_driver, tp, pf))
+                
+                conn.commit()
                 st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
             else: 
-                st.error("Please fill all required fields and upload all documents (At least 1 OR/CR file is required).")
+                st.error("Please fill all required fields and upload all documents.")
 
 # --- TAB 3: ADD DRIVER ---
 with tabs[3]:
