@@ -1,13 +1,17 @@
 import streamlit as st
 import pandas as pd
-import datetime, random, os, io
+import datetime
+import random
+import os
+import io
 import smtplib
+import sqlite3
 from email.message import EmailMessage
 import numpy as np
 from PIL import Image
 from docxtpl import DocxTemplate, InlineImage
 from docx.shared import Mm
-import subprocess 
+import subprocess
 from streamlit_drawable_canvas import st_canvas
 from database_utils import get_connection
 from database_utils import send_otp
@@ -24,7 +28,7 @@ except:
 # 3. The Universal "Crystal Elite" CSS Engine
 st.markdown("""
 <style>
-   /* ==========================================
+    /* ==========================================
        MOBILE SIDEBAR FIX (Auto Light/Dark Mode)
        Forces the menu arrow to be a highly visible button
        ========================================== */
@@ -194,7 +198,6 @@ def crop_signature(image_data):
     return Image.fromarray(image_data.astype('uint8'), 'RGBA')
 
 def get_secret(key, default_val=None):
-    # Smart fetcher: Checks Render environment variables first, falls back to secrets
     return os.environ.get(key) or st.secrets.get(key, default_val)
 
 def send_welcome_email(recipient_email, role, filepath):
@@ -202,7 +205,6 @@ def send_welcome_email(recipient_email, role, filepath):
     doc_label = "MOA" if role == "AFFILIATE" else "RENTER"
     msg['Subject'] = f'DriveElite: Your Official {doc_label} Agreement'
     
-    # HARDCODED TO CORPORATE EMAIL
     sender_email = 'contact@driveelite.ph' 
     msg['From'] = sender_email
     msg['To'] = recipient_email
@@ -217,7 +219,6 @@ def send_welcome_email(recipient_email, role, filepath):
     msg.add_attachment(file_data, maintype='application', subtype=ext, filename=f"DriveElite_{doc_label}.{ext}")
 
     try:
-        # CONNECT TO DOTPH CORPORATE SERVER
         with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
             app_password = os.environ.get("EMAIL_PASSWORD") 
             smtp.login(sender_email, app_password)
@@ -226,83 +227,86 @@ def send_welcome_email(recipient_email, role, filepath):
         print(f"Email failed: {e}")
 
 # ==========================================
-# 5. 🔐 OTP VERIFICATION SCREEN
+# 5. 🔐 OTP VERIFICATION SCREEN & PERSISTENCE
 # ==========================================
 if st.session_state.get('otp_pending'):
     st.title("🔐 Account Verification")
     st.divider()
-    st.info(f"An OTP has been sent to your mobile number: **{st.session_state.verify_contact}**")
-    otp_input = st.text_input("Enter 6-digit OTP", key="otp_verify")
-    st.caption(f"(Dev Mode: Your OTP is {st.session_state.generated_otp})")
     
-    if st.button("VERIFY & FINALIZE", type="primary"):
-        if otp_input == st.session_state.generated_otp:
-            payload = st.session_state.reg_payload
-            cursor = conn.cursor()
-            
-            try:
-                cursor.execute('''INSERT INTO platform_users 
-                (username, password, role, full_name, email, age, nationality, address, area_code, contact_number, govt_id_img, license_img, signature_img) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
-                
-                conn.commit()
-                st.success("✅ Registration Successful! You can now log in.")
-                
-            except sqlite3.IntegrityError:
-                # CATCHES DUPLICATE USERNAMES
-                st.error("🚨 That Username is already taken! Please refresh and choose a different username.")
-                
-            except Exception as e:
-                # CATCHES GENERAL ERRORS
-                st.error(f"⚠️ Registration failed due to a system error: {e}")
-            
-            # ==========================================
-            # 🚨 SEND ALERTS TO ADMIN
-            # ==========================================
-            try:
-                admin_phone = "09688811400" 
-                admin_email = "contact@driveelite.ph" # UPDATED CORPORATE RECEIVER
-                new_role = payload[2] 
-                new_name = payload[3] 
-                
-                # Import both tools from your master utility file
-                from database_utils import send_sms_alert, send_alert_email
-                
-                # 1. Send the SMS
-                sms_msg = f"DriveElite Admin: A new {new_role} ({new_name}) just registered! Please review their documents."
-                send_sms_alert(admin_phone, sms_msg)
-                
-                # 2. Send the Email
-                email_sub = f"🚨 New {new_role} Registration: {new_name}"
-                email_body = f"Hello Admin,\n\nA new {new_role} named {new_name} has successfully verified their account.\n\nPlease log into the Admin Command Center to review their ID and License."
-                send_alert_email(admin_email, email_sub, email_body)
-                
-            except Exception:
-                pass
-            # ==========================================
-            
-            with st.spinner("Processing documents and emailing your copy..."):
-                try:
-                    un, role, email = payload[0], payload[2], payload[4]
-                    prefix = "MOA" if role == "AFFILIATE" else "RENTER"
-                    pdf_p, docx_p = f"/data/uploads/{prefix}_{un}.pdf", f"/data/uploads/{prefix}_{un}.docx"
-                    final_p = pdf_p if os.path.exists(pdf_p) else docx_p
-                            
-                    send_welcome_email(email, role, final_p)
-                    st.success("✅ Account verified and agreement sent to your inbox!")
-                    
-                    with open(final_p, "rb") as f:
-                        st.download_button("📄 DOWNLOAD SIGNED CONTRACT", f, file_name=f"DriveElite_{prefix}.pdf", type="primary")
-                            
-                    if os.path.exists(docx_p): os.remove(docx_p)
-                                
-                except Exception as e:
-                    st.error(f"Account saved, but email failed: {e}")
-            
+    if st.session_state.get('registration_complete'):
+        st.success("✅ Account verified and agreement securely transmitted to your inbox!")
+        
+        prefix = "MOA" if st.session_state.reg_payload[2] == "AFFILIATE" else "RENTER"
+        un = st.session_state.reg_payload[0]
+        pdf_p = f"/data/uploads/{prefix}_{un}.pdf"
+        docx_p = f"/data/uploads/{prefix}_{un}.docx"
+        final_p = pdf_p if os.path.exists(pdf_p) else docx_p
+        
+        if os.path.exists(final_p):
+            with open(final_p, "rb") as f:
+                st.download_button("📄 DOWNLOAD SIGNED CONTRACT", f, file_name=f"DriveElite_{prefix}.pdf", type="primary")
+        
+        if st.button("GO TO LOGIN"):
             st.session_state.otp_pending = False
-            if st.button("GO TO LOGIN"): st.rerun()
-        else:
-            st.error("🚨 Invalid OTP. Please try again.")
+            st.session_state.registration_complete = False
+            st.rerun()
+            
+    else:
+        st.info(f"An OTP has been sent to your mobile number: **{st.session_state.verify_contact}**")
+        otp_input = st.text_input("Enter 6-digit OTP", key="otp_verify")
+        st.caption(f"(Dev Mode: Your OTP is {st.session_state.generated_otp})")
+        
+        if st.button("VERIFY & FINALIZE", type="primary"):
+            if otp_input == st.session_state.generated_otp:
+                payload = st.session_state.reg_payload
+                cursor = conn.cursor()
+                
+                try:
+                    cursor.execute('''INSERT INTO platform_users 
+                    (username, password, role, full_name, email, age, nationality, address, area_code, contact_number, govt_id_img, license_img, signature_img) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
+                    conn.commit()
+                    
+                    # Core notifications execution layer
+                    try:
+                        admin_phone = "09688811400" 
+                        admin_email = "contact@driveelite.ph"
+                        new_role = payload[2] 
+                        new_name = payload[3] 
+                        
+                        from database_utils import send_sms_alert, send_alert_email
+                        
+                        sms_msg = f"DriveElite Admin: A new {new_role} ({new_name}) just registered! Please review their documents."
+                        send_sms_alert(admin_phone, sms_msg)
+                        
+                        email_sub = f"🚨 New {new_role} Registration: {new_name}"
+                        email_body = f"Hello Admin,\n\nA new {new_role} named {new_name} has successfully verified their account.\n\nPlease log into the Admin Command Center to review their ID and License."
+                        send_alert_email(admin_email, email_sub, email_body)
+                    except:
+                        pass
+
+                    with st.spinner("Processing documents and emailing your copy..."):
+                        un, role, email_addr = payload[0], payload[2], payload[4]
+                        prefix = "MOA" if role == "AFFILIATE" else "RENTER"
+                        pdf_p = f"/data/uploads/{prefix}_{un}.pdf"
+                        docx_p = f"/data/uploads/{prefix}_{un}.docx"
+                        final_p = pdf_p if os.path.exists(pdf_p) else docx_p
+                                
+                        send_welcome_email(email_addr, role, final_p)
+                        if os.path.exists(docx_p): 
+                            try: os.remove(docx_p)
+                            except: pass
+                            
+                    st.session_state.registration_complete = True
+                    st.rerun()
+                    
+                except sqlite3.IntegrityError:
+                    st.error("🚨 That Username is already taken! Please refresh and choose a different username.")
+                except Exception as e:
+                    st.error(f"⚠️ Registration failed due to a system error: {e}")
+            else:
+                st.error("🚨 Invalid OTP. Please try again.")
+
 # ==========================================
 # 6. 🚗 MAIN REGISTRATION SCREEN
 # ==========================================
@@ -311,7 +315,7 @@ else:
     st.write("Philippines' Premier Peer-to-Peer Car Sharing Platform")
     
     # ==========================================
-    # 🚘 LIVE SHOWROOM PREVIEW (Marketing Hook)
+    # 🚘 LIVE SHOWROOM PREVIEW
     # ==========================================
     st.markdown("### 🚘 Live Fleet Preview")
     st.caption("Browse our exclusive fleet. Create a free Renter account to view rates and lock in your dates!")
@@ -322,26 +326,20 @@ else:
         if preview_cars.empty:
             st.info("Our fleet is currently fully booked or undergoing maintenance. Check back soon!")
         else:
-            # Show exactly 4 cars in one row
             preview_cars = preview_cars.head(4).reset_index(drop=True)
-            
-            # Create 4 columns instead of 2
             grid_cols = st.columns(4)
             for i, car in preview_cars.iterrows():
                 with grid_cols[i % 4]:
                     with st.container(border=True):
-                        # --- TOP: Image ---
                         img_p = car.get('vehicle_img')
                         if img_p and os.path.exists(img_p): 
                             st.image(img_p, use_container_width=True)
                         else: 
                             st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
                         
-                        # --- MIDDLE: Details (No Price) ---
                         st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}")
-                        st.write("") # tiny spacer
+                        st.write("") 
                         
-                        # --- BOTTOM: Button ---
                         if st.button("🔍 VIEW DETAILS", key=f"preview_btn_{car['id']}", use_container_width=True):
                             st.warning("🔒 Please sign up to book or view full vehicle rates.")
                             
@@ -432,9 +430,6 @@ else:
                         tmpl = "moa_affiliate.docx" if reg_type == "Affiliate" else "MASTER RENTER AGREEMENT.docx"
                         doc = DocxTemplate(tmpl)
                         
-                        # ==========================================
-                        # 🧠 THE SMART ADMIN FETCHER
-                        # ==========================================
                         try:
                             settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct, operator_name FROM platform_settings WHERE id = 1", conn)
                             if not settings_df.empty:
@@ -444,12 +439,9 @@ else:
                                 renter_fee_val = int(float(settings_df.iloc[0]['renter_markup_pct']) * 100)
                             else:
                                 legal_entity, owner_share_val, agency_share_val, renter_fee_val = "DriveElite Platform", 82, 18, 7
-                        except Exception:
+                        except:
                             legal_entity, owner_share_val, agency_share_val, renter_fee_val = "DriveElite Platform", 82, 18, 7
                         
-                        # ==========================================
-                        # 📝 INJECTING THE VARIABLES INTO WORD
-                        # ==========================================
                         ctx = {
                             'FULL_NAME': data['full_name'].upper(),
                             'DATE_SIGNED': datetime.date.today().strftime("%B %d, %Y"),
@@ -471,8 +463,6 @@ else:
                         try: subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', docx_fn, '--outdir', '/data/uploads/'], check=True)
                         except: pass
                         
-                        # ... (previous code where the PDF is generated) ...
-                        
                         st.session_state.reg_payload = (
                             data["username"], data["password"], reg_type.upper(), data["full_name"], 
                             data["email"], data["age"], data["nationality"], data["address"], 
@@ -480,13 +470,9 @@ else:
                         )
                         st.session_state.verify_contact = data["contact"]
                         
-                        # ==========================================
-                        # 📩 NEW CENTRALIZED OTP LOGIC STARTS HERE
-                        # ==========================================
                         otp_code = str(random.randint(100000, 999999))
                         st.session_state.generated_otp = otp_code
                         
-                        # Call the dispatcher (Set to EMAIL for now!)
                         success = send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
                         
                         if success:
@@ -494,7 +480,5 @@ else:
                             st.rerun()
                         else:
                             st.error("🚨 Failed to send verification. Please try again.")
-                        # ==========================================
-                        
                 else:
                     st.error("🚨 Digital signature required to proceed.")
