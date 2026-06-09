@@ -377,9 +377,11 @@ def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, da
     return pdf.output(dest="S").encode("latin-1")
 
 def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
-    """Sends the PDF document using the centralized Yahoo logic."""
-    sender_email = os.environ.get("EMAIL_SENDER", "driveelite@myyahoo.com") 
-    sender_password = os.environ.get("email_app_password")
+    """Sends the PDF document using the NEW Corporate DriveElite server."""
+    sender_email = 'contact@driveelite.ph'
+    
+    # 🚨 Replace this with your actual dotPH email password!
+    sender_password = "TYPE_YOUR_PASSWORD_HERE" 
     
     if not sender_password: 
         return False
@@ -397,8 +399,8 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
         part.add_header('Content-Disposition', f"attachment; filename= {filename}")
         msg.attach(part)
         
-        # FIXED: Correct Yahoo SMTP execution block
-        with smtplib.SMTP_SSL('smtp.mail.yahoo.com', 465) as server:
+        # CONNECT TO DOTPH CORPORATE SERVER
+        with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as server:
             server.login(sender_email, sender_password)
             server.send_message(msg)
         return True
