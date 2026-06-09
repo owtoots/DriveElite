@@ -202,7 +202,8 @@ def send_welcome_email(recipient_email, role, filepath):
     doc_label = "MOA" if role == "AFFILIATE" else "RENTER"
     msg['Subject'] = f'DriveElite: Your Official {doc_label} Agreement'
     
-    sender_email = get_secret("email_sender", "driveelite@myyahoo.com") # Updated default
+    # HARDCODED TO CORPORATE EMAIL
+    sender_email = 'contact@driveelite.ph' 
     msg['From'] = sender_email
     msg['To'] = recipient_email
     msg['Bcc'] = sender_email
@@ -216,9 +217,9 @@ def send_welcome_email(recipient_email, role, filepath):
     msg.add_attachment(file_data, maintype='application', subtype=ext, filename=f"DriveElite_{doc_label}.{ext}")
 
     try:
-        # UPDATED TO YAHOO SMTP
-        with smtplib.SMTP_SSL('smtp.mail.yahoo.com', 465) as smtp:
-            app_password = get_secret("email_app_password", "")
+        # CONNECT TO DOTPH CORPORATE SERVER
+        with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
+            app_password = os.environ.get("EMAIL_PASSWORD") 
             smtp.login(sender_email, app_password)
             smtp.send_message(msg)
     except Exception as e:
@@ -303,10 +304,6 @@ if st.session_state.get('otp_pending'):
             if st.button("GO TO LOGIN"): st.rerun()
         else:
             st.error("🚨 Invalid OTP. Please try again.")
-
-# ==========================================
-# 6. 🚗 MAIN REGISTRATION SCREEN
-# ==========================================
 
 # ==========================================
 # 6. 🚗 MAIN REGISTRATION SCREEN
