@@ -31,8 +31,8 @@ except:
 st.markdown("""
 <style>
 /* =========================================
-       📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
-       ========================================= */
+        📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
+        ========================================= */
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
         height: 200px !important;
         width: 100% !important;
@@ -230,6 +230,7 @@ def send_alert_email(to_email, subject, body):
     except Exception as e:
         print(f"Failed to send email: {e}")
         return False
+
 # ==========================================
 # 5. AUTHENTICATION FLOW
 # ==========================================
@@ -368,13 +369,12 @@ with main_tabs[0]:
                                     if st.session_state[stage_key] == 0:
                                         today = datetime.date.today()
                                         
-                                        # 1. MOVED DATE PICKERS TO TOP
                                         d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}_{cat}")
                                         t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
                                         d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}")
                                         t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
 
-                                        # 2. BULLETPROOF FLAT HTML CALENDAR
+                                        # BULLETPROOF FLAT HTML CALENDAR
                                         cal_year = d1.year
                                         cal_month = d1.month
                                         month_matrix = calendar.monthcalendar(cal_year, cal_month)
@@ -400,7 +400,7 @@ with main_tabs[0]:
                                         
                                         st.markdown(cal_html, unsafe_allow_html=True)
                                         
-                                        # 3. COLLISION DETECTION
+                                        # COLLISION DETECTION
                                         can_book = True
                                         requested_days = set([d1 + datetime.timedelta(days=j) for j in range((d2 - d1).days + 1)])
                                         clashes = requested_days.intersection(unavailable_dates)
@@ -488,10 +488,8 @@ with main_tabs[0]:
                                                         try:
                                                             SECRET_KEY = os.environ.get("paymongo_active_key")
                                                             if not SECRET_KEY:
-                                                                try:
-                                                                    SECRET_KEY = st.secrets.get("paymongo_active_key")
-                                                                except Exception:
-                                                                    pass 
+                                                                try: SECRET_KEY = st.secrets.get("paymongo_active_key")
+                                                                except: pass 
                                                             
                                                             if not SECRET_KEY:
                                                                 st.error("🚨 Missing API Key: Please add 'paymongo_active_key' to your Render Environment Variables.")
@@ -578,7 +576,7 @@ with main_tabs[0]:
                                                         conn.commit()
                                                         
                                                         # ==========================================
-                                                        # 🚨 SEND AUTOMATED EMAIL ALERTS
+                                                        # 🚨 SEND AUTOMATED EMAIL ALERTS (UPDATED TO CORPORATE)
                                                         # ==========================================
                                                         try:
                                                             aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
@@ -590,8 +588,8 @@ with main_tabs[0]:
                                                                 admin_email = "contact@driveelite.ph" 
                                                                 send_alert_email(
                                                                     to_email=admin_email,
-                                                                    subject=f"💳 ACTION REQUIRED: Payment Verification for #{b_ref}",
-                                                                    body=f"Renter @{renter_user} has booked a {car['make']} {car['model']} and uploaded a manual payment receipt.\n\nPlease log into the Admin Command Center to verify the BPI payment and confirm the booking."
+                                                                    subject=f"CNF: Payment Verification Needed for #{b_ref}",
+                                                                    body=f"Renter @{renter_user} has booked a {car['make']} {car['model']} and uploaded a standard receipt.\n\nPlease authenticate this BPI transfer inside the Master Ledger Center."
                                                                 )
                                                                 
                                                                 # 2. Email to Affiliate
@@ -618,7 +616,6 @@ with main_tabs[1]:
     st.header("📅 My Booking History")
     
     try:
-        # Fetch all bookings for this specific renter
         my_bookings = pd.read_sql_query("""
             SELECT b.*, v.make, v.model, v.plate, v.owner_username
             FROM bookings b
@@ -717,18 +714,15 @@ with main_tabs[1]:
                         st.divider()
                         if pd.isna(b['rating']) or b['rating'] == "" or b['rating'] == 0:
                             with st.expander("⭐ Leave a Review for this Trip!", expanded=True):
-                                
                                 st.write("**Rate your experience:**")
-                                # Native interactive stars (returns 0 for 1 star, 4 for 5 stars)
                                 star_click = st.feedback("stars", key=f"stars_{b['id']}")
-                                
                                 new_review = st.text_area("Share your thoughts about the vehicle and host...", key=f"rev_text_{b['id']}")
                                 
                                 if st.button("Submit Review", type="primary", key=f"sub_rev_{b['id']}"):
                                     if star_click is None:
                                         st.error("🚨 Please click on the stars to leave a rating!")
                                     else:
-                                        final_rating = star_click + 1  # Converts 0-4 math to a 1-5 scale
+                                        final_rating = star_click + 1 
                                         conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (final_rating, new_review, b['id']))
                                         conn.commit()
                                         st.success("Thank you! Your review has been published.")
