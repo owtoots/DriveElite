@@ -1018,10 +1018,6 @@ with tabs[3]:
                 conn.commit()
                 admin_phone = "09688811400" # REPLACE WITH YOUR PHONE NUMBER
                 send_sms_alert(admin_phone, f"DriveElite Admin: Affiliate @{st.session_state.username} registered a new driver ({df_first} {df_last}) for approval.")
-
-                # 2. Send Email Alert using the imported shared function
-                try:
-                    # 2. Send Email Alert using the imported shared function
                 # 2. Send Email Alert using the imported shared function
                 try:
                     admin_email = "contact@driveelite.ph"
