@@ -587,7 +587,7 @@ with main_tabs[0]:
                                                                 affiliate_name = aff_data.iloc[0]['full_name']
                                                                 
                                                                 # 1. Email to Admin
-                                                                admin_email = "driveelite@myyahoo.com" 
+                                                                admin_email = "contact@driveelite.ph" 
                                                                 send_alert_email(
                                                                     to_email=admin_email,
                                                                     subject=f"💳 ACTION REQUIRED: Payment Verification for #{b_ref}",
