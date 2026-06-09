@@ -202,9 +202,9 @@ def generate_pos_receipt(b_data):
     return receipt
 
 def send_admin_email_with_attachment(to_email, subject, body, attachment_path, attachment_name):
-    """Safely handles emailing contracts with PDF attachments"""
-    sender_email = os.environ.get("EMAIL_SENDER", "driveelite@myyahoo.com")
-    sender_password = os.environ.get("email_app_password")
+    """Safely handles emailing contracts with PDF attachments via Corporate Server"""
+    sender_email = "contact@driveelite.ph"
+    sender_password = os.environ.get("EMAIL_PASSWORD") 
     
     if not sender_password: 
         return False
@@ -223,8 +223,8 @@ def send_admin_email_with_attachment(to_email, subject, body, attachment_path, a
         part.add_header('Content-Disposition', f"attachment; filename= {attachment_name}")
         msg.attach(part)
         
-        # Yahoo SMTP Settings (Properly indented)
-        with smtplib.SMTP_SSL('smtp.mail.yahoo.com', 465) as smtp:
+        # CONNECT TO DOTPH CORPORATE SERVER
+        with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
             smtp.login(sender_email, sender_password)
             smtp.send_message(msg)
         return True
@@ -368,7 +368,7 @@ with tabs[0]:
                         if isinstance(sig, str): st.image(sig, caption="Digitally Signed MOA", width=300)
                         else: st.image(bytes(sig), caption="Digitally Signed MOA", width=300)
                     
-                    if st.button("APPROVE AFFILIATE", key=f"aa_{r['id']}", type="primary", use_container_width=True):
+                    if st.button("APPROaVE AFFILIATE", key=f"aa_{r['id']}", type="primary", use_container_width=True):
                         conn.execute("UPDATE platform_users SET admin_status = 'APPROVED' WHERE id = ?", (r['id'],))
                         conn.commit(); st.rerun()
         except Exception as e:
