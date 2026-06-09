@@ -208,26 +208,28 @@ def save_chat_image(img_file, b_ref):
     return ""
 
 def send_alert_email(to_email, subject, body):
-    sender_email = "driveelite@myyahoo.com" # Replace with your system email
-    sender_password = "your_google_app_password" # Replace with your 16-character App Password
+    """Sends system alerts using the Corporate DriveElite server."""
+    sender_email = "contact@driveelite.ph" 
+    sender_password = os.environ.get("EMAIL_PASSWORD") 
     
+    if not sender_password: 
+        return False
+        
     try:
         msg = MIMEMultipart()
-        msg['From'] = sender_email
+        msg['From'] = f"DriveElite Platform <{sender_email}>"
         msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
         
-        server = smtplib.SMTP('smtp.yahoo.com', 465)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.send_message(msg)
-        server.quit()
+        # CONNECT TO DOTPH CORPORATE SERVER
+        with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as server:
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
         return True
     except Exception as e:
         print(f"Failed to send email: {e}")
         return False
-
 # ==========================================
 # 5. AUTHENTICATION FLOW
 # ==========================================
