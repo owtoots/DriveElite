@@ -49,7 +49,7 @@ def send_alert_email(to_email, subject, body):
         
         with smtplib.SMTP('smtp-relay.brevo.com', 587) as smtp:
             smtp.starttls()
-            smtp.login('3rdrda@gmail.com'.strip(), app_password)
+            smtp.login('ae3102001@smtp-brevo.com', app_password)
             smtp.send_message(msg)
         return True
     except Exception as e:
@@ -83,7 +83,7 @@ def send_otp(contact_number, email_address, otp_code, method="EMAIL"):
         
         with smtplib.SMTP('smtp-relay.brevo.com', 587) as smtp:
             smtp.starttls()
-            smtp.login('3rdrda@gmail.com'.strip(), app_password)
+            smtp.login('ae3102001@smtp-brevo.com', app_password)
             smtp.send_message(msg)
             
         return True
