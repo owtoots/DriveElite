@@ -4,8 +4,6 @@ import urllib.parse
 import urllib.request
 import smtplib
 import streamlit as st
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from email.message import EmailMessage
 
 DB_PATH = "/data/driveelite_v2.db"
@@ -15,20 +13,7 @@ def get_connection():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     return sqlite3.connect(DB_PATH, check_same_thread=False, timeout=15.0)
 
-# --- 1. CENTRALIZED OTP DISPATCHER ---
-def send_otp(contact_number, email_address, otp_code, method="EMAIL"):
-    """
-    Unified entry point for OTPs. 
-    Toggle 'method' to 'SMS' or 'EMAIL' here.
-    """
-    message = f"Your DriveElite OTP is: {otp_code}. Do not share this with anyone."
-    
-    if method == "SMS":
-        return send_sms_alert(contact_number, message)
-    else:
-        return send_alert_email(email_address, "DriveElite: Verification OTP", message)
-
-# --- 2. SMS & EMAIL UTILITIES ---
+# --- 1. SMS UTILITY ---
 def send_sms_alert(number, message):
     """Sends an SMS via Semaphore API."""
     try:
@@ -45,8 +30,32 @@ def send_sms_alert(number, message):
         print(f"SMS Failed: {e}")
         return False
 
+# --- 2. ADMIN EMAIL UTILITY ---
+def send_alert_email(to_email, subject, body):
+    """Sends general notifications and Admin alerts with UTF-8 armor."""
+    try:
+        msg = EmailMessage()
+        msg['Subject'] = subject
+        msg['From'] = 'contact@driveelite.ph'
+        msg['To'] = to_email
+        msg.set_content(body, charset='utf-8')
+        
+        app_password = os.environ.get("EMAIL_PASSWORD")
+        with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
+            smtp.login('contact@driveelite.ph', app_password)
+            smtp.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"Alert Email Error: {e}")
+        return False
+
+# --- 3. CENTRALIZED OTP DISPATCHER ---
 def send_otp(contact_number, email_address, otp_code, method="EMAIL"):
-    """Sends a clean, utf-8 armored OTP email."""
+    """Sends a clean, utf-8 armored OTP email or SMS."""
+    if method == "SMS":
+        message = f"Your DriveElite OTP is: {otp_code}. Do not share this with anyone."
+        return send_sms_alert(contact_number, message)
+        
     try:
         msg = EmailMessage()
         msg['Subject'] = "DriveElite: Your Verification Code"
@@ -63,7 +72,7 @@ Please enter this 6-digit code on the registration screen to verify your account
 Drive safely,
 The DriveElite Team"""
         
-        # THIS IS THE ARMOR THAT PREVENTS THE CRASH
+        # UTF-8 ARMOR PREVENTS LATIN-1 CRASHES
         msg.set_content(body, charset='utf-8')
 
         # Connect to dotPH and send
@@ -77,22 +86,9 @@ The DriveElite Team"""
     except Exception as e:
         print(f"OTP Error: {e}")
         return False
-        
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = f"DriveElite Security <{sender_email}>"
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain'))
-        
-        # Connect to the dotPH corporate server
-        with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as server:
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-        return True
-    except Exception as e:
-        print(f"Email Failed: {e}")
-        return False
+
+# --- 4. DATABASE STRUCTURE ---
+# (Keep your init_db and patch_database functions exactly as they are below here)
 
 # --- 3. DATABASE STRUCTURE ---
 def init_db():
