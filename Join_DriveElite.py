@@ -271,10 +271,6 @@ if st.session_state.get('otp_pending'):
 # ==========================================
 # 6. 🚗 MAIN REGISTRATION SCREEN
 # ==========================================
-
-# ==========================================
-# 6. 🚗 MAIN REGISTRATION SCREEN
-# ==========================================
 else:
     st.title("🚗 Join DriveElite")
     st.write("Philippines' Premier Peer-to-Peer Car Sharing Platform")
