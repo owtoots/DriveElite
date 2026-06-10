@@ -298,7 +298,7 @@ try:
     total_pendings = pending_renters + pending_affiliates + pending_drivers + pending_payments
 
     if total_pendings > 0:
-        st.warning("🚨 **ACTION REQUIRED: You have pending items awaiting your review!**")
+        st.warning(" **ACTION REQUIRED: You have pending items awaiting your review!**")
         alert_cols = st.columns(4)
         if pending_renters > 0: alert_cols[0].error(f"👤 {pending_renters} Renters")
         if pending_affiliates > 0: alert_cols[1].error(f"💼 {pending_affiliates} Affiliates")
@@ -407,7 +407,7 @@ with tabs[1]:
             st.info("No vehicles currently pending approval.")
         else:
             for i, r in pv.iterrows():
-                with st.expander(f"🚗 {r['make']} {r['model']} ({r['plate']})"):
+                with st.expander(f" {r['make']} {r['model']} ({r['plate']})"):
                     st.write("### Vehicle Documents")
                     c_doc1, c_doc2, c_doc3 = st.columns(3)
                     with c_doc1: display_document(r.get('or_img'), "Official Receipt (OR)")
@@ -858,7 +858,7 @@ with tabs[5]:
                     except Exception as e: st.error(f"Error adding category: {e}")
 
     # =========================================================
-    # 🚨 PASTE THE PENALTY MANAGER RIGHT HERE! 🚨
+    #  PASTE THE PENALTY MANAGER RIGHT HERE! 
     # =========================================================
     st.divider()
     st.markdown("<h3 style='text-align: center;'>⚖️ AFFILIATE PENALTY MANAGER</h3>", unsafe_allow_html=True)
@@ -1041,7 +1041,7 @@ with tabs[7]:
                         st.write(f"Platform Cut (40%): ₱{settlement['nucleuz_platform_fee']:,.2f}")
                         st.write(f"Affiliate Payout (60%): ₱{settlement['affiliate_compensation']:,.2f}")
 
-                    if st.button("🚨 Finalize Cancellation & Update Database", type="primary"):
+                    if st.button(" Finalize Cancellation & Update Database", type="primary"):
                         conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE booking_ref = ?", (booking_to_cancel,))
                         conn.commit()
                         
