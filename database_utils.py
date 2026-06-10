@@ -6,6 +6,7 @@ import smtplib
 import streamlit as st
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.message import EmailMessage
 
 DB_PATH = "/data/driveelite_v2.db"
 
@@ -44,14 +45,37 @@ def send_sms_alert(number, message):
         print(f"SMS Failed: {e}")
         return False
 
-def send_alert_email(to_email, subject, body):
-    """Sends an email via Corporate DriveElite SMTP server."""
-    sender_email = "contact@driveelite.ph"
-    # Securely fetches the password from Render's Environment Variables
-    sender_password = os.environ.get("EMAIL_PASSWORD") 
-    
-    if not sender_password: 
-        print("Email failed: No password provided in Render environment variables.")
+def send_otp(contact_number, email_address, otp_code, method="EMAIL"):
+    """Sends a clean, utf-8 armored OTP email."""
+    try:
+        msg = EmailMessage()
+        msg['Subject'] = "DriveElite: Your Verification Code"
+        msg['From'] = 'contact@driveelite.ph'
+        msg['To'] = email_address
+
+        body = f"""Hello,
+
+Your DriveElite registration verification code is: 
+{otp_code}
+
+Please enter this 6-digit code on the registration screen to verify your account.
+
+Drive safely,
+The DriveElite Team"""
+        
+        # THIS IS THE ARMOR THAT PREVENTS THE CRASH
+        msg.set_content(body, charset='utf-8')
+
+        # Connect to dotPH and send
+        app_password = os.environ.get("EMAIL_PASSWORD") 
+        with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
+            smtp.login('contact@driveelite.ph', app_password)
+            smtp.send_message(msg)
+            
+        return True
+        
+    except Exception as e:
+        print(f"OTP Error: {e}")
         return False
         
     try:
