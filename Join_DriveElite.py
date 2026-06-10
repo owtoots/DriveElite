@@ -279,7 +279,7 @@ if st.session_state.get('otp_pending'):
                         sms_msg = f"DriveElite Admin: A new {new_role} ({new_name}) just registered! Please review their documents."
                         send_sms_alert(admin_phone, sms_msg)
                         
-                        email_sub = f"🚨 New {new_role} Registration: {new_name}"
+                        email_sub = f" New {new_role} Registration: {new_name}"
                         email_body = f"Hello Admin,\n\nA new {new_role} named {new_name} has successfully verified their account.\n\nPlease log into the Admin Command Center to review their ID and License."
                         send_alert_email(admin_email, email_sub, email_body)
                     except:
@@ -301,11 +301,11 @@ if st.session_state.get('otp_pending'):
                     st.rerun()
                     
                 except sqlite3.IntegrityError:
-                    st.error("🚨 That Username is already taken! Please refresh and choose a different username.")
+                    st.error(" That Username is already taken! Please refresh and choose a different username.")
                 except Exception as e:
                     st.error(f"⚠️ Registration failed due to a system error: {e}")
             else:
-                st.error("🚨 Invalid OTP. Please try again.")
+                st.error(" Invalid OTP. Please try again.")
 
 # ==========================================
 # 6. 🚗 MAIN REGISTRATION SCREEN
@@ -390,13 +390,13 @@ else:
                 
                 if st.form_submit_button("NEXT: REVIEW & SIGN AGREEMENT"):
                     if pwd != cpwd:
-                        st.error("🚨 Passwords do not match.")
+                        st.error(" Passwords do not match.")
                     elif not all([fn, sn, un, pwd, g_id, l_id, cn, em, ad]):
-                        st.error("🚨 Please fill all required fields and upload your documents.")
+                        st.error(" Please fill all required fields and upload your documents.")
                     else:
                         check = pd.read_sql_query("SELECT username FROM platform_users WHERE username=?", conn, params=(un,))
                         if not check.empty:
-                            st.error("🚨 Username already taken.")
+                            st.error(" Username already taken.")
                         else:
                             st.session_state[f"temp_{reg_type.lower()}_data"] = {
                                 "username": un, "password": pwd, "full_name": f"{fn} {mn} {sn}".strip(), 
@@ -479,6 +479,6 @@ else:
                             st.session_state.otp_pending = True
                             st.rerun()
                         else:
-                            st.error("🚨 Failed to send verification. Please try again.")
+                            st.error(" Failed to send verification. Please try again.")
                 else:
-                    st.error("🚨 Digital signature required to proceed.")
+                    st.error(" Digital signature required to proceed.")
