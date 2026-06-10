@@ -632,12 +632,12 @@ with tabs[0]:
                                         if "locked" in error_msg.lower(): time.sleep(0.5)
                                         else: break
                                 if success: st.rerun()
-                                else: st.warning(f"🚨 **DATABASE ERROR:** {error_msg}")
+                                else: st.warning(f" **DATABASE ERROR:** {error_msg}")
                                     
                         st.divider()
 
                         if b['status'] == 'CONFIRMED':
-                            st.info("🚨 **ACTION REQUIRED:** Complete the Digital Handover with the Renter present.")
+                            st.info(" **ACTION REQUIRED:** Complete the Digital Handover with the Renter present.")
                             with st.expander("📋 Official Handover & Photo Evidence", expanded=True):
                                 st.write("### 1. Vehicle Checklist")
                                 c1, c2 = st.columns(2)
@@ -808,7 +808,7 @@ with tabs[0]:
                                 """, unsafe_allow_html=True)
                                 
                                 if total_deduct > 5000.0: 
-                                    st.error(f"🚨 RENTER OWES EXTRA: ₱{(total_deduct - 5000.0):,.2f}. (Collect directly from Renter).")
+                                    st.error(f" RENTER OWES EXTRA: ₱{(total_deduct - 5000.0):,.2f}. (Collect directly from Renter).")
                                 else: 
                                     st.success(f"✅ REFUND CASH TO RENTER NOW: ₱{refund_amount:,.2f}")
 
@@ -888,7 +888,7 @@ with tabs[1]:
     if fleet.empty: st.info("You haven't added any vehicles yet.")
     for _, c in fleet.iterrows():
         v_ref = c.get('ref_no') if pd.notnull(c.get('ref_no')) else 'PENDING'
-        with st.expander(f"🚗 #{v_ref} | {c['make']} {c['model']} ({c['plate']}) - Status: {c['booking_status']} (Admin: {c['admin_status']})"):
+        with st.expander(f" #{v_ref} | {c['make']} {c['model']} ({c['plate']}) - Status: {c['booking_status']} (Admin: {c['admin_status']})"):
             if c['admin_status'] == 'APPROVED':
                 if c['booking_status'] == 'AVAILABLE' and st.button("Hide Vehicle", key=f"h_{c['id']}"):
                     conn.execute("UPDATE vehicles SET booking_status = 'UNAVAILABLE' WHERE id = ?", (c['id'],))
@@ -981,7 +981,7 @@ with tabs[3]:
                 # 2. Alert Admin
                 admin_phone = "09688811400"
                 admin_email = "contact@driveelite.ph"
-                subject = "🚨 Action Required: New Driver Pending Approval"
+                subject = " Action Required: New Driver Pending Approval"
                 body = f"Hello Admin,\n\nAffiliate @{st.session_state.username} has just registered a new driver: {df_first} {df_last}.\n\nPlease review documents."
                 
                 send_sms_alert(admin_phone, f"DriveElite Admin: Affiliate @{st.session_state.username} registered a new driver.")
