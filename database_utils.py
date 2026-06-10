@@ -37,7 +37,7 @@ def send_alert_email(to_email, subject, body):
         msg = EmailMessage()
         msg['Subject'] = subject
         msg['From'] = 'contact@driveelite.ph'
-        msg['To'] = to_email
+        msg['To'] = email_address.strip()
         msg.set_content(body, charset='utf-8')
         
         # Connect to Brevo and send
@@ -63,7 +63,7 @@ def send_otp(contact_number, email_address, otp_code, method="EMAIL"):
         msg = EmailMessage()
         msg['Subject'] = "DriveElite: Your Verification Code"
         msg['From'] = 'contact@driveelite.ph'
-        msg['To'] = email_address
+        msg['To'] = email_address.strip()
 
         body = f"""Hello,
 
