@@ -406,7 +406,7 @@ with main_tabs[0]:
                                         clashes = requested_days.intersection(unavailable_dates)
                                         if clashes:
                                             can_book = False
-                                            st.error(f"🚨 Vehicle booked on: {', '.join([d.strftime('%b %d') for d in sorted(list(clashes))])}")
+                                            st.error(f" Vehicle booked on: {', '.join([d.strftime('%b %d') for d in sorted(list(clashes))])}")
 
                                         drive_mode = st.radio("Mode", ["Self-Drive", "With Driver (+₱1k/day)"], key=f"dm_{car['id']}_{cat}")
                                         dest = st.text_input("Destination", key=f"dest_{car['id']}_{cat}")
@@ -492,7 +492,7 @@ with main_tabs[0]:
                                                                 except: pass 
                                                             
                                                             if not SECRET_KEY:
-                                                                st.error("🚨 Missing API Key: Please add 'paymongo_active_key' to your Render Environment Variables.")
+                                                                st.error(" Missing API Key: Please add 'paymongo_active_key' to your Render Environment Variables.")
                                                             else:
                                                                 pay_amount = int(grand_total * 100)
                                                                 auth_string = f"{SECRET_KEY}:"
@@ -576,7 +576,7 @@ with main_tabs[0]:
                                                         conn.commit()
                                                         
                                                         # ==========================================
-                                                        # 🚨 SEND AUTOMATED EMAIL ALERTS (UPDATED TO CORPORATE)
+                                                        #  SEND AUTOMATED EMAIL ALERTS (UPDATED TO CORPORATE)
                                                         # ==========================================
                                                         try:
                                                             aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
@@ -607,7 +607,7 @@ with main_tabs[0]:
                                                         time.sleep(2)
                                                         st.rerun()
                                                 else:
-                                                    st.error("🚨 Please upload a screenshot of your receipt.")
+                                                    st.error(" Please upload a screenshot of your receipt.")
 
 # ==========================================
 # 📅 MY BOOKINGS (MAIN TAB 1)
@@ -720,7 +720,7 @@ with main_tabs[1]:
                                 
                                 if st.button("Submit Review", type="primary", key=f"sub_rev_{b['id']}"):
                                     if star_click is None:
-                                        st.error("🚨 Please click on the stars to leave a rating!")
+                                        st.error(" Please click on the stars to leave a rating!")
                                     else:
                                         final_rating = star_click + 1 
                                         conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (final_rating, new_review, b['id']))
