@@ -84,7 +84,8 @@ The DriveElite Team"""
         return True
         
     except Exception as e:
-        print(f"OTP Error: {e}")
+        # THIS FORCES THE TRUE ERROR TO SHOW ON YOUR WEBSITE
+        st.error(f"🔍 DETAILED SYSTEM ERROR: {e}")
         return False
 
 # --- 4. DATABASE STRUCTURE ---
