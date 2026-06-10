@@ -40,9 +40,12 @@ def send_alert_email(to_email, subject, body):
         msg['To'] = to_email
         msg.set_content(body, charset='utf-8')
         
+        # Connect to Brevo and send
         app_password = os.environ.get("EMAIL_PASSWORD")
-        with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
-            smtp.login('contact@driveelite.ph', app_password)
+        with smtplib.SMTP('smtp-relay.brevo.com', 587) as smtp:
+            smtp.starttls()
+            # 👇 REPLACE THE EMAIL BELOW WITH YOUR GMAIL ACCOUNT 👇
+            smtp.login('YOUR_BREVO_LOGIN_EMAIL@gmail.com', app_password)
             smtp.send_message(msg)
         return True
     except Exception as e:
@@ -75,10 +78,12 @@ The DriveElite Team"""
         # UTF-8 ARMOR PREVENTS LATIN-1 CRASHES
         msg.set_content(body, charset='utf-8')
 
-        # Connect to dotPH and send
+        # Connect to Brevo and send
         app_password = os.environ.get("EMAIL_PASSWORD") 
-        with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
-            smtp.login('contact@driveelite.ph', app_password)
+        with smtplib.SMTP('smtp-relay.brevo.com', 587) as smtp:
+            smtp.starttls()
+            # 👇 REPLACE THE EMAIL BELOW WITH YOUR GMAIL ACCOUNT 👇
+            smtp.login('YOUR_BREVO_LOGIN_EMAIL@gmail.com', app_password)
             smtp.send_message(msg)
             
         return True
@@ -89,9 +94,6 @@ The DriveElite Team"""
         return False
 
 # --- 4. DATABASE STRUCTURE ---
-# (Keep your init_db and patch_database functions exactly as they are below here)
-
-# --- 3. DATABASE STRUCTURE ---
 def init_db():
     """Initializes all required tables for DriveElite V2."""
     conn = get_connection()
@@ -135,7 +137,7 @@ def patch_database():
     conn.commit()
     conn.close()
 
-# --- 4. EXECUTION GUARD ---
+# --- 5. EXECUTION GUARD ---
 if __name__ == "__main__":
     init_db()
     patch_database()
