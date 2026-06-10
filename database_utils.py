@@ -34,18 +34,22 @@ def send_sms_alert(number, message):
 def send_alert_email(to_email, subject, body):
     """Sends general notifications and Admin alerts with UTF-8 armor."""
     try:
+        # Strips invisible spaces from the recipient email
+        clean_email = to_email.strip() if to_email else ""
+        
         msg = EmailMessage()
         msg['Subject'] = subject
         msg['From'] = 'contact@driveelite.ph'
-        msg['To'] = email_address.strip()
+        msg['To'] = clean_email
         msg.set_content(body, charset='utf-8')
         
-        # Connect to Brevo and send
-        app_password = os.environ.get("EMAIL_PASSWORD")
+        # Connect to Brevo and strip hidden newlines from the API key
+        raw_password = os.environ.get("EMAIL_PASSWORD", "")
+        app_password = raw_password.strip()
+        
         with smtplib.SMTP('smtp-relay.brevo.com', 587) as smtp:
             smtp.starttls()
-            # 👇 REPLACE THE EMAIL BELOW WITH YOUR GMAIL ACCOUNT 👇
-            smtp.login('3rdrda@gmail.com', app_password)
+            smtp.login('3rdrda@gmail.com'.strip(), app_password)
             smtp.send_message(msg)
         return True
     except Exception as e:
@@ -60,30 +64,26 @@ def send_otp(contact_number, email_address, otp_code, method="EMAIL"):
         return send_sms_alert(contact_number, message)
         
     try:
+        # Strips invisible spaces from the user's typed email
+        clean_email = email_address.strip() if email_address else ""
+        
         msg = EmailMessage()
         msg['Subject'] = "DriveElite: Your Verification Code"
         msg['From'] = 'contact@driveelite.ph'
-        msg['To'] = email_address.strip()
+        msg['To'] = clean_email
 
-        body = f"""Hello,
-
-Your DriveElite registration verification code is: 
-{otp_code}
-
-Please enter this 6-digit code on the registration screen to verify your account.
-
-Drive safely,
-The DriveElite Team"""
+        body = f"Hello,\n\nYour DriveElite registration verification code is:\n{otp_code}\n\nPlease enter this 6-digit code on the registration screen to verify your account.\n\nDrive safely,\nThe DriveElite Team"
         
         # UTF-8 ARMOR PREVENTS LATIN-1 CRASHES
         msg.set_content(body, charset='utf-8')
 
-        # Connect to Brevo and send
-        app_password = os.environ.get("EMAIL_PASSWORD") 
+        # Connect to Brevo and strip hidden newlines from the API key
+        raw_password = os.environ.get("EMAIL_PASSWORD", "")
+        app_password = raw_password.strip() 
+        
         with smtplib.SMTP('smtp-relay.brevo.com', 587) as smtp:
             smtp.starttls()
-            # 👇 REPLACE THE EMAIL BELOW WITH YOUR GMAIL ACCOUNT 👇
-            smtp.login('3rdrda@gmail.com', app_password)
+            smtp.login('3rdrda@gmail.com'.strip(), app_password)
             smtp.send_message(msg)
             
         return True
