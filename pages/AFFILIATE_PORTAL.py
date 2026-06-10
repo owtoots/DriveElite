@@ -520,9 +520,9 @@ with tabs[0]:
                             net_payout = affiliate_gross - ewt_val
                             
                             c_earn1, c_earn2, c_earn3 = st.columns(3)
-                            c_earn1.metric("Total Rental", f"₱{b['amount']:,.2f}")
-                            c_earn2.metric("Your Gross", f"₱{affiliate_gross:,.2f}")
-                            c_earn3.metric("Net Payout", f"₱{net_payout:,.2f}")
+                            c_earn1.metric("Total Rental", f"Php{b['amount']:,.2f}")
+                            c_earn2.metric("Your Gross", f"Php{affiliate_gross:,.2f}")
+                            c_earn3.metric("Net Payout", f"Php{net_payout:,.2f}")
                             
                             if active_markup == 0:
                                 st.info("💡 **7-Day Rule:** Platform fee was waived for this short trip.")
@@ -644,7 +644,7 @@ with tabs[0]:
                                 
                                 with c1:
                                     c_fuel = st.selectbox("Current Fuel Level", ["Full", "3/4", "1/2", "1/4", "Empty"], key=f"fuel_{b['id']}")
-                                    c_deposit = st.checkbox("₱5,000 Cash Deposit Received", value=False, key=f"dep_{b['id']}")
+                                    c_deposit = st.checkbox("Php5,000 Cash Deposit Received", value=False, key=f"dep_{b['id']}")
                                     c_aircon = st.checkbox("❄️ Aircon Confirmed (Cold & Working)", value=True, key=f"aircon_{b['id']}")
                                 
                                 with c2:
@@ -685,7 +685,7 @@ with tabs[0]:
                                     if not h_photos or len(h_photos) < 10:
                                         st.error("❌ DISPATCH BLOCKED: You must upload at least 10 photos of the vehicle condition.")
                                     elif not c_deposit:
-                                        st.error("❌ DISPATCH BLOCKED: You must verify receipt of the ₱5,000 Cash Deposit.")
+                                        st.error("❌ DISPATCH BLOCKED: You must verify receipt of the 5,000 Php Cash Deposit.")
                                     elif not (has_sr and has_sa):
                                         st.error("❌ DISPATCH BLOCKED: Both parties must sign on the digital pads.")
                                     else:
@@ -749,7 +749,7 @@ with tabs[0]:
                                 with c1:
                                     st.write("##### Renter Expenses")
                                     l_hrs = st.number_input("Vehicle Late Return (Hours)", min_value=0, step=1, key=f"l_hrs_{b['id']}")
-                                    st.caption("Standard penalty for the car (₱ 300/hr)")
+                                    st.caption("Standard penalty for the car (Php 300/hr)")
                                     late_fee = l_hrs * 300.0
                                     
                                     fuel_cost = st.number_input("Refuel Receipt (Php)", min_value=0.0, step=100.0, key=f"f_cost_{b['id']}")
@@ -757,9 +757,9 @@ with tabs[0]:
                                     
                                     st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
                                     st.write("##### 🛣️ Tolls & Travel Expenses")
-                                    rfid_usage = st.number_input("Tolls Consumed (₱)", min_value=0.0, step=50.0, value=0.0, key=f"r_use_{b['id']}")
-                                    rfid_replenished = st.number_input("Tolls Loaded (₱)", min_value=0.0, step=50.0, value=0.0, key=f"r_load_{b['id']}")
-                                    rfid_penalty = st.checkbox("Apply ₱100 fine (Failure to load)", key=f"r_pen_{b['id']}")
+                                    rfid_usage = st.number_input("Tolls Consumed (Php)", min_value=0.0, step=50.0, value=0.0, key=f"r_use_{b['id']}")
+                                    rfid_replenished = st.number_input("Tolls Loaded (Php)", min_value=0.0, step=50.0, value=0.0, key=f"r_load_{b['id']}")
+                                    rfid_penalty = st.checkbox("Apply 100 Php fine (Failure to load)", key=f"r_pen_{b['id']}")
 
                                 with c2:
                                     st.write("##### Driver/Owner Liabilities")
@@ -783,13 +783,13 @@ with tabs[0]:
                                     if settlement_type == "With Driver":
                                         st.write("--- 🧑‍✈️ Driver Allowances & Extras ---")
                                         driver_ot_hrs = st.number_input("Driver Overtime (Hours)", min_value=0, step=1, key=f"ot_hrs_{b['id']}")
-                                        st.caption("Extra pay for the driver's labor (₱ 200/hr)")
+                                        st.caption("Extra pay for the driver's labor (Php 200/hr)")
                                         ot_fee = driver_ot_hrs * 200.0
                                         
-                                        p_fee = st.number_input("Parking Fees (₱)", min_value=0.0, step=20.0, key=f"park_{b['id']}")
-                                        n_diff = st.number_input("Night Differential (₱)", min_value=0.0, step=100.0, key=f"ndiff_{b['id']}")
-                                        m_allow = st.number_input("Meal Allowance (₱)", min_value=0.0, step=50.0, key=f"meal_{b['id']}")
-                                        l_allow = st.number_input("Lodging Allowance (₱)", min_value=0.0, step=100.0, key=f"lodge_{b['id']}")
+                                        p_fee = st.number_input("Parking Fees (Php)", min_value=0.0, step=20.0, key=f"park_{b['id']}")
+                                        n_diff = st.number_input("Night Differential (Php)", min_value=0.0, step=100.0, key=f"ndiff_{b['id']}")
+                                        m_allow = st.number_input("Meal Allowance (Php)", min_value=0.0, step=50.0, key=f"meal_{b['id']}")
+                                        l_allow = st.number_input("Lodging Allowance (Php)", min_value=0.0, step=100.0, key=f"lodge_{b['id']}")
                                         
                                         driver_extras = ot_fee + p_fee + n_diff + m_allow + l_allow
 
@@ -802,15 +802,15 @@ with tabs[0]:
                                 
                                 st.markdown(f"""
                                 <div style='background-color: rgba(128, 128, 128, 0.1); padding: 15px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.3); margin-bottom: 10px; margin-top: 15px;'>
-                                    <b style='color: #e74c3c;'>Total Deductions:</b> ₱{total_deduct:,.2f}<br>
-                                    <b style='color: #27ae60;'>Deposit Held:</b> ₱5,000.00
+                                    <b style='color: #e74c3c;'>Total Deductions:</b> Php{total_deduct:,.2f}<br>
+                                    <b style='color: #27ae60;'>Deposit Held:</b> Php5,000.00
                                 </div>
                                 """, unsafe_allow_html=True)
                                 
                                 if total_deduct > 5000.0: 
-                                    st.error(f" RENTER OWES EXTRA: ₱{(total_deduct - 5000.0):,.2f}. (Collect directly from Renter).")
+                                    st.error(f" RENTER OWES EXTRA: Php{(total_deduct - 5000.0):,.2f}. (Collect directly from Renter).")
                                 else: 
-                                    st.success(f"✅ REFUND CASH TO RENTER NOW: ₱{refund_amount:,.2f}")
+                                    st.success(f"✅ REFUND CASH TO RENTER NOW: Php{refund_amount:,.2f}")
 
                                 st.write("#### 🖊️ Final Sign-off")
                                 c_sig1, c_sig2 = st.columns(2)
@@ -859,7 +859,7 @@ with tabs[0]:
                                             
                                             if b.get('renter_email'):
                                                 subject = f"DriveElite: Return Settlement Receipt (#{b['booking_ref']})"
-                                                body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: ₱{total_deduct:,.2f}\nRefund Amount: ₱{refund_amount:,.2f}"
+                                                body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: Php{total_deduct:,.2f}\nRefund Amount: Php{refund_amount:,.2f}"
                                                 send_pdf_email(b['renter_email'], subject, body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
                                             
                                             conn.execute("""
