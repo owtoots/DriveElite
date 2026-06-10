@@ -45,7 +45,7 @@ def send_alert_email(to_email, subject, body):
         with smtplib.SMTP('smtp-relay.brevo.com', 587) as smtp:
             smtp.starttls()
             # 👇 REPLACE THE EMAIL BELOW WITH YOUR GMAIL ACCOUNT 👇
-            smtp.login('YOUR_BREVO_LOGIN_EMAIL@gmail.com', app_password)
+            smtp.login('3rdrda@gmail.com', app_password)
             smtp.send_message(msg)
         return True
     except Exception as e:
@@ -83,7 +83,7 @@ The DriveElite Team"""
         with smtplib.SMTP('smtp-relay.brevo.com', 587) as smtp:
             smtp.starttls()
             # 👇 REPLACE THE EMAIL BELOW WITH YOUR GMAIL ACCOUNT 👇
-            smtp.login('YOUR_BREVO_LOGIN_EMAIL@gmail.com', app_password)
+            smtp.login('3rdrda@gmail.com', app_password)
             smtp.send_message(msg)
             
         return True
