@@ -3,6 +3,7 @@ import os
 import urllib.parse
 import urllib.request
 import smtplib
+import json  # <-- ADD THIS LINE
 import streamlit as st
 from email.message import EmailMessage
 
