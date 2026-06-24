@@ -31,67 +31,72 @@ def send_sms_alert(number, message):
         print(f"SMS Failed: {e}")
         return False
 
-# --- 2. ADMIN EMAIL UTILITY ---
+# --- 2. ADMIN EMAIL UTILITY (API BYPASS) ---
 def send_alert_email(to_email, subject, body):
-    """Sends general notifications and Admin alerts with UTF-8 armor."""
+    """Sends general notifications using Brevo's REST API to bypass port blocks."""
     try:
-        # Strips invisible spaces from the recipient email
         clean_email = to_email.strip() if to_email else ""
+        api_key = os.environ.get("EMAIL_PASSWORD", "").strip()
+
+        url = "https://api.brevo.com/v3/smtp/email"
+        payload = {
+            "sender": {"name": "DriveElite Admin", "email": "contact@driveelite.ph"},
+            "to": [{"email": clean_email}],
+            "subject": subject,
+            "textContent": body
+        }
         
-        msg = EmailMessage()
-        msg['Subject'] = subject
-        msg['From'] = 'contact@driveelite.ph'
-        msg['To'] = clean_email
-        msg.set_content(body, charset='utf-8')
+        # Package it as a web request
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(url, data=data, headers={
+            'api-key': api_key,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        })
         
-        # Connect to Brevo and strip hidden newlines from the API key
-        raw_password = os.environ.get("EMAIL_PASSWORD", "")
-        app_password = raw_password.strip()
-        
-        with smtplib.SMTP('smtp-relay.brevo.com', 587) as smtp:
-            smtp.starttls()
-            smtp.login('ae3102001@smtp-brevo.com', app_password)
-            smtp.send_message(msg)
+        urllib.request.urlopen(req)
         return True
     except Exception as e:
         print(f"Alert Email Error: {e}")
         return False
 
-# --- 3. CENTRALIZED OTP DISPATCHER ---
+# --- 3. CENTRALIZED OTP DISPATCHER (API BYPASS) ---
 def send_otp(contact_number, email_address, otp_code, method="EMAIL"):
-    """Sends a clean, utf-8 armored OTP email or SMS."""
+    """Sends a clean OTP using Brevo's REST API over HTTPS."""
     if method == "SMS":
         message = f"Your DriveElite OTP is: {otp_code}. Do not share this with anyone."
         return send_sms_alert(contact_number, message)
         
     try:
-        # Strips invisible spaces from the user's typed email
         clean_email = email_address.strip() if email_address else ""
         
-        msg = EmailMessage()
-        msg['Subject'] = "DriveElite: Your Verification Code"
-        msg['From'] = 'contact@driveelite.ph'
-        msg['To'] = clean_email
-
+        # Your Brevo Key acts as the API key here
+        api_key = os.environ.get("EMAIL_PASSWORD", "").strip() 
+        
         body = f"Hello,\n\nYour DriveElite registration verification code is:\n{otp_code}\n\nPlease enter this 6-digit code on the registration screen to verify your account.\n\nDrive safely,\nThe DriveElite Team"
         
-        # UTF-8 ARMOR PREVENTS LATIN-1 CRASHES
-        msg.set_content(body, charset='utf-8')
-
-        # Connect to Brevo and strip hidden newlines from the API key
-        raw_password = os.environ.get("EMAIL_PASSWORD", "")
-        app_password = raw_password.strip() 
+        url = "https://api.brevo.com/v3/smtp/email"
+        payload = {
+            "sender": {"name": "DriveElite", "email": "contact@driveelite.ph"},
+            "to": [{"email": clean_email}],
+            "subject": "DriveElite: Your Verification Code",
+            "textContent": body
+        }
         
-        with smtplib.SMTP('smtp-relay.brevo.com', 587) as smtp:
-            smtp.starttls()
-            smtp.login('ae3102001@smtp-brevo.com', app_password)
-            smtp.send_message(msg)
-            
+        # Package it as a web request
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(url, data=data, headers={
+            'api-key': api_key,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        })
+        
+        urllib.request.urlopen(req)
         return True
         
     except Exception as e:
-        # THIS FORCES THE TRUE ERROR TO SHOW ON YOUR WEBSITE
-        st.error(f"🔍 DETAILED SYSTEM ERROR: {e}")
+        # If it fails, print the exact web error
+        st.error(f"🔍 API SYSTEM ERROR: {e}")
         return False
 
 # --- 4. DATABASE STRUCTURE ---
