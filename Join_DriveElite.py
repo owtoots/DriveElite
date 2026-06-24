@@ -194,7 +194,7 @@ def send_welcome_email(recipient_email, role, filepath):
 if st.session_state.get('otp_pending'):
     st.title("🔐 Account Verification")
     st.divider()
-    st.info(f"st.info(f"An OTP has been sent to your email: **{st.session_state.reg_payload[4]}**")}**")
+    st.info(f"An OTP has been sent to your email: **{st.session_state.reg_payload[4]}**")
     otp_input = st.text_input("Enter 6-digit OTP", key="otp_verify")
    
     
