@@ -368,7 +368,7 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
         msg['From'] = f"DriveElite Admin <{sender_email}>"
         msg['To'] = to_email
         msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain'))
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
         part = MIMEBase('application', 'octet-stream')
         part.set_payload(pdf_bytes)
