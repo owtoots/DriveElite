@@ -526,6 +526,8 @@ with main_tabs[0]:
                                                         st.session_state[stage_key] = 1
                                                         st.session_state[ref_key] = b_ref
                                                         st.rerun()
+                                            else:
+                                                st.error("⚠️ ACTION REQUIRED: Please fill in your Destination, Pickup/Return Addresses, and check the Luzon Travel Agreement box before confirming.")
 
                                     # -------------------------------------------------------------
                                     # CHECKOUT STAGE 1: VALIDATE BPI PAYMENT 
