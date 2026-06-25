@@ -256,8 +256,20 @@ if st.session_state.get('otp_pending'):
                     send_welcome_email(email, role, final_p)
                     st.success("✅ Account verified and agreement sent to your inbox!")
                     
+                    # 1. Figure out the real file extension
+                    actual_ext = "pdf" if final_p.endswith(".pdf") else "docx"
+                    
+                    # 2. Safely read the file bytes
                     with open(final_p, "rb") as f:
-                        st.download_button("📄 DOWNLOAD SIGNED CONTRACT", f, file_name=f"DriveElite_{prefix}.pdf", type="primary")
+                        file_bytes = f.read()
+                        
+                    # 3. Give the file the correct name so the computer knows how to open it
+                    st.download_button(
+                        label="📄 DOWNLOAD SIGNED CONTRACT", 
+                        data=file_bytes, 
+                        file_name=f"DriveElite_{prefix}.{actual_ext}", 
+                        type="primary"
+                    )
                             
                     if os.path.exists(docx_p): os.remove(docx_p)
                                 
