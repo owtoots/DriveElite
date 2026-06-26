@@ -892,8 +892,10 @@ with tabs[0]:
                                             
                                         except Exception as e:
                                             st.error(f"Error: {e}")
-  
 
+    except Exception as e:
+        st.error(f"System Error loading bookings: {e}")
+  
 # --- TAB 1: MY ASSETS ---
 with tabs[1]:
     st.markdown("<h3 style='text-align: center;'>MY FLEET CONTROLS</h3>", unsafe_allow_html=True)
