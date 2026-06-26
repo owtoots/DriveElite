@@ -473,9 +473,12 @@ with main_tabs[0]:
                                         agree_to_rfid = st.checkbox("I agree to the RFID rules and ₱100 penalty.", key=f"rfid_agree_{car['id']}_{cat}")
                                         is_disabled = (not can_book) or (not agree_to_rfid)
 
-                                        if st.button("1. CONFIRM BOOKING (SOFT LOCK)", ...):
+                                        if st.button("1. CONFIRM BOOKING (SOFT LOCK)", key=f"conf_{car['id']}_{cat}", type="primary", use_container_width=True, disabled=is_disabled):
+                                            # 0. CREATE DATE STRINGS FIRST
+                                            p_dt_str = p_dt_obj.strftime("%Y-%m-%d %H:%M")
+                                            r_dt_str = r_dt_obj.strftime("%Y-%m-%d %H:%M")
+                                            
                                             # 1. RE-CHECK FOR COLLISIONS (The "Hard" Lock)
-                                            # We query the DB again at the exact moment of clicking to ensure dates are still free
                                             overlap_check = pd.read_sql_query("""
                                                 SELECT booking_ref FROM bookings 
                                                 WHERE vehicle_id = ? 
@@ -490,7 +493,9 @@ with main_tabs[0]:
 
                                             # 2. PROCEED TO BOOKING (Existing logic)
                                             if dest and p_exact and r_exact and luzon_agree:
-                                            # ... your existing INSERT logic remains here ...
+                                                with st.spinner("Securing your dates..."):
+                                                    b_ref = str(random.randint(100000, 999999))
+                                                    is_drvr_int = 1 if "Driver" in drive_mode else 0
                                                     
                                                     if gateway_mode == "PAYMONGO":
                                                         conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
