@@ -891,8 +891,7 @@ with tabs[0]:
                                             
                                         except Exception as e:
                                             st.error(f"Error finalizing settlement: {e}"))
-    except Exception as e:
-        st.error(f"System Error loading bookings: {e}")
+  
 
 # --- TAB 1: MY ASSETS ---
 with tabs[1]:
