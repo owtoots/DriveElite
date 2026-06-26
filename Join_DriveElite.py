@@ -211,7 +211,21 @@ def generate_signed_agreement_pdf(data, role, sig_bytes, db_conn):
     
     # Stamp the signature bytes
     sig_y = pdf.get_y()
-    pdf.image(io.BytesIO(sig_bytes), x=10, y=sig_y, w=50)
+    
+    # --- NEW FIX: Save to a temp file so FPDF can read the extension ---
+    temp_sig_path = f"/data/uploads/temp_sig_{data['username']}.png"
+    with open(temp_sig_path, "wb") as f:
+        f.write(sig_bytes)
+        
+    # Inject the physical file into the PDF
+    pdf.image(temp_sig_path, x=10, y=sig_y, w=50)
+    
+    # Clean up the temp file so it doesn't clutter your server
+    try:
+        os.remove(temp_sig_path)
+    except:
+        pass
+    # -------------------------------------------------------------------
     
     pdf.set_y(sig_y + 25)
     pdf.set_font("Helvetica", 'U', 10)
