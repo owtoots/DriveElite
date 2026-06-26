@@ -890,7 +890,7 @@ with tabs[0]:
                                             st.rerun()
                                             
                                         except Exception as e:
-                                            st.error(f"Error finalizing settlement: {e}"))
+                                            st.error(f"Error finalizing settlement: {e}")
   
 
 # --- TAB 1: MY ASSETS ---
