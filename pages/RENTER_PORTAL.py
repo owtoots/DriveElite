@@ -474,23 +474,23 @@ with main_tabs[0]:
                                         is_disabled = (not can_book) or (not agree_to_rfid)
 
                                         if st.button("1. CONFIRM BOOKING (SOFT LOCK)", ...):
-    # 1. RE-CHECK FOR COLLISIONS (The "Hard" Lock)
-    # We query the DB again at the exact moment of clicking to ensure dates are still free
-    overlap_check = pd.read_sql_query("""
-        SELECT booking_ref FROM bookings 
-        WHERE vehicle_id = ? 
-        AND status NOT IN ('CANCELLED', 'REJECTED', 'COMPLETED')
-        AND pickup_time < ? 
-        AND return_time > ?
-    """, conn, params=(car['id'], r_dt_str, p_dt_str))
+                                            # 1. RE-CHECK FOR COLLISIONS (The "Hard" Lock)
+                                            # We query the DB again at the exact moment of clicking to ensure dates are still free
+                                            overlap_check = pd.read_sql_query("""
+                                                SELECT booking_ref FROM bookings 
+                                                WHERE vehicle_id = ? 
+                                                AND status NOT IN ('CANCELLED', 'REJECTED', 'COMPLETED')
+                                                AND pickup_time < ? 
+                                                AND return_time > ?
+                                            """, conn, params=(car['id'], r_dt_str, p_dt_str))
 
-    if not overlap_check.empty:
-        st.error("⚠️ Sorry! This vehicle was just booked by someone else for these dates. Please select different dates.")
-        st.stop()
+                                            if not overlap_check.empty:
+                                                st.error("⚠️ Sorry! This vehicle was just booked by someone else for these dates. Please select different dates.")
+                                                st.stop()
 
-    # 2. PROCEED TO BOOKING (Existing logic)
-    if dest and p_exact and r_exact and luzon_agree:
-        # ... your existing INSERT logic remains here ...
+                                            # 2. PROCEED TO BOOKING (Existing logic)
+                                            if dest and p_exact and r_exact and luzon_agree:
+                                            # ... your existing INSERT logic remains here ...
                                                     
                                                     if gateway_mode == "PAYMONGO":
                                                         conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
