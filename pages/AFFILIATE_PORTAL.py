@@ -264,7 +264,7 @@ def generate_handover_pdf(ref_no, car_name, renter_name, travel_dates, checklist
     pdf.ln(5)
 
     pdf.set_font("Helvetica", 'B', 12)
-    pdf.cell(0, 10, "⚠️ IMPORTANT REMINDERS FOR RENTER:", ln=True)
+    pdf.cell(0, 10, "IMPORTANT REMINDERS FOR RENTER:", ln=True)
     pdf.set_font("Helvetica", '', 10)
     pdf.multi_cell(0, 6, f"1. Tire Pressure: Please maintain the tire pressure at {tire_pressure} to ensure safety and optimal fuel efficiency.")
     pdf.multi_cell(0, 6, f"2. Preferred Fuel: This vehicle requires {preferred_fuel}. Please ensure the correct fuel type is used to avoid engine damage charges.")
