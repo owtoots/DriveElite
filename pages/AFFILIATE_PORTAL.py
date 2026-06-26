@@ -865,15 +865,12 @@ with tabs[0]:
                                             pdf_filepath = f"/data/uploads/Settlement_{b['booking_ref']}.pdf"
                                             with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
                                             
+                                            email_sent = False
                                             if b.get('renter_email'):
                                                 subject = f"DriveElite: Return Settlement Receipt (#{b['booking_ref']})"
                                                 body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: Php{total_deduct:,.2f}\nRefund Amount: Php{refund_amount:,.2f}"
                                                 email_sent = send_pdf_email(b['renter_email'], subject, body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
-# ... database updates ...
-if email_sent:
-    st.success("✅ Trip closed & Settlement Receipt emailed to Renter!")
-else:
-    st.warning("✅ Trip closed successfully, BUT the email failed to send (check your SMTP settings/password).")
+                                            
                                             conn.execute("""
                                                 UPDATE bookings 
                                                 SET status = 'COMPLETED', payout_status = 'PENDING',
@@ -884,12 +881,16 @@ else:
                                             conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
                                             conn.commit()
                                             
-                                            st.success("✅ Trip closed & Settlement Receipt emailed to Renter!")
+                                            if email_sent:
+                                                st.success("✅ Trip closed & Settlement Receipt emailed to Renter!")
+                                            else:
+                                                st.warning("✅ Trip closed successfully, BUT the email failed to send (check your SMTP settings/password).")
+                                                
                                             time.sleep(3)
                                             st.rerun()
                                             
                                         except Exception as e:
-                                            st.error(f"Error finalizing settlement: {e}")
+                                            st.error(f"Error finalizing settlement: {e}"))
     except Exception as e:
         st.error(f"System Error loading bookings: {e}")
 
