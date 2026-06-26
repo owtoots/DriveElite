@@ -868,8 +868,12 @@ with tabs[0]:
                                             if b.get('renter_email'):
                                                 subject = f"DriveElite: Return Settlement Receipt (#{b['booking_ref']})"
                                                 body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: Php{total_deduct:,.2f}\nRefund Amount: Php{refund_amount:,.2f}"
-                                                send_pdf_email(b['renter_email'], subject, body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
-                                            
+                                                email_sent = send_pdf_email(b['renter_email'], subject, body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
+# ... database updates ...
+if email_sent:
+    st.success("✅ Trip closed & Settlement Receipt emailed to Renter!")
+else:
+    st.warning("✅ Trip closed successfully, BUT the email failed to send (check your SMTP settings/password).")
                                             conn.execute("""
                                                 UPDATE bookings 
                                                 SET status = 'COMPLETED', payout_status = 'PENDING',
