@@ -473,12 +473,24 @@ with main_tabs[0]:
                                         agree_to_rfid = st.checkbox("I agree to the RFID rules and ₱100 penalty.", key=f"rfid_agree_{car['id']}_{cat}")
                                         is_disabled = (not can_book) or (not agree_to_rfid)
 
-                                        if st.button("1. CONFIRM BOOKING (SOFT LOCK)", key=f"conf_{car['id']}_{cat}", type="primary", use_container_width=True, disabled=is_disabled):
-                                            if dest and p_exact and r_exact and luzon_agree:
-                                                with st.spinner("Securing your dates..."):
-                                                    b_ref = str(random.randint(100000, 999999))
-                                                    p_dt_str, r_dt_str = p_dt_obj.strftime("%Y-%m-%d %H:%M"), r_dt_obj.strftime("%Y-%m-%d %H:%M")
-                                                    is_drvr_int = 1 if "Driver" in drive_mode else 0
+                                        if st.button("1. CONFIRM BOOKING (SOFT LOCK)", ...):
+    # 1. RE-CHECK FOR COLLISIONS (The "Hard" Lock)
+    # We query the DB again at the exact moment of clicking to ensure dates are still free
+    overlap_check = pd.read_sql_query("""
+        SELECT booking_ref FROM bookings 
+        WHERE vehicle_id = ? 
+        AND status NOT IN ('CANCELLED', 'REJECTED', 'COMPLETED')
+        AND pickup_time < ? 
+        AND return_time > ?
+    """, conn, params=(car['id'], r_dt_str, p_dt_str))
+
+    if not overlap_check.empty:
+        st.error("⚠️ Sorry! This vehicle was just booked by someone else for these dates. Please select different dates.")
+        st.stop()
+
+    # 2. PROCEED TO BOOKING (Existing logic)
+    if dest and p_exact and r_exact and luzon_agree:
+        # ... your existing INSERT logic remains here ...
                                                     
                                                     if gateway_mode == "PAYMONGO":
                                                         conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
@@ -540,7 +552,7 @@ with main_tabs[0]:
                                             st.markdown("### 🏦 Manual Bank Transfer")
                                             st.write("**Bank:** BPI")
                                             st.write("**Account Name:** Romeo Albao Jr.")
-                                            st.write("**Account Number:** 1234-5678-90")
+                                            st.write("**Account Number:** 0180 0206 08")
                                             
                                             amt_df = pd.read_sql_query("SELECT amount FROM bookings WHERE booking_ref = ?", conn, params=(b_ref,))
                                             owed_amount = float(amt_df.iloc[0]['amount']) if not amt_df.empty else 0.0
