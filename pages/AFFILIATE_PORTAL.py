@@ -359,6 +359,7 @@ def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, da
 
 def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
     sender_email = 'contact@driveelite.ph'
+    admin_email = 'contact@driveelite.ph'
     
     # Aggressively search for the password in both os.environ and st.secrets
     sender_password = None
@@ -377,6 +378,7 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
         msg = MIMEMultipart()
         msg['From'] = f"DriveElite Admin <{sender_email}>"
         msg['To'] = to_email
+        msg['Cc'] = admin_email  # <--- Admin CC added here!
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
