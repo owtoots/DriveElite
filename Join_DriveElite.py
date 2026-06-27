@@ -167,42 +167,61 @@ def get_secret(key, default_val=None):
 # 📄 UNIFIED PDF ENGINE (THIS IS STEP 1)
 # ==========================================
 def create_legit_pdf_contract(data, role, sig_bytes, conn):
-    prefix = "MOA" if role == "AFFILIATE" else "RENTER"
+    is_affiliate = role.upper() == "AFFILIATE"
+    prefix = "MOA" if is_affiliate else "RENTER"
     pdf_filename = f"/data/uploads/{prefix}_{data['username']}.pdf"
     
     pdf = FPDF()
     pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
     
-    # 1. Header (Looks like a legal document)
+    # 1. Header
     pdf.set_font("Helvetica", 'B', 16)
-    pdf.cell(0, 10, "DRIVEELITE OFFICIAL CONTRACT", ln=True, align='C')
+    pdf.cell(0, 10, "MEMORANDUM OF AGREEMENT" if is_affiliate else "MASTER RENTER AGREEMENT", ln=True, align='C')
     pdf.ln(5)
     
-    # 2. Key Details
-    pdf.set_font("Helvetica", 'B', 12)
-    pdf.cell(0, 8, f"Agreement Type: {prefix} Agreement", ln=True)
-    pdf.set_font("Helvetica", '', 11)
-    pdf.cell(0, 8, f"Full Name: {data['full_name']}", ln=True)
-    pdf.cell(0, 8, f"Nationality: {data['nationality']}", ln=True)
-    pdf.cell(0, 8, f"Address: {data['address']}", ln=True)
-    pdf.cell(0, 8, f"Date Signed: {datetime.date.today().strftime('%B %d, %Y')}", ln=True)
-    pdf.ln(10)
+    # 2. Intro/Parties
+    pdf.set_font("Helvetica", '', 10)
+    date_str = datetime.date.today().strftime("%B %d, %Y")
+    intro = f"""Date: {date_str}
     
-    # 3. Signature Stamp (The "Legit" part)
-    pdf.set_font("Helvetica", 'B', 12)
-    pdf.cell(0, 10, "DIGITALLY SIGNED BY:", ln=True)
+This Agreement is entered into by and between:
+{data['full_name'].upper()} (hereinafter referred to as the "{'OWNER' if is_affiliate else 'LESSEE'}")
+-and-
+DRIVEELITE PEER-TO-PEER CAR RENTALS (hereinafter referred to as the "AGENCY")."""
+    pdf.multi_cell(0, 5, intro)
+    pdf.ln(5)
     
-    # Save sig bytes to temp for FPDF
+    # 3. Contract Body (Content based on your requirements)
+    pdf.set_font("Helvetica", '', 8)
+    if is_affiliate:
+        body_text = """TERMS AND CONDITIONS (AFFILIATE):
+1. EXCLUSIVE MARKETING: AGENCY is the exclusive marketer for vehicles enrolled via the Affiliate Dashboard. Non-compete clause applies (2 years).
+2. OBLIGATIONS: OWNER must ensure vehicles are clean and roadworthy. Booking fulfillment is mandatory; penalties (PhP 3,000) apply for cancellations.
+3. REVENUE & TAXES: Revenue split is set per platform settings. OWNER assumes 100% responsibility for BIR tax declarations (EWT/Income Tax).
+4. INSURANCE & LIABILITY: OWNER must maintain comprehensive insurance. AGENCY assumes zero liability for vehicle damage, accidents, or 'colorum' impoundment.
+5. CANCELLATIONS: 3 cancellations/2 no-shows within 12 months result in permanent account deactivation.
+6. VENUE: Pasig City, Metro Manila."""
+    else:
+        body_text = """TERMS AND CONDITIONS (RENTER):
+1. USE RESTRICTIONS: Luzon exclusivity. No inter-island travel, smoking, or animals. Misuse results in up to PhP 50,000 penalty.
+2. FINANCIALS: PhP 5,000 Security Deposit collected by OWNER. 20% interest per month on delayed payments.
+3. CANCELLATIONS: Strictly scheduled refund policy (0% to 100% depending on notice period).
+4. DAMAGE/LOSS: LESSEE assumes full liability for damages, missing fuel, and lost items. Total loss/theft liability is 30% of market value.
+5. VIOLATIONS: Full responsibility for traffic tickets, tolls, and LTO demerit points. Agreement survives termination for future reported citations."""
+
+    pdf.multi_cell(0, 4, body_text)
+    pdf.ln(5)
+    
+    # 4. Digital Signature
+    pdf.set_font("Helvetica", 'B', 10)
+    pdf.cell(0, 10, f"DIGITALLY SIGNED BY {'OWNER' if is_affiliate else 'RENTER'}:", ln=True)
+    
     temp_sig = f"/data/uploads/temp_{data['username']}.png"
     with open(temp_sig, "wb") as f:
         f.write(sig_bytes)
-    pdf.image(temp_sig, w=50)
+    pdf.image(temp_sig, w=40)
     os.remove(temp_sig)
-    
-    # 4. Footer
-    pdf.set_y(250)
-    pdf.set_font("Helvetica", 'I', 10)
-    pdf.cell(0, 10, "This is a digitally generated contract via DriveElite Secure Platform.", ln=True, align='C')
     
     pdf.output(pdf_filename)
     return pdf_filename
