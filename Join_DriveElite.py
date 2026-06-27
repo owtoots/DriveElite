@@ -147,7 +147,8 @@ def send_welcome_email(recipient_email, role, filepath):
     doc_label = "MOA" if role == "AFFILIATE" else "RENTER"
     msg['Subject'] = f'DriveElite: Your Official {doc_label} Agreement'
     
-    sender_email = "contact@driveelite.ph"
+    # Use the variable from your dashboard instead of hardcoding
+    sender_email = get_secret("email_sender", "contact@driveelite.ph")
     msg['From'] = f"DriveElite Team <{sender_email}>"
     msg['To'] = recipient_email
     msg['Bcc'] = sender_email
@@ -160,12 +161,15 @@ def send_welcome_email(recipient_email, role, filepath):
     msg.add_attachment(file_data, maintype='application', subtype='pdf', filename=f"DriveElite_{doc_label}.pdf")
 
     try:
-        app_password = get_secret("EMAIL_PASSWORD", "") 
+        app_password = get_secret("EMAIL_PASSWORD") 
+        if not app_password:
+            raise Exception("EMAIL_PASSWORD variable is empty in Render.")
+            
         with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
             smtp.login(sender_email, app_password)
             smtp.send_message(msg)
     except Exception as e:
-        raise Exception(f"SMTP Delivery Failed: {e}")
+        raise Exception(f"SMTP Error: {e}")
 
 # ==========================================
 # 📄 UNIFIED PDF ENGINE
