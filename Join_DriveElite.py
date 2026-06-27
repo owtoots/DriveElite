@@ -195,20 +195,190 @@ DRIVEELITE PEER-TO-PEER CAR RENTALS (hereinafter referred to as the "AGENCY").""
     # 3. Contract Body (Content based on your requirements)
     pdf.set_font("Helvetica", '', 8)
     if is_affiliate:
-        body_text = """TERMS AND CONDITIONS (AFFILIATE):
-1. EXCLUSIVE MARKETING: AGENCY is the exclusive marketer for vehicles enrolled via the Affiliate Dashboard. Non-compete clause applies (2 years).
-2. OBLIGATIONS: OWNER must ensure vehicles are clean and roadworthy. Booking fulfillment is mandatory; penalties (PhP 3,000) apply for cancellations.
-3. REVENUE & TAXES: Revenue split is set per platform settings. OWNER assumes 100% responsibility for BIR tax declarations (EWT/Income Tax).
-4. INSURANCE & LIABILITY: OWNER must maintain comprehensive insurance. AGENCY assumes zero liability for vehicle damage, accidents, or 'colorum' impoundment.
-5. CANCELLATIONS: 3 cancellations/2 no-shows within 12 months result in permanent account deactivation.
-6. VENUE: Pasig City, Metro Manila."""
+        body_text = """This Memorandum of Agreement (the "Agreement") is made and entered into this {{ DATE_SIGNED }} upon digital acceptance by and between:
+
+{{ PLATFORM }}, a business operating under the laws of the Republic of the Philippines, with its registered address in Pasig City, Metro Manila, hereinafter referred to as the "AGENCY",
+
+-and-
+
+{{ FULL_NAME }} , of legal age, resident of {{ ADDRESS }} , whose identity and details are provided and verified through the DriveElite platform registration, hereinafter referred to as the "OWNER".
+
+
+WITNESSETH: That—
+
+WHEREAS, the OWNER is the registered owner of a vehicle or fleet of vehicles intended for leasing services and desires to engage the services of the AGENCY to market and finalize bookings on the DriveElite platform;
+
+WHEREAS, the AGENCY operates strictly as an online marketplace facilitator connecting vehicle owners with renters. The AGENCY is not a party to the physical rental agreement, nor does it own, operate, or maintain any of the listed vehicles;
+
+WHEREAS, the AGENCY has accepted the said engagement subject to the terms and conditions of this Agreement;
+
+NOW, THEREFORE, for and in consideration of the foregoing premises, the parties agree as follows:
+
+
+1. EXCLUSIVE RIGHT TO MARKET AND NON-COMPETE a. Exclusive Right: The OWNER engages the AGENCY as the exclusive marketer for any and all vehicles activated by the OWNER on the DriveElite Affiliate Dashboard. b. Non-Compete: The OWNER shall not make any direct bookings with clients referred by the AGENCY or market similar services to said clients. This prohibition lasts for the term of this Agreement plus two (2) years. Violations incur liquidated damages of PhP 200,000 per transaction.
+
+
+2. OBLIGATIONS OF THE OWNER a. Vehicle Quality: Vehicles must be turned over in a clean, sanitized, and roadworthy condition. b. Fulfillment: Once a renter confirms a booking, the OWNER is strictly obligated to fulfill it. c. Penalties: Failure to fulfill a confirmed booking results in a PhP 3,000 penalty. If the OWNER fails to notify the AGENCY of unavailability in time, an additional PhP 3,000 penalty plus replacement costs shall apply. d. Driver Liability: Any driver provided is the sole employee/agent of the OWNER. The AGENCY holds no employer-employee relationship and zero liability for accidents or violations caused by the driver.
+
+
+3. COMPENSATION, TAXES, AND DELIVERY FEES a. Revenue Split: The Gross Rental Revenue (excluding delivery/logistics fees) shall be shared directly as follows:
+
+· OWNER Share: {{ OWNER_SHARE }}
+
+
+· AGENCY Share: {{ PLATFORM_SHARE }}
+
+
+· Tax Independence & EWT: The AGENCY is not a withholding agent for the OWNER. The AGENCY shall only declare and pay taxes on its own {{ PLATFORM_SHARE }} commission. The OWNER receives their full {{ OWNER_SHARE }} share (less gateway fees) and assumes 100% legal and financial responsibility for filing, declaring, and paying their own taxes—including the 2% Expanded Withholding Tax (EWT) and Personal Income Tax—to the Bureau of Internal Revenue (BIR).
+
+
+· Delivery Fees: 100% of delivery/pick-up fees are remitted to the OWNER and are exempt from the AGENCY’s {{ PLATFORM_SHARE }} fee.
+
+
+· Payment Processing Fees: The OWNER acknowledges and agrees that third-party payment gateway surcharges (e.g., PayMongo, credit card processing, e-wallet convenience fees) associated with their gross earnings shall be absorbed by the OWNER and deducted prior to final remittance.
+
+
+· The final remittance shall be calculated strictly as: ({{ OWNER_SHARE }} Gross Share) - Actual Gateway Fee.
+
+· Issuance of Receipts: The AGENCY collects payments on behalf of the transaction but issues official receipts solely for its {{ PLATFORM_SHARE }} service fee and any applicable administrative fees.
+
+
+4. CANCELLATION PENALTIES AND COMPENSATION In the event that a Renter cancels a confirmed booking and a cancellation penalty is applied according to the Platform's standard Cancellation Policy, the standard {{ OWNER_SHARE }} {{ PLATFORM_SHARE }} revenue split shall not apply to the penalty amount. Instead, the collected penalty shall be subject to a 60% / 40% distribution. The OWNER shall receive sixty percent (60%) of the collected penalty as compensation for the reserved time, and the AGENCY shall retain forty percent (40%) to cover administrative, refund, and processing overhead.
+
+
+5. SECURITY DEPOSIT AND DAMAGE SETTLEMENT
+
+a. Direct Collection: The OWNER is responsible for collecting and returning the PhP 5,000.00 Security Deposit directly to/from the renter. The AGENCY does not act as a custodian for these funds.
+
+b. Damage Assessment & Evidence: The Renter is responsible for any damages incurred during the rental. Assessment shall be based on pre- and post-rental inspection records. The OWNER is strictly required to use the DriveElite platform (e.g., Messenger/Handover forms) to upload time-stamped evidence of the vehicle condition.
+
+c. Dispute Resolution: Damage, fuel, or traffic violations shall be settled directly between the OWNER and Renter using the security deposit. While the AGENCY may review platform evidence to provide a determination based on available data, enforcement of payment obligations remains strictly between the Renter and the OWNER.
+
+
+6. INSURANCE AND LOSS LIABILITY
+
+a. Mandatory Coverage: The OWNER must maintain valid comprehensive insurance (including TPL and Acts of God).
+
+b. Zero Agency Liability: The OWNER assumes all financial risk. In the event of vehicle condition disputes, delays, physical damage, total wreck, theft, or insurance denial due to commercial use, the AGENCY holds zero financial or legal liability.
+
+c. Regulatory Compliance & Impoundment: The OWNER is solely responsible for securing any necessary LTO registrations, LTFRB franchises, or local permits required to lease their vehicle. The AGENCY assumes no liability, financial or legal, if the vehicle is apprehended, fined, or impounded by the LTO, LTFRB, MMDA, or any LGU for operating as an unregistered "colorum" rental.
+
+7. TERMINATION & PLATFORM ENFORCEMENT a. For Cause: The AGENCY may terminate immediately for breaches, poor ratings, or fraudulent activity. b. Without Cause: Either party may terminate with 30 days' written notice. c. Account Enforcement: The AGENCY reserves the right to suspend or restrict the accounts of users who fail to settle valid financial obligations, violate safety protocols, or bypass platform tracking procedures.
+
+8. Failure to Deliver and Affiliate Cancellations
+
+1. Obligation to Deliver: The AFFILIATE agrees to deliver the enrolled vehicle to the Renter at the agreed-upon date, time, and location.
+
+
+2. No-Show Penalty: If the AFFILIATE fails to deliver the vehicle at the scheduled time (No-Show), or cancels the booking with less than twenty-four (24) hours' notice, a penalty of ₱2,000.00 shall be applied.
+
+
+3. Late Cancellation Penalty: If the AFFILIATE cancels a confirmed booking with twenty-four (24) to forty-eight (48) hours' notice, a penalty of ₱1,000.00 shall be applied.
+
+
+4. Collection of Penalties: The AGENCY (DriveElite) reserves the right to automatically deduct any incurred cancellation or no-show penalties from the AFFILIATE’s upcoming ledger payouts or existing wallet balances.
+
+
+5. Account Suspension: Three (3) instances of cancellation or two (2) instances of a No-Show within a twelve (12) month period will result in the immediate and permanent deactivation of the AFFILIATE’s account.
+
+9. MISCELLANEOUS a. Electronic Consent: Digital acceptance on the platform carries the same legal weight as a physical signature. b. Venue: Disputes shall be instituted exclusively in the proper courts of Pasig City.
+
+
+IN WITNESS WHEREOF, the OWNER has hereunto affixed their digital signature and acceptance of this electronic Agreement on the date first above written."""
     else:
-        body_text = """TERMS AND CONDITIONS (RENTER):
-1. USE RESTRICTIONS: Luzon exclusivity. No inter-island travel, smoking, or animals. Misuse results in up to PhP 50,000 penalty.
-2. FINANCIALS: PhP 5,000 Security Deposit collected by OWNER. 20% interest per month on delayed payments.
-3. CANCELLATIONS: Strictly scheduled refund policy (0% to 100% depending on notice period).
-4. DAMAGE/LOSS: LESSEE assumes full liability for damages, missing fuel, and lost items. Total loss/theft liability is 30% of market value.
-5. VIOLATIONS: Full responsibility for traffic tickets, tolls, and LTO demerit points. Agreement survives termination for future reported citations."""
+        body_text = """TKNOW ALL MEN BY THESE PRESENTS:
+
+This agreement (the "Agreement") is made and executed by and between:
+
+{{ FULL_NAME }} , of legal age, citizen of {{ NATIONALITY }} , with postal address at
+
+{{ ADDRESS }} , hereinafter referred to as the "LESSEE";
+
+-and-
+
+DriveElite Peer-to-Peer Car Rentals, a company registered under the laws of the Republic of the Philippines, hereinafter referred to as the 'AGENCY' (acting as the authorized digital platform and booking agent on behalf of the vehicle's registered OWNER
+
+
+THEREFORE, the LESSEE hereby agrees to the following Master Terms and Conditions for all current and future vehicle bookings made through the DriveElite platform:
+
+1. GENERAL USE & RESTRICTIONS
+
+● Luzon Exclusivity: The LESSEE shall use the subject vehicle for personal purposes only and strictly within the Luzon region. Inter-island transfers are strictly prohibited.
+
+
+● Authorized Drivers: The vehicle must only be driven by the registered LESSEE or an authorized driver whose identity was fully disclosed and approved by the AGENCY prior to the trip.
+
+
+● Prohibited Areas & Conditions: The LESSEE shall not allow the vehicle to travel to areas where roads are not passable (e.g., rough roads, mountainous terrain without paved roads) or use the vehicle during natural calamities, excessively heavy rains, storms, or flooding.
+
+
+● Prohibited Activities: Smoking and the transport of animals inside the vehicle are strictly prohibited. The vehicle must not be operated by any person under the influence of alcohol or drugs.
+
+
+🚨 PENALTY FOR MISUSE: Failure to follow any of the above guidelines will result in a fine with a maximum penalty of PHP 50,000.00 per infringement, absolute forfeiture of the Security Deposit, and the immediate termination of the Car Rental Agreement.
+
+2. DEPOSITS & FINANCIAL OBLIGATIONS
+
+● Security Deposit: A physical cash deposit of PHP 5,000.00 shall be collected by the driver/owner upon vehicle handover. This deposit covers minor incidentals and will be refunded upon the safe return of the vehicle, provided no violations occurred.
+
+● Interest Penalty: Default in the payment of any obligations under this Agreement when due shall bear interest at the rate of twenty percent (20%) per month, computed daily and compounded monthly until fully paid.
+
+3. PLATFORM SERVICE FEE
+
+The LESSEE acknowledges that for rental periods of seven (7) days or longer, a {{ RENTER_FEE }} Platform Service Fee is applied to the base rental rate to cover system infrastructure, customer support, and payment processing handled by {{ PLATFORM }}. This fee is expressly waived for short-term rentals of six (6) days or fewer.
+
+4. CANCELLATION POLICY
+
+Cancellation refunds for the Rental Fee shall be processed strictly in accordance with the following schedule:
+
+● 0 to 2 days / No Show: 0% Refund
+
+● 3 to 6 days prior to pick-up: 25% Refund
+
+● 7 to 14 days prior to pick-up: 50% Refund
+
+● 15 to 29 days prior to pick-up: 75% Refund
+
+● 30 days or more prior to pick-up: 100% Refund
+
+
+5. RETURN OF VEHICLE & PENALTIES
+
+Excluding normal wear and tear, the following charges apply upon return:
+
+● Missing Fuel: Charged at current market pricing per Liter.
+
+● Missing RFID Card: PHP 500.00 per card.
+
+● Late Return: Less than 3 hours incurs PHP 200.00 per hour. Greater than 3 hours incurs 50% of the daily rental fee.
+
+● Extra Cleaning (Normal): Sedan: PHP 200 | Crossover/MPV: PHP 300 | SUV/Van: PHP 500
+
+● Extra Cleaning (Smoking): Sedan: PHP 3,000 | Crossover/MPV: PHP 4,000 | SUV/Van: PHP 5,000
+
+● Minor Damage (Per Panel): Sedan: PHP 2,500 | Crossover/MPV: PHP 3,000 | SUV/Van: PHP 3,500
+
+● Lost/Damaged Keys: Replacement or emergency unlock services will incur a fee ranging from PHP 3,000.00 to PHP 15,000.00.
+
+
+6. DAMAGE, MAJOR LOSS, OR THEFT
+
+In the event of damage, major loss, total loss, or theft of the Rental Vehicle, the LESSEE must immediately secure a Police Report, a notarized affidavit explaining the incident, and provide a copy of their driver's license. The LESSEE must notify DriveElite within 24 hours of the incident.
+
+In the case of total loss (including theft), the LESSEE assumes financial responsibility and shall pay
+
+30% of the Fair Market Value of the vehicle as determined by the AGENCY/OWNER.
+
+
+7.. TRAFFIC VIOLATIONS, TOLLS, AND SURVIVAL OF LIABILITY
+
+● Full Liability: The LESSEE assumes full financial and legal responsibility for any and all traffic violations, No Contact Apprehension Policy (NCAP) tickets, tollway penalties, towing fees, and LTO/MMDA alarms incurred during the exact dates and times of the rental period.
+
+
+● Survival Clause: The LESSEE acknowledges that traffic citations are often delayed. The LESSEE’s liability for these violations strictly survives the termination of this Agreement and the return of the Security Deposit. If a violation from the rental period is reported at any point in the future, the LESSEE remains legally bound to reimburse the OWNER/AGENCY immediately upon demand.
+
+
+● LTO Demerit Transfer: In the event of an LTO alarm or traffic citation, the LESSEE explicitly agrees to accept any corresponding demerit points to their personal Driver's License. The LESSEE agrees to fully cooperate and sign any necessary documents (such as an Affidavit of Denial/Acknowledgment of Driver) to clear the OWNER's vehicle and license from said violations. Failure to cooperate will result in a permanent ban from the DriveElite platform and potential legal action."""
 
     pdf.multi_cell(0, 4, body_text)
     pdf.ln(5)
