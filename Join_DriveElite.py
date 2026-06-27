@@ -161,9 +161,7 @@ def send_welcome_email(recipient_email, role, filepath):
     msg.add_attachment(file_data, maintype='application', subtype='pdf', filename=f"DriveElite_{doc_label}.pdf")
 
     try:
-        app_password = get_secret("EMAIL_PASSWORD") 
-        if not app_password:
-            raise Exception("EMAIL_PASSWORD variable is empty in Render.")
+        app_password = "chcskxti6hc2d7ao"
             
         with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
             smtp.login(sender_email, app_password)
