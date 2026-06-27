@@ -12,6 +12,7 @@ import subprocess
 from streamlit_drawable_canvas import st_canvas
 from database_utils import get_connection
 from database_utils import send_otp
+from fpdf import FPDF
 
 # 1. Page Config (Must be the first Streamlit command)
 st.set_page_config(page_title="DriveElite", layout="wide")
@@ -161,6 +162,51 @@ def crop_signature(image_data):
 def get_secret(key, default_val=None):
     # Smart fetcher: Checks Render environment variables first, falls back to secrets
     return os.environ.get(key) or st.secrets.get(key, default_val)
+
+# ==========================================
+# 📄 UNIFIED PDF ENGINE (THIS IS STEP 1)
+# ==========================================
+def create_legit_pdf_contract(data, role, sig_bytes, conn):
+    prefix = "MOA" if role == "AFFILIATE" else "RENTER"
+    pdf_filename = f"/data/uploads/{prefix}_{data['username']}.pdf"
+    
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # 1. Header (Looks like a legal document)
+    pdf.set_font("Helvetica", 'B', 16)
+    pdf.cell(0, 10, "DRIVEELITE OFFICIAL CONTRACT", ln=True, align='C')
+    pdf.ln(5)
+    
+    # 2. Key Details
+    pdf.set_font("Helvetica", 'B', 12)
+    pdf.cell(0, 8, f"Agreement Type: {prefix} Agreement", ln=True)
+    pdf.set_font("Helvetica", '', 11)
+    pdf.cell(0, 8, f"Full Name: {data['full_name']}", ln=True)
+    pdf.cell(0, 8, f"Nationality: {data['nationality']}", ln=True)
+    pdf.cell(0, 8, f"Address: {data['address']}", ln=True)
+    pdf.cell(0, 8, f"Date Signed: {datetime.date.today().strftime('%B %d, %Y')}", ln=True)
+    pdf.ln(10)
+    
+    # 3. Signature Stamp (The "Legit" part)
+    pdf.set_font("Helvetica", 'B', 12)
+    pdf.cell(0, 10, "DIGITALLY SIGNED BY:", ln=True)
+    
+    # Save sig bytes to temp for FPDF
+    temp_sig = f"/data/uploads/temp_{data['username']}.png"
+    with open(temp_sig, "wb") as f:
+        f.write(sig_bytes)
+    pdf.image(temp_sig, w=50)
+    os.remove(temp_sig)
+    
+    # 4. Footer
+    pdf.set_y(250)
+    pdf.set_font("Helvetica", 'I', 10)
+    pdf.cell(0, 10, "This is a digitally generated contract via DriveElite Secure Platform.", ln=True, align='C')
+    
+    pdf.output(pdf_filename)
+    return pdf_filename
+# ==========================================
 
 def send_welcome_email(recipient_email, role, filepath):
     # ==========================================
