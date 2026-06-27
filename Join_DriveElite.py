@@ -6,66 +6,52 @@ import sqlite3
 from email.message import EmailMessage
 import numpy as np
 from PIL import Image
-from docxtpl import DocxTemplate, InlineImage
-from docx.shared import Mm
-import subprocess 
 from streamlit_drawable_canvas import st_canvas
 from database_utils import get_connection
 from database_utils import send_otp
 from fpdf import FPDF
 
-# 1. Page Config (Must be the first Streamlit command)
+# ==========================================
+# 1. PAGE CONFIG
+# ==========================================
 st.set_page_config(page_title="DriveElite", layout="wide")
 
-# 2. Inject the Logo into the Sidebar
 try:
     st.sidebar.image("logo.png", use_container_width=True)
 except:
     pass
 
-# 3. The Universal "Crystal Elite" CSS Engine
 st.markdown("""
 <style>
-/* =========================================
-       📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
-       ========================================= */
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
         height: 200px !important;
         width: 100% !important;
         object-fit: cover !important;
         border-radius: 8px !important;
     }
-    /* --- GLOBAL THEME --- */
     [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background-color: #F8FAFC !important;
         color: #0F172A !important;
         font-family: 'Inter', -apple-system, sans-serif !important;
     }
-    
-    /* --- SIDEBAR & LOGO REORDER HACK --- */
     [data-testid="stSidebar"] {
         background-color: #FFFFFF !important;
         border-right: 1px solid #E2E8F0 !important;
     }
-    
     [data-testid="stSidebarContent"] {
         display: flex !important;
         flex-direction: column !important;
     }
-    
     [data-testid="stSidebarUserContent"] {
         order: 1 !important;
         padding-top: 0rem !important;
         margin-top: -1.5rem !important; 
         padding-bottom: 1rem !important;
     }
-
     [data-testid="stSidebarNav"] {
         order: 2 !important;
         padding-top: 0rem !important; 
     }
-
-    /* --- CARDS & BUTTONS --- */
     [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
         background-color: #FFFFFF !important;
         padding: 20px !important;
@@ -73,7 +59,6 @@ st.markdown("""
         border: 1px solid #E2E8F0 !important;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
     }
-
     div.stButton > button, [data-testid="stFormSubmitButton"] > button {
         background-color: #2563EB !important;
         color: #FFFFFF !important;
@@ -84,18 +69,14 @@ st.markdown("""
         text-transform: uppercase !important;
         transition: all 0.2s ease !important;
     }
-    
     div.stButton > button p, [data-testid="stFormSubmitButton"] > button p {
         color: #FFFFFF !important;
     }
-
     div.stButton > button:hover {
         background-color: #1D4ED8 !important;
         box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
         transform: translateY(-1px) !important;
     }
-
-    /* --- TYPOGRAPHY & INPUTS --- */
     div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
         background-color: #FFFFFF !important;
         border: 1px solid #CBD5E1 !important;
@@ -108,7 +89,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. DATABASE SETUP
+# 2. DATABASE SETUP
 # ==========================================
 conn = get_connection()
 
@@ -135,7 +116,6 @@ try:
     conn.commit()
 except: pass
 
-# Patch for older tables to ensure they have the new columns
 for col_name, col_type in [("area_code", "TEXT DEFAULT '+63'"), ("admin_status", "TEXT DEFAULT 'PENDING'")]:
     try:
         conn.execute(f"ALTER TABLE platform_users ADD COLUMN {col_name} {col_type}")
@@ -146,7 +126,7 @@ if not os.path.exists("uploads"):
     os.makedirs("/data/uploads", exist_ok=True)
 
 # ==========================================
-# 4. UTILITY FUNCTIONS
+# 3. UTILITY FUNCTIONS
 # ==========================================
 def crop_signature(image_data):
     gray = np.dot(image_data[...,:3], [0.2989, 0.5870, 0.1140])
@@ -160,247 +140,9 @@ def crop_signature(image_data):
     return Image.fromarray(image_data.astype('uint8'), 'RGBA')
 
 def get_secret(key, default_val=None):
-    # Smart fetcher: Checks Render environment variables first, falls back to secrets
     return os.environ.get(key) or st.secrets.get(key, default_val)
 
-# ==========================================
-# 📄 UNIFIED PDF ENGINE (THIS IS STEP 1)
-# ==========================================
-def create_legit_pdf_contract(data, role, sig_bytes, conn):
-    is_affiliate = role.upper() == "AFFILIATE"
-    prefix = "MOA" if is_affiliate else "RENTER"
-    pdf_filename = f"/data/uploads/{prefix}_{data['username']}.pdf"
-    
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    
-    # 1. Header
-    pdf.set_font("Helvetica", 'B', 16)
-    pdf.cell(0, 10, "MEMORANDUM OF AGREEMENT" if is_affiliate else "MASTER RENTER AGREEMENT", ln=True, align='C')
-    pdf.ln(5)
-    
-    # 2. Intro/Parties
-    pdf.set_font("Helvetica", '', 10)
-    date_str = datetime.date.today().strftime("%B %d, %Y")
-    intro = f"""Date: {date_str}
-    
-This Agreement is entered into by and between:
-{data['full_name'].upper()} (hereinafter referred to as the "{'OWNER' if is_affiliate else 'LESSEE'}")
--and-
-DRIVEELITE PEER-TO-PEER CAR RENTALS (hereinafter referred to as the "AGENCY")."""
-    pdf.multi_cell(0, 5, intro)
-    pdf.ln(5)
-    
-    # 3. Contract Body (Content based on your requirements)
-    pdf.set_font("Helvetica", '', 8)
-    if is_affiliate:
-        body_text = """This Memorandum of Agreement (the "Agreement") is made and entered into this {{ DATE_SIGNED }} upon digital acceptance by and between:
-
-{{ PLATFORM }}, a business operating under the laws of the Republic of the Philippines, with its registered address in Pasig City, Metro Manila, hereinafter referred to as the "AGENCY",
-
--and-
-
-{{ FULL_NAME }} , of legal age, resident of {{ ADDRESS }} , whose identity and details are provided and verified through the DriveElite platform registration, hereinafter referred to as the "OWNER".
-
-
-WITNESSETH: That—
-
-WHEREAS, the OWNER is the registered owner of a vehicle or fleet of vehicles intended for leasing services and desires to engage the services of the AGENCY to market and finalize bookings on the DriveElite platform;
-
-WHEREAS, the AGENCY operates strictly as an online marketplace facilitator connecting vehicle owners with renters. The AGENCY is not a party to the physical rental agreement, nor does it own, operate, or maintain any of the listed vehicles;
-
-WHEREAS, the AGENCY has accepted the said engagement subject to the terms and conditions of this Agreement;
-
-NOW, THEREFORE, for and in consideration of the foregoing premises, the parties agree as follows:
-
-
-1. EXCLUSIVE RIGHT TO MARKET AND NON-COMPETE a. Exclusive Right: The OWNER engages the AGENCY as the exclusive marketer for any and all vehicles activated by the OWNER on the DriveElite Affiliate Dashboard. b. Non-Compete: The OWNER shall not make any direct bookings with clients referred by the AGENCY or market similar services to said clients. This prohibition lasts for the term of this Agreement plus two (2) years. Violations incur liquidated damages of PhP 200,000 per transaction.
-
-
-2. OBLIGATIONS OF THE OWNER a. Vehicle Quality: Vehicles must be turned over in a clean, sanitized, and roadworthy condition. b. Fulfillment: Once a renter confirms a booking, the OWNER is strictly obligated to fulfill it. c. Penalties: Failure to fulfill a confirmed booking results in a PhP 3,000 penalty. If the OWNER fails to notify the AGENCY of unavailability in time, an additional PhP 3,000 penalty plus replacement costs shall apply. d. Driver Liability: Any driver provided is the sole employee/agent of the OWNER. The AGENCY holds no employer-employee relationship and zero liability for accidents or violations caused by the driver.
-
-
-3. COMPENSATION, TAXES, AND DELIVERY FEES a. Revenue Split: The Gross Rental Revenue (excluding delivery/logistics fees) shall be shared directly as follows:
-
-· OWNER Share: {{ OWNER_SHARE }}
-
-
-· AGENCY Share: {{ PLATFORM_SHARE }}
-
-
-· Tax Independence & EWT: The AGENCY is not a withholding agent for the OWNER. The AGENCY shall only declare and pay taxes on its own {{ PLATFORM_SHARE }} commission. The OWNER receives their full {{ OWNER_SHARE }} share (less gateway fees) and assumes 100% legal and financial responsibility for filing, declaring, and paying their own taxes—including the 2% Expanded Withholding Tax (EWT) and Personal Income Tax—to the Bureau of Internal Revenue (BIR).
-
-
-· Delivery Fees: 100% of delivery/pick-up fees are remitted to the OWNER and are exempt from the AGENCY’s {{ PLATFORM_SHARE }} fee.
-
-
-· Payment Processing Fees: The OWNER acknowledges and agrees that third-party payment gateway surcharges (e.g., PayMongo, credit card processing, e-wallet convenience fees) associated with their gross earnings shall be absorbed by the OWNER and deducted prior to final remittance.
-
-
-· The final remittance shall be calculated strictly as: ({{ OWNER_SHARE }} Gross Share) - Actual Gateway Fee.
-
-· Issuance of Receipts: The AGENCY collects payments on behalf of the transaction but issues official receipts solely for its {{ PLATFORM_SHARE }} service fee and any applicable administrative fees.
-
-
-4. CANCELLATION PENALTIES AND COMPENSATION In the event that a Renter cancels a confirmed booking and a cancellation penalty is applied according to the Platform's standard Cancellation Policy, the standard {{ OWNER_SHARE }} {{ PLATFORM_SHARE }} revenue split shall not apply to the penalty amount. Instead, the collected penalty shall be subject to a 60% / 40% distribution. The OWNER shall receive sixty percent (60%) of the collected penalty as compensation for the reserved time, and the AGENCY shall retain forty percent (40%) to cover administrative, refund, and processing overhead.
-
-
-5. SECURITY DEPOSIT AND DAMAGE SETTLEMENT
-
-a. Direct Collection: The OWNER is responsible for collecting and returning the PhP 5,000.00 Security Deposit directly to/from the renter. The AGENCY does not act as a custodian for these funds.
-
-b. Damage Assessment & Evidence: The Renter is responsible for any damages incurred during the rental. Assessment shall be based on pre- and post-rental inspection records. The OWNER is strictly required to use the DriveElite platform (e.g., Messenger/Handover forms) to upload time-stamped evidence of the vehicle condition.
-
-c. Dispute Resolution: Damage, fuel, or traffic violations shall be settled directly between the OWNER and Renter using the security deposit. While the AGENCY may review platform evidence to provide a determination based on available data, enforcement of payment obligations remains strictly between the Renter and the OWNER.
-
-
-6. INSURANCE AND LOSS LIABILITY
-
-a. Mandatory Coverage: The OWNER must maintain valid comprehensive insurance (including TPL and Acts of God).
-
-b. Zero Agency Liability: The OWNER assumes all financial risk. In the event of vehicle condition disputes, delays, physical damage, total wreck, theft, or insurance denial due to commercial use, the AGENCY holds zero financial or legal liability.
-
-c. Regulatory Compliance & Impoundment: The OWNER is solely responsible for securing any necessary LTO registrations, LTFRB franchises, or local permits required to lease their vehicle. The AGENCY assumes no liability, financial or legal, if the vehicle is apprehended, fined, or impounded by the LTO, LTFRB, MMDA, or any LGU for operating as an unregistered "colorum" rental.
-
-7. TERMINATION & PLATFORM ENFORCEMENT a. For Cause: The AGENCY may terminate immediately for breaches, poor ratings, or fraudulent activity. b. Without Cause: Either party may terminate with 30 days' written notice. c. Account Enforcement: The AGENCY reserves the right to suspend or restrict the accounts of users who fail to settle valid financial obligations, violate safety protocols, or bypass platform tracking procedures.
-
-8. Failure to Deliver and Affiliate Cancellations
-
-1. Obligation to Deliver: The AFFILIATE agrees to deliver the enrolled vehicle to the Renter at the agreed-upon date, time, and location.
-
-
-2. No-Show Penalty: If the AFFILIATE fails to deliver the vehicle at the scheduled time (No-Show), or cancels the booking with less than twenty-four (24) hours' notice, a penalty of ₱2,000.00 shall be applied.
-
-
-3. Late Cancellation Penalty: If the AFFILIATE cancels a confirmed booking with twenty-four (24) to forty-eight (48) hours' notice, a penalty of ₱1,000.00 shall be applied.
-
-
-4. Collection of Penalties: The AGENCY (DriveElite) reserves the right to automatically deduct any incurred cancellation or no-show penalties from the AFFILIATE’s upcoming ledger payouts or existing wallet balances.
-
-
-5. Account Suspension: Three (3) instances of cancellation or two (2) instances of a No-Show within a twelve (12) month period will result in the immediate and permanent deactivation of the AFFILIATE’s account.
-
-9. MISCELLANEOUS a. Electronic Consent: Digital acceptance on the platform carries the same legal weight as a physical signature. b. Venue: Disputes shall be instituted exclusively in the proper courts of Pasig City.
-
-
-IN WITNESS WHEREOF, the OWNER has hereunto affixed their digital signature and acceptance of this electronic Agreement on the date first above written."""
-    else:
-        body_text = """TKNOW ALL MEN BY THESE PRESENTS:
-
-This agreement (the "Agreement") is made and executed by and between:
-
-{{ FULL_NAME }} , of legal age, citizen of {{ NATIONALITY }} , with postal address at
-
-{{ ADDRESS }} , hereinafter referred to as the "LESSEE";
-
--and-
-
-DriveElite Peer-to-Peer Car Rentals, a company registered under the laws of the Republic of the Philippines, hereinafter referred to as the 'AGENCY' (acting as the authorized digital platform and booking agent on behalf of the vehicle's registered OWNER
-
-
-THEREFORE, the LESSEE hereby agrees to the following Master Terms and Conditions for all current and future vehicle bookings made through the DriveElite platform:
-
-1. GENERAL USE & RESTRICTIONS
-
-● Luzon Exclusivity: The LESSEE shall use the subject vehicle for personal purposes only and strictly within the Luzon region. Inter-island transfers are strictly prohibited.
-
-
-● Authorized Drivers: The vehicle must only be driven by the registered LESSEE or an authorized driver whose identity was fully disclosed and approved by the AGENCY prior to the trip.
-
-
-● Prohibited Areas & Conditions: The LESSEE shall not allow the vehicle to travel to areas where roads are not passable (e.g., rough roads, mountainous terrain without paved roads) or use the vehicle during natural calamities, excessively heavy rains, storms, or flooding.
-
-
-● Prohibited Activities: Smoking and the transport of animals inside the vehicle are strictly prohibited. The vehicle must not be operated by any person under the influence of alcohol or drugs.
-
-
-🚨 PENALTY FOR MISUSE: Failure to follow any of the above guidelines will result in a fine with a maximum penalty of PHP 50,000.00 per infringement, absolute forfeiture of the Security Deposit, and the immediate termination of the Car Rental Agreement.
-
-2. DEPOSITS & FINANCIAL OBLIGATIONS
-
-● Security Deposit: A physical cash deposit of PHP 5,000.00 shall be collected by the driver/owner upon vehicle handover. This deposit covers minor incidentals and will be refunded upon the safe return of the vehicle, provided no violations occurred.
-
-● Interest Penalty: Default in the payment of any obligations under this Agreement when due shall bear interest at the rate of twenty percent (20%) per month, computed daily and compounded monthly until fully paid.
-
-3. PLATFORM SERVICE FEE
-
-The LESSEE acknowledges that for rental periods of seven (7) days or longer, a {{ RENTER_FEE }} Platform Service Fee is applied to the base rental rate to cover system infrastructure, customer support, and payment processing handled by {{ PLATFORM }}. This fee is expressly waived for short-term rentals of six (6) days or fewer.
-
-4. CANCELLATION POLICY
-
-Cancellation refunds for the Rental Fee shall be processed strictly in accordance with the following schedule:
-
-● 0 to 2 days / No Show: 0% Refund
-
-● 3 to 6 days prior to pick-up: 25% Refund
-
-● 7 to 14 days prior to pick-up: 50% Refund
-
-● 15 to 29 days prior to pick-up: 75% Refund
-
-● 30 days or more prior to pick-up: 100% Refund
-
-
-5. RETURN OF VEHICLE & PENALTIES
-
-Excluding normal wear and tear, the following charges apply upon return:
-
-● Missing Fuel: Charged at current market pricing per Liter.
-
-● Missing RFID Card: PHP 500.00 per card.
-
-● Late Return: Less than 3 hours incurs PHP 200.00 per hour. Greater than 3 hours incurs 50% of the daily rental fee.
-
-● Extra Cleaning (Normal): Sedan: PHP 200 | Crossover/MPV: PHP 300 | SUV/Van: PHP 500
-
-● Extra Cleaning (Smoking): Sedan: PHP 3,000 | Crossover/MPV: PHP 4,000 | SUV/Van: PHP 5,000
-
-● Minor Damage (Per Panel): Sedan: PHP 2,500 | Crossover/MPV: PHP 3,000 | SUV/Van: PHP 3,500
-
-● Lost/Damaged Keys: Replacement or emergency unlock services will incur a fee ranging from PHP 3,000.00 to PHP 15,000.00.
-
-
-6. DAMAGE, MAJOR LOSS, OR THEFT
-
-In the event of damage, major loss, total loss, or theft of the Rental Vehicle, the LESSEE must immediately secure a Police Report, a notarized affidavit explaining the incident, and provide a copy of their driver's license. The LESSEE must notify DriveElite within 24 hours of the incident.
-
-In the case of total loss (including theft), the LESSEE assumes financial responsibility and shall pay
-
-30% of the Fair Market Value of the vehicle as determined by the AGENCY/OWNER.
-
-
-7.. TRAFFIC VIOLATIONS, TOLLS, AND SURVIVAL OF LIABILITY
-
-● Full Liability: The LESSEE assumes full financial and legal responsibility for any and all traffic violations, No Contact Apprehension Policy (NCAP) tickets, tollway penalties, towing fees, and LTO/MMDA alarms incurred during the exact dates and times of the rental period.
-
-
-● Survival Clause: The LESSEE acknowledges that traffic citations are often delayed. The LESSEE’s liability for these violations strictly survives the termination of this Agreement and the return of the Security Deposit. If a violation from the rental period is reported at any point in the future, the LESSEE remains legally bound to reimburse the OWNER/AGENCY immediately upon demand.
-
-
-● LTO Demerit Transfer: In the event of an LTO alarm or traffic citation, the LESSEE explicitly agrees to accept any corresponding demerit points to their personal Driver's License. The LESSEE agrees to fully cooperate and sign any necessary documents (such as an Affidavit of Denial/Acknowledgment of Driver) to clear the OWNER's vehicle and license from said violations. Failure to cooperate will result in a permanent ban from the DriveElite platform and potential legal action."""
-
-    pdf.multi_cell(0, 4, body_text)
-    pdf.ln(5)
-    
-    # 4. Digital Signature
-    pdf.set_font("Helvetica", 'B', 10)
-    pdf.cell(0, 10, f"DIGITALLY SIGNED BY {'OWNER' if is_affiliate else 'RENTER'}:", ln=True)
-    
-    temp_sig = f"/data/uploads/temp_{data['username']}.png"
-    with open(temp_sig, "wb") as f:
-        f.write(sig_bytes)
-    pdf.image(temp_sig, w=40)
-    os.remove(temp_sig)
-    
-    pdf.output(pdf_filename)
-    return pdf_filename
-# ==========================================
-
 def send_welcome_email(recipient_email, role, filepath):
-    # ==========================================
-    # ✉️ DOTPH CORPORATE EMAIL FIX
-    # ==========================================
     msg = EmailMessage()
     doc_label = "MOA" if role == "AFFILIATE" else "RENTER"
     msg['Subject'] = f'DriveElite: Your Official {doc_label} Agreement'
@@ -415,22 +157,190 @@ def send_welcome_email(recipient_email, role, filepath):
     with open(filepath, 'rb') as f:
         file_data = f.read()
     
-    ext = 'pdf' if filepath.endswith('.pdf') else 'docx'
-    msg.add_attachment(file_data, maintype='application', subtype=ext, filename=f"DriveElite_{doc_label}.{ext}")
+    msg.add_attachment(file_data, maintype='application', subtype='pdf', filename=f"DriveElite_{doc_label}.pdf")
 
     try:
-        # Use your Render Environment Variable or Streamlit Secrets for the password
         app_password = get_secret("EMAIL_PASSWORD", "") 
-        
-        # Connect to dotph's mail server over SSL
         with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
             smtp.login(sender_email, app_password)
             smtp.send_message(msg)
     except Exception as e:
-        print(f"Email failed: {e}")
+        raise Exception(f"SMTP Delivery Failed: {e}")
 
 # ==========================================
-# 5. 🔐 OTP VERIFICATION SCREEN
+# 📄 UNIFIED PDF ENGINE
+# ==========================================
+def create_legit_pdf_contract(data, role, sig_bytes, conn):
+    is_affiliate = role.upper() == "AFFILIATE"
+    prefix = "MOA" if is_affiliate else "RENTER"
+    pdf_filename = f"/data/uploads/{prefix}_{data['username']}.pdf"
+    
+    # Fetch Settings
+    try:
+        settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct, operator_name FROM platform_settings WHERE id = 1", conn)
+        if not settings_df.empty:
+            legal_entity = settings_df.iloc[0]['operator_name']
+            owner_share_val = f"{int(float(settings_df.iloc[0]['affiliate_share_pct']) * 100)}%"
+            agency_share_val = f"{100 - int(float(settings_df.iloc[0]['affiliate_share_pct']) * 100)}%"
+            renter_fee_val = f"{int(float(settings_df.iloc[0]['renter_markup_pct']) * 100)}%"
+        else:
+            legal_entity, owner_share_val, agency_share_val, renter_fee_val = "DriveElite Platform", "82%", "18%", "7%"
+    except:
+        legal_entity, owner_share_val, agency_share_val, renter_fee_val = "DriveElite Platform", "82%", "18%", "7%"
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    
+    date_str = datetime.date.today().strftime("%B %d, %Y")
+    
+    # Header
+    pdf.set_font("Helvetica", 'B', 14)
+    if is_affiliate:
+        pdf.cell(0, 10, "MEMORANDUM OF AGREEMENT", ln=True, align='C')
+        pdf.set_font("Helvetica", 'B', 10)
+        pdf.cell(0, 6, "DriveElite, a Peer-to-Peer Car Rentals", ln=True, align='C')
+        pdf.ln(5)
+        
+        pdf.set_font("Helvetica", '', 8)
+        body_text = f"""This Memorandum of Agreement (the "Agreement") is made and entered into this {date_str} upon digital acceptance by and between:
+
+{legal_entity}, a business operating under the laws of the Republic of the Philippines, with its registered address in Pasig City, Metro Manila, hereinafter referred to as the "AGENCY",
+
+-and-
+
+{data['full_name'].upper()}, of legal age, resident of {data['address']}, whose identity and details are provided and verified through the DriveElite platform registration, hereinafter referred to as the "OWNER".
+
+WITNESSETH: That-
+WHEREAS, the OWNER is the registered owner of a vehicle or fleet of vehicles intended for leasing services and desires to engage the services of the AGENCY to market and finalize bookings on the DriveElite platform;
+WHEREAS, the AGENCY operates strictly as an online marketplace facilitator connecting vehicle owners with renters. The AGENCY is not a party to the physical rental agreement, nor does it own, operate, or maintain any of the listed vehicles;
+WHEREAS, the AGENCY has accepted the said engagement subject to the terms and conditions of this Agreement;
+NOW, THEREFORE, for and in consideration of the foregoing premises, the parties agree as follows:
+
+1. EXCLUSIVE RIGHT TO MARKET AND NON-COMPETE 
+a. Exclusive Right: The OWNER engages the AGENCY as the exclusive marketer for any and all vehicles activated by the OWNER on the DriveElite Affiliate Dashboard. 
+b. Non-Compete: The OWNER shall not make any direct bookings with clients referred by the AGENCY or market similar services to said clients. This prohibition lasts for the term of this Agreement plus two (2) years. Violations incur liquidated damages of PHP 200,000 per transaction.
+
+2. OBLIGATIONS OF THE OWNER 
+a. Vehicle Quality: Vehicles must be turned over in a clean, sanitized, and roadworthy condition. 
+b. Fulfillment: Once a renter confirms a booking, the OWNER is strictly obligated to fulfill it. 
+c. Penalties: Failure to fulfill a confirmed booking results in a PHP 3,000 penalty. If the OWNER fails to notify the AGENCY of unavailability in time, an additional PHP 3,000 penalty plus replacement costs shall apply. 
+d. Driver Liability: Any driver provided is the sole employee/agent of the OWNER. The AGENCY holds no employer-employee relationship and zero liability for accidents or violations caused by the driver.
+
+3. COMPENSATION, TAXES, AND DELIVERY FEES 
+a. Revenue Split: The Gross Rental Revenue (excluding delivery/logistics fees) shall be shared directly as follows:
+- OWNER Share: {owner_share_val}
+- AGENCY Share: {agency_share_val}
+- Tax Independence & EWT: The AGENCY is not a withholding agent for the OWNER. The AGENCY shall only declare and pay taxes on its own {agency_share_val} commission. The OWNER receives their full {owner_share_val} share (less gateway fees) and assumes 100% legal and financial responsibility for filing, declaring, and paying their own taxes-including the 2% Expanded Withholding Tax (EWT) and Personal Income Tax-to the Bureau of Internal Revenue (BIR).
+- Delivery Fees: 100% of delivery/pick-up fees are remitted to the OWNER and are exempt from the AGENCY's {agency_share_val} fee.
+- Payment Processing Fees: Third-party payment gateway surcharges associated with their gross earnings shall be absorbed by the OWNER and deducted prior to final remittance.
+
+4. CANCELLATION PENALTIES AND COMPENSATION 
+In the event that a Renter cancels a confirmed booking and a cancellation penalty is applied, the standard revenue split shall not apply to the penalty amount. Instead, the collected penalty shall be subject to a 60% / 40% distribution. The OWNER shall receive sixty percent (60%) as compensation, and the AGENCY shall retain forty percent (40%) to cover administrative overhead.
+
+5. SECURITY DEPOSIT AND DAMAGE SETTLEMENT
+a. Direct Collection: The OWNER is responsible for collecting and returning the PHP 5,000.00 Security Deposit directly to/from the renter. 
+b. Damage Assessment & Evidence: The OWNER is strictly required to use the DriveElite platform to upload time-stamped evidence of the vehicle condition.
+c. Dispute Resolution: Damage, fuel, or traffic violations shall be settled directly between the OWNER and Renter using the security deposit. 
+
+6. INSURANCE AND LOSS LIABILITY
+a. Mandatory Coverage: The OWNER must maintain valid comprehensive insurance.
+b. Zero Agency Liability: The OWNER assumes all financial risk. The AGENCY holds zero financial or legal liability for physical damage, total wreck, theft, or insurance denial due to commercial use.
+c. Regulatory Compliance & Impoundment: The OWNER is solely responsible for securing any necessary LTO/LTFRB franchises. The AGENCY assumes no liability if the vehicle is impounded for operating as an unregistered 'colorum' rental.
+
+7. TERMINATION & PLATFORM ENFORCEMENT 
+The AGENCY reserves the right to suspend accounts of users who fail to settle valid financial obligations.
+
+8. Failure to Deliver and Affiliate Cancellations
+1. No-Show Penalty: Failure to deliver the vehicle at the scheduled time incurs a penalty of PHP 2,000.00.
+2. Late Cancellation Penalty: Canceling a confirmed booking with 24 to 48 hours notice incurs a penalty of PHP 1,000.00.
+3. Account Suspension: Three (3) instances of cancellation or two (2) instances of a No-Show within a twelve (12) month period will result in permanent deactivation.
+
+9. MISCELLANEOUS 
+a. Electronic Consent: Digital acceptance on the platform carries the same legal weight as a physical signature. 
+b. Venue: Disputes shall be instituted exclusively in the proper courts of Pasig City."""
+
+    else:
+        pdf.cell(0, 10, "MASTER RENTER AGREEMENT", ln=True, align='C')
+        pdf.set_font("Helvetica", 'B', 10)
+        pdf.cell(0, 6, "DriveElite, a Peer-to-Peer Car Rentals", ln=True, align='C')
+        pdf.ln(5)
+        
+        pdf.set_font("Helvetica", '', 8)
+        body_text = f"""KNOW ALL MEN BY THESE PRESENTS:
+This agreement (the "Agreement") is made and executed by and between:
+
+{data['full_name'].upper()}, of legal age, citizen of {data['nationality'].upper()}, with postal address at {data['address']}, hereinafter referred to as the "LESSEE";
+
+-and-
+
+DriveElite Peer-to-Peer Car Rentals, a company registered under the laws of the Republic of the Philippines, hereinafter referred to as the 'AGENCY' (acting as the authorized digital platform and booking agent on behalf of the vehicle's registered OWNER).
+
+THEREFORE, the LESSEE hereby agrees to the following Master Terms and Conditions for all current and future vehicle bookings made through the DriveElite platform:
+
+1. GENERAL USE & RESTRICTIONS
+- Luzon Exclusivity: The LESSEE shall use the subject vehicle for personal purposes only and strictly within the Luzon region. Inter-island transfers are strictly prohibited.
+- Authorized Drivers: The vehicle must only be driven by the registered LESSEE or an authorized driver whose identity was fully disclosed and approved by the AGENCY prior to the trip.
+- Prohibited Areas & Conditions: The LESSEE shall not allow the vehicle to travel to areas where roads are not passable or use the vehicle during natural calamities, excessively heavy rains, storms, or flooding.
+- Prohibited Activities: Smoking and the transport of animals inside the vehicle are strictly prohibited. The vehicle must not be operated by any person under the influence of alcohol or drugs.
+[WARNING] PENALTY FOR MISUSE: Failure to follow any of the above guidelines will result in a fine with a maximum penalty of PHP 50,000.00 per infringement, absolute forfeiture of the Security Deposit, and immediate termination of the Car Rental Agreement.
+
+2. DEPOSITS & FINANCIAL OBLIGATIONS
+- Security Deposit: A physical cash deposit of PHP 5,000.00 shall be collected by the driver/owner upon vehicle handover. This deposit covers minor incidentals and will be refunded upon the safe return of the vehicle, provided no violations occurred.
+- Interest Penalty: Default in the payment of any obligations under this Agreement when due shall bear interest at the rate of twenty percent (20%) per month, computed daily and compounded monthly until fully paid.
+
+3. PLATFORM SERVICE FEE
+The LESSEE acknowledges that for rental periods of seven (7) days or longer, a {renter_fee_val} Platform Service Fee is applied to the base rental rate to cover system infrastructure, customer support, and payment processing handled by {legal_entity}. This fee is expressly waived for short-term rentals of six (6) days or fewer.
+
+4. CANCELLATION POLICY
+Cancellation refunds for the Rental Fee shall be processed strictly in accordance with the following schedule:
+- 0 to 2 days / No Show: 0% Refund
+- 3 to 6 days prior to pick-up: 25% Refund
+- 7 to 14 days prior to pick-up: 50% Refund
+- 15 to 29 days prior to pick-up: 75% Refund
+- 30 days or more prior to pick-up: 100% Refund
+
+5. RETURN OF VEHICLE & PENALTIES
+Excluding normal wear and tear, the following charges apply upon return:
+- Missing Fuel: Charged at current market pricing per Liter.
+- Missing RFID Card: PHP 500.00 per card.
+- Late Return: Less than 3 hours incurs PHP 200.00 per hour. Greater than 3 hours incurs 50% of the daily rental fee.
+- Extra Cleaning (Normal): Sedan: PHP 200 | Crossover/MPV: PHP 300 | SUV/Van: PHP 500
+- Extra Cleaning (Smoking): Sedan: PHP 3,000 | Crossover/MPV: PHP 4,000 | SUV/Van: PHP 5,000
+- Minor Damage (Per Panel): Sedan: PHP 2,500 | Crossover/MPV: PHP 3,000 | SUV/Van: PHP 3,500
+- Lost/Damaged Keys: Replacement or emergency unlock services will incur a fee ranging from PHP 3,000.00 to PHP 15,000.00.
+
+6. DAMAGE, MAJOR LOSS, OR THEFT
+In the event of damage, major loss, total loss, or theft of the Rental Vehicle, the LESSEE must immediately secure a Police Report, a notarized affidavit explaining the incident, and provide a copy of their driver's license. The LESSEE must notify DriveElite within 24 hours of the incident.
+In the case of total loss (including theft), the LESSEE assumes financial responsibility and shall pay 30% of the Fair Market Value of the vehicle as determined by the AGENCY/OWNER.
+
+7. TRAFFIC VIOLATIONS, TOLLS, AND SURVIVAL OF LIABILITY
+- Full Liability: The LESSEE assumes full financial and legal responsibility for any and all traffic violations, No Contact Apprehension Policy (NCAP) tickets, tollway penalties, towing fees, and LTO/MMDA alarms incurred during the exact dates and times of the rental period.
+- Survival Clause: The LESSEE acknowledges that traffic citations are often delayed. The LESSEE's liability for these violations strictly survives the termination of this Agreement and the return of the Security Deposit. If a violation from the rental period is reported at any point in the future, the LESSEE remains legally bound to reimburse the OWNER/AGENCY immediately upon demand.
+- LTO Demerit Transfer: In the event of an LTO alarm or traffic citation, the LESSEE explicitly agrees to accept any corresponding demerit points to their personal Driver's License. The LESSEE agrees to fully cooperate and sign any necessary documents to clear the OWNER's vehicle and license from said violations."""
+
+    pdf.multi_cell(0, 4, body_text)
+    pdf.ln(5)
+    
+    # 4. Digital Signature
+    pdf.set_font("Helvetica", 'B', 10)
+    pdf.cell(0, 10, f"DIGITALLY SIGNED BY {'OWNER' if is_affiliate else 'RENTER'}:", ln=True)
+    
+    temp_sig = f"/data/uploads/temp_{data['username']}.png"
+    with open(temp_sig, "wb") as f:
+        f.write(sig_bytes)
+    pdf.image(temp_sig, w=40)
+    os.remove(temp_sig)
+    
+    pdf.set_font("Helvetica", '', 9)
+    pdf.cell(0, 5, f"{data['full_name'].upper()}", ln=True)
+    pdf.cell(0, 5, f"Date Signed: {date_str}", ln=True)
+    
+    pdf.output(pdf_filename)
+    return pdf_filename
+
+# ==========================================
+# 4. 🔐 OTP VERIFICATION SCREEN
 # ==========================================
 if st.session_state.get('otp_pending'):
     st.title("🔐 Account Verification")
@@ -438,7 +348,6 @@ if st.session_state.get('otp_pending'):
     st.info(f"An OTP has been sent to your email: **{st.session_state.reg_payload[4]}**")
     otp_input = st.text_input("Enter 6-digit OTP", key="otp_verify")
    
-    
     if st.button("VERIFY & FINALIZE", type="primary"):
         if otp_input == st.session_state.generated_otp:
             payload = st.session_state.reg_payload
@@ -453,68 +362,44 @@ if st.session_state.get('otp_pending'):
                 st.success("✅ Registration Successful! You can now log in.")
                 
             except sqlite3.IntegrityError:
-                # CATCHES DUPLICATE USERNAMES
                 st.error("🚨 That Username is already taken! Please refresh and choose a different username.")
-                
             except Exception as e:
-                # CATCHES GENERAL ERRORS
                 st.error(f"⚠️ Registration failed due to a system error: {e}")
             
-            # ==========================================
-            # 🚨 SEND ALERTS TO ADMIN
-            # ==========================================
+            # Admin Alerts
             try:
                 admin_phone = "09688811400" 
-                admin_email = "contact@driveelite.ph" # Updated to corporate email
+                admin_email = "contact@driveelite.ph"
                 new_role = payload[2] 
                 new_name = payload[3] 
                 
-                # Import both tools from your master utility file
                 from database_utils import send_sms_alert, send_alert_email
-                
-                # 1. Send the SMS
-                sms_msg = f"DriveElite Admin: A new {new_role} ({new_name}) just registered! Please review their documents."
-                send_sms_alert(admin_phone, sms_msg)
-                
-                # 2. Send the Email
-                email_sub = f"🚨 New {new_role} Registration: {new_name}"
-                email_body = f"Hello Admin,\n\nA new {new_role} named {new_name} has successfully verified their account.\n\nPlease log into the Admin Command Center to review their ID and License."
-                send_alert_email(admin_email, email_sub, email_body)
-                
+                send_sms_alert(admin_phone, f"DriveElite Admin: A new {new_role} ({new_name}) just registered! Please review their documents.")
+                send_alert_email(admin_email, f"🚨 New {new_role} Registration: {new_name}", f"Hello Admin,\n\nA new {new_role} named {new_name} has successfully verified their account.\n\nPlease log into the Admin Command Center to review their ID and License.")
             except Exception:
                 pass
-            # ==========================================
-            # ==========================================
             
             with st.spinner("Processing documents and emailing your copy..."):
                 try:
                     un, role, email = payload[0], payload[2], payload[4]
                     prefix = "MOA" if role == "AFFILIATE" else "RENTER"
-                    pdf_p, docx_p = f"/data/uploads/{prefix}_{un}.pdf", f"/data/uploads/{prefix}_{un}.docx"
-                    final_p = pdf_p if os.path.exists(pdf_p) else docx_p
+                    final_p = f"/data/uploads/{prefix}_{un}.pdf"
                             
                     send_welcome_email(email, role, final_p)
-                    st.success("✅ Account verified and agreement sent to your inbox!")
+                    st.success(f"✅ Account verified and agreement sent to {email}!")
                     
-                    # 1. Figure out the real file extension
-                    actual_ext = "pdf" if final_p.endswith(".pdf") else "docx"
-                    
-                    # 2. Safely read the file bytes
                     with open(final_p, "rb") as f:
                         file_bytes = f.read()
                         
-                    # 3. Give the file the correct name so the computer knows how to open it
                     st.download_button(
                         label="📄 DOWNLOAD SIGNED CONTRACT", 
                         data=file_bytes, 
-                        file_name=f"DriveElite_{prefix}.{actual_ext}", 
+                        file_name=f"DriveElite_{prefix}.pdf", 
                         type="primary"
                     )
-                            
-                    if os.path.exists(docx_p): os.remove(docx_p)
                                 
                 except Exception as e:
-                    st.error(f"Account saved, but email failed: {e}")
+                    st.error(f"Account saved, but contract email failed: {e}")
             
             st.session_state.otp_pending = False
             if st.button("GO TO LOGIN"): st.rerun()
@@ -522,15 +407,12 @@ if st.session_state.get('otp_pending'):
             st.error("🚨 Invalid OTP. Please try again.")
 
 # ==========================================
-# 6. 🚗 MAIN REGISTRATION SCREEN
+# 5. 🚗 MAIN REGISTRATION SCREEN
 # ==========================================
 else:
     st.title("🚗 Join DriveElite")
     st.write("Philippines' Premier Peer-to-Peer Car Sharing Platform")
     
-    # ==========================================
-    # 🚘 LIVE SHOWROOM PREVIEW (Marketing Hook)
-    # ==========================================
     st.markdown("### 🚘 Live Fleet Preview")
     st.caption("Browse our exclusive fleet. Create a free Renter account to view rates and lock in your dates!")
 
@@ -540,38 +422,28 @@ else:
         if preview_cars.empty:
             st.info("Our fleet is currently fully booked or undergoing maintenance. Check back soon!")
         else:
-            # Show exactly 4 cars in one row
             preview_cars = preview_cars.head(4).reset_index(drop=True)
-            
-            # Create 4 columns instead of 2
             grid_cols = st.columns(4)
             for i, car in preview_cars.iterrows():
                 with grid_cols[i % 4]:
                     with st.container(border=True):
-                        # --- TOP: Image ---
                         img_p = car.get('vehicle_img')
                         if img_p and os.path.exists(img_p): 
                             st.image(img_p, use_container_width=True)
                         else: 
                             st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
                         
-                        # --- MIDDLE: Details (No Price) ---
                         st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}")
-                        st.write("") # tiny spacer
-                        
-                        # --- BOTTOM: Button ---
+                        st.write("")
                         if st.button("🔍 VIEW DETAILS", key=f"preview_btn_{car['id']}", use_container_width=True):
                             st.warning("🔒 Please sign up to book or view full vehicle rates.")
                             
             if len(pd.read_sql_query("SELECT id FROM vehicles WHERE admin_status = 'APPROVED'", conn)) > 4:
                 st.markdown("<p style='text-align: center; color: #64748B;'><em>Sign up to explore the full DriveElite fleet...</em></p>", unsafe_allow_html=True)
-                
-    except Exception as e:
+    except Exception:
         pass 
         
     st.divider()
-        
-    # --- REGISTRATION TABS ---
     reg_type = st.radio("I want to register as a:", ["Select...", "Affiliate", "Renter"], horizontal=True)
     st.divider()
 
@@ -579,7 +451,6 @@ else:
         step_key = f"{reg_type.lower()}_step"
         if step_key not in st.session_state: st.session_state[step_key] = 1
 
-        # --- STEP 1: PERSONAL DETAILS ---
         if st.session_state[step_key] == 1:
             with st.form(f"reg_{reg_type}"):
                 st.subheader(f"Step 1: {reg_type} Profile Details")
@@ -626,7 +497,6 @@ else:
                             st.session_state[step_key] = 2
                             st.rerun()
 
-        # --- STEP 2: CONTRACT & SIGNATURE ---
         elif st.session_state[step_key] == 2:
             st.subheader(f"Step 2: Digital {reg_type} Agreement")
             st.info("By signing below, you agree to the DriveElite Terms of Service and Privacy Policy.")
@@ -647,51 +517,11 @@ else:
                         sig_cropped.save(sig_buf, format='PNG')
                         sig_bytes = sig_buf.getvalue()
                         
-                        tmpl = "moa_affiliate.docx" if reg_type == "Affiliate" else "MASTER RENTER AGREEMENT.docx"
-                        doc = DocxTemplate(tmpl)
-                        
-                        # ==========================================
-                        # 🧠 THE SMART ADMIN FETCHER
-                        # ==========================================
-                        try:
-                            settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct, operator_name FROM platform_settings WHERE id = 1", conn)
-                            if not settings_df.empty:
-                                legal_entity = settings_df.iloc[0]['operator_name']
-                                owner_share_val = int(float(settings_df.iloc[0]['affiliate_share_pct']) * 100)
-                                agency_share_val = 100 - owner_share_val
-                                renter_fee_val = int(float(settings_df.iloc[0]['renter_markup_pct']) * 100)
-                            else:
-                                legal_entity, owner_share_val, agency_share_val, renter_fee_val = "DriveElite Platform", 82, 18, 7
-                        except Exception:
-                            legal_entity, owner_share_val, agency_share_val, renter_fee_val = "DriveElite Platform", 82, 18, 7
-                        
-                        # ==========================================
-                        # 📝 INJECTING THE VARIABLES INTO WORD
-                        # ==========================================
-                        ctx = {
-                            'FULL_NAME': data['full_name'].upper(),
-                            'DATE_SIGNED': datetime.date.today().strftime("%B %d, %Y"),
-                            'ADDRESS': data['address'],
-                            'NATIONALITY': data['nationality'].upper(),
-                            'SIGNATURE': InlineImage(doc, io.BytesIO(sig_bytes), width=Mm(40)),
-                            'PLATFORM': legal_entity,
-                            'OWNER_SHARE': f"{owner_share_val}%",
-                            'PLATFORM_SHARE': f"{agency_share_val}%",
-                            'RENTER_FEE': f"{renter_fee_val}%"
-                        }
-                        
-                        doc.render(ctx)
-                        
-                        prefix = "MOA" if reg_type == "Affiliate" else "RENTER"
-                        docx_fn = f"/data/uploads/{prefix}_{data['username']}.docx"
-                        doc.save(docx_fn)
-                        
-                        # --- THE NEW STEP: GENERATE THE LEGIT PDF ---
+                        # --- DIRECT TO PDF ENGINE ---
                         try:
                             create_legit_pdf_contract(data, reg_type, sig_bytes, conn)
                         except Exception as e:
                             st.error(f"PDF Generation Error: {e}")
-                        # --------------------------------------------
                         
                         st.session_state.reg_payload = (
                             data["username"], data["password"], reg_type.upper(), data["full_name"], 
@@ -700,13 +530,10 @@ else:
                         )
                         st.session_state.verify_contact = data["contact"]
                         
-                        # ==========================================
-                        # 📩 NEW CENTRALIZED OTP LOGIC STARTS HERE
-                        # ==========================================
+                        # Send OTP
                         otp_code = str(random.randint(100000, 999999))
                         st.session_state.generated_otp = otp_code
                         
-                        # Call the dispatcher (Set to EMAIL for now!)
                         success = send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
                         
                         if success:
@@ -714,22 +541,5 @@ else:
                             st.rerun()
                         else:
                             st.error("🚨 Failed to send verification. Please try again.")
-                        
-                        # ==========================================
-                        # 📩 NEW CENTRALIZED OTP LOGIC STARTS HERE
-                        # ==========================================
-                        otp_code = str(random.randint(100000, 999999))
-                        st.session_state.generated_otp = otp_code
-                        
-                        # Call the dispatcher (Set to EMAIL for now!)
-                        success = send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
-                        
-                        if success:
-                            st.session_state.otp_pending = True
-                            st.rerun()
-                        else:
-                            st.error("🚨 Failed to send verification. Please try again.")
-                        # ==========================================
-                        
                 else:
                     st.error("🚨 Digital signature required to proceed.")
