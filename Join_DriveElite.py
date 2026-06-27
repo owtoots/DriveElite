@@ -497,15 +497,14 @@ else:
                         docx_fn = f"/data/uploads/{prefix}_{data['username']}.docx"
                         doc.save(docx_fn)
                         
-                        try: subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', docx_fn, '--outdir', '/data/uploads/'], check=True)
-                        except: pass
+                        # --- THE NEW STEP: GENERATE THE LEGIT PDF ---
+                        try:
+                            create_legit_pdf_contract(data, reg_type, sig_bytes, conn)
+                        except Exception as e:
+                            st.error(f"PDF Generation Error: {e}")
+                        # --------------------------------------------
                         
                         st.session_state.reg_payload = (
-                            data["username"], data["password"], reg_type.upper(), data["full_name"], 
-                            data["email"], data["age"], data["nationality"], data["address"], 
-                            data["area_code"], data["contact"], data["gov_id"], data["lic_id"], sig_bytes
-                        )
-                        st.session_state.verify_contact = data["contact"]
                         
                         # ==========================================
                         # 📩 NEW CENTRALIZED OTP LOGIC STARTS HERE
