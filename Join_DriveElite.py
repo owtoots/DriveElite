@@ -505,6 +505,26 @@ else:
                         # --------------------------------------------
                         
                         st.session_state.reg_payload = (
+                            data["username"], data["password"], reg_type.upper(), data["full_name"], 
+                            data["email"], data["age"], data["nationality"], data["address"], 
+                            data["area_code"], data["contact"], data["gov_id"], data["lic_id"], sig_bytes
+                        )
+                        st.session_state.verify_contact = data["contact"]
+                        
+                        # ==========================================
+                        # 📩 NEW CENTRALIZED OTP LOGIC STARTS HERE
+                        # ==========================================
+                        otp_code = str(random.randint(100000, 999999))
+                        st.session_state.generated_otp = otp_code
+                        
+                        # Call the dispatcher (Set to EMAIL for now!)
+                        success = send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
+                        
+                        if success:
+                            st.session_state.otp_pending = True
+                            st.rerun()
+                        else:
+                            st.error("🚨 Failed to send verification. Please try again.")
                         
                         # ==========================================
                         # 📩 NEW CENTRALIZED OTP LOGIC STARTS HERE
