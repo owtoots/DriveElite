@@ -13,16 +13,17 @@ from fpdf import FPDF
 # 1. SETUP PAGE CONFIG
 st.set_page_config(page_title="DriveElite", layout="centered")
 
-# 2. LOGO CONTAINER
-try:
-    # Centering the logo using columns
-    c1, c2, c3 = st.columns([1, 2, 1])
-    with c2:
-        st.image("logo.png", use_container_width=True)
-except:
-    pass
-
-st.write("") # Add a little breathing room
+# 2. LOGO ONLY ON THE LANDING PAGE
+if st.session_state.current_page == "JOIN":
+    try:
+        # Changed column ratios from [1, 2, 1] to [2, 1, 2]
+        # This makes the middle column (the logo) narrower
+        c1, c2, c3 = st.columns([2, 1, 2])
+        with c2:
+            st.image("logo.png", use_container_width=True)
+    except:
+        pass
+    st.write("") # Add a little breathing room
 
 # 3. GLOBAL NAV (The Selectbox Switcher)
 if "current_page" not in st.session_state:
