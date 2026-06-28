@@ -694,18 +694,21 @@ with tabs[3]:
 # --- TAB 4: FILING CABINET ---
 with tabs[4]: 
     st.header("🗄️ Master Digital Filing Cabinet")
-    st.write("View legally binding contracts, download them, or instantly email a copy to the user.")
+    st.write("View legally binding contracts, download them, instantly email a copy, or delete test documents.")
+    
     if os.path.exists(UPLOAD_DIR):
         all_files = os.listdir(UPLOAD_DIR)
         pdf_files = [f for f in all_files if f.endswith('.pdf')]
         
         if len(pdf_files) > 0:
             st.divider()
-            role_filter = st.radio("Filter Contracts:", ["All", "💼 Affiliates (MOA)", "🚙 Renters (Agreements)"], horizontal=True)
+            # ADDED: A specific filter for Handovers and Settlements
+            role_filter = st.radio("Filter Contracts:", ["All", "💼 Affiliates (MOA)", "🚙 Renters (Agreements)", "🤝 Handovers & Settlements"], horizontal=True)
             st.divider()
             
             if role_filter == "💼 Affiliates (MOA)": filtered_files = [f for f in pdf_files if f.startswith("MOA_")]
             elif role_filter == "🚙 Renters (Agreements)": filtered_files = [f for f in pdf_files if f.startswith("RENTER_")]
+            elif role_filter == "🤝 Handovers & Settlements": filtered_files = [f for f in pdf_files if f.startswith("Handover_") or f.startswith("Settlement_")]
             else: filtered_files = pdf_files
             
             if not filtered_files: st.info(f"No documents found matching the filter.")
@@ -728,26 +731,43 @@ with tabs[4]:
                     with cols[i % 4]:
                         with st.container(border=True):
                             st.write(f"📄 **{display_card_text}**")
-                            btn_col1, btn_col2 = st.columns(2)
-                            with btn_col1:
+                            
+                            # UPDATED: 3-Column layout for the buttons
+                            c_dl, c_email, c_del = st.columns([2, 2, 1])
+                            
+                            with c_dl:
                                 with open(file_path, "rb") as pdf_file:
                                     st.download_button(label="⬇️ DL", data=pdf_file.read(), file_name=file_name, mime="application/pdf", key=f"dl_{file_name}", use_container_width=True)
-                            with btn_col2:
+                            
+                            with c_email:
                                 if st.button("📧 Email", key=f"em_{file_name}", use_container_width=True):
-                                    if not target_email: st.toast(f"❌ No email found for @{uname}", icon="⚠️")
+                                    if not target_email: 
+                                        st.toast(f"❌ No email found for this document.", icon="⚠️")
                                     else:
                                         with st.spinner("Sending..."):
                                             success = send_admin_email_with_attachment(
                                                 to_email=target_email, 
-                                                subject=f"Contract Copy: {file_name}", 
-                                                body="Please find your signed contract attached to this email.", 
+                                                subject=f"Document Copy: {file_name}", 
+                                                body="Please find your document attached to this email.", 
                                                 attachment_path=file_path, 
                                                 attachment_name=file_name
                                             )
-                                            if success: st.toast(f"✅ Contract sent to {target_email}", icon="🚀")
-                                            else: st.error("Failed to send email.")
+                                        if success: st.toast(f"✅ Sent to {target_email}", icon="🚀")
+                                        else: st.error("Failed to send email.")
+                            
+                            with c_del:
+                                # NEW: Delete Button
+                                if st.button("🗑️", key=f"del_{file_name}", use_container_width=True, type="primary"):
+                                    try:
+                                        os.remove(file_path)
+                                        st.toast(f"✅ Deleted {file_name}")
+                                        time.sleep(0.5)
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Error: {e}")
         else: st.info("No contracts have been signed yet.")
     else: st.warning("The uploads folder does not exist yet. It will be created when the first user registers.")
+                                            
 # --- ACTIVE AFFILIATE DIRECTORY ---
     st.divider()
     st.markdown("### 💼 Approved Affiliates Directory")
