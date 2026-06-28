@@ -16,9 +16,8 @@ st.set_page_config(page_title="DriveElite", layout="centered")
 # 2. LOGO ONLY ON THE LANDING PAGE
 if st.session_state.current_page == "JOIN":
     try:
-        # Changed column ratios from [1, 2, 1] to [2, 1, 2]
-        # This makes the middle column (the logo) narrower
-        c1, c2, c3 = st.columns([2, 1, 2])
+        # Columns [3, 1, 3] makes the middle column significantly narrower (Half-Size feel)
+        c1, c2, c3 = st.columns([3, 1, 3])
         with c2:
             st.image("logo.png", use_container_width=True)
     except:
@@ -60,6 +59,10 @@ except:
     pass
 
 st.markdown("""
+/* Add this inside your existing st.markdown style block */
+.stImage img {
+    background-color: transparent !important;
+}
 <style>
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
         height: 200px !important;
