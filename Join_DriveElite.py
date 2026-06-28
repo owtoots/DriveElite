@@ -29,6 +29,15 @@ st.markdown("""
         object-fit: cover !important;
         border-radius: 8px !important;
     }
+    /* Force the sidebar toggle to be more visible */
+[data-testid="stSidebarCollapse"] {
+
+    background-color: rgba(255, 255, 255, 0.8) !important;
+    border: 2px solid #2563EB !important;
+    border-radius: 50% !important;
+    padding: 10px !important;
+    color: #2563EB !important;
+}
     [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background-color: #F8FAFC !important;
         color: #0F172A !important;
