@@ -10,44 +10,7 @@ from streamlit_drawable_canvas import st_canvas
 from database_utils import get_connection
 from database_utils import send_otp
 from fpdf import FPDF
-# 1. SETUP PAGE CONFIG
-st.set_page_config(page_title="DriveElite", layout="centered")
 
-# 2. LOGO ONLY ON THE LANDING PAGE
-if st.session_state.current_page == "JOIN":
-    try:
-        # Columns [3, 1, 3] makes the middle column significantly narrower (Half-Size feel)
-        c1, c2, c3 = st.columns([3, 1, 3])
-        with c2:
-            st.image("logo.png", use_container_width=True)
-    except:
-        pass
-    st.write("") # Add a little breathing room
-
-# 3. GLOBAL NAV (The Selectbox Switcher)
-if "current_page" not in st.session_state:
-    st.session_state.current_page = "JOIN"
-
-pages = {
-    "🏠 JOIN / LANDING": "JOIN",
-    "🛡️ ADMIN PORTAL": "ADMIN",
-    "💼 AFFILIATE PORTAL": "AFFILIATE",
-    "📦 RENTER PORTAL": "RENTER"
-}
-
-page_keys = list(pages.keys())
-page_values = list(pages.values())
-current_idx = page_values.index(st.session_state.current_page)
-
-# The Selectbox follows the logo
-selection = st.selectbox("📌 QUICK NAVIGATION:", page_keys, index=current_idx)
-
-# Routing Logic
-if pages[selection] != st.session_state.current_page:
-    st.session_state.current_page = pages[selection]
-    st.rerun()
-
-st.divider()
 # ==========================================
 # 1. PAGE CONFIG
 # ==========================================
@@ -59,10 +22,6 @@ except:
     pass
 
 st.markdown("""
-
-.stImage img {
-    background-color: transparent !important;
-}
 <style>
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
         height: 200px !important;
