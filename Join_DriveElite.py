@@ -59,7 +59,7 @@ except:
     pass
 
 st.markdown("""
-/* Add this inside your existing st.markdown style block */
+
 .stImage img {
     background-color: transparent !important;
 }
