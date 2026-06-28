@@ -196,15 +196,6 @@ except Exception:
 if "temp_msg_affiliate" not in st.session_state:
     st.session_state.temp_msg_affiliate = ""
 
-def clear_affiliate_chat(b_ref):
-    b_ref_str = str(b_ref)
-    unique_key = f"chat_{b_ref_str}"
-    if unique_key in st.session_state:
-        if st.session_state[unique_key].strip():
-            st.session_state.temp_msg_affiliate = st.session_state[unique_key]
-            st.session_state[f"trigger_send_{b_ref_str}"] = True 
-        st.session_state[unique_key] = ""
-
 def save_file(uploaded_file):
     if uploaded_file:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -547,7 +538,9 @@ with tabs[0]:
                         chat_win = st.container(height=450, border=True)
                         with chat_win:
                             try:
-                                msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref_str,))
+                                try:
+                                # 1. FILTER OUT ADMIN RECEIPTS
+                                msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? AND receiver_username != 'ADMIN' ORDER BY timestamp ASC", conn, params=(b_ref_str,))
                                 
                                 if msgs.empty:
                                     st.info("👋 Chat is empty. Say hello to start coordinating your trip!")
@@ -600,51 +593,41 @@ with tabs[0]:
                             except: 
                                 st.error("Could not load chat history.")
 
-                        c_img, c_msg = st.columns([1, 4])
-                        with c_img: 
-                            a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"a_img_{b_ref_str}", label_visibility="collapsed")
-                        with c_msg: 
-                            st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_affiliate_chat, args=(b_ref_str,), placeholder="Type message and press Enter...")
-
-                        btn_clicked = st.button("Send", key=f"a_btn_{b_ref_str}", use_container_width=True)
-                        enter_pressed = st.session_state.get(f"trigger_send_{b_ref_str}", False)
-
-                        if btn_clicked or enter_pressed:
-                            box_val = st.session_state.get(f"chat_{b_ref_str}", "")
-                            final_text = st.session_state.temp_msg_affiliate if enter_pressed else box_val
+                        # 2. BULLETPROOF CHAT INPUT FORM (Prevents Double Sending)
+                        with st.form(key=f"chat_form_{b_ref_str}", clear_on_submit=True):
+                            c_img, c_msg, c_btn = st.columns([1, 4, 1])
                             
-                            has_text = bool(final_text.strip())
-                            has_imgs = bool(a_img and len(a_img) > 0)
+                            with c_img: 
+                                a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"a_img_{b_ref_str}", label_visibility="collapsed")
                             
-                            if has_text or has_imgs:
-                                success = False
-                                error_msg = ""
-                                for attempt in range(3):
+                            with c_msg: 
+                                chat_text = st.text_input("Reply...", key=f"chat_input_{b_ref_str}", placeholder="Type message and press Enter...")
+                                
+                            with c_btn:
+                                submitted = st.form_submit_button("Send", use_container_width=True)
+
+                            if submitted:
+                                has_text = bool(chat_text.strip())
+                                has_imgs = bool(a_img and len(a_img) > 0)
+                                
+                                if has_text or has_imgs:
                                     try:
                                         if has_imgs:
                                             for idx, img_file in enumerate(a_img):
                                                 path = save_chat_image(img_file, b_ref_str)
-                                                text_to_save = final_text if idx == 0 else ""
+                                                text_to_save = chat_text if idx == 0 else ""
                                                 if idx == 0 and not has_text: text_to_save = "📸 Sent a photo."
                                                 conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
                                                             (b_ref_str, st.session_state.username, b['renter_username'], text_to_save, path))
                                         else:
                                             conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                                        (b_ref_str, st.session_state.username, b['renter_username'], final_text, ""))
+                                                        (b_ref_str, st.session_state.username, b['renter_username'], chat_text, ""))
                                         
                                         conn.commit()
-                                        success = True
-                                        st.session_state.temp_msg_affiliate = ""
-                                        st.session_state[f"chat_{b_ref_str}"] = ""
-                                        st.session_state[f"trigger_send_{b_ref_str}"] = False
-                                        break
+                                        st.rerun()
                                     except Exception as e:
-                                        error_msg = str(e)
-                                        if "locked" in error_msg.lower(): time.sleep(0.5)
-                                        else: break
-                                if success: st.rerun()
-                                else: st.warning(f" **DATABASE ERROR:** {error_msg}")
-                                    
+                                        st.warning(f" **DATABASE ERROR:** {str(e)}")
+                                        
                         st.divider()
 
                         if b['status'] == 'CONFIRMED':
