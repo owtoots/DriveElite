@@ -12,6 +12,7 @@ from streamlit_drawable_canvas import st_canvas
 
 # --- Email Imports ---
 import smtplib
+from email.message import EmailMessage
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
