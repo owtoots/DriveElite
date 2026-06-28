@@ -350,25 +350,16 @@ def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, da
 
 def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
     sender_email = 'contact@driveelite.ph'
+    sender_password = os.environ.get("EMAIL_PASSWORD")
     
-    # Check these specific variable names in your Render Dashboard
-    possible_keys = ["EMAIL_PASSWORD", "app_password", "email_app_password", "SMTP_PASSWORD"]
-    app_password = os.environ.get("EMAIL_PASSWORD")
-    
-    for key in possible_keys:
-        sender_password = os.environ.get(key)
-        if sender_password:
-            print(f"DEBUG: Successfully found password using key: {key}")
-            break
-    
-    if not sender_password:
-        print("CRITICAL: None of the following keys found in environment variables: " + ", ".join(possible_keys))
-        return False
-    
+    if not sender_password: 
+        return False, "CRITICAL: EMAIL_PASSWORD not found in environment variables."
+        
     try:
         msg = MIMEMultipart()
         msg['From'] = f"DriveElite Admin <{sender_email}>"
         msg['To'] = to_email
+        # Removed the 'Cc' line here to prevent SMTP relay rejections
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
@@ -381,10 +372,9 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
         with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as server:
             server.login(sender_email, sender_password)
             server.send_message(msg)
-        return True
+        return True, "Success"
     except Exception as e: 
-        print(f"PDF Email Error: {e}")
-        return False
+        return False, str(e)
 # ==========================================
 # 5. LOGIN FLOW
 # ==========================================
