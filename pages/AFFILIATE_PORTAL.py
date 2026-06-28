@@ -287,7 +287,7 @@ def generate_handover_pdf(ref_no, car_name, renter_name, travel_dates, checklist
     pdf.cell(90, 5, "Renter", align='C')
     pdf.cell(90, 5, "Affiliate/Host", align='C', ln=True)
     
-    return pdf.output(dest="S").encode("utf-8")
+    return pdf.output(dest="S").encode("latin1")
 
 def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, damage, late, ot_fee, rfid_fee, total_deduct, refund, sig_ret, sig_reta, is_with_driver=False, driver_name=""):
     pdf = FPDF()
@@ -350,40 +350,22 @@ def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, da
 
 def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
     sender_email = 'contact@driveelite.ph'
+    # Using the exact password that works for your MOA and OTPs
+    app_password = "chcskxti6hc2d7ao"
     
-    # 1. Try Environment Variable first
-    sender_password = os.environ.get("EMAIL_PASSWORD")
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = f"DriveElite Admin <{sender_email}>"
+    msg['To'] = to_email
+    msg.set_content(body)
     
-    # 2. Try st.secrets second
-    if not sender_password:
-        try: 
-            sender_password = st.secrets.get("EMAIL_PASSWORD")
-        except: 
-            pass
-            
-    # 3. Last Resort Fallback (The password you used in your other script)
-    if not sender_password:
-        sender_password = "chcskxti6hc2d7ao"
-        
-    if not sender_password: 
-        return False, "CRITICAL: No email password found."
-        
+    # Using the exact same attachment method as your working MOA script
+    msg.add_attachment(pdf_bytes, maintype='application', subtype='pdf', filename=filename)
+    
     try:
-        msg = MIMEMultipart()
-        msg['From'] = f"DriveElite Admin <{sender_email}>"
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain', 'utf-8'))
-        
-        part = MIMEBase('application', 'octet-stream')
-        part.set_payload(pdf_bytes)
-        encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f"attachment; filename={filename}")
-        msg.attach(part)
-        
-        with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as server:
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
+        with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
+            smtp.login(sender_email, app_password)
+            smtp.send_message(msg)
         return True, "Success"
     except Exception as e: 
         return False, str(e)
