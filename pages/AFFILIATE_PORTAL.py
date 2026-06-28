@@ -291,16 +291,29 @@ def generate_handover_pdf(ref_no, car_name, renter_name, travel_dates, checklist
     return pdf.output(dest="S").encode("latin1")
 
 def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, damage, late, ot_fee, rfid_fee, total_deduct, refund, sig_ret, sig_reta, is_with_driver=False, driver_name=""):
-    pdf = FPDF()
+    # (210, 148) is A5 Landscape (Exactly half of A4)
+    pdf = FPDF(orientation='L', unit='mm', format=(210, 148))
     pdf.add_page()
+    
+    # Logo settings for A5 Landscape
     try:
+        # Center logo at x=80 (210 width - 50 width / 2 = 80)
         pdf.image("logo.png", x=80, y=10, w=50)
         pdf.set_y(45) 
     except Exception: 
         pdf.set_y(20)
         
     pdf.set_font("Helvetica", 'B', 16)
-    pdf.cell(0, 10, "DRIVEELITE RETURN & SETTLEMENT RECEIPT", ln=True, align='C')
+    # Use full width for text alignment
+    pdf.cell(190, 10, "DRIVEELITE RETURN & SETTLEMENT RECEIPT", ln=True, align='C')
+    
+    # ... Continue your receipt code using 190 as the width ...
+    pdf.set_font("Helvetica", '', 12)
+    pdf.cell(190, 10, f"Ref: {booking_ref} | Date: {datetime.date.today()}", ln=True)
+    pdf.cell(190, 10, f"Vehicle: {vehicle} ({plate}) | Renter: {renter}", ln=True)
+    
+    # IMPORTANT: Ensure your final return line uses latin1
+    return pdf.output(dest="S").encode("latin1")
     pdf.set_font("Helvetica", '', 12)
     pdf.cell(0, 10, f"Ref: {booking_ref} | Date: {datetime.date.today()}", ln=True)
     pdf.cell(0, 10, f"Vehicle: {vehicle} ({plate}) | Renter: {renter}", ln=True)
