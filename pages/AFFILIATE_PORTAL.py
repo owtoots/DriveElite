@@ -538,7 +538,6 @@ with tabs[0]:
                         chat_win = st.container(height=450, border=True)
                         with chat_win:
                             try:
-                                try:
                                 # 1. FILTER OUT ADMIN RECEIPTS
                                 msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? AND receiver_username != 'ADMIN' ORDER BY timestamp ASC", conn, params=(b_ref_str,))
                                 
