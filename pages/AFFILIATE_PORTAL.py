@@ -353,7 +353,7 @@ def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
     
     # Check these specific variable names in your Render Dashboard
     possible_keys = ["EMAIL_PASSWORD", "app_password", "email_app_password", "SMTP_PASSWORD"]
-    sender_password = "chcskxti6hc2d7ao"
+    app_password = os.environ.get("EMAIL_PASSWORD")
     
     for key in possible_keys:
         sender_password = os.environ.get(key)
