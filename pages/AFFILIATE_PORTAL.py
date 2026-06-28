@@ -226,102 +226,153 @@ def save_canvas_image(image_data, prefix):
         return filename
     return None
 
-def generate_handover_pdf(ref_no, car_name, renter_name, travel_dates, checklist, r_sig_path, a_sig_path, affiliate_name):
-    # A5 Landscape (210x148mm)
-    pdf = FPDF(orientation='L', unit='mm', format=(210, 148))
-    pdf.set_margins(10, 10, 10) # 10mm margins
-    pdf.add_page()
-    
-    full_width = 190 # 210 total - 20 margins
-    
-    # Logo - Centered at x=80 ( (210-50)/2 )
-    try:
-        pdf.image("logo.png", x=80, y=10, w=50)
-        pdf.set_y(45)
-    except:
-        pdf.set_y(20)
-        
-    pdf.set_font("Helvetica", 'B', 16)
-    pdf.cell(full_width, 10, "DRIVEELITE OFFICIAL HANDOVER RECORD", ln=True, align='C')
-    pdf.ln(5)
-    
-    pdf.set_font("Helvetica", '', 12)
-    pdf.cell(full_width, 8, f"Reference No: {ref_no}", ln=True, align='C')
-    pdf.cell(full_width, 8, f"Vehicle: {car_name}", ln=True, align='C')
-    pdf.cell(full_width, 8, f"Renter: {renter_name} | Dates: {travel_dates}", ln=True, align='C')
-    pdf.ln(5)
-    
-    pdf.set_font("Helvetica", 'B', 12)
-    pdf.cell(full_width, 8, "CHECKLIST VERIFICATION", ln=True, align='C')
-    pdf.set_font("Helvetica", '', 11)
-    chk_str = f"Deposit: {'YES' if checklist['deposit'] else 'NO'} | Fuel: {checklist['fuel']} | Exterior: {'YES' if checklist['ext'] else 'NO'} | Interior: {'YES' if checklist['int'] else 'NO'}"
-    pdf.cell(full_width, 8, chk_str, ln=True, align='C')
-    pdf.ln(10)
-    
-    # Signature Section
-    y_sig = pdf.get_y()
-    if r_sig_path and os.path.exists(r_sig_path):
-        pdf.image(r_sig_path, x=45, y=y_sig, w=40)
-    if a_sig_path and os.path.exists(a_sig_path):
-        pdf.image(a_sig_path, x=125, y=y_sig, w=40)
-        
-    pdf.set_y(y_sig + 30)
-    pdf.cell(95, 8, renter_name, align='C')
-    pdf.cell(95, 8, affiliate_name, align='C', ln=True)
-    pdf.set_font("Helvetica", 'I', 10)
-    pdf.cell(95, 5, "Renter Signature", align='C')
-    pdf.cell(95, 5, "Affiliate Signature", align='C')
-    
-    return pdf.output(dest="S").encode("latin1")
-
-def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, damage, late, ot_fee, rfid_fee, total_deduct, refund, sig_ret, sig_reta, is_with_driver=False):
+def generate_handover_pdf(ref_no, car_name, renter_name, travel_dates, checklist, r_sig_path, a_sig_path, affiliate_name, tire_pressure="Standard", preferred_fuel="Unleaded"):
+    # (210, 148) is A5 Landscape format. Perfect for half-page width.
     pdf = FPDF(orientation='L', unit='mm', format=(210, 148))
     pdf.set_margins(10, 10, 10)
     pdf.add_page()
     
-    full_width = 190
+    full_width = 190 
     
+    # 1. Perfectly Centered Logo: (210 total width - 50 logo width) / 2 = 80 X-coordinate
     try:
-        pdf.image("logo.png", x=80, y=10, w=50)
-        pdf.set_y(45)
-    except: 
-        pdf.set_y(20)
+        pdf.image("logo.png", x=80, y=5, w=50)
+        pdf.set_y(35) 
+    except Exception: 
+        pdf.set_y(15)
         
+    # 2. Document Headers
     pdf.set_font("Helvetica", 'B', 14)
-    pdf.cell(full_width, 10, "SETTLEMENT RECEIPT", ln=True, align='C')
-    pdf.set_font("Helvetica", '', 11)
-    pdf.cell(full_width, 8, f"Ref: {booking_ref} | Vehicle: {vehicle} ({plate})", ln=True, align='C')
-    pdf.ln(5)
+    pdf.cell(full_width, 6, "DRIVEELITE OFFICIAL HANDOVER RECORD", ln=True, align='C')
     
+    pdf.set_font("Helvetica", '', 10)
+    pdf.cell(full_width, 5, f"Reference No: {ref_no} | Vehicle: {car_name}", ln=True, align='C')
+    pdf.cell(full_width, 5, f"Renter: {renter_name} | Travel Dates: {travel_dates}", ln=True, align='C')
+    pdf.ln(4)
+    
+    # 3. Checklist Verification
     pdf.set_font("Helvetica", 'B', 11)
-    pdf.cell(full_width, 8, "DEDUCTION BREAKDOWN", ln=True, align='C')
+    pdf.cell(full_width, 6, "CHECKLIST VERIFICATION", ln=True, align='C')
+    
+    pdf.set_font("Helvetica", '', 10)
+    chk_line_1 = f"Deposit (Php 5k): {'YES' if checklist['deposit'] else 'NO'}  |  Fuel Level: {checklist['fuel']}  |  Exterior Inspected: {'YES' if checklist['ext'] else 'NO'}"
+    chk_line_2 = f"Interior Clean: {'YES' if checklist['int'] else 'NO'}  |  Tools & Spare Tire Verified: {'YES' if checklist['tools'] else 'NO'}"
+    pdf.cell(full_width, 5, chk_line_1, ln=True, align='C')
+    pdf.cell(full_width, 5, chk_line_2, ln=True, align='C')
+    pdf.ln(4)
+    
+    # 4. Reminders (Condensed for A5 layout)
+    pdf.set_font("Helvetica", 'B', 10)
+    pdf.cell(full_width, 5, "IMPORTANT REMINDERS", ln=True, align='C')
+    pdf.set_font("Helvetica", '', 9)
+    pdf.cell(full_width, 4, f"1. Maintain tire pressure at {tire_pressure}. Vehicle requires {preferred_fuel} fuel.", ln=True, align='C')
+    pdf.cell(full_width, 4, "2. Any NCAP citations, traffic violations, or fines incurred will be charged directly to the renter.", ln=True, align='C')
+    pdf.ln(8)
+    
+    # 5. Signatures (Split exactly in half: 95mm for Renter, 95mm for Affiliate)
+    y_sig = pdf.get_y()
+    
+    if r_sig_path and os.path.exists(r_sig_path):
+        pdf.image(r_sig_path, x=35, y=y_sig, w=40)
+        
+    if a_sig_path and os.path.exists(a_sig_path):
+        pdf.image(a_sig_path, x=135, y=y_sig, w=40)
+        
+    pdf.set_y(y_sig + 20)
+    pdf.set_font("Helvetica", 'U', 10)
+    pdf.cell(95, 5, renter_name, align='C')
+    pdf.cell(95, 5, affiliate_name, align='C', ln=True)
+    
+    pdf.set_font("Helvetica", '', 9)
+    pdf.cell(95, 4, "Renter Signature", align='C')
+    pdf.cell(95, 4, "Affiliate/Host Signature", align='C', ln=True)
+    
+    return pdf.output(dest="S").encode("latin1")
+
+def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, damage, late, ot_fee, rfid_fee, total_deduct, refund, sig_ret, sig_reta, is_with_driver=False, driver_name=""):
+    # (210, 148) is A5 Landscape format
+    pdf = FPDF(orientation='L', unit='mm', format=(210, 148))
+    pdf.set_margins(10, 10, 10)
+    pdf.add_page()
+    
+    full_width = 190 
+    
+    # 1. Perfectly Centered Logo
+    try:
+        pdf.image("logo.png", x=80, y=5, w=50)
+        pdf.set_y(35) 
+    except Exception: 
+        pdf.set_y(15)
+        
+    # 2. Document Headers
+    pdf.set_font("Helvetica", 'B', 14)
+    pdf.cell(full_width, 6, "DRIVEELITE RETURN & SETTLEMENT RECEIPT", ln=True, align='C')
+    
+    pdf.set_font("Helvetica", '', 10)
+    pdf.cell(full_width, 5, f"Reference No: {booking_ref} | Date: {datetime.date.today()}", ln=True, align='C')
+    pdf.cell(full_width, 5, f"Vehicle: {vehicle} ({plate}) | Renter: {renter}", ln=True, align='C')
+    pdf.ln(4)
+    
+    # 3. Deductions Breakdown
+    pdf.set_font("Helvetica", 'B', 11)
+    pdf.cell(full_width, 6, "SECURITY DEPOSIT DEDUCTIONS", ln=True, align='C')
+    
     pdf.set_font("Helvetica", '', 10)
     
-    # Items that are always there
-    pdf.cell(full_width, 6, f"Fuel/Cleaning/Damage/Late: Php {(fuel+clean+damage+late):,.2f}", ln=True, align='C')
-    pdf.cell(full_width, 6, f"RFID/Tolls: Php {rfid_fee:,.2f}", ln=True, align='C')
+    # Grouping fees cleanly to save space while remaining completely transparent
+    pdf.cell(full_width, 5, f"Fuel Replacement: Php {fuel:,.2f}  |  Cleaning Penalty: Php {clean:,.2f}", ln=True, align='C')
+    pdf.cell(full_width, 5, f"Damage Penalty: Php {damage:,.2f}  |  Late Penalty: Php {late:,.2f}", ln=True, align='C')
+    pdf.cell(full_width, 5, f"Net RFID & Toll Deductions: Php {rfid_fee:,.2f}", ln=True, align='C')
     
-    # Dynamic Driver Extras
+    # Conditionally inject driver overtime fees to the receipt
     if is_with_driver and ot_fee > 0:
-        pdf.cell(full_width, 6, f"Driver Extras/OT: Php {ot_fee:,.2f}", ln=True, align='C')
+        pdf.cell(full_width, 5, f"Driver Extras/OT: Php {ot_fee:,.2f}", ln=True, align='C')
         
-    pdf.ln(5)
-    pdf.set_font("Helvetica", 'B', 11)
-    pdf.cell(full_width, 8, f"TOTAL DEDUCTIONS: Php {total_deduct:,.2f}", ln=True, align='C')
-    pdf.cell(full_width, 8, f"NET REFUND TO RENTER: Php {refund:,.2f}", ln=True, align='C')
-
-    # Signatures
-    current_y = pdf.get_y() + 10
-    if sig_ret is not None:
-        r_path = f"/data/uploads/ret_r_{booking_ref}.jpg"
-        Image.fromarray(sig_ret.astype('uint8'), 'RGBA').convert('RGB').save(r_path, "JPEG")
-        pdf.image(r_path, x=45, y=current_y, w=40)
+    pdf.ln(2)
     
-    if sig_reta is not None:
-        a_path = f"/data/uploads/ret_a_{booking_ref}.jpg"
-        Image.fromarray(sig_reta.astype('uint8'), 'RGBA').convert('RGB').save(a_path, "JPEG")
-        pdf.image(a_path, x=125, y=current_y, w=40)
+    # 4. Final Math
+    pdf.set_font("Helvetica", 'B', 11)
+    pdf.cell(full_width, 6, f"TOTAL DEDUCTIONS: Php {total_deduct:,.2f}", ln=True, align='C')
+    
+    if total_deduct > 5000.0:
+        amount_payable = total_deduct - 5000.0
+        pdf.set_text_color(220, 53, 69) # Red text for amount owed
+        pdf.cell(full_width, 6, f"NET PAYABLE TO AFFILIATE: Php {amount_payable:,.2f}", ln=True, align='C')
+        pdf.set_text_color(0, 0, 0) # Reset to black
+    else:
+        pdf.set_text_color(40, 167, 69) # Green text for refund
+        pdf.cell(full_width, 6, f"NET REFUND TO RENTER: Php {refund:,.2f}", ln=True, align='C')
+        pdf.set_text_color(0, 0, 0) # Reset to black
         
+    pdf.ln(6)
+    
+    # 5. Signatures
+    y_sig = pdf.get_y()
+    
+    try:
+        if sig_ret is not None:
+            r_path = f"/data/uploads/ret_r_{booking_ref}.jpg"
+            Image.fromarray(sig_ret.astype('uint8'), 'RGBA').convert('RGB').save(r_path, "JPEG")
+            pdf.image(r_path, x=35, y=y_sig, w=40)
+    except Exception: 
+        pass
+        
+    try:
+        if sig_reta is not None:
+            a_path = f"/data/uploads/ret_a_{booking_ref}.jpg"
+            Image.fromarray(sig_reta.astype('uint8'), 'RGBA').convert('RGB').save(a_path, "JPEG")
+            pdf.image(a_path, x=135, y=y_sig, w=40)
+    except Exception: 
+        pass
+        
+    pdf.set_y(y_sig + 20)
+    pdf.set_font("Helvetica", 'U', 10)
+    pdf.cell(95, 5, renter, align='C')
+    pdf.cell(95, 5, "Affiliate/Host", align='C', ln=True)
+    
+    pdf.set_font("Helvetica", 'I', 8)
+    pdf.cell(190, 8, "Legally generated by DriveElite Platform", align='C', ln=True)
+    
     return pdf.output(dest="S").encode("latin1")
 
 def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
