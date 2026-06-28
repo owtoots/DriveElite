@@ -350,33 +350,23 @@ def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, da
 
 def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
     sender_email = 'contact@driveelite.ph'
-    admin_email = 'contact@driveelite.ph'
+    sender_password = os.environ.get("EMAIL_PASSWORD")
     
-    # Aggressively search for the password in both os.environ and st.secrets
-    sender_password = None
-    for key in ["EMAIL_PASSWORD", "email_password", "email_app_password"]:
-        if not sender_password:
-            sender_password = os.environ.get(key)
-            if not sender_password:
-                try: sender_password = st.secrets.get(key)
-                except: pass
-                
     if not sender_password: 
-        print("CRITICAL: Email password not found in environment or secrets.")
+        print("CRITICAL: EMAIL_PASSWORD not found in environment variables.")
         return False
-        
+    
     try:
         msg = MIMEMultipart()
         msg['From'] = f"DriveElite Admin <{sender_email}>"
         msg['To'] = to_email
-        msg['Cc'] = admin_email  # <--- Admin CC added here!
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
         part = MIMEBase('application', 'octet-stream')
         part.set_payload(pdf_bytes)
         encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f"attachment; filename= {filename}")
+        part.add_header('Content-Disposition', f"attachment; filename={filename}")
         msg.attach(part)
         
         with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as server:
