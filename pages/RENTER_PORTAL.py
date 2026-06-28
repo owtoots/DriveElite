@@ -374,43 +374,42 @@ with main_tabs[0]:
                                         d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}")
                                         t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
 
-# BULLETPROOF FLAT HTML CALENDAR
-                                       
-cal_year = d1.year
-cal_month = d1.month
-month_matrix = calendar.monthcalendar(cal_year, cal_month)
-month_name = calendar.month_name[cal_month]
+                                        # BULLETPROOF FLAT HTML CALENDAR
+                                        cal_year = d1.year
+                                        cal_month = d1.month
+                                        month_matrix = calendar.monthcalendar(cal_year, cal_month)
+                                        month_name = calendar.month_name[cal_month]
 
-# CSS for the crossed-out look
-cal_html = f"""
-<style>
-    .booked-date {{ background-color: #FEE2E2; color: #94A3B8; text-decoration: line-through; border-radius: 6px; padding: 6px 0; font-weight: bold; cursor: not-allowed; }}
-    .available-date {{ background-color: #DCFCE7; color: #16A34A; border-radius: 6px; padding: 6px 0; font-weight: bold; border: 1px solid #BBF7D0; }}
-    .past-date {{ color: #CBD5E1; padding: 6px 0; }}
-</style>
-<div style='background-color:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:15px; margin-bottom:20px; margin-top:15px;'>
-    <h4 style='text-align:center; color:#0F172A; margin-top:0px; margin-bottom:10px; font-size:16px;'>{month_name} {cal_year} Availability</h4>
-    <table style='width:100%; border-collapse:separate; border-spacing:4px; text-align:center; font-size:13px;'>
-    <tr><th style='color:#64748B;'>Mo</th><th style='color:#64748B;'>Tu</th><th style='color:#64748B;'>We</th><th style='color:#64748B;'>Th</th><th style='color:#64748B;'>Fr</th><th style='color:#64748B;'>Sa</th><th style='color:#64748B;'>Su</th></tr>
-"""
+                                        # CSS for the crossed-out look
+                                        cal_html = f"""
+                                        <style>
+                                            .booked-date {{ background-color: #FEE2E2; color: #94A3B8; text-decoration: line-through; border-radius: 6px; padding: 6px 0; font-weight: bold; cursor: not-allowed; }}
+                                            .available-date {{ background-color: #DCFCE7; color: #16A34A; border-radius: 6px; padding: 6px 0; font-weight: bold; border: 1px solid #BBF7D0; }}
+                                            .past-date {{ color: #CBD5E1; padding: 6px 0; }}
+                                        </style>
+                                        <div style='background-color:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:15px; margin-bottom:20px; margin-top:15px;'>
+                                            <h4 style='text-align:center; color:#0F172A; margin-top:0px; margin-bottom:10px; font-size:16px;'>{month_name} {cal_year} Availability</h4>
+                                            <table style='width:100%; border-collapse:separate; border-spacing:4px; text-align:center; font-size:13px;'>
+                                            <tr><th style='color:#64748B;'>Mo</th><th style='color:#64748B;'>Tu</th><th style='color:#64748B;'>We</th><th style='color:#64748B;'>Th</th><th style='color:#64748B;'>Fr</th><th style='color:#64748B;'>Sa</th><th style='color:#64748B;'>Su</th></tr>
+                                        """
 
-for week in month_matrix:
-    cal_html += "<tr>"
-    for day in week:
-        if day == 0:
-            cal_html += "<td></td>"
-        else:
-            d_iter = datetime.date(cal_year, cal_month, day)
-            if d_iter in unavailable_dates:
-                cal_html += f"<td><div class='booked-date'>{day}</div></td>"
-            elif d_iter < today:
-                cal_html += f"<td><div class='past-date'>{day}</div></td>"
-            else:
-                cal_html += f"<td><div class='available-date'>{day}</div></td>"
-    cal_html += "</tr>"
-cal_html += "</table></div>"
+                                        for week in month_matrix:
+                                            cal_html += "<tr>"
+                                            for day in week:
+                                                if day == 0:
+                                                    cal_html += "<td></td>"
+                                                else:
+                                                    d_iter = datetime.date(cal_year, cal_month, day)
+                                                    if d_iter in unavailable_dates:
+                                                        cal_html += f"<td><div class='booked-date'>{day}</div></td>"
+                                                    elif d_iter < today:
+                                                        cal_html += f"<td><div class='past-date'>{day}</div></td>"
+                                                    else:
+                                                        cal_html += f"<td><div class='available-date'>{day}</div></td>"
+                                            cal_html += "</tr>"
+                                        cal_html += "</table></div>"
 
-st.markdown(cal_html, unsafe_allow_html=True)
+                                        st.markdown(cal_html, unsafe_allow_html=True)
                                         
                                         # COLLISION DETECTION
                                         can_book = True
