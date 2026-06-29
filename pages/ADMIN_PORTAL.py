@@ -162,6 +162,7 @@ try:
     conn.commit()
 except:
     pass
+
 # ==========================================
 # 6. UTILITY FUNCTIONS (CACHE & POS)
 # ==========================================
@@ -231,6 +232,44 @@ def send_admin_email_with_attachment(to_email, subject, body, attachment_path, a
     except Exception as e:
         print(f"Attachment Email Error: {e}")
         return False
+
+# --- NEW: MAGIC LINK APPROVAL EMAIL FUNCTION ---
+def send_approval_email(recipient_email, full_name, role):
+    if not recipient_email:
+        return False, "No email address on file."
+        
+    msg = EmailMessage()
+    msg['Subject'] = f"DriveElite: Your {role.title()} Account is Approved! 🎉"
+    
+    sender_email = "contact@driveelite.ph"
+    msg['From'] = f"DriveElite Admin <{sender_email}>"
+    msg['To'] = recipient_email
+    
+    # This generates the Magic Link that your join_driveelite.py router will catch!
+    magic_link = f"https://driveelite.ph/?portal={role.upper()}"
+    
+    body = f"""Hello {full_name},
+    
+Welcome to DriveElite! Your registration has been fully approved by our Admin team.
+    
+You can now log directly into your dashboard by clicking the secure link below:
+{magic_link}
+    
+Drive safe,
+The DriveElite Team"""
+    
+    msg.set_content(body)
+
+    try:
+        # Using your exact working app password
+        app_password = "chcskxti6hc2d7ao" 
+        with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
+            smtp.login(sender_email, app_password)
+            smtp.send_message(msg)
+        return True, "Email sent"
+    except Exception as e:
+        return False, str(e)
+
 
 @st.cache_data(ttl=300, show_spinner=False)
 def get_all_reviews(_conn):
@@ -341,7 +380,18 @@ with tabs[0]:
                     
                     if st.button("APPROVE RENTER", key=f"ra_{r['id']}", type="primary", use_container_width=True):
                         conn.execute("UPDATE platform_users SET admin_status = 'APPROVED' WHERE id = ?", (r['id'],))
-                        conn.commit(); st.rerun()
+                        conn.commit()
+                        
+                        # --- TRIGGER RENTER MAGIC LINK EMAIL ---
+                        with st.spinner("Sending approval email with Magic Link..."):
+                            success, error_msg = send_approval_email(r.get('email', ''), r['full_name'], 'RENTER')
+                            if success:
+                                st.success(f"Renter approved! Magic link sent to {r.get('email', '')}.")
+                            else:
+                                st.warning(f"Renter approved, but email failed: {error_msg}")
+                                
+                        time.sleep(1.5)
+                        st.rerun()
         except Exception as e:
             st.warning(f"Could not load Renter database: {e}")
 
@@ -368,9 +418,20 @@ with tabs[0]:
                         if isinstance(sig, str): st.image(sig, caption="Digitally Signed MOA", width=300)
                         else: st.image(bytes(sig), caption="Digitally Signed MOA", width=300)
                     
-                    if st.button("APPROaVE AFFILIATE", key=f"aa_{r['id']}", type="primary", use_container_width=True):
+                    if st.button("APPROVE AFFILIATE", key=f"aa_{r['id']}", type="primary", use_container_width=True):
                         conn.execute("UPDATE platform_users SET admin_status = 'APPROVED' WHERE id = ?", (r['id'],))
-                        conn.commit(); st.rerun()
+                        conn.commit()
+                        
+                        # --- TRIGGER AFFILIATE MAGIC LINK EMAIL ---
+                        with st.spinner("Sending approval email with Magic Link..."):
+                            success, error_msg = send_approval_email(r.get('email', ''), r['full_name'], 'AFFILIATE')
+                            if success:
+                                st.success(f"Affiliate approved! Magic link sent to {r.get('email', '')}.")
+                            else:
+                                st.warning(f"Affiliate approved, but email failed: {error_msg}")
+                                
+                        time.sleep(1.5)
+                        st.rerun()
         except Exception as e:
             st.warning(f"Could not load Affiliate database: {e}")
 
@@ -395,7 +456,10 @@ with tabs[0]:
                     
                     if st.button("APPROVE DRIVER", key=f"da_{d['id']}", type="primary", use_container_width=True):
                         conn.execute("UPDATE drivers SET admin_status = 'APPROVED' WHERE id = ?", (d['id'],))
-                        conn.commit(); st.rerun()
+                        conn.commit()
+                        st.success("Driver approved.")
+                        time.sleep(1)
+                        st.rerun()
         except Exception as e:
             st.warning(f"Could not load Driver database: {e}")
 
@@ -812,6 +876,7 @@ with tabs[4]:
                         
     except Exception as e:
         st.warning(f"Could not load Affiliate directory: {e}")
+
 # --- TAB 5: PROMOS & DB ---
 with tabs[5]:
     render_platform_settings(conn)
@@ -912,13 +977,10 @@ with tabs[5]:
         st.error(f"Error loading penalty manager: {e}")
     # =========================================================
 
-
-    # This is the section you are looking for to paste ABOVE:
     st.divider()
     st.markdown("<h3 style='text-align: center;'>ALL REGISTERED USERS</h3>", unsafe_allow_html=True)
     try:
         db_tabs = st.tabs(["🚗 RENTERS", "💼 AFFILIATES", "🧑‍✈️ DRIVERS"])
-        # ... rest of your code ...
         q_renters = "SELECT full_name as 'FULLNAME', address as 'ADDRESS', contact_number as 'CONTACT NO.', admin_status as 'STATUS' FROM platform_users WHERE role='RENTER'"
         with db_tabs[0]: st.dataframe(pd.read_sql_query(q_renters, conn), hide_index=True, use_container_width=True)
         q_affiliates = "SELECT full_name as 'FULLNAME', address as 'ADDRESS', contact_number as 'CONTACT NO.', admin_status as 'STATUS' FROM platform_users WHERE role='AFFILIATE'"
