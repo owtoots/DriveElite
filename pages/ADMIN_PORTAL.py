@@ -391,7 +391,6 @@ with tabs[0]:
                                 time.sleep(1.5)
                                 st.rerun() # Only reload if successful
                             else:
-                                else:
                                 st.error(f"⚠️ Email Failed! The system says: {error_msg}")
                                 st.stop() 
 
