@@ -8,6 +8,7 @@ import time
 from PIL import Image
 import numpy as np
 from fpdf import FPDF
+def main():
 from streamlit_drawable_canvas import st_canvas
 
 # --- Email Imports ---
