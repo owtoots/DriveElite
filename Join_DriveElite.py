@@ -31,7 +31,6 @@ st.markdown("""
     }
     /* Force the sidebar toggle to be more visible */
 [data-testid="stSidebarCollapse"] {
-
     background-color: rgba(255, 255, 255, 0.8) !important;
     border: 2px solid #2563EB !important;
     border-radius: 50% !important;
@@ -98,6 +97,36 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
+# 1.5 NAVIGATION ROUTER & MAGIC LINKS
+# ==========================================
+# 1. Check for Magic Link from Email
+query_params = st.query_params
+if "portal" in query_params:
+    st.session_state.current_page = query_params["portal"].upper()
+
+# 2. Initialize default page if no link used
+elif "current_page" not in st.session_state:
+    st.session_state.current_page = "JOIN"
+
+# 3. If they are supposed to be somewhere else, redirect them!
+if st.session_state.current_page != "JOIN":
+    if st.session_state.current_page == "AFFILIATE":
+        st.info("🔄 Redirecting to Affiliate Portal...")
+        # from affiliate import run_affiliate_portal
+        # run_affiliate_portal()
+        st.stop()
+    elif st.session_state.current_page == "RENTER":
+        st.info("🔄 Redirecting to Renter Portal...")
+        # from renter import run_renter_portal
+        # run_renter_portal()
+        st.stop()
+    elif st.session_state.current_page == "ADMIN":
+        st.info("🔄 Redirecting to Admin Portal...")
+        # from admin import run_admin_portal
+        # run_admin_portal()
+        st.stop()
+
+# ==========================================
 # 2. DATABASE SETUP
 # ==========================================
 conn = get_connection()
@@ -156,7 +185,6 @@ def send_welcome_email(recipient_email, role, filepath):
     doc_label = "MOA" if role == "AFFILIATE" else "RENTER"
     msg['Subject'] = f'DriveElite: Your Official {doc_label} Agreement'
     
-    # Use the variable from your dashboard instead of hardcoding
     sender_email = get_secret("email_sender", "contact@driveelite.ph")
     msg['From'] = f"DriveElite Team <{sender_email}>"
     msg['To'] = recipient_email
@@ -186,7 +214,6 @@ def create_legit_pdf_contract(data, role, sig_bytes, conn):
     prefix = "MOA" if is_affiliate else "RENTER"
     pdf_filename = f"/data/uploads/{prefix}_{data['username']}.pdf"
     
-    # Fetch Settings
     try:
         settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct, operator_name FROM platform_settings WHERE id = 1", conn)
         if not settings_df.empty:
@@ -205,7 +232,6 @@ def create_legit_pdf_contract(data, role, sig_bytes, conn):
     
     date_str = datetime.date.today().strftime("%B %d, %Y")
     
-    # Header
     pdf.set_font("Helvetica", 'B', 14)
     if is_affiliate:
         pdf.cell(0, 10, "MEMORANDUM OF AGREEMENT", ln=True, align='C')
@@ -370,7 +396,6 @@ if st.session_state.get('otp_pending'):
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', payload)
                 
                 conn.commit()
-                st.success("✅ Registration Successful! You can now log in.")
                 
             except sqlite3.IntegrityError:
                 st.error("🚨 That Username is already taken! Please refresh and choose a different username.")
@@ -397,7 +422,6 @@ if st.session_state.get('otp_pending'):
                     final_p = f"/data/uploads/{prefix}_{un}.pdf"
                             
                     send_welcome_email(email, role, final_p)
-                    st.success(f"✅ Account verified and agreement sent to {email}!")
                     
                     with open(final_p, "rb") as f:
                         file_bytes = f.read()
@@ -412,8 +436,17 @@ if st.session_state.get('otp_pending'):
                 except Exception as e:
                     st.error(f"Account saved, but contract email failed: {e}")
             
+            # --- NEW ONBOARDING FEEDBACK ---
+            st.success("✅ Verification Successful! Your agreement has been signed.")
+            st.info("⏳ **Next Step:** Your account is now under review by our Admin team.")
+            st.warning("✉️ You will receive an email with your direct login link as soon as your account is approved. You may safely close this window.")
+            
             st.session_state.otp_pending = False
-            if st.button("GO TO LOGIN"): st.rerun()
+            
+            if f"temp_{payload[2].lower()}_data" in st.session_state:
+                del st.session_state[f"temp_{payload[2].lower()}_data"]
+                
+            st.stop() # Halts the app so they just read the message!
         else:
             st.error("🚨 Invalid OTP. Please try again.")
 
