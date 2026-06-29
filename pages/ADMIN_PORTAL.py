@@ -385,15 +385,14 @@ with tabs[0]:
                         # --- TRIGGER RENTER MAGIC LINK EMAIL ---
                         with st.spinner("Sending approval email with Magic Link..."):
                             success, error_msg = send_approval_email(r.get('email', ''), r['full_name'], 'RENTER')
+                            
                             if success:
                                 st.success(f"Renter approved! Magic link sent to {r.get('email', '')}.")
+                                time.sleep(1.5)
+                                st.rerun() # Only reload if successful
                             else:
-                                st.warning(f"Renter approved, but email failed: {error_msg}")
-                                
-                        time.sleep(1.5)
-                        st.rerun()
-        except Exception as e:
-            st.warning(f"Could not load Renter database: {e}")
+                                st.error(f"⚠️ Email Failed! The system says: {error_msg}")
+                                st.stop() # HALT THE APP so you can read the error
 
     with p_tabs[1]:
         try:
@@ -425,15 +424,14 @@ with tabs[0]:
                         # --- TRIGGER AFFILIATE MAGIC LINK EMAIL ---
                         with st.spinner("Sending approval email with Magic Link..."):
                             success, error_msg = send_approval_email(r.get('email', ''), r['full_name'], 'AFFILIATE')
+                            
                             if success:
                                 st.success(f"Affiliate approved! Magic link sent to {r.get('email', '')}.")
+                                time.sleep(1.5)
+                                st.rerun() # Only reload if successful
                             else:
-                                st.warning(f"Affiliate approved, but email failed: {error_msg}")
-                                
-                        time.sleep(1.5)
-                        st.rerun()
-        except Exception as e:
-            st.warning(f"Could not load Affiliate database: {e}")
+                                st.error(f"⚠️ Email Failed! The system says: {error_msg}")
+                                st.stop() # HALT THE APP so you can read the error
 
     with p_tabs[2]:
         try:
