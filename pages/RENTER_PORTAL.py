@@ -15,12 +15,13 @@ from email.mime.text import MIMEText
 from database_utils import get_connection, send_sms_alert, send_alert_email
 import calendar
 from datetime import timedelta
+
 def main():
 
-# ==========================================
-# 1. PAGE CONFIG & LOGO (Must be first!)
-# ==========================================
-st.set_page_config(page_title="DriveElite Renter", layout="wide")
+    # ==========================================
+    # 1. PAGE CONFIG & LOGO (Must be first!)
+    # ==========================================
+    st.set_page_config(page_title="DriveElite Renter", layout="wide")
 try:
     st.sidebar.image("logo.png", use_container_width=True)
 except:
