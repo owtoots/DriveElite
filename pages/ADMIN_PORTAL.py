@@ -235,26 +235,27 @@ def send_admin_email_with_attachment(to_email, subject, body, attachment_path, a
 
 # --- NEW: MAGIC LINK APPROVAL EMAIL FUNCTION ---
 
+# --- NEW: MAGIC LINK APPROVAL EMAIL FUNCTION (SPAM-SAFE) ---
 def send_approval_email(recipient_email, full_name, role):
     if not recipient_email:
         return False, "No email address on file."
         
     msg = EmailMessage()
-    # Removed emojis and made the subject look more formal
     msg['Subject'] = f"DriveElite: Notice of {role.title()} Account Approval"
     
     sender_email = "contact@driveelite.ph"
     msg['From'] = f"DriveElite Administration <{sender_email}>"
     msg['To'] = recipient_email
     
-    magic_link = f"https://driveelite.ph/?portal={role.upper()}"
+    # THE CORRECT MAGIC LINK FORMAT (Using query parameters)
+    magic_link = f"https://www.driveelite.ph/?portal={role.upper()}"
     
-    # Expanded the body text to include formal corporate structure and a footer
     body = f"""Dear {full_name},
     
 Your registration for a DriveElite {role.title()} account has been successfully reviewed and approved by our administration team.
 
-You may now access your platform features. Please use the following portal URL to log in to your dashboard:
+You may now access your platform features. Please click or copy-paste the exact link below to log in securely to your dashboard:
+
 {magic_link}
 
 If you have any questions regarding your account activation, please contact our support team.
@@ -267,6 +268,7 @@ Pasig City, Metro Manila, Philippines
     msg.set_content(body)
 
     try:
+        # Using your working app password
         app_password = "chcskxti6hc2d7ao" 
         with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
             smtp.login(sender_email, app_password)
