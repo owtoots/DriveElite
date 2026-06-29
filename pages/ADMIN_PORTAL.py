@@ -17,13 +17,11 @@ from email import encoders
 from PIL import Image
 from fpdf import FPDF
 import streamlit as st
-def main():
-
 # --- IMPORT SHARED TOOLS ---
 from database_utils import get_connection, init_db, patch_database, send_sms_alert, send_alert_email
-
-# --- AUTHENTICATION & PAGE CONFIG ---
-st.set_page_config(page_title="DriveElite Admin Portal", layout="wide")
+def main():
+    # --- AUTHENTICATION & PAGE CONFIG ---
+    st.set_page_config(page_title="DriveElite Admin Portal", layout="wide")
 
 # ==========================================
 # 💎 2. THE "CRYSTAL ELITE" CSS ENGINE
