@@ -110,20 +110,20 @@ elif "current_page" not in st.session_state:
 
 # 3. If they are supposed to be somewhere else, redirect them!
 if st.session_state.current_page != "JOIN":
+    
     if st.session_state.current_page == "AFFILIATE":
-        st.info("🔄 Redirecting to Affiliate Portal...")
-        # from affiliate import run_affiliate_portal
-        # run_affiliate_portal()
-        st.stop()
+        import affiliate # Fixed spelling
+        affiliate.main() # Fixed function call
+        st.stop() # CRITICAL: Stops the Join page from loading underneath
+        
     elif st.session_state.current_page == "RENTER":
-        st.info("🔄 Redirecting to Renter Portal...")
-        # from renter import run_renter_portal
-        # run_renter_portal()
+        import renter 
+        renter.main() 
         st.stop()
+        
     elif st.session_state.current_page == "ADMIN":
-        st.info("🔄 Redirecting to Admin Portal...")
-        # from admin import run_admin_portal
-        # run_admin_portal()
+        import ADMIN_PORTAL # Updated to match your actual file name
+        ADMIN_PORTAL.main() 
         st.stop()
 
 # ==========================================
