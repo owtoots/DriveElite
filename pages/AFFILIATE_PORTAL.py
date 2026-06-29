@@ -8,9 +8,7 @@ import time
 from PIL import Image
 import numpy as np
 from fpdf import FPDF
-def main():
 from streamlit_drawable_canvas import st_canvas
-
 # --- Email Imports ---
 import smtplib
 from email.message import EmailMessage
@@ -18,13 +16,13 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email import encoders
-
 from database_utils import get_connection, send_sms_alert, send_alert_email
 
-# ==========================================
-# 1. PAGE CONFIG & LOGO
-# ==========================================
-st.set_page_config(page_title="DriveElite Affiliate", layout="wide")
+def main():
+    # ==========================================
+    # 1. PAGE CONFIG & LOGO
+    # ==========================================
+    st.set_page_config(page_title="DriveElite Affiliate", layout="wide")
 
 try:
     st.sidebar.image("logo.png", use_container_width=True)
