@@ -15,6 +15,7 @@ from email.mime.text import MIMEText
 from database_utils import get_connection, send_sms_alert, send_alert_email
 import calendar
 from datetime import timedelta
+def main():
 
 # ==========================================
 # 1. PAGE CONFIG & LOGO (Must be first!)
