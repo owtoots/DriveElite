@@ -391,9 +391,18 @@ with tabs[0]:
                                 time.sleep(1.5)
                                 st.rerun() # Only reload if successful
                             else:
+                                else:
                                 st.error(f"⚠️ Email Failed! The system says: {error_msg}")
-                                st.stop() # HALT THE APP so you can read the error
+                                st.stop() 
 
+        # ---> ADD THESE TWO LINES BACK IN <---
+        except Exception as e:
+            st.warning(f"Could not load Renter database: {e}")
+
+    # This is line 397 where the error triggered
+    with p_tabs[1]:
+        try:
+            affiliates = pd.read_sql_query("SELECT * FROM platform_users WHERE (admin_status = 'PENDING' ...
     with p_tabs[1]:
         try:
             affiliates = pd.read_sql_query("SELECT * FROM platform_users WHERE (admin_status = 'PENDING' OR admin_status IS NULL) AND role = 'AFFILIATE'", conn)
@@ -430,8 +439,18 @@ with tabs[0]:
                                 time.sleep(1.5)
                                 st.rerun() # Only reload if successful
                             else:
+                                else:
                                 st.error(f"⚠️ Email Failed! The system says: {error_msg}")
-                                st.stop() # HALT THE APP so you can read the error
+                                st.stop() 
+
+        # ---> ADD THESE TWO LINES BACK IN <---
+        except Exception as e:
+            st.warning(f"Could not load Renter database: {e}")
+
+    # This is line 397 where the error triggered
+    with p_tabs[1]:
+        try:
+            affiliates = pd.read_sql_query("SELECT * FROM platform_users WHERE (admin_status = 'PENDING' ...
 
     with p_tabs[2]:
         try:
