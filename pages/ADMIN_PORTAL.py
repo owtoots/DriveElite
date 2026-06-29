@@ -17,6 +17,7 @@ from email import encoders
 from PIL import Image
 from fpdf import FPDF
 import streamlit as st
+def main():
 
 # --- IMPORT SHARED TOOLS ---
 from database_utils import get_connection, init_db, patch_database, send_sms_alert, send_alert_email
