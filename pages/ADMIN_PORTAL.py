@@ -389,12 +389,10 @@ with tabs[0]:
                             if success:
                                 st.success(f"Renter approved! Magic link sent to {r.get('email', '')}.")
                                 time.sleep(1.5)
-                                st.rerun() # Only reload if successful
+                                st.rerun() 
                             else:
                                 st.error(f"⚠️ Email Failed! The system says: {error_msg}")
                                 st.stop() 
-
-        # ---> ADD THESE TWO LINES BACK IN <---
         except Exception as e:
             st.warning(f"Could not load Renter database: {e}")
 
@@ -432,20 +430,12 @@ with tabs[0]:
                             if success:
                                 st.success(f"Affiliate approved! Magic link sent to {r.get('email', '')}.")
                                 time.sleep(1.5)
-                                st.rerun() # Only reload if successful
+                                st.rerun() 
                             else:
-                                else:
                                 st.error(f"⚠️ Email Failed! The system says: {error_msg}")
                                 st.stop() 
-
-        # ---> ADD THESE TWO LINES BACK IN <---
         except Exception as e:
-            st.warning(f"Could not load Renter database: {e}")
-
-    # This is line 397 where the error triggered
-    with p_tabs[1]:
-        try:
-            affiliates = pd.read_sql_query("SELECT * FROM platform_users WHERE (admin_status = 'PENDING' OR admin_status IS NULL) AND role = 'AFFILIATE'", conn)
+            st.warning(f"Could not load Affiliate database: {e}")
 
     with p_tabs[2]:
         try:
