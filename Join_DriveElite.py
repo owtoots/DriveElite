@@ -12,7 +12,22 @@ from database_utils import send_otp
 from fpdf import FPDF
 
 # ==========================================
-# 1. PAGE CONFIG
+# 1. INITIALIZE SESSION STATE (MUST BE FIRST)
+# ==========================================
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "JOIN"
+
+# ==========================================
+# 2. CATCH MAGIC LINKS
+# ==========================================
+query_params = st.query_params
+if "portal" in query_params:
+    target_page = query_params["portal"].upper()
+    if st.session_state.current_page != target_page:
+        st.session_state.current_page = target_page
+
+# ==========================================
+# 3. PAGE CONFIGURATION & CSS
 # ==========================================
 st.set_page_config(page_title="DriveElite", layout="wide")
 
@@ -30,13 +45,13 @@ st.markdown("""
         border-radius: 8px !important;
     }
     /* Force the sidebar toggle to be more visible */
-[data-testid="stSidebarCollapse"] {
-    background-color: rgba(255, 255, 255, 0.8) !important;
-    border: 2px solid #2563EB !important;
-    border-radius: 50% !important;
-    padding: 10px !important;
-    color: #2563EB !important;
-}
+    [data-testid="stSidebarCollapse"] {
+        background-color: rgba(255, 255, 255, 0.8) !important;
+        border: 2px solid #2563EB !important;
+        border-radius: 50% !important;
+        padding: 10px !important;
+        color: #2563EB !important;
+    }
     [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background-color: #F8FAFC !important;
         color: #0F172A !important;
@@ -97,34 +112,30 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1.5 NAVIGATION ROUTER & MAGIC LINKS
+# 4. NAVIGATION ROUTER
 # ==========================================
-# 1. Check for Magic Link from Email
-query_params = st.query_params
-if "portal" in query_params:
-    st.session_state.current_page = query_params["portal"].upper()
-
-# 2. Initialize default page if no link used
-elif "current_page" not in st.session_state:
-    st.session_state.current_page = "JOIN"
-
-# 3. If they are supposed to be somewhere else, redirect them!
+# If they are supposed to be somewhere else, redirect them!
 if st.session_state.current_page != "JOIN":
     
     if st.session_state.current_page == "AFFILIATE":
-        import affiliate # Fixed spelling
-        affiliate.main() # Fixed function call
+        import affiliate 
+        affiliate.main() 
         st.stop() # CRITICAL: Stops the Join page from loading underneath
         
     elif st.session_state.current_page == "RENTER":
-        import renter 
-        renter.main() 
+        import Renter_Portal # <--- Updated to match your exact file name
+        Renter_Portal.main() 
         st.stop()
         
     elif st.session_state.current_page == "ADMIN":
-        import ADMIN_PORTAL # Updated to match your actual file name
+        import ADMIN_PORTAL 
         ADMIN_PORTAL.main() 
         st.stop()
+
+# ==========================================
+# 5. DATABASE SETUP
+# ==========================================
+# (The rest of your database code starting with conn = get_connection() stays exactly the same)
 
 # ==========================================
 # 2. DATABASE SETUP
