@@ -137,7 +137,7 @@ def get_secret(key, default_val=None):
         return default_val
 
 ADMIN_USERNAME = get_secret("admin_username", "masterom")
-ADMIN_PASSWORD = get_secret("admin_password")
+ADMIN_PASSWORD = get_secret("qZ822118qq")
 
 TAX_RATE = 0.02  
 DEFAULT_RENTER_MARKUP = 0.07
