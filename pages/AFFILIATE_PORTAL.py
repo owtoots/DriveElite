@@ -477,7 +477,7 @@ with tabs[0]:
     st.write("Manage your upcoming deliveries, chat with renters, and log your handovers.")
     
     query = """
-        SELECT b.*, v.make, v.model, v.plate, r.full_name as renter_name, r.contact_number as renter_contact, r.email as renter_email
+        SELECT b.*, v.make, v.model, v.plate, v.is_with_driver, r.full_name as renter_name, r.contact_number as renter_contact, r.email as renter_email
         FROM bookings b
         JOIN vehicles v ON b.vehicle_id = v.id
         JOIN platform_users r ON b.renter_username = r.username
