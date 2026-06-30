@@ -653,16 +653,18 @@ with tabs[0]:
 
                         # 2. BULLETPROOF CHAT INPUT FORM (Prevents Double Sending)
                         with st.form(key=f"chat_form_{b_ref_str}", clear_on_submit=True):
-                            c_img, c_msg, c_btn = st.columns([1, 4, 1])
-                            
-                            with c_img: 
-                                a_img = st.file_uploader("📷", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"a_img_{b_ref_str}", label_visibility="collapsed")
+                            # Put the text box and Send button on one clean row
+                            c_msg, c_btn = st.columns([4, 1])
                             
                             with c_msg: 
-                                chat_text = st.text_input("Reply...", key=f"chat_input_{b_ref_str}", placeholder="Type message and press Enter...")
+                                chat_text = st.text_input("Reply", key=f"chat_input_{b_ref_str}", placeholder="Type message and press Enter...", label_visibility="collapsed")
                                 
                             with c_btn:
                                 submitted = st.form_submit_button("Send", use_container_width=True)
+                                
+                            # Tuck the bulky uploader neatly underneath inside an expander
+                            with st.expander("📎 Attach Photo(s)", expanded=False):
+                                a_img = st.file_uploader("Upload images here", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"a_img_{b_ref_str}", label_visibility="collapsed")
 
                             if submitted:
                                 has_text = bool(chat_text.strip())
