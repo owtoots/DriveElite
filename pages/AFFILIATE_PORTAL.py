@@ -717,11 +717,11 @@ with tabs[0]:
                                     c_rfid = st.checkbox("💳 RFID Handover & Reminded to Load", value=True, key=f"rfid_{b['id']}")
                                 
                                 st.divider()
-                                st.write("### 📸 2. Photo Evidence (10 Photos Required)")
-                                st.caption("Upload: Front, Back, Left, Right, 4 Tires, Odometer, and Fuel Gauge.")
-                                h_photos = st.file_uploader("Dump 10 Photos here", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"photos_{b['id']}")
-                                if h_photos and len(h_photos) < 10:
-                                    st.warning(f"⚠️ Uploaded {len(h_photos)}/10 photos. Please upload all 10 to proceed.")
+                                st.write("### 📸 2. Photo Evidence (Min. 6 Required)")
+                                st.caption("Upload: Front, Back, Left, Right, Odometer/Fuel Gauge, and Interior.")
+                                h_photos = st.file_uploader("Upload Handover Photos", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"photos_{b['id']}")
+                                if h_photos and len(h_photos) < 6:
+                                    st.warning(f"⚠️ Uploaded {len(h_photos)}/6 required photos.")
 
                                 st.divider()
                                 st.write("### 🖋️ 3. Dual Digital Signatures")
@@ -745,8 +745,8 @@ with tabs[0]:
                                     has_sr = s_r.image_data is not None and len(s_r.json_data.get("objects", [])) > 0
                                     has_sa = s_a.image_data is not None and len(s_a.json_data.get("objects", [])) > 0
                                     
-                                    if not h_photos or len(h_photos) < 10:
-                                        st.error("❌ DISPATCH BLOCKED: You must upload at least 10 photos of the vehicle condition.")
+                                    if not h_photos or len(h_photos) < 6:
+                                        st.error("❌ DISPATCH BLOCKED: You must upload at least 6 photos of the vehicle condition.")
                                     elif not c_deposit:
                                         st.error("❌ DISPATCH BLOCKED: You must verify receipt of the 5,000 Php Cash Deposit.")
                                     elif not (has_sr and has_sa):
