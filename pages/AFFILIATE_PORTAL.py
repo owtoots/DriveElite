@@ -17,6 +17,7 @@ from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email import encoders
 from database_utils import get_connection, send_sms_alert, send_alert_email
+from streamlit_autorefresh import st_autorefresh
 
 def main():
     # ==========================================
@@ -536,10 +537,21 @@ with tabs[0]:
                                 st.info("💡 **7-Day Rule:** Platform fee was waived for this short trip.")
                         st.divider()
                         
-                        col1, col2 = st.columns(2)
-                        
-                        st.markdown("#### 💬 Message the Renter")
+                       # --- CHAT HEADER: AUTO-REFRESH + MANUAL BUTTON ---
                         b_ref_str = str(b['booking_ref'])
+                        
+                        # 1. Silently reload the chat every 10 seconds in the background
+                        st_autorefresh(interval=10000, key=f"chat_ping_affiliate_{b_ref_str}")
+                        
+                        # 2. Setup the columns for the title and the manual button
+                        c_title, c_refresh = st.columns([3, 1])
+                        
+                        with c_title:
+                            st.markdown("#### 💬 Message the Renter")
+                            
+                        with c_refresh:
+                            if st.button("🔄 Refresh Chat", key=f"sync_affiliate_{b_ref_str}", use_container_width=True):
+                                st.rerun()
                         
                         chat_win = st.container(height=450, border=True)
                         with chat_win:
