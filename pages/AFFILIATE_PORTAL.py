@@ -563,7 +563,9 @@ with tabs[0]:
                             """, unsafe_allow_html=True)
                         
                         st.write("") # Spacer
-                        col_dest, col_renter = st.columns([2, 1])
+                        
+                        # Changed to 3 columns to include the Service Type!
+                        col_dest, col_renter, col_type = st.columns([2, 1, 1])
                         
                         with col_dest:
                             dest = b.get('destination', 'Not Specified')
@@ -572,6 +574,13 @@ with tabs[0]:
                         with col_renter:
                             st.success(f"👤 **Renter:** {b.get('renter_name', 'Verified')}")
                             
+                        with col_type:
+                            # Check the vehicle's driver requirement flag
+                            if b.get('is_with_driver', 0) == 1:
+                                st.warning("🧑‍✈️ **WITH DRIVER**")
+                            else:
+                                st.info("🚗 **SELF-DRIVE**")
+                                
                         st.divider()
                         # ====================================================
 
