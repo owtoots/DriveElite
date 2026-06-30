@@ -38,6 +38,21 @@ except:
 
 st.markdown("""
 <style>
+
+        /* Force full-width on mobile devices */
+        @media (max-width: 768px) {
+            /* Target the main container to remove margins/max-width */
+            [data-testid="stAppViewContainer"] {
+                padding-left: 10px !important;
+                padding-right: 10px !important;
+            }
+        
+        /* Force PDF/Document containers to 100% width */
+        iframe, [data-testid="stIframe"], .stPDF {
+            width: 100% !important;
+        }
+    }
+</style>
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
         height: 200px !important;
         width: 100% !important;
