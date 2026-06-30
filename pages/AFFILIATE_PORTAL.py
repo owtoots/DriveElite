@@ -717,8 +717,8 @@ with tabs[0]:
                                     c_rfid = st.checkbox("💳 RFID Handover & Reminded to Load", value=True, key=f"rfid_{b['id']}")
                                 
                                 st.divider()
-                                st.write("### 📸 2. Photo Evidence (Min. 6 Required)")
-                                st.caption("Upload: Front, Back, Left, Right, Odometer/Fuel Gauge, and Interior.")
+                                st.write("### 📸 2. Photo Evidence (Select 6 photos)")
+                                st.caption("Instructions: Tap 'Upload', select your 6 photos from your gallery, then tap 'Done' or 'Add'.")
                                 h_photos = st.file_uploader("Upload Handover Photos", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"photos_{b['id']}")
                                 if h_photos and len(h_photos) < 6:
                                     st.warning(f"⚠️ Uploaded {len(h_photos)}/6 required photos.")
