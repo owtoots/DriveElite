@@ -50,13 +50,18 @@ st.markdown("""
             max-width: 100% !important;
         }
     }
-</style>
-""", unsafe_allow_html=True)
+
+    /* Fixed Image Styling */
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
         height: 200px !important;
         width: 100% !important;
         object-fit: cover !important;
         border-radius: 8px !important;
+    }
+)
+
+# Now your Python code continues here, safely outside the markdown block
+# ...
     }
     /* Force the sidebar toggle to be more visible */
     [data-testid="stSidebarCollapse"] {
