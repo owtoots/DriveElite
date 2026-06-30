@@ -15,6 +15,8 @@ from email.mime.text import MIMEText
 from database_utils import get_connection, send_sms_alert, send_alert_email
 import calendar
 from datetime import timedelta
+from streamlit_autorefresh import st_autorefresh
+
 
 def main():
 
@@ -685,6 +687,10 @@ with main_tabs[1]:
                         st.divider()
                         st.markdown("#### 💬 Message the Host")
                         b_ref_str = str(b['booking_ref'])
+                        
+                        # Tell Streamlit to quietly reload this page every 10 seconds (10000 milliseconds)
+                        # ONLY while they are looking at an active chat!
+                        st_autorefresh(interval=10000, key=f"chat_ping_{b_ref_str}")
                         
                         chat_win = st.container(height=300, border=True)
                         with chat_win:
