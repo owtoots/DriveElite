@@ -248,11 +248,11 @@ def send_approval_email(recipient_email, full_name, role):
     
     # Check the role and set the exact direct link
     if role.upper() == "RENTER":
-        direct_link = "https://www.driveelite.ph/renter_portal"
+        direct_link = "https://www.driveelite.ph/RENTER_PORTAL"
     elif role.upper() == "AFFILIATE":
-        # Assuming your affiliate file is named affiliate_portal.py
+        # Assuming your affiliate file is named AFFILIATE_PORTAL.py
         # Change this if the exact URL is different!
-        direct_link = "https://www.driveelite.ph/affiliate_portal" 
+        direct_link = "https://www.driveelite.ph/AFFILIATE_PORTAL" 
     else:
         direct_link = "https://www.driveelite.ph/"
     
