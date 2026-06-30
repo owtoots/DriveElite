@@ -234,7 +234,7 @@ def send_admin_email_with_attachment(to_email, subject, body, attachment_path, a
 
 # --- NEW: MAGIC LINK APPROVAL EMAIL FUNCTION ---
 
-# --- NEW: MAGIC LINK APPROVAL EMAIL FUNCTION (SPAM-SAFE) ---
+# --- SIMPLIFIED DIRECT LINK APPROVAL EMAIL ---
 def send_approval_email(recipient_email, full_name, role):
     if not recipient_email:
         return False, "No email address on file."
@@ -246,16 +246,23 @@ def send_approval_email(recipient_email, full_name, role):
     msg['From'] = f"DriveElite Administration <{sender_email}>"
     msg['To'] = recipient_email
     
-    # THE CORRECT MAGIC LINK FORMAT (Using query parameters)
-    magic_link = f"https://www.driveelite.ph/?portal={role.upper()}"
+    # Check the role and set the exact direct link
+    if role.upper() == "RENTER":
+        direct_link = "https://www.driveelite.ph/renter_portal"
+    elif role.upper() == "AFFILIATE":
+        # Assuming your affiliate file is named affiliate_portal.py
+        # Change this if the exact URL is different!
+        direct_link = "https://www.driveelite.ph/affiliate_portal" 
+    else:
+        direct_link = "https://www.driveelite.ph/"
     
     body = f"""Dear {full_name},
     
 Your registration for a DriveElite {role.title()} account has been successfully reviewed and approved by our administration team.
 
-You may now access your platform features. Please click or copy-paste the exact link below to log in securely to your dashboard:
+You may now access your platform features. Please click or copy-paste the direct link below to log in securely to your dashboard:
 
-{magic_link}
+{direct_link}
 
 If you have any questions regarding your account activation, please contact our support team.
 
