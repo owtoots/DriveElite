@@ -716,12 +716,20 @@ with tabs[0]:
                                     c_tools = st.checkbox("Tools/Spare tire verified", value=True, key=f"tools_{b['id']}")
                                     c_rfid = st.checkbox("💳 RFID Handover & Reminded to Load", value=True, key=f"rfid_{b['id']}")
                                 
-                                st.divider()
-                                st.write("### 📸 2. Photo Evidence (Select 6 photos)")
-                                st.caption("Instructions: Tap 'Upload', select your 6 photos from your gallery, then tap 'Done' or 'Add'.")
-                                h_photos = st.file_uploader("Upload Handover Photos", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"photos_{b['id']}")
-                                if h_photos and len(h_photos) < 6:
-                                    st.warning(f"⚠️ Uploaded {len(h_photos)}/6 required photos.")
+                                st.write("### 📸 2. Photo Evidence")
+                                tab_gallery, tab_camera = st.tabs(["📁 Upload from Gallery", "📷 Take Photos Now"])
+
+                                with tab_gallery:
+                                    st.caption("Select up to 6 photos from your phone's gallery.")
+                                    h_photos = st.file_uploader("Gallery Upload", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"gal_{b['id']}")
+
+                                with tab_camera:
+                                    st.caption("Highly stable for older phones. Take photos one by one.")
+                                    c_pic1 = st.camera_input("Front View", key=f"cam1_{b['id']}")
+                                    c_pic2 = st.camera_input("Left Side", key=f"cam2_{b['id']}")
+                                    c_pic3 = st.camera_input("Right Side", key=f"cam3_{b['id']}")
+                                    c_pic4 = st.camera_input("Back View", key=f"cam4_{b['id']}")
+                                    c_pic5 = st.camera_input("Dashboard/Odometer", key=f"cam5_{b['id']}")
 
                                 st.divider()
                                 st.write("### 🖋️ 3. Dual Digital Signatures")
