@@ -537,6 +537,47 @@ with tabs[0]:
                                 st.info("💡 **7-Day Rule:** Platform fee was waived for this short trip.")
                         st.divider()
                         
+                        # ====================================================
+                        # ---> 🗺️ INSERTED: TRIP DETAILS DASHBOARD <---
+                        # ====================================================
+                        st.markdown("### 🗺️ Trip Coordinates")
+                        
+                        col_pickup, col_return = st.columns(2)
+                        
+                        with col_pickup:
+                            st.markdown(f"""
+                            <div style="background-color: rgba(250, 250, 250, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid #2E7D32;">
+                                <strong style="font-size: 1.1em;">🛫 PICKUP DETAILS</strong><br><br>
+                                📅 <b>Date & Time:</b> {str(b.get('pickup_time'))[:16]}<br>
+                                📍 <b>Location:</b> {b.get('pickup_loc', 'N/A')}
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        with col_return:
+                            st.markdown(f"""
+                            <div style="background-color: rgba(250, 250, 250, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid #C62828;">
+                                <strong style="font-size: 1.1em;">🛬 RETURN DETAILS</strong><br><br>
+                                📅 <b>Date & Time:</b> {str(b.get('return_time'))[:16]}<br>
+                                📍 <b>Location:</b> {b.get('return_loc', 'N/A')}
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        st.write("") # Spacer
+                        col_dest, col_renter = st.columns([2, 1])
+                        
+                        with col_dest:
+                            dest = b.get('destination', 'Not Specified')
+                            st.info(f"🛣️ **Declared Route/Destination:** {dest}")
+                            
+                        with col_renter:
+                            st.success(f"👤 **Renter:** {b.get('renter_name', 'Verified')}")
+                            
+                        st.divider()
+                        # ====================================================
+
+                       # --- CHAT HEADER: AUTO-REFRESH + MANUAL BUTTON ---
+                        b_ref_str = str(b['booking_ref'])
+                        
                        # --- CHAT HEADER: AUTO-REFRESH + MANUAL BUTTON ---
                         b_ref_str = str(b['booking_ref'])
                         
