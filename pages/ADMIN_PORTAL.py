@@ -907,26 +907,29 @@ try:
             with st.expander(f"✅ {r['full_name']} (@{r['username']}) - {r['contact_number']}"):
                 c_img1, c_img2, c_img3 = st.columns(3)
                 
-                # Fetching the images (adjust column names if yours differ)
+                # Fetching the images
                 gov = r.get('govt_id_img') 
                 lic = r.get('license_img')
-                sig = r.get('signature_path') # Or wherever you store the Renter Agreement signature
+                sig = r.get('signature_img') 
                 
-                # Displaying Govt ID
-                if pd.notna(gov) and gov and os.path.exists(gov):
-                    c_img1.image(gov, caption="Passport / Govt ID")
+                # Displaying Govt ID (Handling both Paths and BLOBs safely)
+                if pd.notna(gov) and gov:
+                    if isinstance(gov, str): c_img1.image(gov, caption="Passport / Govt ID")
+                    else: c_img1.image(bytes(gov), caption="Passport / Govt ID")
                 else:
                     c_img1.write("No ID uploaded")
                 
                 # Displaying License
-                if pd.notna(lic) and lic and os.path.exists(lic):
-                    c_img2.image(lic, caption="Driver's License")
+                if pd.notna(lic) and lic:
+                    if isinstance(lic, str): c_img2.image(lic, caption="Driver's License")
+                    else: c_img2.image(bytes(lic), caption="Driver's License")
                 else:
                     c_img2.write("No License uploaded")
                     
                 # Displaying Renter Agreement Signature
-                if pd.notna(sig) and sig and os.path.exists(sig):
-                    c_img3.image(sig, caption="Signed Renter Agreement")
+                if pd.notna(sig) and sig:
+                    if isinstance(sig, str): c_img3.image(sig, caption="Signed Renter Agreement")
+                    else: c_img3.image(bytes(sig), caption="Signed Renter Agreement")
                 else:
                     c_img3.write("No signature on file")
                     
