@@ -891,6 +891,53 @@ with tabs[4]:
                         
     except Exception as e:
         st.warning(f"Could not load Affiliate directory: {e}")
+# --- ACTIVE RENTER DIRECTORY ---
+st.divider()
+st.markdown("### 👤 Approved Renters Directory")
+st.write("View all verified renters and their legal documentation.")
+
+try:
+    # Fetch only approved renters
+    app_renters = pd.read_sql_query("SELECT * FROM platform_users WHERE admin_status = 'APPROVED' AND role = 'RENTER'", conn)
+    
+    if app_renters.empty: 
+        st.info("No approved renters in the system yet.")
+    else:
+        for i, r in app_renters.iterrows():
+            with st.expander(f"✅ {r['full_name']} (@{r['username']}) - {r['contact_number']}"):
+                c_img1, c_img2, c_img3 = st.columns(3)
+                
+                # Fetching the images (adjust column names if yours differ)
+                gov = r.get('govt_id_img') 
+                lic = r.get('license_img')
+                sig = r.get('signature_path') # Or wherever you store the Renter Agreement signature
+                
+                # Displaying Govt ID
+                if pd.notna(gov) and gov and os.path.exists(gov):
+                    c_img1.image(gov, caption="Passport / Govt ID")
+                else:
+                    c_img1.write("No ID uploaded")
+                
+                # Displaying License
+                if pd.notna(lic) and lic and os.path.exists(lic):
+                    c_img2.image(lic, caption="Driver's License")
+                else:
+                    c_img2.write("No License uploaded")
+                    
+                # Displaying Renter Agreement Signature
+                if pd.notna(sig) and sig and os.path.exists(sig):
+                    c_img3.image(sig, caption="Signed Renter Agreement")
+                else:
+                    c_img3.write("No signature on file")
+                    
+                # Revoke/Suspend button
+                if st.button("Revoke Approval / Suspend Renter", key=f"suspend_renter_{r['id']}"):
+                    conn.execute("UPDATE platform_users SET admin_status = 'SUSPENDED' WHERE id = ?", (r['id'],))
+                    conn.commit()
+                    st.rerun()
+                    
+except Exception as e:
+    st.warning(f"Could not load Renter directory: {e}")
 
 # --- TAB 5: PROMOS & DB ---
 with tabs[5]:
