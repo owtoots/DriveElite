@@ -720,33 +720,28 @@ with main_tabs[1]:
                             except Exception as e:
                                 st.error("Could not load chat.")
 
-                        c_img, c_msg = st.columns([1, 4])
-                        with c_img: 
-                            r_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"r_img_{b_ref_str}", label_visibility="collapsed")
-                        with c_msg: 
-                            st.text_input("Reply...", key=f"chat_{b_ref_str}", on_change=clear_renter_chat, args=(b_ref_str,), placeholder="Type message and press Enter...")
+                        # --- BULLETPROOF CHAT INPUT (USING ST.FORM) ---
+                        with st.form(key=f"chat_form_{b_ref_str}", clear_on_submit=True):
+                            c_img, c_msg = st.columns([1, 4])
+                            with c_img:
+                                r_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"r_img_{b_ref_str}", label_visibility="collapsed")
+                            with c_msg:
+                                chat_val = st.text_input("Reply...", placeholder="Type message and press Enter...")
 
-                        btn_clicked = st.button("Send", key=f"r_btn_{b_ref_str}", use_container_width=True)
-                        enter_pressed = st.session_state.get(f"trigger_send_{b_ref_str}", False)
+                            submit_chat = st.form_submit_button("SEND", use_container_width=True)
 
-                        if btn_clicked or enter_pressed:
-                            box_val = st.session_state.get(f"chat_{b_ref_str}", "")
-                            final_text = st.session_state.temp_msg_renter if enter_pressed else box_val
-                            
-                            has_text = bool(final_text.strip())
-                            has_img = bool(r_img)
-                            
-                            if has_text or has_img:
-                                img_path = save_chat_image(r_img, b_ref_str) if has_img else ""
-                                text_to_save = final_text if has_text else "📸 Sent a photo."
-                                
-                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                            (b_ref_str, renter_user, b['owner_username'], text_to_save, img_path))
-                                conn.commit()
-                                st.session_state.temp_msg_renter = ""
-                                st.session_state[f"chat_{b_ref_str}"] = ""
-                                st.session_state[f"trigger_send_{b_ref_str}"] = False
-                                st.rerun()
+                            if submit_chat:
+                                has_text = bool(chat_val.strip())
+                                has_img = bool(r_img)
+
+                                if has_text or has_img:
+                                    img_path = save_chat_image(r_img, b_ref_str) if has_img else ""
+                                    text_to_save = chat_val if has_text else "📸 Sent a photo."
+
+                                    conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)",
+                                                (b_ref_str, renter_user, b['owner_username'], text_to_save, img_path))
+                                    conn.commit()
+                                    st.rerun() 
 
                     # --- THE REVIEW SYSTEM ---
                     if b['status'] == 'COMPLETED':
