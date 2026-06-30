@@ -564,8 +564,15 @@ with main_tabs[0]:
                                     # -------------------------------------------------------------
                                     elif st.session_state[stage_key] == 1:
                                         b_ref = st.session_state[ref_key]
-                                        st.success(f"✅ Dates Reserved! Your Reference Number is: **#{b_ref}**")
-                                        
+                                        st.markdown(f"""
+                                        <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; padding: 20px; border-radius: 12px; border-left: 6px solid #16A34A; margin-bottom: 20px;">
+                                            <h4 style="color: #166534; margin-top: 0; margin-bottom: 8px;">✅ Reservation Confirmed (Ref: #{b_ref})</h4>
+                                            <p style="color: #15803D; font-size: 15px; margin-bottom: 0; line-height: 1.5;">
+                                                Thank you for booking with DriveElite. We have notified the vehicle's Affiliate of your confirmed schedule. Kindly expect a direct message via the built-in DriveElite chat system within the next few hours to finalize your logistics and key handover.
+                                            </p>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                            
                                         with st.container(border=True):
                                             st.markdown("### 🏦 Manual Bank Transfer")
                                             st.write("**Bank:** BPI")
@@ -636,7 +643,7 @@ with main_tabs[0]:
                                                         st.toast("✅ Receipt Sent to Admin!")
                                                         st.session_state[stage_key] = 0
                                                         del st.session_state[ref_key]
-                                                        time.sleep(2)
+                                                        st.session_state.just_booked_ref = b_ref  # <-- This tells the app to show the clean screen!
                                                         st.rerun()
                                                 else:
                                                     st.error(" Please upload a screenshot of your receipt.")
