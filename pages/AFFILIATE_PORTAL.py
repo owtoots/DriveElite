@@ -702,96 +702,98 @@ with tabs[0]:
                         if b['status'] == 'CONFIRMED':
                             st.info(" **ACTION REQUIRED:** Complete the Digital Handover with the Renter present.")
                             with st.expander("📋 Official Handover & Photo Evidence", expanded=True):
-                                st.write("### 1. Vehicle Checklist")
-                                c1, c2 = st.columns(2)
                                 
-                                with c1:
-                                    c_fuel = st.selectbox("Current Fuel Level", ["Full", "3/4", "1/2", "1/4", "Empty"], key=f"fuel_{b['id']}")
-                                    c_deposit = st.checkbox("Php5,000 Cash Deposit Received", value=False, key=f"dep_{b['id']}")
-                                    c_aircon = st.checkbox("❄️ Aircon Confirmed (Cold & Working)", value=True, key=f"aircon_{b['id']}")
-                                
-                                with c2:
-                                    c_ext = st.checkbox("Exterior inspected (No new damage)", value=True, key=f"ext_{b['id']}")
-                                    c_int = st.checkbox("Interior is clean/odor-free", value=True, key=f"int_{b['id']}")
-                                    c_tools = st.checkbox("Tools/Spare tire verified", value=True, key=f"tools_{b['id']}")
-                                    c_rfid = st.checkbox("💳 RFID Handover & Reminded to Load", value=True, key=f"rfid_{b['id']}")
-                                
-                                st.write("### 📸 2. Photo Evidence")
-                                tab_gallery, tab_camera = st.tabs(["📁 Upload from Gallery", "📷 Take Photos Now"])
-
-                                with tab_gallery:
-                                    st.caption("Select up to 6 photos from your phone's gallery.")
-                                    h_photos = st.file_uploader("Gallery Upload", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"gal_{b['id']}")
-
-                                with tab_camera:
-                                    st.caption("Highly stable for older phones. Take photos one by one.")
-                                    c_pic1 = st.camera_input("Front View", key=f"cam1_{b['id']}")
-                                    c_pic2 = st.camera_input("Left Side", key=f"cam2_{b['id']}")
-                                    c_pic3 = st.camera_input("Right Side", key=f"cam3_{b['id']}")
-                                    c_pic4 = st.camera_input("Back View", key=f"cam4_{b['id']}")
-                                    c_pic5 = st.camera_input("Dashboard/Odometer", key=f"cam5_{b['id']}")
-
-                                st.divider()
-                                st.write("### 🖋️ 3. Dual Digital Signatures")
-                                col_sig1, col_sig2 = st.columns(2)
-                                with col_sig1:
-                                    if f"clr_sr_{b['id']}" not in st.session_state: st.session_state[f"clr_sr_{b['id']}"] = 0
-                                    s_r = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=300, display_toolbar=False, key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}")
-                                    if st.button("Clear Renter Pad", key=f"btn_sr_{b['id']}", use_container_width=True): 
-                                        st.session_state[f"clr_sr_{b['id']}"] += 1
-                                        st.rerun()
-                                    st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{b['renter_name']}</b></u><br>Renter</div>", unsafe_allow_html=True)
-                                with col_sig2:
-                                    if f"clr_sa_{b['id']}" not in st.session_state: st.session_state[f"clr_sa_{b['id']}"] = 0
-                                    s_a = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=300, display_toolbar=False, key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}")
-                                    if st.button("Clear Host Pad", key=f"btn_sa_{b['id']}", use_container_width=True): 
-                                        st.session_state[f"clr_sa_{b['id']}"] += 1
-                                        st.rerun()
-                                    st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
-                                
-                                if st.button("🚀 FINAL LOG HANDOVER & DISPATCH", key=f"dispatch_{b['id']}", type="primary", use_container_width=True):
-                                    has_sr = s_r.image_data is not None and len(s_r.json_data.get("objects", [])) > 0
-                                    has_sa = s_a.image_data is not None and len(s_a.json_data.get("objects", [])) > 0
+                                # ==========================================
+                                # MOBILE STABILITY FORM ENCLOSURE
+                                # ==========================================
+                                with st.form(key=f"dispatch_form_{b['id']}"):
+                                    st.write("### 1. Vehicle Checklist")
+                                    c1, c2 = st.columns(2)
                                     
-                                    if not h_photos or len(h_photos) < 6:
-                                        st.error("❌ DISPATCH BLOCKED: You must upload at least 6 photos of the vehicle condition.")
-                                    elif not c_deposit:
-                                        st.error("❌ DISPATCH BLOCKED: You must verify receipt of the 5,000 Php Cash Deposit.")
-                                    elif not (has_sr and has_sa):
-                                        st.error("❌ DISPATCH BLOCKED: Both parties must sign on the digital pads.")
-                                    else:
-                                        r_sig_path = save_canvas_image(s_r.image_data, f"sig_r_{b['booking_ref']}")
-                                        a_sig_path = save_canvas_image(s_a.image_data, f"sig_a_{b['booking_ref']}")
-                                        
-                                        chk_data = {'fuel': c_fuel, 'ext': c_ext, 'int': c_int, 'tools': c_tools, 'deposit': c_deposit}
-                                        travel_dates = f"{str(b.get('pickup_time'))[:10]} to {str(b.get('return_time'))[:10]}"
-                                        
-                                        with st.spinner("Building Handover Record..."):
-                                            pdf_bytes = generate_handover_pdf(b['booking_ref'], f"{b['make']} {b['model']} ({b['plate']})", b['renter_name'], travel_dates, chk_data, r_sig_path, a_sig_path, affiliate_full_name)
-                                            
-                                            pdf_filepath = f"/data/uploads/Handover_{b['booking_ref']}.pdf"
-                                            with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
-                                            
-                                            photo_paths = [save_file(img) for img in h_photos]
-                                            photo_string = ",".join(filter(None, photo_paths))
-                                            
-                                            conn.execute("""
-                                                UPDATE bookings 
-                                                SET status = 'ONGOING', handover_photos = ?, handover_sig_renter = ?, handover_sig_affiliate = ? 
-                                                WHERE id = ?
-                                            """, (photo_string, r_sig_path, a_sig_path, b['id']))
-                                            conn.commit()
-                                            
-                                            if b['renter_email']:
-                                                success, err_msg = send_pdf_email(b['renter_email'], f"DriveElite: Digital Handover Record (#{b['booking_ref']})", "Attached is the official digital handover record with checklists and signatures. Please drive safely!", pdf_bytes, f"Handover_{b['booking_ref']}.pdf")
-                                                if success: 
-                                                    st.toast("📧 Secure PDF Handover record sent to renter!", icon="✅")
-                                                else: 
-                                                    st.error(f"⚠️ Email failed: {err_msg}")
-                                            
-                                            st.success("✅ Handover Secured! PDF Generated and Trip started.")
-                                            time.sleep(3)
+                                    with c1:
+                                        c_fuel = st.selectbox("Current Fuel Level", ["Full", "3/4", "1/2", "1/4", "Empty"], key=f"fuel_{b['id']}")
+                                        c_deposit = st.checkbox("Php5,000 Cash Deposit Received", value=False, key=f"dep_{b['id']}")
+                                        c_aircon = st.checkbox("❄️ Aircon Confirmed (Cold & Working)", value=True, key=f"aircon_{b['id']}")
+                                    
+                                    with c2:
+                                        c_ext = st.checkbox("Exterior inspected (No new damage)", value=True, key=f"ext_{b['id']}")
+                                        c_int = st.checkbox("Interior is clean/odor-free", value=True, key=f"int_{b['id']}")
+                                        c_tools = st.checkbox("Tools/Spare tire verified", value=True, key=f"tools_{b['id']}")
+                                        c_rfid = st.checkbox("💳 RFID Handover & Reminded to Load", value=True, key=f"rfid_{b['id']}")
+                                    
+                                    st.write("### 📸 2. Photo Evidence (Min. 6)")
+                                    st.caption("Tap below to upload from your gallery or use your phone's camera.")
+                                    # Uploader is now safely contained inside the form!
+                                    h_photos = st.file_uploader("Upload Handover Photos", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"gal_{b['id']}")
+
+                                    st.divider()
+                                    st.write("### 🖋️ 3. Dual Digital Signatures")
+                                    col_sig1, col_sig2 = st.columns(2)
+                                    with col_sig1:
+                                        if f"clr_sr_{b['id']}" not in st.session_state: st.session_state[f"clr_sr_{b['id']}"] = 0
+                                        s_r = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=300, display_toolbar=False, key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}")
+                                        # Changed from st.button to st.form_submit_button
+                                        if st.form_submit_button("Clear Renter Pad", use_container_width=True): 
+                                            st.session_state[f"clr_sr_{b['id']}"] += 1
                                             st.rerun()
+                                        st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{b['renter_name']}</b></u><br>Renter</div>", unsafe_allow_html=True)
+                                    
+                                    with col_sig2:
+                                        if f"clr_sa_{b['id']}" not in st.session_state: st.session_state[f"clr_sa_{b['id']}"] = 0
+                                        s_a = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=300, display_toolbar=False, key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}")
+                                        # Changed from st.button to st.form_submit_button
+                                        if st.form_submit_button("Clear Host Pad", use_container_width=True): 
+                                            st.session_state[f"clr_sa_{b['id']}"] += 1
+                                            st.rerun()
+                                        st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
+                                    
+                                    st.write("")
+                                    # The main dispatch button is now the form's submit trigger
+                                    submit_dispatch = st.form_submit_button("🚀 FINAL LOG HANDOVER & DISPATCH", type="primary", use_container_width=True)
+
+                                    if submit_dispatch:
+                                        has_sr = s_r.image_data is not None and len(s_r.json_data.get("objects", [])) > 0
+                                        has_sa = s_a.image_data is not None and len(s_a.json_data.get("objects", [])) > 0
+                                        
+                                        if not h_photos or len(h_photos) < 6:
+                                            st.error("❌ DISPATCH BLOCKED: You must upload at least 6 photos of the vehicle condition.")
+                                        elif not c_deposit:
+                                            st.error("❌ DISPATCH BLOCKED: You must verify receipt of the 5,000 Php Cash Deposit.")
+                                        elif not (has_sr and has_sa):
+                                            st.error("❌ DISPATCH BLOCKED: Both parties must sign on the digital pads.")
+                                        else:
+                                            r_sig_path = save_canvas_image(s_r.image_data, f"sig_r_{b['booking_ref']}")
+                                            a_sig_path = save_canvas_image(s_a.image_data, f"sig_a_{b['booking_ref']}")
+                                            
+                                            chk_data = {'fuel': c_fuel, 'ext': c_ext, 'int': c_int, 'tools': c_tools, 'deposit': c_deposit}
+                                            travel_dates = f"{str(b.get('pickup_time'))[:10]} to {str(b.get('return_time'))[:10]}"
+                                            
+                                            with st.spinner("Building Handover Record..."):
+                                                pdf_bytes = generate_handover_pdf(b['booking_ref'], f"{b['make']} {b['model']} ({b['plate']})", b['renter_name'], travel_dates, chk_data, r_sig_path, a_sig_path, affiliate_full_name)
+                                                
+                                                pdf_filepath = f"/data/uploads/Handover_{b['booking_ref']}.pdf"
+                                                with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
+                                                
+                                                photo_paths = [save_file(img) for img in h_photos]
+                                                photo_string = ",".join(filter(None, photo_paths))
+                                                
+                                                conn.execute("""
+                                                    UPDATE bookings 
+                                                    SET status = 'ONGOING', handover_photos = ?, handover_sig_renter = ?, handover_sig_affiliate = ? 
+                                                    WHERE id = ?
+                                                """, (photo_string, r_sig_path, a_sig_path, b['id']))
+                                                conn.commit()
+                                                
+                                                if b['renter_email']:
+                                                    success, err_msg = send_pdf_email(b['renter_email'], f"DriveElite: Digital Handover Record (#{b['booking_ref']})", "Attached is the official digital handover record with checklists and signatures. Please drive safely!", pdf_bytes, f"Handover_{b['booking_ref']}.pdf")
+                                                    if success: 
+                                                        st.toast("📧 Secure PDF Handover record sent to renter!", icon="✅")
+                                                    else: 
+                                                        st.error(f"⚠️ Email failed: {err_msg}")
+                                                
+                                                st.success("✅ Handover Secured! PDF Generated and Trip started.")
+                                                time.sleep(3)
+                                                st.rerun()
 
                         elif b['status'] == 'ONGOING':
                             st.warning("⏱️ This trip is currently active. Coordinate the return below.")
