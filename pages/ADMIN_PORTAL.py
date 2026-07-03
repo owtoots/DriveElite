@@ -549,7 +549,7 @@ with tabs[1]:
                                 time.sleep(1); st.rerun()
                                 
         except Exception as e:
-            st.warning(f"Could not load Vehicles database: {e}"))
+            st.warning(f"Could not load Vehicles database: {e}")
 
     # 2. New Fleet Management & Deletion Logic
     with asset_tabs[1]:
