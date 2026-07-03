@@ -992,8 +992,8 @@ with tabs[2]:
         # ROW 1: Category, Make, Model, Year
         c1, c2, c3, c4 = st.columns(4)
         cat = c1.selectbox("CAR TYPE", list(FIXED_RATES.keys()))
-        ma = c2.text_input("MAKE (e.g., Nissan, BYD)")
-        mo = c3.text_input("MODEL (e.g., Terra, Atto 3)")
+        ma = c2.text_input("MAKE (e.g., Toyota, Nissan, )")
+        mo = c3.text_input("MODEL (e.g., Fortuner V, Terra VE)")
         ye = c4.text_input("YEAR (e.g., 2022)")
         
         st.write("#### ⚙️ Operational Specs")
@@ -1001,7 +1001,7 @@ with tabs[2]:
         c5, c6, c7, c8 = st.columns(4)
         base_price = c5.number_input("2026 BASELINE (Php/Day)", min_value=0.0, step=100.0, help="For Admin pricing reference.")
         pl = c6.text_input("PLATE NUMBER")
-        pf = c7.selectbox("PREF. FUEL", ["Premium Unleaded", "Regular Unleaded", "Diesel", "EV"])
+        pf = c7.selectbox("PREF. FUEL", ["Premium Unleaded", "Diesel", "Diesel Turbo"])
         tp = c8.text_input("TIRE PRESSURE", placeholder="e.g., 32 PSI")
         
         st.write("#### 📄 Document Uploads")
