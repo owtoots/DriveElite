@@ -484,7 +484,8 @@ with tabs[1]:
     
     asset_tabs = st.tabs(["⏳ Pending Approvals", "🚗 Live Fleet (Remove Assets)"])
     
-    # 1. Existing Approval Logic
+    # 1. Pending Approval Logic with Auto-Calculator
+   
     # 1. Pending Approval Logic with Auto-Calculator
     with asset_tabs[0]:
         try:
@@ -506,7 +507,7 @@ with tabs[1]:
                         st.write("### 🧮 Pricing Calculator & Approval")
                         
                         # Extract the data
-                        base_category_rate = float(r.get('approved_price', 0.0)) # Brought in from Category Manager during registration
+                        base_category_rate = float(r.get('approved_price', 0.0)) # Brought in from Category Manager
                         age = int(r.get('vehicle_age', 0))
                         baseline_price = float(r.get('baseline_price', 0.0))
                         
