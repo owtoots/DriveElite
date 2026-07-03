@@ -517,32 +517,32 @@ st.markdown("""
 
     # (Your existing fleet display code goes here...)
  
-    try:
-        preview_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'APPROVED' AND booking_status = 'AVAILABLE'", conn)
+try:
+    preview_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'APPROVED' AND booking_status = 'AVAILABLE'", conn)
         
-        if preview_cars.empty:
-            st.info("Our fleet is currently fully booked or undergoing maintenance. Check back soon!")
-        else:
-            preview_cars = preview_cars.head(4).reset_index(drop=True)
-            grid_cols = st.columns(4)
-            for i, car in preview_cars.iterrows():
-                with grid_cols[i % 4]:
-                    with st.container(border=True):
-                        img_p = car.get('vehicle_img')
-                        if img_p and os.path.exists(img_p): 
-                            st.image(img_p, use_container_width=True)
-                        else: 
-                            st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
+    if preview_cars.empty:
+        st.info("Our fleet is currently fully booked or undergoing maintenance. Check back soon!")
+    else:
+        preview_cars = preview_cars.head(4).reset_index(drop=True)
+        grid_cols = st.columns(4)
+        for i, car in preview_cars.iterrows():
+            with grid_cols[i % 4]:
+                with st.container(border=True):
+                    img_p = car.get('vehicle_img')
+                    if img_p and os.path.exists(img_p): 
+                        st.image(img_p, use_container_width=True)
+                    else: 
+                        st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
                         
-                        st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}")
-                        st.write("")
-                        if st.button("🔍 VIEW DETAILS", key=f"preview_btn_{car['id']}", use_container_width=True):
-                            st.warning("🔒 Please sign up to book or view full vehicle rates.")
+                    st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}")
+                    st.write("")
+                    if st.button("🔍 VIEW DETAILS", key=f"preview_btn_{car['id']}", use_container_width=True):
+                        st.warning("🔒 Please sign up to book or view full vehicle rates.")
                             
-            if len(pd.read_sql_query("SELECT id FROM vehicles WHERE admin_status = 'APPROVED'", conn)) > 4:
-                st.markdown("<p style='text-align: center; color: #64748B;'><em>Sign up to explore the full DriveElite fleet...</em></p>", unsafe_allow_html=True)
-    except Exception:
-        pass 
+        if len(pd.read_sql_query("SELECT id FROM vehicles WHERE admin_status = 'APPROVED'", conn)) > 4:
+            st.markdown("<p style='text-align: center; color: #64748B;'><em>Sign up to explore the full DriveElite fleet...</em></p>", unsafe_allow_html=True)
+except Exception:
+    pass 
         
     st.divider()
     reg_type = st.radio("I want to register as a:", ["Select...", "Affiliate", "Renter"], horizontal=True)
