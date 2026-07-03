@@ -988,6 +988,7 @@ with tabs[2]:
     
     with st.form("add_v"):
         st.write("#### 🚗 Vehicle Information")
+        
         # ROW 1: Category, Make, Model, Year
         c1, c2, c3, c4 = st.columns(4)
         cat = c1.selectbox("CAR TYPE", list(FIXED_RATES.keys()))
@@ -995,22 +996,16 @@ with tabs[2]:
         mo = c3.text_input("MODEL (e.g., Terra, Atto 3)")
         ye = c4.text_input("YEAR (e.g., 2022)")
         
-        # ROW 2: Age, Baseline Price, Plate, Preferred Fuel
+        st.write("#### ⚙️ Operational Specs")
+        # ROW 2: Baseline Price, Plate, Fuel, Tire Pressure (Cleanly organized, no redundant fields)
         c5, c6, c7, c8 = st.columns(4)
-        age = c5.number_input("VEHICLE AGE (Years)", min_value=0, max_value=50, step=1)
-        base_price = c6.number_input("2026 BASELINE PRICE (Php/Day)", min_value=0.0, step=100.0, help="Suggested daily rate for a brand new 2026 model to help Admin assess pricing.")
-        pl = c7.text_input("PLATE NUMBER")
-        pf = c8.selectbox("PREF. FUEL", ["Premium Unleaded", "Regular Unleaded", "Diesel", "EV"])
-        
-        st.write("#### 🏦 Operational & Banking Info")
-        # ROW 3: Tire Pressure, Payout Bank, Account Number
-        c9, c10, c11 = st.columns([1, 1, 2])
-        tp = c9.text_input("TIRE PRESSURE", placeholder="e.g., 32 PSI")
-        bn = c10.text_input("PAYOUT BANK")
-        an = c11.text_input("ACCOUNT NUMBER")
+        base_price = c5.number_input("2026 BASELINE (Php/Day)", min_value=0.0, step=100.0, help="For Admin pricing reference.")
+        pl = c6.text_input("PLATE NUMBER")
+        pf = c7.selectbox("PREF. FUEL", ["Premium Unleaded", "Regular Unleaded", "Diesel", "EV"])
+        tp = c8.text_input("TIRE PRESSURE", placeholder="e.g., 32 PSI")
         
         st.write("#### 📄 Document Uploads")
-        # ROW 4: Uploads
+        # ROW 3: Uploads
         vi = st.file_uploader("Vehicle Photo", type=['jpg','png'])
         or_cr_files = st.file_uploader("Upload OR & CR (Drop 2 files)", type=['jpg','png','pdf'], accept_multiple_files=True)
         ins = st.file_uploader("Insurance Policy", type=['pdf','jpg','png'])
@@ -1021,7 +1016,16 @@ with tabs[2]:
         is_with_driver = 1 if service_type == "With Driver Included" else 0
         
         if st.form_submit_button("SUBMIT FOR APPROVAL", type="primary"):
-            if ma and mo and pl and bn and an and vi and len(or_cr_files) >= 1 and ins:
+            # Validation logic updated to ignore the removed bank fields
+            if ma and mo and ye and pl and vi and len(or_cr_files) >= 1 and ins:
+                
+                # --- AUTO-CALCULATE VEHICLE AGE ---
+                try:
+                    current_year = datetime.date.today().year
+                    calculated_age = max(0, current_year - int(ye.strip()))
+                except ValueError:
+                    calculated_age = 0
+                
                 new_ref_no = str(random.randint(100000, 999999))
                 
                 car_img_path = save_file(vi)
@@ -1029,6 +1033,7 @@ with tabs[2]:
                 cr_path = save_file(or_cr_files[1]) if len(or_cr_files) > 1 else or_path
                 ins_path = save_file(ins)
                 
+                # Bank Name & Account No are safely passed as "Profile" to maintain database stability
                 conn.execute("""
                     INSERT INTO vehicles (
                         owner_username, make, model, year, vehicle_age, plate, bank_name, account_no, 
@@ -1036,7 +1041,7 @@ with tabs[2]:
                         approved_price, baseline_price, ref_no, admin_status, booking_status, is_with_driver,
                         tire_pressure, preferred_fuel
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE', ?, ?, ?)
-                """, (st.session_state.username, ma.title(), mo.title(), ye, age, pl.upper(), bn, an, 
+                """, (st.session_state.username, ma.title(), mo.title(), ye, calculated_age, pl.upper(), "Profile", "Profile", 
                       car_img_path, or_path, cr_path, ins_path, cat, 
                       FIXED_RATES.get(cat,0), base_price, new_ref_no, is_with_driver, tp, pf))
                 
