@@ -511,11 +511,11 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- LIVE FLEET PREVIEW SECTION ---
-st.markdown("<h2>🚙 Live Fleet Preview</h2>", unsafe_allow_html=True)
-st.write("Browse our exclusive fleet. Create a free Renter account to view rates and lock in your dates!")
+    #  --- LIVE FLEET PREVIEW SECTION ---
+    st.markdown("<h2>🚙 Live Fleet Preview</h2>", unsafe_allow_html=True)
+    st.write("Browse our exclusive fleet. Create a free Renter account to view rates and lock in your dates!")
 
-# (Your existing fleet display code goes here...)
+    # (Your existing fleet display code goes here...)
  
     try:
         preview_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'APPROVED' AND booking_status = 'AVAILABLE'", conn)
