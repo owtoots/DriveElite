@@ -1086,6 +1086,8 @@ with tabs[5]:
                     
     with col_cat:
         st.subheader("📈 Category Manager")
+        
+        # 1. ADD NEW CATEGORY
         with st.form("add_cat", clear_on_submit=True):
             n = st.text_input("New Category (e.g., Pickup, Luxury)")
             p = st.number_input("Daily Rate (₱)", min_value=500.0, step=100.0, value=2500.0)
@@ -1094,11 +1096,24 @@ with tabs[5]:
                     try: 
                         conn.execute("INSERT INTO vehicle_categories (name, default_price) VALUES (?, ?)", (n.title(), p))
                         conn.commit()
-                        st.success(f"Added {n.title()} category!")
+                        st.success(f"Added {n.title()}!")
+                        st.rerun()
                     except sqlite3.IntegrityError:
-                        st.warning(f"The category '{n.title()}' already exists. Please use a different name or edit the existing one.")
+                        st.error("This category name already exists.")
                     except Exception as e: 
                         st.error(f"Error adding category: {e}")
+
+        # 2. DELETE EXISTING CATEGORIES
+        st.write("### Existing Categories")
+        cats = pd.read_sql_query("SELECT id, name FROM vehicle_categories", conn)
+        for i, row in cats.iterrows():
+            c1, c2 = st.columns([3, 1])
+            c1.write(f"**{row['name']}**")
+            # Delete button for each category
+            if c2.button("🗑️", key=f"del_cat_{row['id']}"):
+                conn.execute("DELETE FROM vehicle_categories WHERE id = ?", (row['id'],))
+                conn.commit()
+                st.rerun()
 
     # =========================================================
     #  PASTE THE PENALTY MANAGER RIGHT HERE! 
