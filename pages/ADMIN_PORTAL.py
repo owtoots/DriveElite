@@ -478,28 +478,70 @@ with tabs[0]:
         except Exception as e:
             st.warning(f"Could not load Driver database: {e}")
 
-# --- TAB 1: ASSETS ---
+# --- TAB 1: ASSETS & FLEET MANAGEMENT ---
 with tabs[1]:
-    try:
-        pv = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'PENDING'", conn)
-        if pv.empty: 
-            st.info("No vehicles currently pending approval.")
-        else:
-            for i, r in pv.iterrows():
-                with st.expander(f" {r['make']} {r['model']} ({r['plate']})"):
-                    st.write("### Vehicle Documents")
-                    c_doc1, c_doc2, c_doc3 = st.columns(3)
-                    with c_doc1: display_document(r.get('or_img'), "Official Receipt (OR)")
-                    with c_doc2: display_document(r.get('cr_img'), "Certificate of Reg (CR)")
-                    with c_doc3: display_document(r.get('insurance_img'), "Insurance Policy")
-                    st.divider()
-                    if st.button("✅ APPROVE & ACTIVATE", key=f"v_app_{r['id']}", type="primary", use_container_width=True):
-                        conn.execute("UPDATE vehicles SET admin_status = 'APPROVED', booking_status = 'AVAILABLE' WHERE id = ?", (r['id'],))
-                        conn.commit()
-                        st.success(f"Success! {r['plate']} is now visible in the Showroom.")
-                        time.sleep(1); st.rerun()
-    except Exception as e:
-        st.warning(f"Could not load Vehicles database: {e}")
+    st.markdown("<h3 style='text-align: center;'>🚙 ASSET MANAGEMENT</h3>", unsafe_allow_html=True)
+    
+    asset_tabs = st.tabs(["⏳ Pending Approvals", "🚗 Live Fleet (Remove Assets)"])
+    
+    # 1. Existing Approval Logic
+    with asset_tabs[0]:
+        try:
+            pv = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'PENDING'", conn)
+            if pv.empty: 
+                st.info("No vehicles currently pending approval.")
+            else:
+                for i, r in pv.iterrows():
+                    with st.expander(f" {r['make']} {r['model']} ({r['plate']})"):
+                        st.write("### Vehicle Documents")
+                        c_doc1, c_doc2, c_doc3 = st.columns(3)
+                        with c_doc1: display_document(r.get('or_img'), "Official Receipt (OR)")
+                        with c_doc2: display_document(r.get('cr_img'), "Certificate of Reg (CR)")
+                        with c_doc3: display_document(r.get('insurance_img'), "Insurance Policy")
+                        st.divider()
+                        if st.button("✅ APPROVE & ACTIVATE", key=f"v_app_{r['id']}", type="primary", use_container_width=True):
+                            conn.execute("UPDATE vehicles SET admin_status = 'APPROVED', booking_status = 'AVAILABLE' WHERE id = ?", (r['id'],))
+                            conn.commit()
+                            st.success(f"Success! {r['plate']} is now visible in the Showroom.")
+                            time.sleep(1); st.rerun()
+        except Exception as e:
+            st.warning(f"Could not load Vehicles database: {e}")
+
+    # 2. New Fleet Management & Deletion Logic
+    with asset_tabs[1]:
+        st.write("Manage all active vehicles currently listed on DriveElite.")
+        try:
+            # Fetch all vehicles that are approved and haven't been removed
+            active_fleet = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'APPROVED'", conn)
+            
+            if active_fleet.empty:
+                st.info("No active vehicles in the fleet.")
+            else:
+                for i, car in active_fleet.iterrows():
+                    with st.expander(f"🚙 {car['make']} {car['model']} ({car['plate']}) - Owner: @{car['owner_username']}"):
+                        
+                        c1, c2, c3 = st.columns(3)
+                        c1.write(f"**Availability:** {car['booking_status']}")
+                        c2.write(f"**Price:** Php {car['approved_price']}/day")
+                        c3.write(f"**Baseline 2026:** Php {car.get('baseline_price', 0.0)}")
+                        
+                        st.divider()
+                        
+                        # Soft Delete Button
+                        st.write("**Danger Zone**")
+                        if st.button(f"🚨 Archive / Remove Vehicle", key=f"remove_car_{car['id']}"):
+                            conn.execute("""
+                                UPDATE vehicles 
+                                SET admin_status = 'REMOVED', booking_status = 'UNAVAILABLE' 
+                                WHERE id = ?
+                            """, (car['id'],))
+                            conn.commit()
+                            
+                            st.success(f"{car['plate']} has been removed from the platform.")
+                            time.sleep(1)
+                            st.rerun()
+        except Exception as e:
+            st.warning(f"Could not load Active Fleet: {e}")
 
 # --- TAB 2: LOGISTICS ---
 with tabs[2]:
