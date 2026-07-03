@@ -1091,8 +1091,14 @@ with tabs[5]:
             p = st.number_input("Daily Rate (₱)", min_value=500.0, step=100.0, value=2500.0)
             if st.form_submit_button("ADD NEW CATEGORY"):
                 if n:
-                    try: conn.execute("INSERT INTO vehicle_categories (name, default_price) VALUES (?, ?)", (n.title(), p)); conn.commit()
-                    except Exception as e: st.error(f"Error adding category: {e}")
+                    try: 
+                        conn.execute("INSERT INTO vehicle_categories (name, default_price) VALUES (?, ?)", (n.title(), p))
+                        conn.commit()
+                        st.success(f"Added {n.title()} category!")
+                    except sqlite3.IntegrityError:
+                        st.warning(f"The category '{n.title()}' already exists. Please use a different name or edit the existing one.")
+                    except Exception as e: 
+                        st.error(f"Error adding category: {e}")
 
     # =========================================================
     #  PASTE THE PENALTY MANAGER RIGHT HERE! 
