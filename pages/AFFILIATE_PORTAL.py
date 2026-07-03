@@ -114,6 +114,10 @@ def patch_database():
     except: pass
     try: conn.execute("ALTER TABLE vehicles ADD COLUMN cr_img TEXT"); conn.commit()
     except: pass
+     try: conn.execute("ALTER TABLE vehicles ADD COLUMN baseline_price REAL DEFAULT 0.0"); conn.commit()
+    except: pass
+    try: conn.execute("ALTER TABLE vehicles ADD COLUMN vehicle_age INTEGER DEFAULT 0"); conn.commit()
+    except: pass   
     try: conn.execute("ALTER TABLE vehicles ADD COLUMN is_with_driver INTEGER DEFAULT 0"); conn.commit()
     except: pass  
     try: conn.execute("ALTER TABLE vehicles ADD COLUMN tire_pressure TEXT DEFAULT 'Standard specs'"); conn.commit()
@@ -983,24 +987,29 @@ with tabs[2]:
     st.markdown("<h3 style='text-align: center;'>REGISTER A VEHICLE</h3>", unsafe_allow_html=True)
     
     with st.form("add_v"):
-        # ROW 1: Category, Make, Model
-        c1, c2, c3 = st.columns(3)
-        cat = c1.selectbox("CATEGORY", list(FIXED_RATES.keys()))
-        ma = c2.text_input("MAKE")
-        mo = c3.text_input("MODEL")
+        st.write("#### 🚗 Vehicle Information")
+        # ROW 1: Category, Make, Model, Year
+        c1, c2, c3, c4 = st.columns(4)
+        cat = c1.selectbox("CAR TYPE", list(FIXED_RATES.keys()))
+        ma = c2.text_input("MAKE (e.g., Nissan, BYD)")
+        mo = c3.text_input("MODEL (e.g., Terra, Atto 3)")
+        ye = c4.text_input("YEAR (e.g., 2022)")
         
-        # ROW 2: Year, Plate, Tire Pressure, Preferred Fuel
-        c4, c5, c6, c7 = st.columns(4)
-        ye = c4.text_input("YEAR")
-        pl = c5.text_input("PLATE")
-        tp = c6.text_input("TIRE PRESSURE", placeholder="e.g., 32 PSI")
-        pf = c7.selectbox("PREF. FUEL", ["Premium Unleaded", "Regular Unleaded", "Diesel", "EV"])
+        # ROW 2: Age, Baseline Price, Plate, Preferred Fuel
+        c5, c6, c7, c8 = st.columns(4)
+        age = c5.number_input("VEHICLE AGE (Years)", min_value=0, max_value=50, step=1)
+        base_price = c6.number_input("2026 BASELINE PRICE (Php/Day)", min_value=0.0, step=100.0, help="Suggested daily rate for a brand new 2026 model to help Admin assess pricing.")
+        pl = c7.text_input("PLATE NUMBER")
+        pf = c8.selectbox("PREF. FUEL", ["Premium Unleaded", "Regular Unleaded", "Diesel", "EV"])
         
-        # ROW 3: Banking Info
-        c8, c9 = st.columns(2)
-        bn = c8.text_input("PAYOUT BANK")
-        an = c9.text_input("ACCOUNT NUMBER")
+        st.write("#### 🏦 Operational & Banking Info")
+        # ROW 3: Tire Pressure, Payout Bank, Account Number
+        c9, c10, c11 = st.columns([1, 1, 2])
+        tp = c9.text_input("TIRE PRESSURE", placeholder="e.g., 32 PSI")
+        bn = c10.text_input("PAYOUT BANK")
+        an = c11.text_input("ACCOUNT NUMBER")
         
+        st.write("#### 📄 Document Uploads")
         # ROW 4: Uploads
         vi = st.file_uploader("Vehicle Photo", type=['jpg','png'])
         or_cr_files = st.file_uploader("Upload OR & CR (Drop 2 files)", type=['jpg','png','pdf'], accept_multiple_files=True)
@@ -1022,14 +1031,14 @@ with tabs[2]:
                 
                 conn.execute("""
                     INSERT INTO vehicles (
-                        owner_username, make, model, year, plate, bank_name, account_no, 
+                        owner_username, make, model, year, vehicle_age, plate, bank_name, account_no, 
                         vehicle_img, or_img, cr_img, insurance_img, category, 
-                        approved_price, ref_no, admin_status, booking_status, is_with_driver,
+                        approved_price, baseline_price, ref_no, admin_status, booking_status, is_with_driver,
                         tire_pressure, preferred_fuel
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE', ?, ?, ?)
-                """, (st.session_state.username, ma.title(), mo.title(), ye, pl.upper(), bn, an, 
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE', ?, ?, ?)
+                """, (st.session_state.username, ma.title(), mo.title(), ye, age, pl.upper(), bn, an, 
                       car_img_path, or_path, cr_path, ins_path, cat, 
-                      FIXED_RATES.get(cat,0), new_ref_no, is_with_driver, tp, pf))
+                      FIXED_RATES.get(cat,0), base_price, new_ref_no, is_with_driver, tp, pf))
                 
                 conn.commit()
                 st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
