@@ -999,7 +999,7 @@ with tabs[2]:
         # Row 2: Aligned 4-column layout
         c5, c6, c7, c8 = st.columns(4)
         pl = c5.text_input("PLATE NUMBER")
-        pf = c6.selectbox("PREF. FUEL", ["Premium Unleaded", "Regular Unleaded", "Diesel", "EV"])
+        pf = c6.selectbox("PREF. FUEL", ["Premium Unleaded", "Turbo Diesel", "Diesel"])
         tp = c7.text_input("TIRE PRESSURE", placeholder="e.g., 32 PSI")
         
         # Row 3: Service Type Toggle aligned with the operational specs
