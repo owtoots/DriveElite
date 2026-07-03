@@ -484,8 +484,15 @@ if st.session_state.get('otp_pending'):
 # 5. 🚗 MAIN REGISTRATION SCREEN
 # ==========================================
 else:
+
+    st.markdown("WHY jOIN?")
+    st.markdown("One Platform. Two Oppurtunities")
+    st.markdown("Become an Affilite Today and Earn, Rent with Confidence")
+    st.write("Park your Car here Instead and Earn, Join DriveElite today")
+    
     st.title("🚗 Join DriveElite")
     st.write("Philippines' Premier Peer-to-Peer Car Sharing Platform")
+    
     
     st.markdown("### 🚘 Live Fleet Preview")
     st.caption("Browse our exclusive fleet. Create a free Renter account to view rates and lock in your dates!")
