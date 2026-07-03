@@ -114,7 +114,7 @@ def patch_database():
     except: pass
     try: conn.execute("ALTER TABLE vehicles ADD COLUMN cr_img TEXT"); conn.commit()
     except: pass
-     try: conn.execute("ALTER TABLE vehicles ADD COLUMN baseline_price REAL DEFAULT 0.0"); conn.commit()
+    try: conn.execute("ALTER TABLE vehicles ADD COLUMN baseline_price REAL DEFAULT 0.0"); conn.commit()
     except: pass
     try: conn.execute("ALTER TABLE vehicles ADD COLUMN vehicle_age INTEGER DEFAULT 0"); conn.commit()
     except: pass   
