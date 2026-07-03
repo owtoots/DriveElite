@@ -517,8 +517,6 @@ st.write("Browse our exclusive fleet. Create a free Renter account to view rates
 
 # (Your existing fleet display code goes here...)
     
-    st.markdown("### 🚘 Live Fleet Preview")
-    st.caption("Browse our exclusive fleet. Create a free Renter account to view rates and lock in your dates!")
 
     try:
         preview_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'APPROVED' AND booking_status = 'AVAILABLE'", conn)
