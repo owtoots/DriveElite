@@ -991,8 +991,8 @@ with tabs[2]:
         # Row 1: Aligned 4-column layout
         c1, c2, c3, c4 = st.columns(4)
         cat = c1.selectbox("CAR TYPE", list(FIXED_RATES.keys()))
-        ma = c2.text_input("MAKE (e.g., Toyota, Nissan)")
-        mo = c3.text_input("MODEL (e.g., Fortuner, Terra)")
+        ma = c2.text_input("MAKE (e.g., Nissan)")
+        mo = c3.text_input("MODEL (e.g.,Terra VE)")
         ye = c4.text_input("YEAR (e.g., 2022)")
         
         st.write("#### ⚙️ Operational Specs")
