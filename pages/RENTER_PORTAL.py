@@ -356,7 +356,46 @@ with main_tabs[0]:
                                 
                                 # --- MIDDLE: Details ---
                                 base_rate = float(car.get('daily_rate') or car.get('approved_price') or 0.0)
-                                st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}\n\n<h5 style='color: #2563EB;'>₱{base_rate:,.2f} / day</h5>", unsafe_allow_html=True)
+                                st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}", unsafe_allow_html=True)
+                                
+                                # --- NEW: CLICKABLE REPUTATION CARD ---
+                                rating_data = conn.execute("""
+                                    SELECT AVG(rating), COUNT(rating) 
+                                    FROM bookings 
+                                    WHERE vehicle_id = ? AND rating IS NOT NULL AND status = 'COMPLETED'
+                                """, (car['id'],)).fetchone()
+                                
+                                avg_rating = rating_data[0] if rating_data[0] is not None else 0
+                                review_count = rating_data[1] if rating_data[1] is not None else 0
+                                
+                                if avg_rating > 0:
+                                    stars = '⭐' * int(round(avg_rating))
+                                    with st.popover(f"{stars} ({avg_rating:.1f}) - {review_count} Reviews", use_container_width=True):
+                                        st.write(f"### 📋 Feedback for this {car['make']} {car['model']}")
+                                        
+                                        # Fetch specific reviews for this car
+                                        reviews = pd.read_sql_query("""
+                                            SELECT b.review, b.rating, r.full_name as renter_name 
+                                            FROM bookings b 
+                                            JOIN platform_users r ON b.renter_username = r.username 
+                                            WHERE b.vehicle_id = ? AND b.review IS NOT NULL AND b.review != ''
+                                            ORDER BY b.id DESC LIMIT 10
+                                        """, conn, params=(car['id'],))
+                                        
+                                        if not reviews.empty:
+                                            for _, rev in reviews.iterrows():
+                                                color = "green" if rev['rating'] >= 4 else "orange"
+                                                st.markdown(f"**{rev['renter_name']}** rated it :{color}[{'⭐'*int(rev['rating'])}]")
+                                                st.caption(f"_{rev['review']}_")
+                                                st.divider()
+                                        else:
+                                            st.write("No written reviews yet.")
+                                else:
+                                    st.markdown("*No ratings yet*")
+                                
+                                st.markdown(f"<h5 style='color: #2563EB;'>₱{base_rate:,.2f} / day</h5>", unsafe_allow_html=True)
+                                
+                                # --- BOTTOM: POPOVER CHECKOUT MANAGER ---
                                 
                                 # --- BOTTOM: POPOVER CHECKOUT MANAGER ---
                                 with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
