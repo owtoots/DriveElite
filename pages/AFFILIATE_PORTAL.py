@@ -988,37 +988,37 @@ with tabs[2]:
     
     with st.form("add_v"):
         st.write("#### 🚗 Vehicle Information")
-        
-        # ROW 1: Category, Make, Model, Year
+        # Row 1: Aligned 4-column layout
         c1, c2, c3, c4 = st.columns(4)
         cat = c1.selectbox("CAR TYPE", list(FIXED_RATES.keys()))
-        ma = c2.text_input("MAKE (e.g., Toyota, Nissan, )")
-        mo = c3.text_input("MODEL (e.g., Fortuner V, Terra VE)")
+        ma = c2.text_input("MAKE (e.g., Toyota, Nissan)")
+        mo = c3.text_input("MODEL (e.g., Fortuner, Terra)")
         ye = c4.text_input("YEAR (e.g., 2022)")
         
         st.write("#### ⚙️ Operational Specs")
-        # ROW 2: Baseline Price, Plate, Fuel, Tire Pressure (Cleanly organized, no redundant fields)
+        # Row 2: Aligned 4-column layout
         c5, c6, c7, c8 = st.columns(4)
-        base_price = c5.number_input("2026 BASELINE (Php/Day)", min_value=0.0, step=100.0, help="For Admin pricing reference.")
-        pl = c6.text_input("PLATE NUMBER")
-        pf = c7.selectbox("PREF. FUEL", ["Premium Unleaded", "Diesel", "Diesel Turbo"])
-        tp = c8.text_input("TIRE PRESSURE", placeholder="e.g., 32 PSI")
+        pl = c5.text_input("PLATE NUMBER")
+        pf = c6.selectbox("PREF. FUEL", ["Premium Unleaded", "Regular Unleaded", "Diesel", "EV"])
+        tp = c7.text_input("TIRE PRESSURE", placeholder="e.g., 32 PSI")
+        
+        # Row 3: Service Type Toggle aligned with the operational specs
+        with c8:
+            st.write("SERVICE TYPE")
+            service_type = st.radio(" ", ["Self-Drive", "With Driver"], horizontal=True, label_visibility="collapsed")
+            is_with_driver = 1 if service_type == "With Driver" else 0
         
         st.write("#### 📄 Document Uploads")
-        # ROW 3: Uploads
-        vi = st.file_uploader("Vehicle Photo", type=['jpg','png'])
-        or_cr_files = st.file_uploader("Upload OR & CR (Drop 2 files)", type=['jpg','png','pdf'], accept_multiple_files=True)
-        ins = st.file_uploader("Insurance Policy", type=['pdf','jpg','png'])
+        # Row 4: Uploads aligned to fit 3 documents per row
+        c9, c10, c11 = st.columns(3)
+        vi = c9.file_uploader("Vehicle Photo", type=['jpg','png'])
+        or_cr_files = c10.file_uploader("Upload OR & CR (2 files)", type=['jpg','png','pdf'], accept_multiple_files=True)
+        ins = c11.file_uploader("Insurance Policy", type=['pdf','jpg','png'])
         
-        # Service Type Toggle
         st.divider()
-        service_type = st.radio("Service Type", ["Self-Drive Only", "With Driver Included"], horizontal=True)
-        is_with_driver = 1 if service_type == "With Driver Included" else 0
         
-        if st.form_submit_button("SUBMIT FOR APPROVAL", type="primary"):
-            # Validation logic updated to ignore the removed bank fields
+        if st.form_submit_button("SUBMIT FOR APPROVAL", type="primary", use_container_width=True):
             if ma and mo and ye and pl and vi and len(or_cr_files) >= 1 and ins:
-                
                 # --- AUTO-CALCULATE VEHICLE AGE ---
                 try:
                     current_year = datetime.date.today().year
@@ -1033,17 +1033,16 @@ with tabs[2]:
                 cr_path = save_file(or_cr_files[1]) if len(or_cr_files) > 1 else or_path
                 ins_path = save_file(ins)
                 
-                # Bank Name & Account No are safely passed as "Profile" to maintain database stability
                 conn.execute("""
                     INSERT INTO vehicles (
                         owner_username, make, model, year, vehicle_age, plate, bank_name, account_no, 
                         vehicle_img, or_img, cr_img, insurance_img, category, 
-                        approved_price, baseline_price, ref_no, admin_status, booking_status, is_with_driver,
+                        approved_price, ref_no, admin_status, booking_status, is_with_driver,
                         tire_pressure, preferred_fuel
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE', ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE', ?, ?, ?)
                 """, (st.session_state.username, ma.title(), mo.title(), ye, calculated_age, pl.upper(), "Profile", "Profile", 
                       car_img_path, or_path, cr_path, ins_path, cat, 
-                      FIXED_RATES.get(cat,0), base_price, new_ref_no, is_with_driver, tp, pf))
+                      FIXED_RATES.get(cat,0), new_ref_no, is_with_driver, tp, pf))
                 
                 conn.commit()
                 st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
