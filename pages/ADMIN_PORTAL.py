@@ -485,6 +485,7 @@ with tabs[1]:
     asset_tabs = st.tabs(["⏳ Pending Approvals", "🚗 Live Fleet (Remove Assets)"])
     
     # 1. Existing Approval Logic
+    # 1. Pending Approval Logic with Auto-Calculator
     with asset_tabs[0]:
         try:
             pv = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'PENDING'", conn)
@@ -492,20 +493,63 @@ with tabs[1]:
                 st.info("No vehicles currently pending approval.")
             else:
                 for i, r in pv.iterrows():
-                    with st.expander(f" {r['make']} {r['model']} ({r['plate']})"):
+                    with st.expander(f" {r['make']} {r['model']} ({r['plate']}) - Category: {r['category']}"):
                         st.write("### Vehicle Documents")
                         c_doc1, c_doc2, c_doc3 = st.columns(3)
                         with c_doc1: display_document(r.get('or_img'), "Official Receipt (OR)")
                         with c_doc2: display_document(r.get('cr_img'), "Certificate of Reg (CR)")
                         with c_doc3: display_document(r.get('insurance_img'), "Insurance Policy")
+                        
                         st.divider()
-                        if st.button("✅ APPROVE & ACTIVATE", key=f"v_app_{r['id']}", type="primary", use_container_width=True):
-                            conn.execute("UPDATE vehicles SET admin_status = 'APPROVED', booking_status = 'AVAILABLE' WHERE id = ?", (r['id'],))
-                            conn.commit()
-                            st.success(f"Success! {r['plate']} is now visible in the Showroom.")
-                            time.sleep(1); st.rerun()
+                        
+                        # --- 🧮 SUGGESTED PRICE CALCULATOR ---
+                        st.write("### 🧮 Pricing Calculator & Approval")
+                        
+                        # Extract the data
+                        base_category_rate = float(r.get('approved_price', 0.0)) # Brought in from Category Manager during registration
+                        age = int(r.get('vehicle_age', 0))
+                        baseline_price = float(r.get('baseline_price', 0.0))
+                        
+                        # The Math: 5% depreciation per year of age (capped at 50% max discount)
+                        depreciation_pct = min(age * 0.05, 0.50)
+                        suggested_rate = base_category_rate * (1 - depreciation_pct)
+                        
+                        # Display the data visually
+                        c_metrics, c_input = st.columns([3, 2])
+                        
+                        with c_metrics:
+                            st.markdown(f"""
+                            <div style='background-color: rgba(37, 99, 235, 0.05); padding: 15px; border-radius: 8px; border-left: 4px solid #2563EB;'>
+                                <strong>Category Base Rate:</strong> ₱{base_category_rate:,.2f}<br>
+                                <strong>Vehicle Age:</strong> {age} Years <em>(-{depreciation_pct*100}% depreciation)</em><br>
+                                <strong>2026 Baseline Value:</strong> ₱{baseline_price:,.2f}<br>
+                                <hr style='margin: 8px 0;'>
+                                <strong style='color: #2563EB; font-size: 1.1em;'>Suggested Daily Rate: ₱{suggested_rate:,.2f}</strong>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        with c_input:
+                            st.caption("Review suggestion and set final rate:")
+                            final_price = st.number_input(
+                                "Final Approved Rate (Php/Day)", 
+                                min_value=0.0, 
+                                step=100.0, 
+                                value=float(suggested_rate), # Defaults to our calculated suggestion
+                                key=f"final_price_{r['id']}"
+                            )
+                            
+                            if st.button("✅ APPROVE & ACTIVATE", key=f"v_app_{r['id']}", type="primary", use_container_width=True):
+                                conn.execute("""
+                                    UPDATE vehicles 
+                                    SET admin_status = 'APPROVED', booking_status = 'AVAILABLE', approved_price = ? 
+                                    WHERE id = ?
+                                """, (final_price, r['id']))
+                                conn.commit()
+                                st.success(f"Success! {r['plate']} activated at ₱{final_price:,.2f}/day.")
+                                time.sleep(1); st.rerun()
+                                
         except Exception as e:
-            st.warning(f"Could not load Vehicles database: {e}")
+            st.warning(f"Could not load Vehicles database: {e}"))
 
     # 2. New Fleet Management & Deletion Logic
     with asset_tabs[1]:
