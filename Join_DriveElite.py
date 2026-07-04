@@ -553,102 +553,101 @@ reg_type = st.radio(
 
 st.divider()
 
-# (Your existing registration form logic for if reg_type == 'Affiliate' or 'Renter' should be right below this!)
-    st.divider()
+if reg_type in ["Affiliate", "Renter"]:
+    step_key = f"{reg_type.lower()}_step"
+    if step_key not in st.session_state: st.session_state[step_key] = 1
 
-    if reg_type in ["Affiliate", "Renter"]:
-        step_key = f"{reg_type.lower()}_step"
-        if step_key not in st.session_state: st.session_state[step_key] = 1
-
-        if st.session_state[step_key] == 1:
-            with st.form(f"reg_{reg_type}"):
-                st.subheader(f"Step 1: {reg_type} Profile Details")
-                c1, c2, c3 = st.columns(3)
-                fn = c1.text_input("First Name").title()
-                mn = c2.text_input("Middle Name").title()
-                sn = c3.text_input("Surname").title()
-                
-                c4, c5, c6 = st.columns([3, 1, 1])
-                dob = c4.date_input("Date of Birth", min_value=datetime.date(1940, 1, 1))
-                age = c5.text_input("Age")
-                nat = c6.text_input("Nationality", value="PH").upper()
-                
-                c_a, c_n = st.columns([1, 4])
-                ac = c_a.text_input("Code", value="+63")
-                cn = c_n.text_input("Mobile Number", placeholder="917 123 4567")
-                
-                em = st.text_input("Email Address")
-                ad = st.text_area("Complete Physical Address")
-                
-                un = st.text_input("Choose Username")
-                p1, p2 = st.columns(2)
-                pwd = p1.text_input("Create Password", type="password")
-                cpwd = p2.text_input("Confirm Password", type="password")
-                
-                g_id = st.file_uploader("Upload Government ID", type=['jpg', 'png', 'jpeg'])
-                l_id = st.file_uploader("Upload Driver's License", type=['jpg', 'png', 'jpeg'])
-                
-                if st.form_submit_button("NEXT: REVIEW & SIGN AGREEMENT"):
-                    if pwd != cpwd:
-                        st.error("🚨 Passwords do not match.")
-                    elif not all([fn, sn, un, pwd, g_id, l_id, cn, em, ad]):
-                        st.error("🚨 Please fill all required fields and upload your documents.")
+    if st.session_state[step_key] == 1:
+        with st.form(f"reg_{reg_type}"):
+            st.subheader(f"Step 1: {reg_type} Profile Details")
+            c1, c2, c3 = st.columns(3)
+            fn = c1.text_input("First Name").title()
+            mn = c2.text_input("Middle Name").title()
+            sn = c3.text_input("Surname").title()
+            
+            c4, c5, c6 = st.columns([3, 1, 1])
+            dob = c4.date_input("Date of Birth", min_value=datetime.date(1940, 1, 1))
+            age = c5.text_input("Age")
+            nat = c6.text_input("Nationality", value="PH").upper()
+            
+            c_a, c_n = st.columns([1, 4])
+            ac = c_a.text_input("Code", value="+63")
+            cn = c_n.text_input("Mobile Number", placeholder="917 123 4567")
+            
+            em = st.text_input("Email Address")
+            ad = st.text_area("Complete Physical Address")
+            
+            un = st.text_input("Choose Username")
+            p1, p2 = st.columns(2)
+            pwd = p1.text_input("Create Password", type="password")
+            cpwd = p2.text_input("Confirm Password", type="password")
+            
+            g_id = st.file_uploader("Upload Government ID", type=['jpg', 'png', 'jpeg'])
+            l_id = st.file_uploader("Upload Driver's License", type=['jpg', 'png', 'jpeg'])
+            
+            if st.form_submit_button("NEXT: REVIEW & SIGN AGREEMENT"):
+                if pwd != cpwd:
+                    st.error("🚨 Passwords do not match.")
+                elif not all([fn, sn, un, pwd, g_id, l_id, cn, em, ad]):
+                    st.error("🚨 Please fill all required fields and upload your documents.")
+                else:
+                    check = pd.read_sql_query("SELECT username FROM platform_users WHERE username=?", conn, params=(un,))
+                    if not check.empty:
+                        st.error("🚨 Username already taken.")
                     else:
-                        check = pd.read_sql_query("SELECT username FROM platform_users WHERE username=?", conn, params=(un,))
-                        if not check.empty:
-                            st.error("🚨 Username already taken.")
-                        else:
-                            st.session_state[f"temp_{reg_type.lower()}_data"] = {
-                                "username": un, "password": pwd, "full_name": f"{fn} {mn} {sn}".strip(), 
-                                "email": em, "age": age, "nationality": nat, "address": ad, 
-                                "area_code": ac, "contact": cn, "gov_id": g_id.read(), "lic_id": l_id.read()
-                            }
-                            st.session_state[step_key] = 2
-                            st.rerun()
+                        st.session_state[f"temp_{reg_type.lower()}_data"] = {
+                            "username": un, "password": pwd, "full_name": f"{fn} {mn} {sn}".strip(), 
+                            "email": em, "age": age, "nationality": nat, "address": ad, 
+                            "area_code": ac, "contact": cn, "gov_id": g_id.read(), "lic_id": l_id.read()
+                        }
+                        st.session_state[step_key] = 2
+                        st.rerun()
 
-        elif st.session_state[step_key] == 2:
-            st.subheader(f"Step 2: Digital {reg_type} Agreement")
-            st.info("By signing below, you agree to the DriveElite Terms of Service and Privacy Policy.")
-            
-            canvas = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=150, width=400, key=f"sig_{reg_type}")
-            
-            c_back, c_sub = st.columns([1, 4])
-            if c_back.button("⬅️ BACK"):
-                st.session_state[step_key] = 1
-                st.rerun()
+    elif st.session_state[step_key] == 2:
+        st.subheader(f"Step 2: Digital {reg_type} Agreement")
+        st.info("By signing below, you agree to the DriveElite Terms of Service and Privacy Policy.")
+        
+        canvas = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=150, width=400, key=f"sig_{reg_type}")
+        
+        c_back, c_sub = st.columns([1, 4])
+        if c_back.button("⬅️ BACK"):
+            st.session_state[step_key] = 1
+            st.rerun()
 
-            if c_sub.button("SUBMIT REGISTRATION & SEND OTP", type="primary"):
-                if canvas.image_data is not None and len(np.unique(canvas.image_data)) > 1:
-                    with st.spinner("Generating legal agreement..."):
-                        data = st.session_state[f"temp_{reg_type.lower()}_data"]
-                        sig_cropped = crop_signature(canvas.image_data)
-                        sig_buf = io.BytesIO()
-                        sig_cropped.save(sig_buf, format='PNG')
-                        sig_bytes = sig_buf.getvalue()
-                        
-                        # --- DIRECT TO PDF ENGINE ---
-                        try:
-                            create_legit_pdf_contract(data, reg_type, sig_bytes, conn)
-                        except Exception as e:
-                            st.error(f"PDF Generation Error: {e}")
-                        
-                        st.session_state.reg_payload = (
-                            data["username"], data["password"], reg_type.upper(), data["full_name"], 
-                            data["email"], data["age"], data["nationality"], data["address"], 
-                            data["area_code"], data["contact"], data["gov_id"], data["lic_id"], sig_bytes
-                        )
-                        st.session_state.verify_contact = data["contact"]
-                        
-                        # Send OTP
-                        otp_code = str(random.randint(100000, 999999))
-                        st.session_state.generated_otp = otp_code
-                        
-                        success = send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
-                        
-                        if success:
-                            st.session_state.otp_pending = True
-                            st.rerun()
-                        else:
-                            st.error("🚨 Failed to send verification. Please try again.")
+        if c_sub.button("SUBMIT REGISTRATION & SEND OTP", type="primary"):
+            if canvas.image_data is not None and len(np.unique(canvas.image_data)) > 1:
+                with st.spinner("Generating legal agreement..."):
+                    data = st.session_state[f"temp_{reg_type.lower()}_data"]
+                    sig_cropped = crop_signature(canvas.image_data)
+                    sig_buf = io.BytesIO()
+                    sig_cropped.save(sig_buf, format='PNG')
+                    sig_bytes = sig_buf.getvalue()
+                    
+                    # --- DIRECT TO PDF ENGINE ---
+                    try:
+                        create_legit_pdf_contract(data, reg_type, sig_bytes, conn)
+                    except Exception as e:
+                        st.error(f"PDF Generation Error: {e}")
+                    
+                    st.session_state.reg_payload = (
+                        data["username"], data["password"], reg_type.upper(), data["full_name"], 
+                        data["email"], data["age"], data["nationality"], data["address"], 
+                        data["area_code"], data["contact"], data["gov_id"], data["lic_id"], sig_bytes
+                    )
+                    st.session_state.verify_contact = data["contact"]
+                    
+                    # Send OTP
+                    otp_code = str(random.randint(100000, 999999))
+                    st.session_state.generated_otp = otp_code
+                    
+                    success = send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
+                    
+                    if success:
+                        st.session_state.otp_pending = True
+                        st.rerun()
+                    else:
+                        st.error("🚨 Failed to send verification. Please try again.")
+            else:
+                st.error("🚨 Digital signature required to proceed.")
                 else:
                     st.error("🚨 Digital signature required to proceed.")
