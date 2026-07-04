@@ -649,5 +649,4 @@ if reg_type in ["Affiliate", "Renter"]:
                         st.error("🚨 Failed to send verification. Please try again.")
             else:
                 st.error("🚨 Digital signature required to proceed.")
-                else:
-                    st.error("🚨 Digital signature required to proceed.")
+               
