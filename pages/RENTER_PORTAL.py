@@ -543,12 +543,13 @@ def main():
                                                     st.error("⚠️ Sorry! This vehicle was just booked by someone else for these dates. Please select different dates.")
                                                     st.stop()
 
-                                                # 2. PROCEED TO BOOKING (Existing logic)
+                                                # 2. PROCEED TO BOOKING
                                                 if dest and p_exact and r_exact and luzon_agree:
                                                     with st.spinner("Securing your dates..."):
                                                         b_ref = str(random.randint(100000, 999999))
                                                         is_drvr_int = 1 if "Driver" in drive_mode else 0
                                                         
+                                                        # --- PAYMONGO AUTOMATED FLOW ---
                                                         if gateway_mode == "PAYMONGO":
                                                             conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
                                                                          (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_drvr_int, b_ref))
@@ -561,7 +562,7 @@ def main():
                                                                     except: pass 
                                                                 
                                                                 if not SECRET_KEY:
-                                                                    st.error(" Missing API Key: Please add 'paymongo_active_key' to your Render Environment Variables.")
+                                                                    st.error("Missing API Key: Please add 'paymongo_active_key' to your variables.")
                                                                 else:
                                                                     pay_amount = int(grand_total * 100)
                                                                     auth_string = f"{SECRET_KEY}:"
@@ -578,9 +579,11 @@ def main():
                                                                     response = urllib.request.urlopen(req)
                                                                     checkout_url = json.loads(response.read().decode('utf-8'))['data']['attributes']['checkout_url']
                                                                     
-                                                                    st.success(f"✅ Booking Saved (Ref: #{b_ref})")
-                                                                    st.markdown(f"### 💳 [👉 CLICK HERE TO PAY ₱{grand_total:,.2f} VIA PAYMONGO]({checkout_url})")
-                                                                    st.info("Complete your payment using the link above. Our system will auto-verify shortly.")
+                                                                    # LOCK THE UI TO STAGE 2 (PAYMONGO)
+                                                                    st.session_state[f"pm_url_{car['id']}"] = checkout_url
+                                                                    st.session_state[ref_key] = b_ref
+                                                                    st.session_state[stage_key] = 2
+                                                                    st.rerun()
                                                                     
                                                             except urllib.error.HTTPError as e:
                                                                 error_info = e.read().decode()
@@ -588,10 +591,13 @@ def main():
                                                             except Exception as e:
                                                                 st.error(f"System Error generating link: {e}")
                                                         
+                                                        # --- MANUAL BPI FLOW (FALLBACK) ---
                                                         else:
                                                             conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
                                                                          (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_drvr_int, b_ref))
                                                             conn.commit()
+                                                            
+                                                            # LOCK THE UI TO STAGE 1 (MANUAL BPI)
                                                             st.session_state[stage_key] = 1
                                                             st.session_state[ref_key] = b_ref
                                                             st.rerun()
@@ -599,30 +605,15 @@ def main():
                                                     st.error("⚠️ ACTION REQUIRED: Please fill in your Destination, Pickup/Return Addresses, and check the Luzon Travel Agreement box before confirming.")
 
                                         # -------------------------------------------------------------
-                                        # CHECKOUT STAGE 1: VALIDATE BPI PAYMENT 
+                                        # CHECKOUT STAGE 1: VALIDATE BPI PAYMENT (Existing Logic)
                                         # -------------------------------------------------------------
                                         elif st.session_state[stage_key] == 1:
-                                            # Safely pull the booking reference
                                             b_ref = st.session_state.get(ref_key)
                                             
-                                            # --- SUCCESS CONFIRMATION BOX ---
-                                            st.markdown(f"""
-                                            <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; padding: 20px; border-radius: 12px; border-left: 6px solid #16A34A; margin-bottom: 20px;">
-                                                <h4 style="color: #166534; margin-top: 0; margin-bottom: 8px;">✅ Reservation Confirmed (Ref: #{b_ref})</h4>
-                                                <p style="color: #15803D; font-size: 15px; margin-bottom: 0; line-height: 1.5;">
-                                                    Thank you for booking with DriveElite. We have notified the vehicle's Affiliate of your confirmed schedule. 
-                                                    Kindly expect a direct message via the built-in DriveElite chat system within the next few hours to finalize your logistics and key handover.
-                                                </p>
-                                            </div>
-                                            """, unsafe_allow_html=True)
-
-                                            # --- RETURN TO MAIN PAGE BUTTON ---
                                             if st.button("🏠 RETURN TO LANDING PAGE", key=f"return_main_{car['id']}_{cat}", type="primary", use_container_width=True):
-                                                # This resets the navigation to the main JOIN page
                                                 st.session_state.current_page = "JOIN"
                                                 st.rerun()
                                                 
-                                            # The code below only runs if they haven't clicked the return button
                                             st.write("") # Spacer
 
                                             with st.container(border=True):
@@ -657,7 +648,6 @@ def main():
                                                         receipt_bytes = receipt_file.read()
                                                         with st.spinner("Transmitting to Admin..."):
                                                             conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE booking_ref = ?", (receipt_bytes, b_ref))
-                                                            
                                                             receipt_path = f"/data/uploads/chat_images/receipt_{b_ref}.jpg"
                                                             with open(receipt_path, "wb") as f: f.write(receipt_bytes)
                                                             
@@ -665,6 +655,50 @@ def main():
                                                             conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
                                                                          (b_ref, renter_user, owner_username, "Payment Receipt Uploaded for Admin Verification.", receipt_path))
                                                             conn.commit()
+                                                        
+                                                        st.toast("✅ Receipt Sent to Admin!")
+                                                        st.session_state[stage_key] = 0
+                                                        del st.session_state[ref_key]
+                                                        st.session_state.just_booked_ref = b_ref 
+                                                        st.rerun()
+                                                    else:
+                                                        st.error("Please upload a screenshot of your receipt.")
+
+                                        # -------------------------------------------------------------
+                                        # CHECKOUT STAGE 2: PAYMONGO CHECKOUT GATEWAY (NEW)
+                                        # -------------------------------------------------------------
+                                        elif st.session_state[stage_key] == 2:
+                                            b_ref = st.session_state.get(ref_key)
+                                            pm_url = st.session_state.get(f"pm_url_{car['id']}")
+
+                                            st.markdown(f"""
+                                            <div style="background-color: #EFF6FF; border: 1px solid #BFDBFE; padding: 20px; border-radius: 12px; border-left: 6px solid #2563EB; margin-bottom: 20px;">
+                                                <h4 style="color: #1E3A8A; margin-top: 0; margin-bottom: 8px;">✅ Booking Saved (Ref: #{b_ref})</h4>
+                                                <p style="color: #1D4ED8; font-size: 15px; margin-bottom: 0;">
+                                                    Your vehicle is temporarily locked. Please complete your payment via PayMongo to finalize the reservation.
+                                                </p>
+                                            </div>
+                                            """, unsafe_allow_html=True)
+                                            
+                                            # Using a bold link button for the gateway
+                                            st.link_button("💳 PROCEED TO PAYMONGO SECURE CHECKOUT", pm_url, type="primary", use_container_width=True)
+                                            
+                                            st.divider()
+                                            
+                                            c_back, c_paid = st.columns([1, 1])
+                                            
+                                            if c_back.button("Cancel & Release Vehicle", key=f"canc_pm_{car['id']}_{cat}", use_container_width=True):
+                                                conn.execute("DELETE FROM bookings WHERE booking_ref = ?", (b_ref,))
+                                                conn.commit()
+                                                st.session_state[stage_key] = 0
+                                                del st.session_state[ref_key]
+                                                st.rerun()
+                                                
+                                            if c_paid.button("I Have Paid", key=f"paid_pm_{car['id']}_{cat}", use_container_width=True):
+                                                # Optional: This resets the view back to the showroom assuming a webhook will flip the DB status to 'CONFIRMED'
+                                                st.session_state[stage_key] = 0
+                                                del st.session_state[ref_key]
+                                                st.rerun()
                                                             
                                                             # ==========================================
                                                             #  SEND AUTOMATED EMAIL ALERTS 
