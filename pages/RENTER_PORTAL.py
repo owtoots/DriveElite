@@ -695,44 +695,46 @@ def main():
                                                 st.rerun()
                                                 
                                             if c_paid.button("I Have Paid", key=f"paid_pm_{car['id']}_{cat}", use_container_width=True):
-                                                # Optional: This resets the view back to the showroom assuming a webhook will flip the DB status to 'CONFIRMED'
+                                                with st.spinner("Notifying Admin..."):
+                                                    # Update status so it shows up in the admin dashboard for PayMongo verification
+                                                    conn.execute("UPDATE bookings SET status = 'VERIFYING' WHERE booking_ref = ?", (b_ref,))
+                                                    
+                                                    # Fetch the owner's username for the email
+                                                    owner_username = pd.read_sql_query("SELECT owner_username FROM vehicles WHERE id=?", conn, params=(car['id'],)).iloc[0]['owner_username']
+                                                    
+                                                    # ==========================================
+                                                    #  SEND AUTOMATED EMAIL ALERTS (PAYMONGO)
+                                                    # ==========================================
+                                                    try:
+                                                        aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
+                                                        if not aff_data.empty:
+                                                            affiliate_email = aff_data.iloc[0]['email']
+                                                            affiliate_name = aff_data.iloc[0]['full_name']
+                                                            
+                                                            # 1. Email to Admin
+                                                            admin_email = "contact@driveelite.ph" 
+                                                            send_alert_email(
+                                                                to_email=admin_email,
+                                                                subject=f"CNF: PayMongo Payment Verification Needed for #{b_ref}",
+                                                                body=f"Renter @{renter_user} has booked a {car['make']} {car['model']} and completed the PayMongo checkout.\n\nPlease verify this transaction inside your PayMongo Dashboard and approve the booking."
+                                                            )
+                                                            
+                                                            # 2. Email to Affiliate
+                                                            send_alert_email(
+                                                                to_email=affiliate_email,
+                                                                subject=f"🚗 DriveElite: New Booking Verifying (#{b_ref})",
+                                                                body=f"Hello {affiliate_name},\n\nA renter has booked your {car['make']} {car['model']} via PayMongo.\n\nAdmin is currently verifying the gateway transaction. Once confirmed, this will appear in your Logistics tab!"
+                                                            )
+                                                    except Exception:
+                                                        pass
+                                                    
+                                                    conn.commit()
+
+                                                st.toast("✅ Admin notified of your payment!")
                                                 st.session_state[stage_key] = 0
                                                 del st.session_state[ref_key]
+                                                st.session_state.just_booked_ref = b_ref 
                                                 st.rerun()
-                                                            
-                                                            # ==========================================
-                                                            #  SEND AUTOMATED EMAIL ALERTS 
-                                                            # ==========================================
-                                                            try:
-                                                                aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
-                                                                if not aff_data.empty:
-                                                                    affiliate_email = aff_data.iloc[0]['email']
-                                                                    affiliate_name = aff_data.iloc[0]['full_name']
-                                                                    
-                                                                    # 1. Email to Admin
-                                                                    admin_email = "contact@driveelite.ph" 
-                                                                    send_alert_email(
-                                                                        to_email=admin_email,
-                                                                        subject=f"CNF: Payment Verification Needed for #{b_ref}",
-                                                                        body=f"Renter @{renter_user} has booked a {car['make']} {car['model']} and uploaded a standard receipt.\n\nPlease authenticate this BPI transfer inside the Master Ledger Center."
-                                                                    )
-                                                                    
-                                                                    # 2. Email to Affiliate
-                                                                    send_alert_email(
-                                                                        to_email=affiliate_email,
-                                                                        subject=f"🚗 DriveElite: New Booking Verifying (#{b_ref})",
-                                                                        body=f"Hello {affiliate_name},\n\nA renter has booked your {car['make']} {car['model']} and submitted their payment.\n\nAdmin is currently verifying the receipt. Once confirmed, this will appear in your Logistics tab!"
-                                                                    )
-                                                            except Exception:
-                                                                pass
-                                                            
-                                                            st.toast("✅ Receipt Sent to Admin!")
-                                                            st.session_state[stage_key] = 0
-                                                            del st.session_state[ref_key]
-                                                            st.session_state.just_booked_ref = b_ref 
-                                                            st.rerun()
-                                                    else:
-                                                        st.error(" Please upload a screenshot of your receipt.")
 
     # ==========================================
     # 📅 MY BOOKINGS (MAIN TAB 1)
