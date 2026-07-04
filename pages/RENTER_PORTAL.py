@@ -465,9 +465,9 @@ def main():
                                             luzon_agree = st.checkbox("I agree to LUZON ONLY travel.", key=f"luzon_{car['id']}_{cat}")
                                             ZONES = {"HQ: Pasig/Ortigas/BGC (Free)": 0.0, "Zone 1: Cubao/Sta. Mesa/Makati": 500.0, "Zone 2: Manila/QC/MOA": 1000.0, "Zone 3: Alabang/LP": 1500.0}
                                             p_zone = st.selectbox("Pickup Zone", list(ZONES.keys()), key=f"pz_{car['id']}_{cat}")
-                                            p_exact = st.text_input("Pickup Address", key=f"pa_{car['id']}_{cat}")
+                                            p_exact = st.text_input("Pickup Address", placeholder="e.g., NAIA Terminal 3 (Arrivals Bay 8), Shangri-La BGC Lobby", key=f"pa_{car['id']}_{cat}"
                                             r_zone = st.selectbox("Return Zone", list(ZONES.keys()), key=f"rz_{car['id']}_{cat}")
-                                            r_exact = st.text_input("Return Address", key=f"ra_{car['id']}_{cat}")
+                                            r_exact = st.text_input("Return Address", placeholder="e.g., SM Megamall Fashion Hall, 123 Pearl Dr. Ortigas", key=f"ra_{car['id']}_{cat}")
 
                                             p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
                                             if r_dt_obj <= p_dt_obj: 
