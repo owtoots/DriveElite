@@ -765,15 +765,17 @@ with main_tabs[1]:
                             except Exception as e:
                                 st.error("Could not load chat.")
 
-                        # --- BULLETPROOF CHAT INPUT (USING ST.FORM) ---
+                        # --- BULLETPROOF CHAT INPUT (MOBILE OPTIMIZED) ---
                         with st.form(key=f"chat_form_{b_ref_str}", clear_on_submit=True):
-                            c_img, c_msg = st.columns([1, 4])
-                            with c_img:
-                                r_img = st.file_uploader("📷", type=['jpg','png','jpeg'], key=f"r_img_{b_ref_str}", label_visibility="collapsed")
-                            with c_msg:
-                                chat_val = st.text_input("Reply...", placeholder="Type message and press Enter...")
+                            # 1. Full-width text input on top
+                            chat_val = st.text_input("Message", label_visibility="collapsed", placeholder="Type your message here...")
+                            
+                            # 2. Neat dropdown for photo attachments
+                            with st.expander("📎 Attach Photo (Optional)"):
+                                r_img = st.file_uploader("Upload", type=['jpg','png','jpeg'], key=f"r_img_{b_ref_str}", label_visibility="collapsed")
 
-                            submit_chat = st.form_submit_button("SEND", use_container_width=True)
+                            # 3. Full-width send button
+                            submit_chat = st.form_submit_button("SEND MESSAGE", type="primary", use_container_width=True)
 
                             if submit_chat:
                                 has_text = bool(chat_val.strip())
