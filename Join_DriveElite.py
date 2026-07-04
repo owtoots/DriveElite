@@ -538,10 +538,22 @@ try:
         if len(pd.read_sql_query("SELECT id FROM vehicles WHERE admin_status = 'APPROVED'", conn)) > 4:
             st.markdown("<p style='text-align: center; color: #64748B;'><em>Sign up to explore the full DriveElite fleet...</em></p>", unsafe_allow_html=True)
 except Exception:
-    pass 
-        
-    st.divider()
-    reg_type = st.radio("I want to register as a:", ["Select...", "Affiliate", "Renter"], horizontal=True)
+    pass
+
+# --- REGISTRATION SELECTOR ---
+st.divider()
+st.markdown("<h3 style='text-align: center;'>Ready to get started?</h3>", unsafe_allow_html=True)
+
+# This brings back your dropdown/radio buttons
+reg_type = st.radio(
+    "I want to register as a:", 
+    ["Select...", "Affiliate", "Renter"], 
+    horizontal=True
+)
+
+st.divider()
+
+# (Your existing registration form logic for if reg_type == 'Affiliate' or 'Renter' should be right below this!)
     st.divider()
 
     if reg_type in ["Affiliate", "Renter"]:
