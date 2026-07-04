@@ -628,6 +628,10 @@ with main_tabs[0]:
                                             st.write("**Account Name:** Romeo Albao Jr.")
                                             st.write("**Account Number:** 0180 0206 08")
                                             
+                                            # Safely grab the booking reference from the session state first
+                                            b_ref = st.session_state.get(ref_key) 
+
+                                            # Then run the query
                                             amt_df = pd.read_sql_query("SELECT amount FROM bookings WHERE booking_ref = ?", conn, params=(b_ref,))
                                             owed_amount = float(amt_df.iloc[0]['amount']) if not amt_df.empty else 0.0
                                             st.write(f"**Amount to Transfer:** :green[**₱{owed_amount:,.2f}**]")
