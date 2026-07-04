@@ -617,7 +617,7 @@ def main():
                                             """, unsafe_allow_html=True)
 
                                             # --- RETURN TO MAIN PAGE BUTTON ---
-                                            if st.button("🏠 RETURN TO LANDING PAGE", type="primary", use_container_width=True):
+                                            if st.button("🏠 RETURN TO LANDING PAGE", key=f"return_main_{car['id']}_{cat}", type="primary", use_container_width=True):
                                                 # This resets the navigation to the main JOIN page
                                                 st.session_state.current_page = "JOIN"
                                                 st.rerun()
