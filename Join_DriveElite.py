@@ -29,7 +29,11 @@ if "portal" in query_params:
 # ==========================================
 # 3. PAGE CONFIGURATION & CSS
 # ==========================================
-st.set_page_config(page_title="DriveElite", layout="wide")
+st.set_page_config(
+    page_title="DriveElite", 
+    page_icon="logo.png",  # <-- ADD THIS TO PUT THE LOGO IN THE BROWSER TAB
+    layout="wide"
+)
 
 try:
     st.sidebar.image("logo.png", use_container_width=True)
@@ -50,7 +54,10 @@ st.markdown("""
             max-width: 100% !important;
         }
     }
-
+/* Hide Streamlit Branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
     /* Fixed Image Styling */
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
         height: 200px !important;
