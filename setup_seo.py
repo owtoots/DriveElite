@@ -1,18 +1,28 @@
 import os
+import shutil
 import streamlit as st
 
-# Locate the Streamlit installation folder inside Render's system
+# 1. Locate Streamlit's core files inside Render
 streamlit_dir = os.path.dirname(st.__file__)
-index_path = os.path.join(streamlit_dir, "static", "index.html")
+static_dir = os.path.join(streamlit_dir, "static")
+index_path = os.path.join(static_dir, "index.html")
+streamlit_favicon = os.path.join(static_dir, "favicon.png")
 
-# Read the original HTML file
+# 2. THE FAVICON KILLER: Overwrite Streamlit's logo with yours
+# This prevents the Streamlit logo from ever flashing during page load
+if os.path.exists("logo.png"):
+    shutil.copyfile("logo.png", streamlit_favicon)
+    print("✅ Successfully overwrote Streamlit favicon!")
+
+# 3. Read the original background HTML
 with open(index_path, "r", encoding="utf-8") as f:
     html = f.read()
 
-# The raw GitHub link to your logo so Facebook/Viber can see it
+# REPLACE THIS LINK with your public image host link (e.g., Postimages/ImgBB)
+# If you don't have one, this GitHub link might work, but a public host is safer.
 logo_url = "https://i.postimg.cc/abc12345/logo.png"
 
-# The "Open Graph" meta tags that social media apps look for
+# 4. Inject the SEO tags for a massive social media preview card
 meta_tags = f"""
     <!-- Custom DriveElite Meta Tags -->
     <meta property="og:title" content="DriveElite | Peer-to-Peer Car Rentals" />
@@ -24,7 +34,7 @@ meta_tags = f"""
 </head>
 """
 
-# Replace the default </head> with our custom tags
+# 5. Save the changes to the HTML
 if "DriveElite Meta Tags" not in html:
     new_html = html.replace("</head>", meta_tags)
     with open(index_path, "w", encoding="utf-8") as f:
