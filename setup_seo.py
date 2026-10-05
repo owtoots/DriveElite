@@ -10,7 +10,7 @@ with open(index_path, "r", encoding="utf-8") as f:
     html = f.read()
 
 # The raw GitHub link to your logo so Facebook/Viber can see it
-logo_url = "https://raw.githubusercontent.com/owtoots/DriveElite/main/logo.png"
+logo_url = "https://i.postimg.cc/abc12345/logo.png"
 
 # The "Open Graph" meta tags that social media apps look for
 meta_tags = f"""
