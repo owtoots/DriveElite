@@ -287,13 +287,14 @@ b. Fulfillment: Once a renter confirms a booking, the OWNER is strictly obligate
 c. Penalties: Failure to fulfill a confirmed booking results in a PHP 3,000 penalty. If the OWNER fails to notify the AGENCY of unavailability in time, an additional PHP 3,000 penalty plus replacement costs shall apply. 
 d. Driver Liability: Any driver provided is the sole employee/agent of the OWNER. The AGENCY holds no employer-employee relationship and zero liability for accidents or violations caused by the driver.
 
-3. COMPENSATION, TAXES, AND DELIVERY FEES 
-a. Revenue Split: The Gross Rental Revenue (excluding delivery/logistics fees) shall be shared directly as follows:
+3. PAYMENT PROCESSING, COMPENSATION, AND TAX MATTERS
+a. Automated Escrow & Split: All rental payments are processed through a licensed third-party payment gateway and held securely in a digital escrow. Upon successful completion of the booking, the gateway automatically splits and disburses the funds directly to the respective bank accounts of the parties. The OWNER's share is routed directly and never enters the AGENCY's corporate bank account.
+b. Revenue Split: The Gross Rental Revenue (excluding delivery/logistics fees) shall be shared as follows:
 - OWNER Share: {owner_share_val}
-- AGENCY Share: {agency_share_val}
-- Tax Independence & EWT: The AGENCY is not a withholding agent for the OWNER. The AGENCY shall only declare and pay taxes on its own {agency_share_val} commission. The OWNER receives their full {owner_share_val} share (less gateway fees) and assumes 100% legal and financial responsibility for filing, declaring, and paying their own taxes-including the 2% Expanded Withholding Tax (EWT) and Personal Income Tax-to the Bureau of Internal Revenue (BIR).
-- Delivery Fees: 100% of delivery/pick-up fees are remitted to the OWNER and are exempt from the AGENCY's {agency_share_val} fee.
-- Payment Processing Fees: Third-party payment gateway surcharges associated with their gross earnings shall be absorbed by the OWNER and deducted prior to final remittance.
+- Platform Share: {agency_share_val}
+c. E-Marketplace Withholding Tax (BIR Form 2307): In compliance with BIR regulations for e-marketplaces, the payment gateway shall automatically deduct a 0.5% creditable withholding tax from the OWNER's gross remittance. The OWNER shall be provided a BIR Form 2307 (Certificate of Creditable Tax Withheld at Source) for this deduction.
+d. Invoicing and Local Taxes (LGU): The AGENCY operates strictly as a platform broker. The AGENCY shall issue an Official Receipt/Sales Invoice ONLY for its {agency_share_val} commission. The OWNER retains 100% responsibility for issuing their own receipts to the renter for their {owner_share_val} share and declaring their income for Local Business Tax (LGU) and BIR Income Tax.
+e. Delivery & Gateway Fees: 100% of delivery/pick-up fees are remitted to the OWNER. Third-party payment gateway transaction surcharges applied to the total booking shall be absorbed by the OWNER and deducted prior to final remittance.
 
 4. CANCELLATION PENALTIES AND COMPENSATION 
 In the event that a Renter cancels a confirmed booking and a cancellation penalty is applied, the standard revenue split shall not apply to the penalty amount. Instead, the collected penalty shall be subject to a 60% / 40% distribution. The OWNER shall receive sixty percent (60%) as compensation, and the AGENCY shall retain forty percent (40%) to cover administrative overhead.
