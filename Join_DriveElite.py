@@ -3,7 +3,7 @@ import pandas as pd
 import datetime, random, os, io, time
 import smtplib
 import sqlite3
-from email.message import EmailMessage
+from email.message imFport EmailMessage
 import numpy as np
 from PIL import Image
 from streamlit_drawable_canvas import st_canvas
@@ -528,7 +528,15 @@ if reg_type in ["Affiliate", "Renter"]:
         st.subheader(f"Step 2: Digital {reg_type} Agreement")
         st.info("By signing below, you agree to the DriveElite Terms of Service and Privacy Policy.")
         
-        canvas = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=150, width=400, key=f"sig_{reg_type}")
+        canvas = st_canvas(
+    stroke_width=3, 
+    stroke_color="#000000", 
+    background_color="#FFFFFF", 
+    height=150, 
+    width=400, 
+    key=f"sig_{reg_type}",
+    return_image_data=True  # <-- ADD THIS PARAMETER
+)
         
         c_back, c_sub = st.columns([1, 4])
         if c_back.button("⬅️ BACK"):
