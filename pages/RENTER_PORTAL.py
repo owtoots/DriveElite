@@ -549,27 +549,33 @@ def main():
                                                         b_ref = str(random.randint(100000, 999999))
                                                         is_drvr_int = 1 if "Driver" in drive_mode else 0
                                                         
-                                                        # --- PAYMONGO AUTOMATED FLOW ---
-                                                        if gateway_mode == "PAYMONGO":
+                                                        # --- XENDIT AUTOMATED FLOW ---
+                                                        if gateway_mode == "XENDIT":
                                                             conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
                                                                          (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_drvr_int, b_ref))
                                                             conn.commit()
                                                             
                                                             try:
-                                                                SECRET_KEY = os.environ.get("paymongo_active_key")
+                                                                SECRET_KEY = os.environ.get("xendit_active_key")
                                                                 if not SECRET_KEY:
-                                                                    try: SECRET_KEY = st.secrets.get("paymongo_active_key")
+                                                                    try: SECRET_KEY = st.secrets.get("xendit_active_key")
                                                                     except: pass 
-                                                                
+                                                                    
                                                                 if not SECRET_KEY:
-                                                                    st.error("Missing API Key: Please add 'paymongo_active_key' to your variables.")
+                                                                    st.error("Missing API Key: Please add 'xendit_active_key' to your variables.")
                                                                 else:
-                                                                    pay_amount = int(grand_total * 100)
+                                                                    # Xendit uses exact PHP amounts (not cents)
+                                                                    pay_amount = int(grand_total)
                                                                     auth_string = f"{SECRET_KEY}:"
                                                                     base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
                                                                     
-                                                                    url = "https://api.paymongo.com/v1/links"
-                                                                    payload = {"data": {"attributes": {"amount": pay_amount, "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})", "remarks": f"Renter: {renter_user}"}}}
+                                                                    url = "https://api.xendit.co/v2/invoices"
+                                                                    payload = {
+                                                                        "external_id": str(b_ref),
+                                                                        "amount": pay_amount,
+                                                                        "currency": "PHP",
+                                                                        "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})"
+                                                                    }
                                                                     
                                                                     req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'))
                                                                     req.add_header('accept', 'application/json')
@@ -577,17 +583,17 @@ def main():
                                                                     req.add_header('authorization', f'Basic {base64_auth}')
                                                                     
                                                                     response = urllib.request.urlopen(req)
-                                                                    checkout_url = json.loads(response.read().decode('utf-8'))['data']['attributes']['checkout_url']
+                                                                    checkout_url = json.loads(response.read().decode('utf-8'))['invoice_url']
                                                                     
-                                                                    # LOCK THE UI TO STAGE 2 (PAYMONGO)
-                                                                    st.session_state[f"pm_url_{car['id']}"] = checkout_url
+                                                                    # LOCK THE UI TO STAGE 2 (XENDIT)
+                                                                    st.session_state[f"pay_url_{car['id']}"] = checkout_url
                                                                     st.session_state[ref_key] = b_ref
                                                                     st.session_state[stage_key] = 2
                                                                     st.rerun()
                                                                     
                                                             except urllib.error.HTTPError as e:
                                                                 error_info = e.read().decode()
-                                                                st.error(f"PayMongo Rejected the Request: {error_info}")
+                                                                st.error(f"Xendit Rejected the Request: {error_info}")
                                                             except Exception as e:
                                                                 st.error(f"System Error generating link: {e}")
                                                         
@@ -665,23 +671,22 @@ def main():
                                                         st.error("Please upload a screenshot of your receipt.")
 
                                         # -------------------------------------------------------------
-                                        # CHECKOUT STAGE 2: PAYMONGO CHECKOUT GATEWAY (NEW)
+                                        # CHECKOUT STAGE 2: XENDIT CHECKOUT GATEWAY
                                         # -------------------------------------------------------------
                                         elif st.session_state[stage_key] == 2:
                                             b_ref = st.session_state.get(ref_key)
-                                            pm_url = st.session_state.get(f"pm_url_{car['id']}")
+                                            pay_url = st.session_state.get(f"pay_url_{car['id']}")
 
                                             st.markdown(f"""
                                             <div style="background-color: #EFF6FF; border: 1px solid #BFDBFE; padding: 20px; border-radius: 12px; border-left: 6px solid #2563EB; margin-bottom: 20px;">
                                                 <h4 style="color: #1E3A8A; margin-top: 0; margin-bottom: 8px;">✅ Booking Saved (Ref: #{b_ref})</h4>
                                                 <p style="color: #1D4ED8; font-size: 15px; margin-bottom: 0;">
-                                                    Your vehicle is temporarily locked. Please complete your payment via PayMongo to finalize the reservation.
+                                                    Your vehicle is temporarily locked. Please complete your payment via Xendit to finalize the reservation.
                                                 </p>
                                             </div>
                                             """, unsafe_allow_html=True)
                                             
-                                            # Using a bold link button for the gateway
-                                            st.link_button("💳 PROCEED TO PAYMONGO SECURE CHECKOUT", pm_url, type="primary", use_container_width=True)
+                                            st.link_button("💳 PROCEED TO XENDIT SECURE CHECKOUT", pay_url, type="primary", use_container_width=True)
                                             
                                             st.divider()
                                             
@@ -696,34 +701,25 @@ def main():
                                                 
                                             if c_paid.button("I Have Paid", key=f"paid_pm_{car['id']}_{cat}", use_container_width=True):
                                                 with st.spinner("Notifying Admin..."):
-                                                    # Update status so it shows up in the admin dashboard for PayMongo verification
                                                     conn.execute("UPDATE bookings SET status = 'VERIFYING' WHERE booking_ref = ?", (b_ref,))
-                                                    
-                                                    # Fetch the owner's username for the email
                                                     owner_username = pd.read_sql_query("SELECT owner_username FROM vehicles WHERE id=?", conn, params=(car['id'],)).iloc[0]['owner_username']
                                                     
-                                                    # ==========================================
-                                                    #  SEND AUTOMATED EMAIL ALERTS (PAYMONGO)
-                                                    # ==========================================
                                                     try:
                                                         aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
                                                         if not aff_data.empty:
                                                             affiliate_email = aff_data.iloc[0]['email']
                                                             affiliate_name = aff_data.iloc[0]['full_name']
                                                             
-                                                            # 1. Email to Admin
                                                             admin_email = "contact@driveelite.ph" 
                                                             send_alert_email(
                                                                 to_email=admin_email,
-                                                                subject=f"CNF: PayMongo Payment Verification Needed for #{b_ref}",
-                                                                body=f"Renter @{renter_user} has booked a {car['make']} {car['model']} and completed the PayMongo checkout.\n\nPlease verify this transaction inside your PayMongo Dashboard and approve the booking."
+                                                                subject=f"CNF: Xendit Payment Verification Needed for #{b_ref}",
+                                                                body=f"Renter @{renter_user} has booked a {car['make']} {car['model']} and completed the Xendit checkout.\n\nPlease verify this transaction inside your Xendit Dashboard and approve the booking."
                                                             )
-                                                            
-                                                            # 2. Email to Affiliate
                                                             send_alert_email(
                                                                 to_email=affiliate_email,
                                                                 subject=f"🚗 DriveElite: New Booking Verifying (#{b_ref})",
-                                                                body=f"Hello {affiliate_name},\n\nA renter has booked your {car['make']} {car['model']} via PayMongo.\n\nAdmin is currently verifying the gateway transaction. Once confirmed, this will appear in your Logistics tab!"
+                                                                body=f"Hello {affiliate_name},\n\nA renter has booked your {car['make']} {car['model']} via Xendit.\n\nAdmin is currently verifying the gateway transaction. Once confirmed, this will appear in your Logistics tab!"
                                                             )
                                                     except Exception:
                                                         pass
@@ -735,7 +731,6 @@ def main():
                                                 del st.session_state[ref_key]
                                                 st.session_state.just_booked_ref = b_ref 
                                                 st.rerun()
-
     # ==========================================
     # 📅 MY BOOKINGS (MAIN TAB 1)
     # ==========================================
