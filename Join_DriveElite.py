@@ -513,10 +513,20 @@ if reg_type in ["Affiliate", "Renter"]:
                     if not check.empty:
                         st.error("🚨 Username already taken.")
                     else:
+                        # 🚨 Save massive images to disk to prevent RAM crash
+                        gov_path = f"/data/uploads/gov_{un}.jpg"
+                        lic_path = f"/data/uploads/lic_{un}.jpg"
+                        
+                        with open(gov_path, "wb") as f:
+                            f.write(g_id.getbuffer())
+                        with open(lic_path, "wb") as f:
+                            f.write(l_id.getbuffer())
+                            
+                        # Save only the lightweight file PATHS in session state
                         st.session_state[f"temp_{reg_type.lower()}_data"] = {
                             "username": un, "password": pwd, "full_name": f"{fn} {mn} {sn}".strip(), 
                             "email": em, "age": age, "nationality": nat, "address": ad, 
-                            "area_code": ac, "contact": cn, "gov_id": g_id.read(), "lic_id": l_id.read()
+                            "area_code": ac, "contact": cn, "gov_path": gov_path, "lic_path": lic_path
                         }
                         st.session_state[step_key] = 2
                         st.rerun()
@@ -557,10 +567,16 @@ if reg_type in ["Affiliate", "Renter"]:
                     except Exception as e:
                         st.error(f"PDF Generation Error: {e}")
                     
+                    # 🚨 Read the images back into memory ONLY right before saving
+                    with open(data["gov_path"], "rb") as f:
+                        gov_bytes = f.read()
+                    with open(data["lic_path"], "rb") as f:
+                        lic_bytes = f.read()
+
                     st.session_state.reg_payload = (
                         data["username"], data["password"], reg_type.upper(), data["full_name"], 
                         data["email"], data["age"], data["nationality"], data["address"], 
-                        data["area_code"], data["contact"], data["gov_id"], data["lic_id"], sig_bytes
+                        data["area_code"], data["contact"], gov_bytes, lic_bytes, sig_bytes
                     )
                     st.session_state.verify_contact = data["contact"]
                     
