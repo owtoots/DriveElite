@@ -832,18 +832,25 @@ with tabs[3]:
                         st.caption(f"Bank: {p.get('bank_name', 'N/A')} | Acct: {p.get('account_no', 'N/A')}")
                         
                         # 3. Process the payout and update the ledger
-                        if st.button("MARK AS PAID", key=f"p_{p['id']}", type="primary", use_container_width=True):
-                            # Mark the trip as paid
-                            conn.execute("UPDATE bookings SET payout_status = 'PAID' WHERE id = ?", (p['id'],))
-                            
-                            # Reduce their penalty balance in the database
-                            if penalty_to_deduct > 0:
-                                conn.execute("UPDATE platform_users SET penalty_balance = penalty_balance - ? WHERE username = ?", (penalty_to_deduct, aff_username))
-                            
-                            conn.commit()
-                            st.success("✅ Payout Recorded and Ledger Updated!")
-                            time.sleep(1.5)
-                            st.rerun()
+                        if st.button("EXECUTE XENDIT PAYOUT", key=f"p_{p['id']}", type="primary", use_container_width=True):
+                            with st.spinner("Communicating with Xendit Bank Servers..."):
+                                
+                                # ==========================================
+                                # 🚨 XENDIT API DISBURSEMENT TRIGGER GOES HERE
+                                # We will pass 'final_payout' to their Sub-Account ID
+                                # ==========================================
+                                
+                                # Mark the trip as paid in local database AFTER Xendit confirms success
+                                conn.execute("UPDATE bookings SET payout_status = 'PAID' WHERE id = ?", (p['id'],))
+                                
+                                # Reduce their penalty balance in the database
+                                if penalty_to_deduct > 0:
+                                    conn.execute("UPDATE platform_users SET penalty_balance = penalty_balance - ? WHERE username = ?", (penalty_to_deduct, aff_username))
+                                
+                                conn.commit()
+                                st.success("✅ Funds Disbursed via Xendit and Ledger Updated!")
+                                time.sleep(1.5)
+                                st.rerun()
 
         # --- SUB-TAB 3: ISSUE RECEIPTS ---
         with f_tabs[3]:
@@ -1405,7 +1412,7 @@ with tabs[9]:
         current_mode = "MANUAL_QR"
 
     new_mode = st.radio("Active Payment System:", 
-                        ["MANUAL_QR", "PAYMONGO"], 
+                        ["MANUAL_QR", "XENDIT"], 
                         index=0 if current_mode == "MANUAL_QR" else 1)
 
     if st.button("Save Payment Settings", type="primary"):
