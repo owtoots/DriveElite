@@ -21,7 +21,7 @@ import streamlit as st
 from database_utils import get_connection, init_db, patch_database, send_sms_alert, send_alert_email
 def main():
     # --- AUTHENTICATION & PAGE CONFIG ---
-    st.set_page_config(page_title="DriveElite Admin Portal", layout="wide")
+    st.set_page_config(page_title="DriveElite Renter", layout="wide", initial_sidebar_state="expanded")
 
 # ==========================================
 # 💎 2. THE "CRYSTAL ELITE" CSS ENGINE
