@@ -31,8 +31,9 @@ if "portal" in query_params:
 # ==========================================
 st.set_page_config(
     page_title="DriveElite", 
-    page_icon="logo.png",  # <-- ADD THIS TO PUT THE LOGO IN THE BROWSER TAB
-    layout="wide"
+    page_icon="logo.png",
+    layout="wide",
+    initial_sidebar_state="expanded"  # <-- ADDED THIS TO PIN MENU ON LAPTOP
 )
 
 try:
