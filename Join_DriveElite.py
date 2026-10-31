@@ -56,9 +56,9 @@ st.markdown("""
         }
     }
 /* Hide Streamlit Branding */
-    #MainMenu {visibility: hidden;}
+    
     footer {visibility: hidden;}
-    header {visibility: hidden;}
+    
     /* Fixed Image Styling */
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
         height: 200px !important;
