@@ -179,7 +179,8 @@ if st.session_state.current_page != "JOIN":
 # 5. DATABASE SETUP
 # ==========================================
 conn = get_connection()
-
+try: conn.execute("ALTER TABLE platform_users ADD COLUMN xendit_sub_id TEXT"); conn.commit()
+        except: pass
 try:
     conn.execute('''
         CREATE TABLE IF NOT EXISTS platform_users (
@@ -641,16 +642,60 @@ if reg_type in ["Affiliate", "Renter"]:
             if user_otp == st.session_state.generated_otp:
                 with st.spinner("Saving your account to the secure database..."):
                     try:
-                        # Push the payload we packed in Step 2 directly into the database
+                        # ==========================================
+                        # 🚨 1. XENDIT AUTOMATED SUB-ACCOUNT CREATION
+                        # ==========================================
+                        generated_sub_id = None
+                        if reg_type.upper() == "AFFILIATE":
+                            SECRET_KEY = os.environ.get("xendit_active_key")
+                            if not SECRET_KEY:
+                                try: SECRET_KEY = st.secrets.get("xendit_active_key")
+                                except: pass 
+                            
+                            if SECRET_KEY:
+                                try:
+                                    auth_string = f"{SECRET_KEY}:"
+                                    base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+                                    
+                                    url = "https://api.xendit.co/v2/accounts"
+                                    
+                                    # Tell Xendit to create an "OWNED" Sub-Account for this specific affiliate
+                                    payload = {
+                                        "type": "OWNED",
+                                        "business_profile": {
+                                            "business_name": st.session_state.reg_payload[3] # full_name
+                                        }
+                                    }
+                                    
+                                    req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'))
+                                    req.add_header('accept', 'application/json')
+                                    req.add_header('content-type', 'application/json')
+                                    req.add_header('authorization', f'Basic {base64_auth}')
+                                    
+                                    response = urllib.request.urlopen(req)
+                                    xendit_data = json.loads(response.read().decode('utf-8'))
+                                    generated_sub_id = xendit_data.get('id')
+                                    
+                                except Exception as e:
+                                    print(f"Failed to generate Xendit Sub-Account: {e}")
+                        
+                        # ==========================================
+                        # 🚨 2. SINGLE DATABASE INSERTION
+                        # ==========================================
+                        # Append the generated_sub_id (or None if Renter) to the 13-item payload
+                        final_payload = st.session_state.reg_payload + (generated_sub_id,)
+                        
                         conn.execute("""
                             INSERT INTO platform_users (
                                 username, password, role, full_name, email, age, nationality, address, 
-                                area_code, contact_number, govt_id_img, license_img, signature_img, admin_status
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
-                        """, st.session_state.reg_payload)
+                                area_code, contact_number, govt_id_img, license_img, signature_img, admin_status, xendit_sub_id
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
+                        """, final_payload)
                         conn.commit()
                         
-                        # --- Admin Alerts ---
+                        # ==========================================
+                        # 3. ADMIN ALERTS & EMAILS
+                        # ==========================================
                         try:
                             admin_phone = "09688811400" 
                             admin_email = "contact@driveelite.ph"
@@ -663,7 +708,6 @@ if reg_type in ["Affiliate", "Renter"]:
                         except Exception:
                             pass
                         
-                        # --- Welcome Email ---
                         try:
                             un, role, email = st.session_state.reg_payload[0], st.session_state.reg_payload[2], st.session_state.reg_payload[4]
                             prefix = "MOA" if role == "AFFILIATE" else "RENTER"
