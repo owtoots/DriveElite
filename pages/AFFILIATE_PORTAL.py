@@ -103,6 +103,7 @@ st.markdown("""
     div[data-testid="stStaleElement"] { opacity: 1 !important; transition: none !important; }
 /* 🚨 MAKE MOBILE MENU ARROW MASSIVE AND VISIBLE */
         [data-testid="collapsedControl"] {
+            position: fixed !important;  /* <-- THIS DETACHES IT FROM THE SCROLLING HEADER */
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
