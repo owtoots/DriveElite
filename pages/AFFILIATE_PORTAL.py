@@ -101,6 +101,27 @@ st.markdown("""
     [data-testid="stAppViewContainer"] > .main { transition: none !important; }
     .element-container, .stMarkdown, .stText { transition: none !important; animation: none !important; opacity: 1 !important; }
     div[data-testid="stStaleElement"] { opacity: 1 !important; transition: none !important; }
+/* 🚨 MAKE MOBILE MENU ARROW MASSIVE AND VISIBLE */
+        [data-testid="collapsedControl"] {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background-color: #2563EB !important;
+            border-radius: 50% !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+            top: 15px !important;
+            left: 15px !important;
+            padding: 8px !important;
+            z-index: 999999 !important;
+            transition: transform 0.2s ease !important;
+        }
+        
+        [data-testid="collapsedControl"] svg {
+            fill: #FFFFFF !important;
+            color: #FFFFFF !important;
+            width: 24px !important;
+            height: 24px !important;
+        }
 </style>
 """, unsafe_allow_html=True)
 
