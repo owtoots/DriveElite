@@ -23,7 +23,7 @@ def main():
     # ==========================================
     # 1. PAGE CONFIG & LOGO
     # ==========================================
-    st.set_page_config(page_title="DriveElite Affiliate", layout="wide")
+    st.set_page_config(page_title="DriveElite Renter", layout="wide", initial_sidebar_state="expanded")
 
 try:
     st.sidebar.image("logo.png", use_container_width=True)
