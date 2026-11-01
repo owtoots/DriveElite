@@ -757,7 +757,14 @@ with tabs[0]:
                                     col_sig1, col_sig2 = st.columns(2)
                                     with col_sig1:
                                         if f"clr_sr_{b['id']}" not in st.session_state: st.session_state[f"clr_sr_{b['id']}"] = 0
-                                        s_r = (stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=300, display_toolbar=False, key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}")
+                                        s_r = st_canvas(
+                                            stroke_width=2, 
+                                            stroke_color="#000", 
+                                            background_color="#ffffff", 
+                                            height=150, 
+                                            width=300, 
+                                            key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}"
+                                        )
                                         # Changed from st.button to st.form_submit_button
                                         if st.form_submit_button("Clear Renter Pad", use_container_width=True): 
                                             st.session_state[f"clr_sr_{b['id']}"] += 1
