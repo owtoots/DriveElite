@@ -761,8 +761,8 @@ with tabs[0]:
                                             stroke_width=2, 
                                             stroke_color="#000", 
                                             background_color="#ffffff", 
-                                            height=150, 
-                                            width=220, 
+                                            height=130, 
+                                            width=200, 
                                             return_image_data=True,
                                             key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}"
                                         )
@@ -778,8 +778,8 @@ with tabs[0]:
                                             stroke_width=2, 
                                             stroke_color="#000", 
                                             background_color="#ffffff", 
-                                            height=150, 
-                                            width=220, 
+                                            height=130, 
+                                            width=200, 
                                             return_image_data=True,  # <-- Add this parameter
                                             key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}"
                                         )
@@ -938,8 +938,8 @@ with tabs[0]:
                                         stroke_width=2, 
                                         stroke_color="#000", 
                                         background_color="#ffffff", 
-                                        height=150, 
-                                        width=180, 
+                                        height=130, 
+                                        width=200, 
                                         return_image_data=True,  # <-- Add this parameter
                                         key=f"sret_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}"
                                     )
@@ -956,8 +956,8 @@ with tabs[0]:
                                         stroke_width=2, 
                                         stroke_color="#000", 
                                         background_color="#ffffff", 
-                                        height=150, 
-                                        width=180, 
+                                        height=130, 
+                                        width=200, 
                                         return_image_data=True, 
                                         key=f"sreta_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}"
                                     )
