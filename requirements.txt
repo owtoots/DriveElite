@@ -1,8 +1,8 @@
-streamlit
-pandas
-numpy
-Pillow
-streamlit-drawable-canvas
-fpdf
-requests
-streamlit-autorefresh
+streamlit==1.42.0
+pandas==2.2.2
+numpy==1.26.4
+Pillow==10.3.0
+streamlit-drawable-canvas==0.9.3
+fpdf2==2.7.8
+requests==2.31.0
+streamlit-autorefresh==1.0.1
