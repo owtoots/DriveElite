@@ -762,7 +762,7 @@ with tabs[0]:
                                             stroke_color="#000", 
                                             background_color="#ffffff", 
                                             height=150, 
-                                            width=300, 
+                                            width=250, 
                                             return_image_data=True,
                                             key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}"
                                         )
@@ -779,7 +779,7 @@ with tabs[0]:
                                             stroke_color="#000", 
                                             background_color="#ffffff", 
                                             height=150, 
-                                            width=300, 
+                                            width=250, 
                                             return_image_data=True,  # <-- Add this parameter
                                             key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}"
                                         )
