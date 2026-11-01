@@ -114,6 +114,10 @@ def patch_database():
     except: pass
     try: conn.execute("ALTER TABLE vehicles ADD COLUMN cr_img TEXT"); conn.commit()
     except: pass
+    try: conn.execute("ALTER TABLE vehicles ADD COLUMN baseline_price REAL DEFAULT 0.0"); conn.commit()
+    except: pass
+    try: conn.execute("ALTER TABLE vehicles ADD COLUMN vehicle_age INTEGER DEFAULT 0"); conn.commit()
+    except: pass   
     try: conn.execute("ALTER TABLE vehicles ADD COLUMN is_with_driver INTEGER DEFAULT 0"); conn.commit()
     except: pass  
     try: conn.execute("ALTER TABLE vehicles ADD COLUMN tire_pressure TEXT DEFAULT 'Standard specs'"); conn.commit()
@@ -696,7 +700,7 @@ with tabs[0]:
                                         st.rerun()
                                     except Exception as e:
                                         st.warning(f" **DATABASE ERROR:** {str(e)}")
-                                    
+                                        
                         st.divider()
 
                         if b['status'] == 'CONFIRMED':
@@ -731,15 +735,8 @@ with tabs[0]:
                                     col_sig1, col_sig2 = st.columns(2)
                                     with col_sig1:
                                         if f"clr_sr_{b['id']}" not in st.session_state: st.session_state[f"clr_sr_{b['id']}"] = 0
-                                        s_r = st_canvas(
-                                            stroke_width=2, 
-                                            stroke_color="#000", 
-                                            background_color="#ffffff", 
-                                            height=150, 
-                                            width=280, 
-                                            return_image_data=True,
-                                            key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}"
-                                        )
+                                        s_r = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=300, display_toolbar=False, key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}")
+                                        # Changed from st.button to st.form_submit_button
                                         if st.form_submit_button("Clear Renter Pad", use_container_width=True): 
                                             st.session_state[f"clr_sr_{b['id']}"] += 1
                                             st.rerun()
@@ -747,21 +744,15 @@ with tabs[0]:
                                     
                                     with col_sig2:
                                         if f"clr_sa_{b['id']}" not in st.session_state: st.session_state[f"clr_sa_{b['id']}"] = 0
-                                        s_a = st_canvas(
-                                            stroke_width=2, 
-                                            stroke_color="#000", 
-                                            background_color="#ffffff", 
-                                            height=150, 
-                                            width=280, 
-                                            return_image_data=True, 
-                                            key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}"
-                                        )
+                                        s_a = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=300, display_toolbar=False, key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}")
+                                        # Changed from st.button to st.form_submit_button
                                         if st.form_submit_button("Clear Host Pad", use_container_width=True): 
                                             st.session_state[f"clr_sa_{b['id']}"] += 1
                                             st.rerun()
                                         st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
                                     
                                     st.write("")
+                                    # The main dispatch button is now the form's submit trigger
                                     submit_dispatch = st.form_submit_button("🚀 FINAL LOG HANDOVER & DISPATCH", type="primary", use_container_width=True)
 
                                     if submit_dispatch:
@@ -905,92 +896,72 @@ with tabs[0]:
                                 
                                 with c_sig1:
                                     if f"clr_sret_{b['id']}" not in st.session_state: st.session_state[f"clr_sret_{b['id']}"] = 0
-                                    s_ret = st_canvas(
-                                        stroke_width=2, 
-                                        stroke_color="#000", 
-                                        background_color="#ffffff", 
-                                        height=150, 
-                                        width=180, 
-                                        return_image_data=True, 
-                                        key=f"sret_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}"
-                                    )
+                                    s_ret = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=180, display_toolbar=False, key=f"sret_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}")
                                     if st.form_submit_button("Clear Renter Pad", use_container_width=True): 
                                         st.session_state[f"clr_sret_{b['id']}"] += 1
                                         st.rerun()
                                     st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{b['renter_name']}</b></u><br>Renter</div>", unsafe_allow_html=True)
                                     
                                 with c_sig2:
-                                    if f"clr_sreta_{b['id']}" not in st.session_state: 
-                                        st.session_state[f"clr_sreta_{b['id']}"] = 0
-                                        
-                                    s_reta = st_canvas(
-                                        stroke_width=2, 
-                                        stroke_color="#000", 
-                                        background_color="#ffffff", 
-                                        height=150, 
-                                        width=180, 
-                                        return_image_data=True, 
-                                        key=f"sreta_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}"
-                                    )
-                                    
+                                    if f"clr_sreta_{b['id']}" not in st.session_state: st.session_state[f"clr_sreta_{b['id']}"] = 0
+                                    s_reta = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=180, display_toolbar=False, key=f"sreta_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}")
                                     if st.form_submit_button("Clear Host Pad", use_container_width=True): 
                                         st.session_state[f"clr_sreta_{b['id']}"] += 1
                                         st.rerun()
-                                        
                                     st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
 
                                 st.write("")
                                 submit = st.form_submit_button("✅ COMPLETE JOURNEY & CLOSE OUT", type="primary", use_container_width=True)
 
-                                # --- FORM SUBMISSION LOGIC ---
-                                if submit:
-                                    has_sig = s_ret.image_data is not None and len(s_ret.json_data.get("objects", [])) > 0
-                                    has_sig_a = s_reta.image_data is not None and len(s_reta.json_data.get("objects", [])) > 0
+                            # --- FORM SUBMISSION LOGIC ---
+                            if submit:
+                                has_sig = s_ret.image_data is not None and len(s_ret.json_data.get("objects", [])) > 0
+                                has_sig_a = s_reta.image_data is not None and len(s_reta.json_data.get("objects", [])) > 0
+                                
+                                if not has_sig or not has_sig_a:
+                                    st.error("Both Renter and Affiliate signatures are required to close the trip.")
+                                elif settlement_type == "Self-Drive" and not d_ok and not img_damage:
+                                    st.error("Upload damage photos to proceed.")
+                                else:
+                                    d_img_path = ",".join([save_file(img) for img in img_damage]) if img_damage else None
                                     
-                                    if not has_sig or not has_sig_a:
-                                        st.error("Both Renter and Affiliate signatures are required to close the trip.")
-                                    elif settlement_type == "Self-Drive" and not d_ok and not img_damage:
-                                        st.error("Upload damage photos to proceed.")
-                                    else:
-                                        d_img_path = ",".join([save_file(img) for img in img_damage]) if img_damage else None
-                                        
-                                        with st.spinner("Generating Settlement PDF and closing trip..."):
-                                            try:
-                                                pdf_bytes = generate_return_receipt(
-                                                    b['booking_ref'], b['renter_name'], f"{b['make']} {b['model']}", b['plate'], 
-                                                    float(fuel_cost), float(cleaning_fee), float(damage_fee), float(late_fee), float(driver_extras), float(rfid_fee), 
-                                                    float(total_deduct), float(refund_amount), s_ret.image_data, s_reta.image_data
-                                                )
+                                    with st.spinner("Generating Settlement PDF and closing trip..."):
+                                        try:
+                                            pdf_bytes = generate_return_receipt(
+                                                b['booking_ref'], b['renter_name'], f"{b['make']} {b['model']}", b['plate'], 
+                                                float(fuel_cost), float(cleaning_fee), float(damage_fee), float(late_fee), float(driver_extras), float(rfid_fee), 
+                                                float(total_deduct), float(refund_amount), s_ret.image_data, s_reta.image_data
+                                            )
+                                            
+                                            pdf_filepath = f"/data/uploads/Settlement_{b['booking_ref']}.pdf"
+                                            with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
+                                            
+                                            email_sent = False
+                                            if b.get('renter_email'):
+                                                subject = f"DriveElite: Return Settlement Receipt (#{b['booking_ref']})"
+                                                body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: Php{total_deduct:,.2f}\nRefund Amount: Php{refund_amount:,.2f}"
+                                                email_sent = send_pdf_email(b['renter_email'], subject, body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
+                                            
+                                            conn.execute("""
+                                                UPDATE bookings 
+                                                SET status = 'COMPLETED', payout_status = 'PENDING',
+                                                    damage_img = ?, rfid_fee = ?, damage_fee = ?, late_fee = ?, fuel_fee = ?, cleaning_fee = ?, dispute_status = 'CLEAN' 
+                                                WHERE id = ?
+                                            """, (d_img_path, float(rfid_fee + driver_extras), float(damage_fee), float(late_fee), float(fuel_cost), float(cleaning_fee), b['id']))
+                                            
+                                            conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
+                                            conn.commit()
+                                            
+                                            if email_sent:
+                                                st.success("✅ Trip closed & Settlement Receipt emailed to Renter!")
+                                            else:
+                                                st.warning("✅ Trip closed successfully, BUT the email failed to send (check your SMTP settings/password).")
                                                 
-                                                pdf_filepath = f"/data/uploads/Settlement_{b['booking_ref']}.pdf"
-                                                with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
-                                                
-                                                email_sent = False
-                                                if b.get('renter_email'):
-                                                    subject = f"DriveElite: Return Settlement Receipt (#{b['booking_ref']})"
-                                                    body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: Php{total_deduct:,.2f}\nRefund Amount: Php{refund_amount:,.2f}"
-                                                    email_sent = send_pdf_email(b['renter_email'], subject, body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
-                                                
-                                                conn.execute("""
-                                                    UPDATE bookings 
-                                                    SET status = 'COMPLETED', payout_status = 'PENDING',
-                                                        damage_img = ?, rfid_fee = ?, damage_fee = ?, late_fee = ?, fuel_fee = ?, cleaning_fee = ?, dispute_status = 'CLEAN' 
-                                                    WHERE id = ?
-                                                """, (d_img_path, float(rfid_fee + driver_extras), float(damage_fee), float(late_fee), float(fuel_cost), float(cleaning_fee), b['id']))
-                                                
-                                                conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
-                                                conn.commit()
-                                                
-                                                if email_sent:
-                                                    st.success("✅ Trip closed & Settlement Receipt emailed to Renter!")
-                                                else:
-                                                    st.warning("✅ Trip closed successfully, BUT the email failed to send (check your SMTP settings/password).")
-                                                    
-                                                time.sleep(3)
-                                                st.rerun()
-                                                
-                                            except Exception as e:
-                                                st.error(f"Error: {e}")
+                                            time.sleep(3)
+                                            st.rerun()
+                                            
+                                        except Exception as e:
+                                            st.error(f"Error: {e}")
 
     except Exception as e:
         st.error(f"System Error loading bookings: {e}")
@@ -1098,7 +1069,7 @@ with tabs[3]:
             if df_first and df_last and d_contact and d_gov and d_lic:
                 # 1. Save to Database
                 conn.execute("INSERT INTO drivers (owner_username, first_name, middle_name, last_name, age, address, contact_number, is_owner, govt_id_img, license_img, admin_status) VALUES (?,?,?,?,?,?,?,?,?,?, 'PENDING')", 
-                            (st.session_state.username, df_first, df_mid, df_last, d_age, d_address, d_contact, 1 if is_owner else 0, save_file(d_lic), save_file(d_gov)))
+                             (st.session_state.username, df_first, df_mid, df_last, d_age, d_address, d_contact, 1 if is_owner else 0, save_file(d_lic), save_file(d_gov)))
                 conn.commit()
                 
                 # 2. Alert Admin
