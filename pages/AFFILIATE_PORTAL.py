@@ -758,11 +758,11 @@ with tabs[0]:
                                     with col_sig1:
                                         if f"clr_sr_{b['id']}" not in st.session_state: st.session_state[f"clr_sr_{b['id']}"] = 0
                                         s_r = st_canvas(
-                                            stroke_width=2, 
+                                            stroke_width=1, 
                                             stroke_color="#000", 
                                             background_color="#ffffff", 
-                                            height=130, 
-                                            width=230, 
+                                            height=100, 
+                                            width=100, 
                                             return_image_data=True,
                                             key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}"
                                         )
