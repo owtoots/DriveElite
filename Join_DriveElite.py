@@ -179,8 +179,12 @@ if st.session_state.current_page != "JOIN":
 # 5. DATABASE SETUP
 # ==========================================
 conn = get_connection()
-try: conn.execute("ALTER TABLE platform_users ADD COLUMN xendit_sub_id TEXT"); conn.commit()
-        except: pass
+try: 
+    conn.execute("ALTER TABLE platform_users ADD COLUMN xendit_sub_id TEXT")
+    conn.commit()
+except: 
+    pass
+
 try:
     conn.execute('''
         CREATE TABLE IF NOT EXISTS platform_users (
@@ -198,11 +202,13 @@ try:
             govt_id_img BLOB,
             license_img BLOB,
             signature_img BLOB,
-            admin_status TEXT DEFAULT 'PENDING'
+            admin_status TEXT DEFAULT 'PENDING',
+            xendit_sub_id TEXT
         )
     ''')
     conn.commit()
-except: pass
+except: 
+    pass
 
 for col_name, col_type in [("area_code", "TEXT DEFAULT '+63'"), ("admin_status", "TEXT DEFAULT 'PENDING'")]:
     try:
