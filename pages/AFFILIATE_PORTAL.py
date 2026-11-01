@@ -773,7 +773,7 @@ with tabs[0]:
                                     
                                     with col_sig2:
                                         if f"clr_sa_{b['id']}" not in st.session_state: st.session_state[f"clr_sa_{b['id']}"] = 0
-                                        s_a = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=300, display_toolbar=False, key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}")
+                                        s_a = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=300, key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}")
                                         # Changed from st.button to st.form_submit_button
                                         if st.form_submit_button("Clear Host Pad", use_container_width=True): 
                                             st.session_state[f"clr_sa_{b['id']}"] += 1
@@ -925,7 +925,7 @@ with tabs[0]:
                                 
                                 with c_sig1:
                                     if f"clr_sret_{b['id']}" not in st.session_state: st.session_state[f"clr_sret_{b['id']}"] = 0
-                                    s_ret = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=180, display_toolbar=False, key=f"sret_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}")
+                                    s_ret = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=180, key=f"sret_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}")
                                     if st.form_submit_button("Clear Renter Pad", use_container_width=True): 
                                         st.session_state[f"clr_sret_{b['id']}"] += 1
                                         st.rerun()
