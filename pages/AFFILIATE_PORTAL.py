@@ -173,26 +173,6 @@ def patch_database():
     except: pass
     try: conn.execute("ALTER TABLE chat_messages ADD COLUMN receiver_username TEXT"); conn.commit()
     except: pass
-    
-    # Chat Table
-    try:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS chat_messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                booking_ref TEXT,
-                sender_username TEXT,
-                receiver_username TEXT,
-                message_text TEXT,
-                image_path TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.commit()
-    except: pass
-    try: conn.execute("ALTER TABLE chat_messages ADD COLUMN image_path TEXT"); conn.commit()
-    except: pass
-    try: conn.execute("ALTER TABLE chat_messages ADD COLUMN receiver_username TEXT"); conn.commit()
-    except: pass
 
 patch_database()
 
