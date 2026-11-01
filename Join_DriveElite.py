@@ -203,7 +203,9 @@ try:
             license_img BLOB,
             signature_img BLOB,
             admin_status TEXT DEFAULT 'PENDING',
-            xendit_sub_id TEXT
+            xendit_sub_id TEXT,
+            bank_name TEXT,
+            bank_account_num TEXT
         )
     ''')
     conn.commit()
@@ -525,6 +527,13 @@ if reg_type in ["Affiliate", "Renter"]:
             
             em = st.text_input("Email Address")
             ad = st.text_area("Complete Physical Address")
+
+            # 🚨 BANK DETAILS INPUTS (FOR AFFILIATES OR ALL USERS)
+            st.markdown("---")
+            st.markdown("#### 🏦 Payout Bank / E-Wallet Details")
+            b_col1, b_col2 = st.columns(2)
+            bank_name = b_col1.selectbox("Bank / E-Wallet", ["Select...", "BPI", "BDO", "UnionBank", "Metrobank", "GCash", "Maya"])
+            bank_acc = b_col2.text_input("Account Number / Mobile Number")
             
             un = st.text_input("Choose Username")
             p1, p2 = st.columns(2)
@@ -665,11 +674,15 @@ if reg_type in ["Affiliate", "Renter"]:
                                     
                                     url = "https://api.xendit.co/v2/accounts"
                                     
-                                    # Tell Xendit to create an "OWNED" Sub-Account for this specific affiliate
+                                    # Include bank details in Xendit account creation payload
                                     payload = {
                                         "type": "OWNED",
                                         "business_profile": {
-                                            "business_name": st.session_state.reg_payload[3] # full_name
+                                            "business_name": data["full_name"]
+                                        },
+                                        "account_holder": {
+                                            "bank_code": data["bank_name"],
+                                            "account_number": data["bank_acc"]
                                         }
                                     }
                                     
