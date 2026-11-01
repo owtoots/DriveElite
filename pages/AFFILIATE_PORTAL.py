@@ -116,38 +116,23 @@ def patch_database():
     except: pass
     try: conn.execute("ALTER TABLE vehicles ADD COLUMN baseline_price REAL DEFAULT 0.0"); conn.commit()
     except: pass
-    try: conn.execute("ALTER TABLE vehicles ADD COLUMN vehicle_age INTEGER DEFAULT 0"); conn.commit()
-    except: pass   
-    try: conn.execute("ALTER TABLE vehicles ADD COLUMN is_with_driver INTEGER DEFAULT 0"); conn.commit()
-    except: pass  
+    try: conn.execute("ALTER TABLE vehicles ADD COLUMN vehicle_age INTEGER DEFAULT 0"); conn.commit()    
+    try: conn.execute("ALTER TABLE vehicles ADD COLUMN is_with_driver INTEGER DEFAULT 0"); conn.commit()  
     try: conn.execute("ALTER TABLE vehicles ADD COLUMN tire_pressure TEXT DEFAULT 'Standard specs'"); conn.commit()
-    except: pass
     try: conn.execute("ALTER TABLE vehicles ADD COLUMN preferred_fuel TEXT DEFAULT 'Standard Unleaded'"); conn.commit()
-    except: pass
     try: conn.execute("ALTER TABLE platform_users ADD COLUMN document_url TEXT"); conn.commit()
-    except: pass
     try: conn.execute("ALTER TABLE vehicles ADD COLUMN admin_status TEXT DEFAULT 'PENDING'"); conn.commit()
-    except: pass
     try: conn.execute("ALTER TABLE bookings ADD COLUMN handover_photos TEXT"); conn.commit()
-    except: pass
     try: conn.execute("ALTER TABLE bookings ADD COLUMN handover_sig_renter TEXT"); conn.commit()
-    except: pass
     try: conn.execute("ALTER TABLE bookings ADD COLUMN handover_sig_affiliate TEXT"); conn.commit()
-    except: pass
     
     # Financial & Dispute Columns
     try: conn.execute("ALTER TABLE bookings ADD COLUMN damage_fee REAL DEFAULT 0.0"); conn.commit()
-    except: pass
     try: conn.execute("ALTER TABLE bookings ADD COLUMN late_fee REAL DEFAULT 0.0"); conn.commit()
-    except: pass
     try: conn.execute("ALTER TABLE bookings ADD COLUMN fuel_fee REAL DEFAULT 0.0"); conn.commit()
-    except: pass
     try: conn.execute("ALTER TABLE bookings ADD COLUMN cleaning_fee REAL DEFAULT 0.0"); conn.commit()
-    except: pass
     try: conn.execute("ALTER TABLE bookings ADD COLUMN rfid_fee REAL DEFAULT 0.0"); conn.commit() 
-    except: pass
     try: conn.execute("ALTER TABLE bookings ADD COLUMN dispute_status TEXT DEFAULT 'CLEAN'"); conn.commit()
-    except: pass
     
     try:
         conn.execute("CREATE TABLE IF NOT EXISTS admin_promos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, target TEXT DEFAULT 'ALL USERS', active INTEGER DEFAULT 1)")
@@ -177,6 +162,32 @@ def patch_database():
 patch_database()
 
 if not os.path.exists("/data/uploads"): os.makedirs("/data/uploads", exist_ok=True)
+
+# ==========================================
+# 3.1 MEMORY-OPTIMIZED CACHED DATA LOADERS
+# ==========================================
+@st.cache_data(ttl=300, max_entries=50)
+def load_affiliate_bookings_cached(username: str):
+    query = """
+        SELECT b.*, v.make, v.model, v.plate, v.is_with_driver, r.full_name as renter_name, r.contact_number as renter_contact, r.email as renter_email
+        FROM bookings b
+        JOIN vehicles v ON b.vehicle_id = v.id
+        JOIN platform_users r ON b.renter_username = r.username
+        WHERE v.owner_username = ? AND b.status NOT IN ('COMPLETED', 'CANCELLED')
+        ORDER BY b.pickup_time ASC
+    """
+    df = pd.read_sql_query(query, conn, params=(username,))
+    if not df.empty and 'status' in df.columns:
+        df['status'] = df['status'].astype('category')
+    return df
+
+@st.cache_data(ttl=300, max_entries=50)
+def load_affiliate_fleet_cached(username: str):
+    query = "SELECT id, make, model, plate, booking_status, admin_status, ref_no FROM vehicles WHERE owner_username = ?"
+    df = pd.read_sql_query(query, conn, params=(username,))
+    if not df.empty and 'booking_status' in df.columns:
+        df['booking_status'] = df['booking_status'].astype('category')
+    return df
 
 # --- FETCH DYNAMIC RATES & SETTINGS ---
 try:
