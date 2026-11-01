@@ -171,7 +171,24 @@ conn = get_connection()
 init_db()
 patch_database()
 init_discount_db(conn)
+# Ensure platform_settings has columns for Admin's Master Bank
+try:
+    conn.execute("ALTER TABLE platform_settings ADD COLUMN admin_bank_name TEXT")
+    conn.commit()
+except:
+    pass
 
+try:
+    conn.execute("ALTER TABLE platform_settings ADD COLUMN admin_bank_acc_num TEXT")
+    conn.commit()
+except:
+    pass
+
+try:
+    conn.execute("ALTER TABLE platform_settings ADD COLUMN admin_bank_acc_name TEXT")
+    conn.commit()
+except:
+    pass
 try: 
     conn.execute("ALTER TABLE platform_users ADD COLUMN penalty_balance REAL DEFAULT 0.0")
     conn.commit()
@@ -1426,7 +1443,6 @@ with tabs[9]:
     st.markdown("### 💳 Payment Gateway Control")
     st.info("Toggle the payment system between automated PayMongo and manual BPI QR. This updates the Renter checkout experience instantly.")
     
-    # Fetch current settings to see what is currently active
     try:
         settings_df = pd.read_sql_query("SELECT payment_mode FROM platform_settings WHERE id = 1", conn)
         current_mode = settings_df.iloc[0]['payment_mode'] if not settings_df.empty else "MANUAL_QR"
@@ -1446,3 +1462,48 @@ with tabs[9]:
             st.rerun()
         except Exception as e:
             st.error(f"Database error: {e}")
+
+    # ==========================================
+    # 🏦 MASTER PLATFORM BANK SETTINGS SECTION
+    # ==========================================
+    st.divider()
+    st.markdown("### 🏦 Master Platform Payout Settings")
+    st.write("Configure the primary bank account where your 18% platform commission fees are withdrawn from the Xendit Master Account.")
+
+    try:
+        master_bank_df = pd.read_sql_query("SELECT admin_bank_name, admin_bank_acc_num, admin_bank_acc_name FROM platform_settings WHERE id = 1", conn)
+        curr_bank = master_bank_df.iloc[0]['admin_bank_name'] if not master_bank_df.empty and master_bank_df.iloc[0]['admin_bank_name'] else "Select..."
+        curr_acc_num = master_bank_df.iloc[0]['admin_bank_acc_num'] if not master_bank_df.empty and master_bank_df.iloc[0]['admin_bank_acc_num'] else ""
+        curr_acc_name = master_bank_df.iloc[0]['admin_bank_acc_name'] if not master_bank_df.empty and master_bank_df.iloc[0]['admin_bank_acc_name'] else ""
+    except Exception:
+        curr_bank, curr_acc_num, curr_acc_name = "Select...", "", ""
+
+    with st.form("admin_master_bank_form"):
+        mb_col1, mb_col2 = st.columns(2)
+        bank_options = ["Select...", "BPI", "BDO", "UnionBank", "Metrobank", "GCash", "Maya"]
+        
+        try:
+            default_bank_idx = bank_options.index(curr_bank)
+        except ValueError:
+            default_bank_idx = 0
+            
+        new_admin_bank = mb_col1.selectbox("Master Payout Bank / E-Wallet", bank_options, index=default_bank_idx)
+        new_admin_acc_num = mb_col2.text_input("Account Number / Mobile Number", value=curr_acc_num)
+        new_admin_acc_name = st.text_input("Account Holder Name (Registered to Bank)", value=curr_acc_name)
+        
+        if st.form_submit_button("SAVE MASTER BANK DETAILS", type="primary"):
+            if new_admin_bank == "Select..." or not new_admin_acc_num or not new_admin_acc_name:
+                st.error("🚨 Please fill out all bank configuration fields.")
+            else:
+                try:
+                    conn.execute("""
+                        UPDATE platform_settings 
+                        SET admin_bank_name = ?, admin_bank_acc_num = ?, admin_bank_acc_name = ?
+                        WHERE id = 1
+                    """, (new_admin_bank, new_admin_acc_num, new_admin_acc_name))
+                    conn.commit()
+                    st.success("✅ Master Platform Bank details successfully updated!")
+                    time.sleep(1)
+                    st.rerun()  
+                except Exception as e:
+                    st.error(f"Database error: {e}")
