@@ -949,25 +949,24 @@ with tabs[0]:
                                     st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{b['renter_name']}</b></u><br>Renter</div>", unsafe_allow_html=True)
                                     
                                 with c_sig2:
-                                if f"clr_sreta_{b['id']}" not in st.session_state: 
-                                    st.session_state[f"clr_sreta_{b['id']}"] = 0
+                                    if f"clr_sreta_{b['id']}" not in st.session_state: 
+                                        st.session_state[f"clr_sreta_{b['id']}"] = 0
+                                        
+                                    s_reta = st_canvas(
+                                        stroke_width=2, 
+                                        stroke_color="#000", 
+                                        background_color="#ffffff", 
+                                        height=150, 
+                                        width=180, 
+                                        return_image_data=True, 
+                                        key=f"sreta_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}"
+                                    )
                                     
-                                s_reta = st_canvas(
-                                    stroke_width=2, 
-                                    stroke_color="#000", 
-                                    background_color="#ffffff", 
-                                    height=150, 
-                                    width=180, 
-                                    return_image_data=True, 
-                                    key=f"sreta_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}"
-                                )
-                                
-                                if st.form_submit_button("Clear Host Pad", use_container_width=True): 
-                                    st.session_state[f"clr_sreta_{b['id']}"] += 1
-                                    st.rerun()
-                                    
-                                st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
-
+                                    if st.form_submit_button("Clear Host Pad", use_container_width=True): 
+                                        st.session_state[f"clr_sreta_{b['id']}"] += 1
+                                        st.rerun()
+                                        
+                                    st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
                                 st.write("")
                                 submit = st.form_submit_button("✅ COMPLETE JOURNEY & CLOSE OUT", type="primary", use_container_width=True)
 
