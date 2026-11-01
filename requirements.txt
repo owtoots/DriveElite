@@ -2,7 +2,7 @@ streamlit
 pandas
 numpy
 Pillow
-streamlit-drawable-canvas
+streamlit-drawable-canvas==0.9.3
 fpdf2
 requests
 streamlit-autorefresh
