@@ -758,39 +758,42 @@ with tabs[0]:
 
                                     st.divider()
                                     st.write("### 🖋️ 3. Dual Digital Signatures")
-                                    col_sig1, col_sig2 = st.columns(2)
-                                    with col_sig1:
-                                        if f"clr_sr_{b['id']}" not in st.session_state: st.session_state[f"clr_sr_{b['id']}"] = 0
-                                        s_r = st_canvas(
-                                            stroke_width=3, 
-                                            stroke_color="#000000", 
-                                            background_color="#FFFFFF", 
-                                            height=150, 
-                                            width=400, 
-                                            key=f"sig_{reg_type}",
-                                            return_image_data=True
-                                        )
-                                        # Changed from st.button to st.form_submit_button
-                                        if st.form_submit_button("Clear Renter Pad", use_container_width=True): 
-                                            st.session_state[f"clr_sr_{b['id']}"] += 1
-                                            st.rerun()
-                                        st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{b['renter_name']}</b></u><br>Renter</div>", unsafe_allow_html=True)
-                                    
-                                    with col_sig2:
-                                        if f"clr_sa_{b['id']}" not in st.session_state: st.session_state[f"clr_sa_{b['id']}"] = 0
-                                        s_a = st_canvas(
-                                            stroke_width=3, 
-                                            stroke_color="#000000", 
-                                            background_color="#FFFFFF", 
-                                            height=150, 
-                                            width=400, 
-                                            key=f"sig_{reg_type}",
-                                            return_image_data=True
-                                        )
-                                        # Changed from st.button to st.form_submit_button
-                                        if st.form_submit_button("Clear Host Pad", use_container_width=True): 
-                                            st.session_state[f"clr_sa_{b['id']}"] += 1
-                                            st.rerun()
+                                
+                                # --- Renter Handover Signature ---
+                                st.markdown(f"<u><b>{b['renter_name']}</b></u><br><small>Renter</small>", unsafe_allow_html=True)
+                                if f"clr_sr_{b['id']}" not in st.session_state: 
+                                    st.session_state[f"clr_sr_{b['id']}"] = 0
+                                s_r = st_canvas(
+                                    stroke_width=3, 
+                                    stroke_color="#000000", 
+                                    background_color="#FFFFFF", 
+                                    height=150, 
+                                    width=400, 
+                                    key=f"sr_canvas_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}",
+                                    return_image_data=True
+                                )
+                                if st.form_submit_button("Clear Renter Pad", use_container_width=True): 
+                                    st.session_state[f"clr_sr_{b['id']}"] += 1
+                                    st.rerun()
+
+                                st.divider()
+
+                                # --- Affiliate/Host Handover Signature ---
+                                st.markdown(f"<u><b>{affiliate_full_name}</b></u><br><small>Affiliate/Host</small>", unsafe_allow_html=True)
+                                if f"clr_sa_{b['id']}" not in st.session_state: 
+                                    st.session_state[f"clr_sa_{b['id']}"] = 0
+                                s_a = st_canvas(
+                                    stroke_width=3, 
+                                    stroke_color="#000000", 
+                                    background_color="#FFFFFF", 
+                                    height=150, 
+                                    width=400, 
+                                    key=f"sa_canvas_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}",
+                                    return_image_data=True
+                                )
+                                if st.form_submit_button("Clear Host Pad", use_container_width=True): 
+                                    st.session_state[f"clr_sa_{b['id']}"] += 1
+                                    st.rerun()
                                         st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
                                     
                                     st.write("")
@@ -934,38 +937,42 @@ with tabs[0]:
                                     st.success(f"✅ REFUND CASH TO RENTER NOW: Php{refund_amount:,.2f}")
 
                                 st.write("#### 🖊️ Final Sign-off")
-                                c_sig1, c_sig2 = st.columns(2)
                                 
-                                with c_sig1:
-                                    if f"clr_sret_{b['id']}" not in st.session_state: st.session_state[f"clr_sret_{b['id']}"] = 0
-                                    s_ret = st_canvas(
-                                        stroke_width=3, 
-                                        stroke_color="#000000", 
-                                        background_color="#FFFFFF", 
-                                        height=150, 
-                                        width=400, 
-                                        key=f"sig_{reg_type}",
-                                        return_image_data=True
-                                    )
-                                    if st.form_submit_button("Clear Renter Pad", use_container_width=True): 
-                                        st.session_state[f"clr_sret_{b['id']}"] += 1
-                                        st.rerun()
-                                    st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{b['renter_name']}</b></u><br>Renter</div>", unsafe_allow_html=True)
-                                    
-                                with c_sig2:
-                                    if f"clr_sreta_{b['id']}" not in st.session_state: st.session_state[f"clr_sreta_{b['id']}"] = 0
-                                    s_reta = st_canvas(
-                                        stroke_width=3, 
-                                        stroke_color="#000000", 
-                                        background_color="#FFFFFF", 
-                                        height=150, 
-                                        width=400, 
-                                        key=f"sig_{reg_type}",
-                                        return_image_data=True
-                                    )
-                                    if st.form_submit_button("Clear Host Pad", use_container_width=True): 
-                                        st.session_state[f"clr_sreta_{b['id']}"] += 1
-                                        st.rerun()
+                                # --- Renter Return Signature ---
+                                st.markdown(f"<u><b>{b['renter_name']}</b></u><br><small>Renter</small>", unsafe_allow_html=True)
+                                if f"clr_sret_{b['id']}" not in st.session_state: 
+                                    st.session_state[f"clr_sret_{b['id']}"] = 0
+                                s_ret = st_canvas(
+                                    stroke_width=3, 
+                                    stroke_color="#000000", 
+                                    background_color="#FFFFFF", 
+                                    height=150, 
+                                    width=400, 
+                                    key=f"sret_canvas_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}",
+                                    return_image_data=True
+                                )
+                                if st.form_submit_button("Clear Renter Pad", use_container_width=True): 
+                                    st.session_state[f"clr_sret_{b['id']}"] += 1
+                                    st.rerun()
+
+                                st.divider()
+
+                                # --- Affiliate Return Signature ---
+                                st.markdown(f"<u><b>{affiliate_full_name}</b></u><br><small>Affiliate/Host</small>", unsafe_allow_html=True)
+                                if f"clr_sreta_{b['id']}" not in st.session_state: 
+                                    st.session_state[f"clr_sreta_{b['id']}"] = 0
+                                s_reta = st_canvas(
+                                    stroke_width=3, 
+                                    stroke_color="#000000", 
+                                    background_color="#FFFFFF", 
+                                    height=150, 
+                                    width=400, 
+                                    key=f"sreta_canvas_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}",
+                                    return_image_data=True
+                                )
+                                if st.form_submit_button("Clear Host Pad", use_container_width=True): 
+                                    st.session_state[f"clr_sreta_{b['id']}"] += 1
+                                    st.rerun()
                                     st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
 
                                 st.write("")
