@@ -770,7 +770,7 @@ with tabs[0]:
                                     
                                     with col_sig2:
                                         if f"clr_sa_{b['id']}" not in st.session_state: st.session_state[f"clr_sa_{b['id']}"] = 0
-                                        s_a = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=380, display_toolbar=False, key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}")
+                                        s_a = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=300, display_toolbar=False, key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}")
                                         # Changed from st.button to st.form_submit_button
                                         if st.form_submit_button("Clear Host Pad", use_container_width=True): 
                                             st.session_state[f"clr_sa_{b['id']}"] += 1
@@ -921,39 +921,24 @@ with tabs[0]:
                                 c_sig1, c_sig2 = st.columns(2)
                                 
                                 with c_sig1:
-                                    st.markdown(f"<u><b>{b['renter_name']}</b></u><br><small>Renter</small>", unsafe_allow_html=True)
-                                    if f"clr_sr_{b['id']}" not in st.session_state: 
-                                        st.session_state[f"clr_sr_{b['id']}"] = 0
-                                    s_r = st_canvas(
-                                        stroke_width=2, 
-                                        stroke_color="#000", 
-                                        background_color="#ffffff", 
-                                        height=140, 
-                                        width=350,  # Safe fixed width that fits mobile screens without overflowing
-                                        drawing_mode="freedraw",
-                                        display_toolbar=False, 
-                                        key=f"sr_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}"
-                                    )
+                                    if f"clr_sret_{b['id']}" not in st.session_state: st.session_state[f"clr_sret_{b['id']}"] = 0
+                                    s_ret = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=180, display_toolbar=False, key=f"sret_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}")
                                     if st.form_submit_button("Clear Renter Pad", use_container_width=True): 
-                                        st.session_state[f"clr_sr_{b['id']}"] += 1
+                                        st.session_state[f"clr_sret_{b['id']}"] += 1
                                         st.rerun()
+                                    st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{b['renter_name']}</b></u><br>Renter</div>", unsafe_allow_html=True)
+                                    
                                 with c_sig2:
-                                    st.markdown(f"<u><b>{affiliate_full_name}</b></u><br><small>Affiliate/Host</small>", unsafe_allow_html=True)
-                                    if f"clr_sa_{b['id']}" not in st.session_state: 
-                                    st.session_state[f"clr_sa_{b['id']}"] = 0
-                                s_a = st_canvas(
-                                    stroke_width=2, 
-                                    stroke_color="#000", 
-                                    background_color="#ffffff", 
-                                    height=150, 
-                                    width=380,  # Safe fixed width matching renter pad
-                                    drawing_mode="freedraw",
-                                    display_toolbar=False, 
-                                    key=f"sa_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}"
-                                )
-                                if st.form_submit_button("Clear Host Pad", use_container_width=True): 
-                                    st.session_state[f"clr_sa_{b['id']}"] += 1
-                                    st.rerun()
+                                    if f"clr_sreta_{b['id']}" not in st.session_state: st.session_state[f"clr_sreta_{b['id']}"] = 0
+                                    s_reta = st_canvas(stroke_width=2, stroke_color="#000", background_color="#ffffff", height=150, width=180, display_toolbar=False, key=f"sreta_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}")
+                                    if st.form_submit_button("Clear Host Pad", use_container_width=True): 
+                                        st.session_state[f"clr_sreta_{b['id']}"] += 1
+                                        st.rerun()
+                                    st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
+
+                                st.write("")
+                                submit = st.form_submit_button("✅ COMPLETE JOURNEY & CLOSE OUT", type="primary", use_container_width=True)
+
                             # --- FORM SUBMISSION LOGIC ---
                             if submit:
                                 has_sig = s_ret.image_data is not None and len(s_ret.json_data.get("objects", [])) > 0
