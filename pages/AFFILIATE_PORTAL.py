@@ -717,14 +717,13 @@ def main():
                                         if f"clr_sr_{b['id']}" not in st.session_state: 
                                             st.session_state[f"clr_sr_{b['id']}"] = 0
                                         s_r = st_canvas(
-                                            stroke_width=3, 
-                                            stroke_color="#000000", 
-                                            background_color="#FFFFFF", 
-                                            height=140, 
-                                            width=350, 
-                                            key=f"sr_canvas_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}",
-                                            return_image_data=True
-                                        )
+                                        stroke_width=3, 
+                                        stroke_color="#000000", 
+                                        background_color="#FFFFFF", 
+                                        height=140, 
+                                        width=350, 
+                                        key=f"sr_canvas_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}"
+                                    )
                                         if st.form_submit_button("Clear Renter Pad", use_container_width=True): 
                                             st.session_state[f"clr_sr_{b['id']}"] += 1
                                             st.rerun()
