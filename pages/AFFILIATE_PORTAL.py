@@ -753,51 +753,48 @@ with tabs[0]:
                                     
                                     st.write("### 📸 2. Photo Evidence (Min. 6)")
                                     st.caption("Tap below to upload from your gallery or use your phone's camera.")
-                                    # Uploader is now safely contained inside the form!
                                     h_photos = st.file_uploader("Upload Handover Photos", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"gal_{b['id']}")
 
                                     st.divider()
                                     st.write("### 🖋️ 3. Dual Digital Signatures")
                                 
-                                # --- Renter Handover Signature ---
-                                st.markdown(f"<u><b>{b['renter_name']}</b></u><br><small>Renter</small>", unsafe_allow_html=True)
-                                if f"clr_sr_{b['id']}" not in st.session_state: 
-                                    st.session_state[f"clr_sr_{b['id']}"] = 0
-                                s_r = st_canvas(
-                                    stroke_width=3, 
-                                    stroke_color="#000000", 
-                                    background_color="#FFFFFF", 
-                                    height=150, 
-                                    width=400, 
-                                    key=f"sr_canvas_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}",
-                                    return_image_data=True
-                                )
-                                if st.form_submit_button("Clear Renter Pad", use_container_width=True): 
-                                    st.session_state[f"clr_sr_{b['id']}"] += 1
-                                    st.rerun()
+                                    # --- Renter Handover Signature ---
+                                    st.markdown(f"<u><b>{b['renter_name']}</b></u><br><small>Renter Signature</small>", unsafe_allow_html=True)
+                                    if f"clr_sr_{b['id']}" not in st.session_state: 
+                                        st.session_state[f"clr_sr_{b['id']}"] = 0
+                                    s_r = st_canvas(
+                                        stroke_width=3, 
+                                        stroke_color="#000000", 
+                                        background_color="#FFFFFF", 
+                                        height=140, 
+                                        width=350, 
+                                        key=f"sr_canvas_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}",
+                                        return_image_data=True
+                                    )
+                                    if st.form_submit_button("Clear Renter Pad", use_container_width=True): 
+                                        st.session_state[f"clr_sr_{b['id']}"] += 1
+                                        st.rerun()
 
-                                st.divider()
+                                    st.divider()
 
-                                # --- Affiliate/Host Handover Signature ---
-                                st.markdown(f"<u><b>{affiliate_full_name}</b></u><br><small>Affiliate/Host</small>", unsafe_allow_html=True)
-                                if f"clr_sa_{b['id']}" not in st.session_state: 
-                                    st.session_state[f"clr_sa_{b['id']}"] = 0
-                                s_a = st_canvas(
-                                    stroke_width=3, 
-                                    stroke_color="#000000", 
-                                    background_color="#FFFFFF", 
-                                    height=150, 
-                                    width=400, 
-                                    key=f"sa_canvas_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}",
-                                    return_image_data=True
-                                )
-                                if st.form_submit_button("Clear Host Pad", use_container_width=True): 
-                                    st.session_state[f"clr_sa_{b['id']}"] += 1
-                                    st.rerun()
-                                        st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
+                                    # --- Affiliate/Host Handover Signature ---
+                                    st.markdown(f"<u><b>{affiliate_full_name}</b></u><br><small>Affiliate/Host Signature</small>", unsafe_allow_html=True)
+                                    if f"clr_sa_{b['id']}" not in st.session_state: 
+                                        st.session_state[f"clr_sa_{b['id']}"] = 0
+                                    s_a = st_canvas(
+                                        stroke_width=3, 
+                                        stroke_color="#000000", 
+                                        background_color="#FFFFFF", 
+                                        height=140, 
+                                        width=350, 
+                                        key=f"sa_canvas_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}",
+                                        return_image_data=True
+                                    )
+                                    if st.form_submit_button("Clear Host Pad", use_container_width=True): 
+                                        st.session_state[f"clr_sa_{b['id']}"] += 1
+                                        st.rerun()
                                     
                                     st.write("")
-                                    # The main dispatch button is now the form's submit trigger
                                     submit_dispatch = st.form_submit_button("🚀 FINAL LOG HANDOVER & DISPATCH", type="primary", use_container_width=True)
 
                                     if submit_dispatch:
@@ -946,8 +943,8 @@ with tabs[0]:
                                     stroke_width=3, 
                                     stroke_color="#000000", 
                                     background_color="#FFFFFF", 
-                                    height=150, 
-                                    width=400, 
+                                    height=140, 
+                                    width=350, 
                                     key=f"sret_canvas_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}",
                                     return_image_data=True
                                 )
@@ -965,68 +962,67 @@ with tabs[0]:
                                     stroke_width=3, 
                                     stroke_color="#000000", 
                                     background_color="#FFFFFF", 
-                                    height=150, 
-                                    width=400, 
+                                    height=140, 
+                                    width=350, 
                                     key=f"sreta_canvas_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}",
                                     return_image_data=True
                                 )
                                 if st.form_submit_button("Clear Host Pad", use_container_width=True): 
                                     st.session_state[f"clr_sreta_{b['id']}"] += 1
                                     st.rerun()
-                                    st.markdown(f"<div style='text-align: center; margin-top: -10px;'><u><b>{affiliate_full_name}</b></u><br>Affiliate/Host</div>", unsafe_allow_html=True)
 
                                 st.write("")
                                 submit = st.form_submit_button("✅ COMPLETE JOURNEY & CLOSE OUT", type="primary", use_container_width=True)
 
-                            # --- FORM SUBMISSION LOGIC ---
-                            if submit:
-                                has_sig = s_ret.image_data is not None and len(s_ret.json_data.get("objects", [])) > 0
-                                has_sig_a = s_reta.image_data is not None and len(s_reta.json_data.get("objects", [])) > 0
-                                
-                                if not has_sig or not has_sig_a:
-                                    st.error("Both Renter and Affiliate signatures are required to close the trip.")
-                                elif settlement_type == "Self-Drive" and not d_ok and not img_damage:
-                                    st.error("Upload damage photos to proceed.")
-                                else:
-                                    d_img_path = ",".join([save_file(img) for img in img_damage]) if img_damage else None
+                                # --- FORM SUBMISSION LOGIC ---
+                                if submit:
+                                    has_sig = s_ret.image_data is not None and len(s_ret.json_data.get("objects", [])) > 0
+                                    has_sig_a = s_reta.image_data is not None and len(s_reta.json_data.get("objects", [])) > 0
                                     
-                                    with st.spinner("Generating Settlement PDF and closing trip..."):
-                                        try:
-                                            pdf_bytes = generate_return_receipt(
-                                                b['booking_ref'], b['renter_name'], f"{b['make']} {b['model']}", b['plate'], 
-                                                float(fuel_cost), float(cleaning_fee), float(damage_fee), float(late_fee), float(driver_extras), float(rfid_fee), 
-                                                float(total_deduct), float(refund_amount), s_ret.image_data, s_reta.image_data
-                                            )
-                                            
-                                            pdf_filepath = f"/data/uploads/Settlement_{b['booking_ref']}.pdf"
-                                            with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
-                                            
-                                            email_sent = False
-                                            if b.get('renter_email'):
-                                                subject = f"DriveElite: Return Settlement Receipt (#{b['booking_ref']})"
-                                                body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: Php{total_deduct:,.2f}\nRefund Amount: Php{refund_amount:,.2f}"
-                                                email_sent = send_pdf_email(b['renter_email'], subject, body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
-                                            
-                                            conn.execute("""
-                                                UPDATE bookings 
-                                                SET status = 'COMPLETED', payout_status = 'PENDING',
-                                                    damage_img = ?, rfid_fee = ?, damage_fee = ?, late_fee = ?, fuel_fee = ?, cleaning_fee = ?, dispute_status = 'CLEAN' 
-                                                WHERE id = ?
-                                            """, (d_img_path, float(rfid_fee + driver_extras), float(damage_fee), float(late_fee), float(fuel_cost), float(cleaning_fee), b['id']))
-                                            
-                                            conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
-                                            conn.commit()
-                                            
-                                            if email_sent:
-                                                st.success("✅ Trip closed & Settlement Receipt emailed to Renter!")
-                                            else:
-                                                st.warning("✅ Trip closed successfully, BUT the email failed to send (check your SMTP settings/password).")
+                                    if not has_sig or not has_sig_a:
+                                        st.error("Both Renter and Affiliate signatures are required to close the trip.")
+                                    elif settlement_type == "Self-Drive" and not d_ok and not img_damage:
+                                        st.error("Upload damage photos to proceed.")
+                                    else:
+                                        d_img_path = ",".join([save_file(img) for img in img_damage]) if img_damage else None
+                                        
+                                        with st.spinner("Generating Settlement PDF and closing trip..."):
+                                            try:
+                                                pdf_bytes = generate_return_receipt(
+                                                    b['booking_ref'], b['renter_name'], f"{b['make']} {b['model']}", b['plate'], 
+                                                    float(fuel_cost), float(cleaning_fee), float(damage_fee), float(late_fee), float(driver_extras), float(rfid_fee), 
+                                                    float(total_deduct), float(refund_amount), s_ret.image_data, s_reta.image_data
+                                                )
                                                 
-                                            time.sleep(3)
-                                            st.rerun()
-                                            
-                                        except Exception as e:
-                                            st.error(f"Error: {e}")
+                                                pdf_filepath = f"/data/uploads/Settlement_{b['booking_ref']}.pdf"
+                                                with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
+                                                
+                                                email_sent = False
+                                                if b.get('renter_email'):
+                                                    subject = f"DriveElite: Return Settlement Receipt (#{b['booking_ref']})"
+                                                    body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: Php{total_deduct:,.2f}\nRefund Amount: Php{refund_amount:,.2f}"
+                                                    email_sent = send_pdf_email(b['renter_email'], subject, body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
+                                                
+                                                conn.execute("""
+                                                    UPDATE bookings 
+                                                    SET status = 'COMPLETED', payout_status = 'PENDING',
+                                                        damage_img = ?, rfid_fee = ?, damage_fee = ?, late_fee = ?, fuel_fee = ?, cleaning_fee = ?, dispute_status = 'CLEAN' 
+                                                    WHERE id = ?
+                                                """, (d_img_path, float(rfid_fee + driver_extras), float(damage_fee), float(late_fee), float(fuel_cost), float(cleaning_fee), b['id']))
+                                                
+                                                conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
+                                                conn.commit()
+                                                
+                                                if email_sent:
+                                                    st.success("✅ Trip closed & Settlement Receipt emailed to Renter!")
+                                                else:
+                                                    st.warning("✅ Trip closed successfully, BUT the email failed to send (check your SMTP settings/password).")
+                                                
+                                                time.sleep(3)
+                                                st.rerun()
+                                                
+                                            except Exception as e:
+                                                st.error(f"Error: {e}")
 
     except Exception as e:
         st.error(f"System Error loading bookings: {e}")
