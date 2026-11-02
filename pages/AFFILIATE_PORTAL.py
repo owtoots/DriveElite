@@ -3,7 +3,7 @@ import pandas as pd
 import datetime
 import sqlite3
 import os
-import random 
+import random
 import time
 from PIL import Image
 import numpy as np
@@ -116,7 +116,7 @@ def main():
         except: pass
         try: conn.execute("ALTER TABLE vehicles ADD COLUMN baseline_price REAL DEFAULT 0.0"); conn.commit()
         except: pass
-        try: conn.execute("ALTER TABLE vehicles ADD COLUMN vehicle_age INTEGER DEFAULT 0"); conn.commit()    
+        try: conn.execute("ALTER TABLE vehicles ADD COLUMN vehicle_age INTEGER DEFAULT 0"); conn.commit()   
         except: pass
         try: conn.execute("ALTER TABLE vehicles ADD COLUMN is_with_driver INTEGER DEFAULT 0"); conn.commit()  
         except: pass
@@ -176,7 +176,10 @@ def main():
 
     patch_database()
 
-    if not os.path.exists("/data/uploads"): os.makedirs("/data/uploads", exist_ok=True)
+    # RENDER SAFE UPLOAD DIRECTORY
+    UPLOAD_DIR = os.path.join(os.getcwd(), "data", "uploads")
+    if not os.path.exists(UPLOAD_DIR): 
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
 
     # ==========================================
     # 3.1 MEMORY-OPTIMIZED CACHED DATA LOADERS
@@ -211,9 +214,9 @@ def main():
             r_markup = float(settings_df.iloc[0]['renter_markup_pct'])
             a_share_pct = float(settings_df.iloc[0]['affiliate_share_pct'])
         else:
-            r_markup, a_share_pct = 0.07, 0.85 
+            r_markup, a_share_pct = 0.07, 0.82 
     except:
-        r_markup, a_share_pct = 0.07, 0.85
+        r_markup, a_share_pct = 0.07, 0.82
 
     try:
         cat_df = pd.read_sql_query("SELECT name, default_price FROM vehicle_categories", conn)
@@ -231,7 +234,7 @@ def main():
         if uploaded_file:
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"{timestamp}_{uploaded_file.name}"
-            path = os.path.join("/data/uploads", filename)
+            path = os.path.join(UPLOAD_DIR, filename)
             with open(path, "wb") as f: f.write(uploaded_file.getbuffer())
             return path
         return None
@@ -240,7 +243,7 @@ def main():
         if uploaded_file:
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"chat_{booking_ref}_{timestamp}_{uploaded_file.name}"
-            path = os.path.join("/data/uploads", filename)
+            path = os.path.join(UPLOAD_DIR, filename)
             with open(path, "wb") as f: f.write(uploaded_file.getbuffer())
             return path
         return ""
@@ -251,7 +254,7 @@ def main():
             background = Image.new("RGB", img.size, (255, 255, 255))
             background.paste(img, mask=img.split()[3])
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = os.path.join("/data/uploads", f"{prefix}_{timestamp}.jpg")
+            filename = os.path.join(UPLOAD_DIR, f"{prefix}_{timestamp}.jpg")
             background.save(filename, "JPEG")
             return filename
         return None
@@ -293,6 +296,7 @@ def main():
         pdf.multi_cell(0, 6, f"1. Tire Pressure: Please maintain the tire pressure at {tire_pressure} to ensure safety and optimal fuel efficiency.")
         pdf.multi_cell(0, 6, f"2. Preferred Fuel: This vehicle requires {preferred_fuel}. Please ensure the correct fuel type is used to avoid engine damage charges.")
         pdf.multi_cell(0, 6, "3. Speed Limits & Violations: Strictly adhere to all local traffic rules. Any NCAP camera citations, traffic violations, or fines incurred during the rental period will be charged directly to the renter to protect the vehicle's LTO demerit points.")
+        pdf.multi_cell(0, 6, "4. Geographic Limits: Driving is strictly restricted to Mainland Luzon. Inter-island ferry transport (RoRo) is strictly prohibited.")
         pdf.ln(10)
         
         pdf.set_font("Helvetica", 'B', 12)
@@ -371,7 +375,7 @@ def main():
         
         try:
             if sig_ret is not None:
-                r_path = f"/data/uploads/ret_r_{booking_ref}.jpg"
+                r_path = os.path.join(UPLOAD_DIR, f"ret_r_{booking_ref}.jpg")
                 Image.fromarray(sig_ret.astype('uint8'), 'RGBA').convert('RGB').save(r_path, "JPEG")
                 pdf.image(r_path, x=30, y=current_y, w=50)
         except Exception: 
@@ -379,7 +383,7 @@ def main():
             
         try:
             if sig_reta is not None:
-                a_path = f"/data/uploads/ret_a_{booking_ref}.jpg"
+                a_path = os.path.join(UPLOAD_DIR, f"ret_a_{booking_ref}.jpg")
                 Image.fromarray(sig_reta.astype('uint8'), 'RGBA').convert('RGB').save(a_path, "JPEG")
                 pdf.image(a_path, x=120, y=current_y, w=50)
         except Exception: 
@@ -499,17 +503,8 @@ def main():
         st.header("📦 Active Bookings & Handovers")
         st.write("Manage your upcoming deliveries, chat with renters, and log your handovers.")
         
-        query = """
-            SELECT b.*, v.make, v.model, v.plate, v.is_with_driver, r.full_name as renter_name, r.contact_number as renter_contact, r.email as renter_email
-            FROM bookings b
-            JOIN vehicles v ON b.vehicle_id = v.id
-            JOIN platform_users r ON b.renter_username = r.username
-            WHERE v.owner_username = ? AND b.status NOT IN ('COMPLETED', 'CANCELLED')
-            ORDER BY b.pickup_time ASC
-        """
-        
         try:
-            my_bookings = pd.read_sql_query(query, conn, params=(st.session_state.username,))
+            my_bookings = load_affiliate_bookings_cached(st.session_state.username)
             
             if my_bookings.empty:
                 st.info("You have no active bookings right now. Ensure your vehicles are marked 'AVAILABLE'.")
@@ -690,7 +685,7 @@ def main():
                                 st.info(" **ACTION REQUIRED:** Complete the Digital Handover with the Renter present.")
                                 with st.expander("📋 Official Handover & Photo Evidence", expanded=True):
                                     
-                                    with st.form(key=f"dispatch_form_{b['id']}"):
+                                    with st.container(border=True): 
                                         st.write("### 1. Vehicle Checklist")
                                         c1, c2 = st.columns(2)
                                         
@@ -712,25 +707,27 @@ def main():
                                         st.divider()
                                         st.write("### 🖋️ 3. Dual Digital Signatures")
                                     
-                                        # --- Renter Handover Signature (Stacked Safely) ---
+                                        # --- Renter Handover Signature ---
                                         st.markdown(f"<u><b>{b['renter_name']}</b></u><br><small>Renter Signature</small>", unsafe_allow_html=True)
                                         if f"clr_sr_{b['id']}" not in st.session_state: 
                                             st.session_state[f"clr_sr_{b['id']}"] = 0
                                         s_r = st_canvas(
-                                        stroke_width=3, 
-                                        stroke_color="#000000", 
-                                        background_color="#FFFFFF", 
-                                        height=140, 
-                                        width=350, 
-                                        key=f"sr_canvas_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}"
-                                    )
-                                        if st.form_submit_button("Clear Renter Pad", use_container_width=True): 
+                                            stroke_width=3, 
+                                            stroke_color="#000000", 
+                                            background_color="#FFFFFF", 
+                                            height=140, 
+                                            width=350, 
+                                            key=f"sr_canvas_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}",
+                                            return_image_data=True,
+                                            update_streamlit=True
+                                        )
+                                        if st.button("Clear Renter Pad", use_container_width=True, key=f"btn_clr_r_{b['id']}"): 
                                             st.session_state[f"clr_sr_{b['id']}"] += 1
                                             st.rerun()
 
                                         st.divider()
 
-                                        # --- Affiliate Handover Signature (Stacked Safely) ---
+                                        # --- Affiliate Handover Signature ---
                                         st.markdown(f"<u><b>{affiliate_full_name}</b></u><br><small>Affiliate/Host Signature</small>", unsafe_allow_html=True)
                                         if f"clr_sa_{b['id']}" not in st.session_state: 
                                             st.session_state[f"clr_sa_{b['id']}"] = 0
@@ -741,14 +738,15 @@ def main():
                                             height=140, 
                                             width=350, 
                                             key=f"sa_canvas_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}",
-                                            return_image_data=True
+                                            return_image_data=True,
+                                            update_streamlit=True
                                         )
-                                        if st.form_submit_button("Clear Host Pad", use_container_width=True): 
+                                        if st.button("Clear Host Pad", use_container_width=True, key=f"btn_clr_h_{b['id']}"): 
                                             st.session_state[f"clr_sa_{b['id']}"] += 1
                                             st.rerun()
                                         
                                         st.write("")
-                                        submit_dispatch = st.form_submit_button("🚀 FINAL LOG HANDOVER & DISPATCH", type="primary", use_container_width=True)
+                                        submit_dispatch = st.button("🚀 FINAL LOG HANDOVER & DISPATCH", type="primary", use_container_width=True, key=f"btn_disp_{b['id']}")
 
                                         if submit_dispatch:
                                             has_sr = s_r.image_data is not None and len(s_r.json_data.get("objects", [])) > 0
@@ -770,7 +768,7 @@ def main():
                                                 with st.spinner("Building Handover Record..."):
                                                     pdf_bytes = generate_handover_pdf(b['booking_ref'], f"{b['make']} {b['model']} ({b['plate']})", b['renter_name'], travel_dates, chk_data, r_sig_path, a_sig_path, affiliate_full_name)
                                                     
-                                                    pdf_filepath = f"/data/uploads/Handover_{b['booking_ref']}.pdf"
+                                                    pdf_filepath = os.path.join(UPLOAD_DIR, f"Handover_{b['booking_ref']}.pdf")
                                                     with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
                                                     
                                                     photo_paths = [save_file(img) for img in h_photos]
@@ -797,10 +795,10 @@ def main():
                             elif b['status'] == 'ONGOING':
                                 st.warning("⏱️ This trip is currently active. Coordinate the return below.")
                                 
-                                pdf_filepath = f"/data/uploads/Handover_{b['booking_ref']}.pdf"
+                                pdf_filepath = os.path.join(UPLOAD_DIR, f"Handover_{b['booking_ref']}.pdf")
                                 if os.path.exists(pdf_filepath):
                                     with open(pdf_filepath, "rb") as pdf_file:
-                                        st.download_button("📄 DOWNLOAD SIGNED HANDOVER PDF", data=pdf_file.read(), file_name=f"Handover_{b['booking_ref']}.pdf", mime="application/pdf", type="secondary", use_container_width=True)
+                                        st.download_button("📄 DOWNLOAD SIGNED HANDOVER PDF", data=pdf_file.read(), file_name=f"Handover_{b['booking_ref']}.pdf", mime="application/pdf", type="secondary", use_container_width=True, key=f"dl_handover_{b['id']}")
                                 
                                 if b.get('handover_photos'):
                                     with st.expander("📸 VIEW ORIGINAL HANDOVER PHOTOS (BEFORE TRIP)", expanded=False):
@@ -817,7 +815,7 @@ def main():
                                 st.write("#### 🛠️ Final Settlement Details")
                                 settlement_type = st.radio("Trip Type:", ["Self-Drive", "With Driver"], key=f"type_{b['id']}", horizontal=True)
                                 
-                                with st.form(f"settlement_form_{b['id']}"):
+                                with st.container(border=True):
                                     c1, c2 = st.columns(2)
                                     
                                     with c1:
@@ -888,7 +886,7 @@ def main():
 
                                     st.write("#### 🖊️ Final Sign-off")
                                     
-                                    # --- Renter Return Signature (Stacked Safely) ---
+                                    # --- Renter Return Signature ---
                                     st.markdown(f"<u><b>{b['renter_name']}</b></u><br><small>Renter</small>", unsafe_allow_html=True)
                                     if f"clr_sret_{b['id']}" not in st.session_state: 
                                         st.session_state[f"clr_sret_{b['id']}"] = 0
@@ -899,15 +897,16 @@ def main():
                                         height=140, 
                                         width=350, 
                                         key=f"sret_canvas_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}",
-                                        return_image_data=True
+                                        return_image_data=True,
+                                        update_streamlit=True
                                     )
-                                    if st.form_submit_button("Clear Renter Pad", use_container_width=True): 
+                                    if st.button("Clear Renter Pad", use_container_width=True, key=f"btn_clr_sret_{b['id']}"): 
                                         st.session_state[f"clr_sret_{b['id']}"] += 1
                                         st.rerun()
 
                                     st.divider()
 
-                                    # --- Affiliate Return Signature (Stacked Safely) ---
+                                    # --- Affiliate Return Signature ---
                                     st.markdown(f"<u><b>{affiliate_full_name}</b></u><br><small>Affiliate/Host</small>", unsafe_allow_html=True)
                                     if f"clr_sreta_{b['id']}" not in st.session_state: 
                                         st.session_state[f"clr_sreta_{b['id']}"] = 0
@@ -918,16 +917,16 @@ def main():
                                         height=140, 
                                         width=350, 
                                         key=f"sreta_canvas_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}",
-                                        return_image_data=True
+                                        return_image_data=True,
+                                        update_streamlit=True
                                     )
-                                    if st.form_submit_button("Clear Host Pad", use_container_width=True): 
+                                    if st.button("Clear Host Pad", use_container_width=True, key=f"btn_clr_sreta_{b['id']}"): 
                                         st.session_state[f"clr_sreta_{b['id']}"] += 1
                                         st.rerun()
 
                                     st.write("")
-                                    submit = st.form_submit_button("✅ COMPLETE JOURNEY & CLOSE OUT", type="primary", use_container_width=True)
+                                    submit = st.button("✅ COMPLETE JOURNEY & CLOSE OUT", type="primary", use_container_width=True, key=f"btn_close_{b['id']}")
 
-                                    # --- FORM SUBMISSION LOGIC ---
                                     if submit:
                                         has_sig = s_ret.image_data is not None and len(s_ret.json_data.get("objects", [])) > 0
                                         has_sig_a = s_reta.image_data is not None and len(s_reta.json_data.get("objects", [])) > 0
@@ -947,7 +946,7 @@ def main():
                                                         float(total_deduct), float(refund_amount), s_ret.image_data, s_reta.image_data
                                                     )
                                                     
-                                                    pdf_filepath = f"/data/uploads/Settlement_{b['booking_ref']}.pdf"
+                                                    pdf_filepath = os.path.join(UPLOAD_DIR, f"Settlement_{b['booking_ref']}.pdf")
                                                     with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
                                                     
                                                     email_sent = False
@@ -983,7 +982,7 @@ def main():
     # --- TAB 1: MY ASSETS ---
     with tabs[1]:
         st.markdown("<h3 style='text-align: center;'>MY FLEET CONTROLS</h3>", unsafe_allow_html=True)
-        fleet = pd.read_sql_query("SELECT id, make, model, plate, booking_status, admin_status, ref_no FROM vehicles WHERE owner_username = ?", conn, params=(st.session_state.username,))
+        fleet = load_affiliate_fleet_cached(st.session_state.username)
         if fleet.empty: st.info("You haven't added any vehicles yet.")
         for _, c in fleet.iterrows():
             v_ref = c.get('ref_no') if pd.notnull(c.get('ref_no')) else 'PENDING'
