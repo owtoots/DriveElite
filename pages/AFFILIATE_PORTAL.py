@@ -567,9 +567,6 @@ with tabs[0]:
                                 st.info("💡 **7-Day Rule:** Platform fee was waived for this short trip.")
                         st.divider()
                         
-                        # ====================================================
-                        # ---> 🗺️ INSERTED: TRIP DETAILS DASHBOARD <---
-                        # ====================================================
                         st.markdown("### 🗺️ Trip Coordinates")
                         
                         col_pickup, col_return = st.columns(2)
@@ -592,9 +589,8 @@ with tabs[0]:
                             </div>
                             """, unsafe_allow_html=True)
                         
-                        st.write("") # Spacer
+                        st.write("") 
                         
-                        # Changed to 3 columns to include the Service Type!
                         col_dest, col_renter, col_type = st.columns([2, 1, 1])
                         
                         with col_dest:
@@ -605,25 +601,16 @@ with tabs[0]:
                             st.success(f"👤 **Renter:** {b.get('renter_name', 'Verified')}")
                             
                         with col_type:
-                            # Check the vehicle's driver requirement flag
                             if b.get('is_with_driver', 0) == 1:
                                 st.warning("🧑‍✈️ **WITH DRIVER**")
                             else:
                                 st.info("🚗 **SELF-DRIVE**")
                                 
                         st.divider()
-                        # ====================================================
 
-                       # --- CHAT HEADER: AUTO-REFRESH + MANUAL BUTTON ---
                         b_ref_str = str(b['booking_ref'])
-                        
-                       # --- CHAT HEADER: AUTO-REFRESH + MANUAL BUTTON ---
-                        b_ref_str = str(b['booking_ref'])
-                        
-                        # 1. Silently reload the chat every 10 seconds in the background
                         st_autorefresh(interval=10000, key=f"chat_ping_affiliate_{b_ref_str}")
                         
-                        # 2. Setup the columns for the title and the manual button
                         c_title, c_refresh = st.columns([3, 1])
                         
                         with c_title:
@@ -636,7 +623,6 @@ with tabs[0]:
                         chat_win = st.container(height=450, border=True)
                         with chat_win:
                             try:
-                                # 1. FILTER OUT ADMIN RECEIPTS
                                 msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? AND receiver_username != 'ADMIN' ORDER BY timestamp ASC", conn, params=(b_ref_str,))
                                 
                                 if msgs.empty:
@@ -668,31 +654,10 @@ with tabs[0]:
                                                 with c_img: st.image(m['image_path'], use_container_width=True)
 
                                 st.markdown(f'<div id="chat_anchor_{b_ref_str}" style="height: 1px; margin-top: 10px;"></div>', unsafe_allow_html=True)
-                                scroll_js = f"""
-                                <script>
-                                    setTimeout(function() {{
-                                        var anchor = window.parent.document.getElementById('chat_anchor_{b_ref_str}');
-                                        if (anchor) {{
-                                            var parent = anchor.parentElement;
-                                            while (parent) {{
-                                                var style = window.parent.getComputedStyle(parent);
-                                                if (style.overflowY === 'auto' || style.overflowY === 'scroll') {{
-                                                    parent.scrollTop = parent.scrollHeight;
-                                                    break;
-                                                }}
-                                                parent = parent.parentElement;
-                                            }}
-                                        }}
-                                    }}, 150);
-                                </script>
-                                """
-                                st.components.v1.html(scroll_js, height=0)
                             except: 
                                 st.error("Could not load chat history.")
 
-                        # 2. BULLETPROOF CHAT INPUT FORM (Prevents Double Sending)
                         with st.form(key=f"chat_form_{b_ref_str}", clear_on_submit=True):
-                            # Put the text box and Send button on one clean row
                             c_msg, c_btn = st.columns([4, 1])
                             
                             with c_msg: 
@@ -701,7 +666,6 @@ with tabs[0]:
                             with c_btn:
                                 submitted = st.form_submit_button("Send", use_container_width=True)
                                 
-                            # Tuck the bulky uploader neatly underneath inside an expander
                             with st.expander("📎 Attach Photo(s)", expanded=False):
                                 a_img = st.file_uploader("Upload images here", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"a_img_{b_ref_str}", label_visibility="collapsed")
 
@@ -733,9 +697,6 @@ with tabs[0]:
                             st.info(" **ACTION REQUIRED:** Complete the Digital Handover with the Renter present.")
                             with st.expander("📋 Official Handover & Photo Evidence", expanded=True):
                                 
-                                # ==========================================
-                                # MOBILE STABILITY FORM ENCLOSURE
-                                # ==========================================
                                 with st.form(key=f"dispatch_form_{b['id']}"):
                                     st.write("### 1. Vehicle Checklist")
                                     c1, c2 = st.columns(2)
@@ -758,7 +719,7 @@ with tabs[0]:
                                     st.divider()
                                     st.write("### 🖋️ 3. Dual Digital Signatures")
                                 
-                                    # --- Renter Handover Signature ---
+                                    # --- Renter Handover Signature (Full Width Stacked) ---
                                     st.markdown(f"<u><b>{b['renter_name']}</b></u><br><small>Renter Signature</small>", unsafe_allow_html=True)
                                     if f"clr_sr_{b['id']}" not in st.session_state: 
                                         st.session_state[f"clr_sr_{b['id']}"] = 0
@@ -777,7 +738,7 @@ with tabs[0]:
 
                                     st.divider()
 
-                                    # --- Affiliate/Host Handover Signature ---
+                                    # --- Affiliate/Host Handover Signature (Full Width Stacked) ---
                                     st.markdown(f"<u><b>{affiliate_full_name}</b></u><br><small>Affiliate/Host Signature</small>", unsafe_allow_html=True)
                                     if f"clr_sa_{b['id']}" not in st.session_state: 
                                         st.session_state[f"clr_sa_{b['id']}"] = 0
@@ -935,7 +896,7 @@ with tabs[0]:
 
                                 st.write("#### 🖊️ Final Sign-off")
                                 
-                                # --- Renter Return Signature ---
+                                # --- Renter Return Signature (Full Width Stacked) ---
                                 st.markdown(f"<u><b>{b['renter_name']}</b></u><br><small>Renter</small>", unsafe_allow_html=True)
                                 if f"clr_sret_{b['id']}" not in st.session_state: 
                                     st.session_state[f"clr_sret_{b['id']}"] = 0
@@ -954,7 +915,7 @@ with tabs[0]:
 
                                 st.divider()
 
-                                # --- Affiliate Return Signature ---
+                                # --- Affiliate Return Signature (Full Width Stacked) ---
                                 st.markdown(f"<u><b>{affiliate_full_name}</b></u><br><small>Affiliate/Host</small>", unsafe_allow_html=True)
                                 if f"clr_sreta_{b['id']}" not in st.session_state: 
                                     st.session_state[f"clr_sreta_{b['id']}"] = 0
@@ -1023,9 +984,6 @@ with tabs[0]:
                                                 
                                             except Exception as e:
                                                 st.error(f"Error: {e}")
-
-    except Exception as e:
-        st.error(f"System Error loading bookings: {e}")
   
 # --- TAB 1: MY ASSETS ---
 with tabs[1]:
