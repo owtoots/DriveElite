@@ -298,12 +298,12 @@ def main():
         pdf.ln(5)
 
         pdf.set_font("Helvetica", 'B', 12)
-        pdf.cell(190, 10, "IMPORTANT REMINDERS FOR RENTER:", ln=1)
+        pdf.cell(0, 10, "IMPORTANT REMINDERS FOR RENTER:", ln=1)
         pdf.set_font("Helvetica", '', 10)
-        pdf.multi_cell(190, 6, f"1. Tire Pressure: Please maintain the tire pressure at {tire_pressure} to ensure safety and optimal fuel efficiency.")
-        pdf.multi_cell(190, 6, f"2. Preferred Fuel: This vehicle requires {preferred_fuel}. Please ensure the correct fuel type is used to avoid engine damage charges.")
-        pdf.multi_cell(190, 6, "3. Speed Limits & Violations: Strictly adhere to all local traffic rules. Any NCAP camera citations, traffic violations, or fines incurred during the rental period will be charged directly to the renter to protect the vehicle's LTO demerit points.")
-        pdf.multi_cell(190, 6, "4. Geographic Limits: Driving is strictly restricted to Mainland Luzon. Inter-island ferry transport (RoRo) is strictly prohibited.")
+        pdf.multi_cell(0, 6, f"1. Tire Pressure: Please maintain the tire pressure at {tire_pressure} to ensure safety and optimal fuel efficiency.")
+        pdf.multi_cell(0, 6, f"2. Preferred Fuel: This vehicle requires {preferred_fuel}. Please ensure the correct fuel type is used to avoid engine damage charges.")
+        pdf.multi_cell(0, 6, "3. Speed Limits & Violations: Strictly adhere to all local traffic rules. Any NCAP camera citations, traffic violations, or fines incurred during the rental period will be charged directly to the renter to protect the vehicle's LTO demerit points.")
+        pdf.multi_cell(0, 6, "4. Geographic Limits: Driving is strictly restricted to Mainland Luzon. Inter-island ferry transport (RoRo) is strictly prohibited.")
         pdf.ln(10)
         
         pdf.set_font("Helvetica", 'B', 12)
