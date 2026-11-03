@@ -262,10 +262,14 @@ def main():
     def generate_handover_pdf(ref_no, car_name, renter_name, travel_dates, checklist, r_sig_path, a_sig_path, affiliate_name, tire_pressure="Standard", preferred_fuel="Unleaded"):
         pdf = FPDF(orientation='P', unit='mm', format='A4')
         pdf.add_page()
-        # Safely truncate long strings to fit standard PDF cell widths
+        
+        # Safely truncate long strings and prevent unbroken-string overflow
         renter_name = (renter_name[:30] + '..') if len(renter_name) > 30 else renter_name
         affiliate_name = (affiliate_name[:30] + '..') if len(affiliate_name) > 30 else affiliate_name
         car_name = (car_name[:40] + '..') if len(car_name) > 40 else car_name
+        tire_pressure = tire_pressure[:30]
+        preferred_fuel = preferred_fuel[:30]
+        
         try:
             pdf.image("logo.png", x=80, y=10, w=50)
             pdf.set_y(45) 
@@ -273,39 +277,44 @@ def main():
             pdf.set_y(20)
             
         pdf.set_font("Helvetica", 'B', 14)
-        pdf.cell(0, 10, "DRIVEELITE OFFICIAL HANDOVER RECORD", ln=True, align='C')
+        pdf.cell(190, 10, "DRIVEELITE OFFICIAL HANDOVER RECORD", ln=1, align='C')
         pdf.ln(5)
         
         pdf.set_font("Helvetica", '', 11)
-        pdf.cell(0, 8, f"Reference No: {ref_no}", ln=True)
-        pdf.cell(0, 8, f"Vehicle: {car_name}", ln=True)
-        pdf.cell(0, 8, f"Renter Name: {renter_name}", ln=True)
-        pdf.cell(0, 8, f"Travel Dates: {travel_dates}", ln=True)
+        pdf.cell(190, 8, f"Reference No: {ref_no}", ln=1)
+        pdf.cell(190, 8, f"Vehicle: {car_name}", ln=1)
+        pdf.cell(190, 8, f"Renter Name: {renter_name}", ln=1)
+        pdf.cell(190, 8, f"Travel Dates: {travel_dates}", ln=1)
         pdf.ln(5)
         
         pdf.set_font("Helvetica", 'B', 12)
-        pdf.cell(0, 10, "CHECKLIST VERIFICATION:", ln=True)
+        pdf.cell(190, 10, "CHECKLIST VERIFICATION:", ln=1)
         pdf.set_font("Helvetica", '', 11)
-        pdf.cell(0, 8, f"1. Cash Deposit (Php 5,000): {'YES' if checklist['deposit'] else 'NO'}", ln=True)
-        pdf.cell(0, 8, f"2. Fuel Level: {checklist['fuel']}", ln=True)
-        pdf.cell(0, 8, f"3. Exterior Inspected: {'YES' if checklist['ext'] else 'NO'}", ln=True)
-        pdf.cell(0, 8, f"4. Interior Clean: {'YES' if checklist['int'] else 'NO'}", ln=True)
-        pdf.cell(0, 8, f"5. Tools/Spare Tire Verified: {'YES' if checklist['tools'] else 'NO'}", ln=True)
+        pdf.cell(190, 8, f"1. Cash Deposit (Php 5,000): {'YES' if checklist['deposit'] else 'NO'}", ln=1)
+        pdf.cell(190, 8, f"2. Fuel Level: {checklist['fuel']}", ln=1)
+        pdf.cell(190, 8, f"3. Exterior Inspected: {'YES' if checklist['ext'] else 'NO'}", ln=1)
+        pdf.cell(190, 8, f"4. Interior Clean: {'YES' if checklist['int'] else 'NO'}", ln=1)
+        pdf.cell(190, 8, f"5. Tools/Spare Tire Verified: {'YES' if checklist['tools'] else 'NO'}", ln=1)
         pdf.ln(5)
 
         pdf.set_font("Helvetica", 'B', 12)
-        pdf.cell(0, 10, "IMPORTANT REMINDERS FOR RENTER:", ln=True)
+        pdf.cell(190, 10, "IMPORTANT REMINDERS FOR RENTER:", ln=1)
         pdf.set_font("Helvetica", '', 10)
-        pdf.multi_cell(0, 6, f"1. Tire Pressure: Please maintain the tire pressure at {tire_pressure} to ensure safety and optimal fuel efficiency.")
-        pdf.multi_cell(0, 6, f"2. Preferred Fuel: This vehicle requires {preferred_fuel}. Please ensure the correct fuel type is used to avoid engine damage charges.")
-        pdf.multi_cell(0, 6, "3. Speed Limits & Violations: Strictly adhere to all local traffic rules. Any NCAP camera citations, traffic violations, or fines incurred during the rental period will be charged directly to the renter to protect the vehicle's LTO demerit points.")
-        pdf.multi_cell(0, 6, "4. Geographic Limits: Driving is strictly restricted to Mainland Luzon. Inter-island ferry transport (RoRo) is strictly prohibited.")
+        pdf.multi_cell(190, 6, f"1. Tire Pressure: Please maintain the tire pressure at {tire_pressure} to ensure safety and optimal fuel efficiency.")
+        pdf.multi_cell(190, 6, f"2. Preferred Fuel: This vehicle requires {preferred_fuel}. Please ensure the correct fuel type is used to avoid engine damage charges.")
+        pdf.multi_cell(190, 6, "3. Speed Limits & Violations: Strictly adhere to all local traffic rules. Any NCAP camera citations, traffic violations, or fines incurred during the rental period will be charged directly to the renter to protect the vehicle's LTO demerit points.")
+        pdf.multi_cell(190, 6, "4. Geographic Limits: Driving is strictly restricted to Mainland Luzon. Inter-island ferry transport (RoRo) is strictly prohibited.")
         pdf.ln(10)
         
         pdf.set_font("Helvetica", 'B', 12)
-        pdf.cell(0, 10, "DIGITAL SIGNATORIES:", ln=True)
+        pdf.cell(190, 10, "DIGITAL SIGNATORIES:", ln=1)
         
         y_sig = pdf.get_y()
+        # Prevent manual offsets from pushing the cursor into the bottom margin
+        if y_sig > 230:
+            pdf.add_page()
+            y_sig = pdf.get_y()
+            
         try:
             if r_sig_path and os.path.exists(r_sig_path):
                 pdf.image(r_sig_path, x=30, y=y_sig, w=50)
@@ -321,20 +330,22 @@ def main():
         pdf.set_y(y_sig + 30)
         pdf.set_font("Helvetica", 'U', 11)
         pdf.cell(90, 8, renter_name, align='C')
-        pdf.cell(90, 8, affiliate_name, align='C', ln=True)
+        pdf.cell(90, 8, affiliate_name, align='C', ln=1)
         pdf.set_font("Helvetica", '', 10)
         pdf.cell(90, 5, "Renter", align='C')
-        pdf.cell(90, 5, "Affiliate/Host", align='C', ln=True)
+        pdf.cell(90, 5, "Affiliate/Host", align='C', ln=1)
         
         return pdf.output(dest="S").encode("latin1")
 
     def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, damage, late, ot_fee, rfid_fee, total_deduct, refund, sig_ret, sig_reta, is_with_driver=False, driver_name=""):
         pdf = FPDF(orientation='P', unit='mm', format='A4')
         pdf.add_page()
-        # Safely truncate long strings to fit standard PDF cell widths
+        
+        # Safely truncate long strings to prevent overflow
         renter = (renter[:25] + '..') if len(renter) > 25 else renter
         vehicle = (vehicle[:35] + '..') if len(vehicle) > 35 else vehicle
         plate = (plate[:15] + '..') if len(plate) > 15 else plate
+        
         try:
             pdf.image("logo.png", x=80, y=10, w=50)
             pdf.set_y(45) 
@@ -342,43 +353,48 @@ def main():
             pdf.set_y(20)
             
         pdf.set_font("Helvetica", 'B', 16)
-        pdf.cell(0, 10, "DRIVEELITE RETURN & SETTLEMENT RECEIPT", ln=True, align='C')
+        pdf.cell(190, 10, "DRIVEELITE RETURN & SETTLEMENT RECEIPT", ln=1, align='C')
         pdf.set_font("Helvetica", '', 12)
-        pdf.cell(0, 10, f"Ref: {booking_ref} | Date: {datetime.date.today()}", ln=True)
-        pdf.cell(0, 10, f"Vehicle: {vehicle} ({plate}) | Renter: {renter}", ln=True)
+        pdf.cell(190, 10, f"Ref: {booking_ref} | Date: {datetime.date.today()}", ln=1)
+        pdf.cell(190, 10, f"Vehicle: {vehicle} ({plate}) | Renter: {renter}", ln=1)
         
         pdf.ln(10)
         pdf.set_font("Helvetica", 'B', 12)
-        pdf.cell(0, 10, "SECURITY DEPOSIT DEDUCTIONS:", ln=True)
+        pdf.cell(190, 10, "SECURITY DEPOSIT DEDUCTIONS:", ln=1)
         pdf.set_font("Helvetica", '', 11)
         
-        pdf.cell(0, 8, f"Fuel Replacement: Php {fuel:,.2f}", ln=True)
-        pdf.cell(0, 8, f"Cleaning Penalty: Php {clean:,.2f}", ln=True)
-        pdf.cell(0, 8, f"Damage Penalty: Php {damage:,.2f}", ln=True)
-        pdf.cell(0, 8, f"Net RFID & Toll Deductions: Php {rfid_fee:,.2f}", ln=True)
-        pdf.cell(0, 8, f"Late Penalty: Php {late:,.2f}", ln=True)
+        pdf.cell(190, 8, f"Fuel Replacement: Php {fuel:,.2f}", ln=1)
+        pdf.cell(190, 8, f"Cleaning Penalty: Php {clean:,.2f}", ln=1)
+        pdf.cell(190, 8, f"Damage Penalty: Php {damage:,.2f}", ln=1)
+        pdf.cell(190, 8, f"Net RFID & Toll Deductions: Php {rfid_fee:,.2f}", ln=1)
+        pdf.cell(190, 8, f"Late Penalty: Php {late:,.2f}", ln=1)
         
         if is_with_driver and ot_fee > 0:
-            pdf.cell(0, 8, f"Driver Extras/OT: Php {ot_fee:,.2f}", ln=True)
+            pdf.cell(190, 8, f"Driver Extras/OT: Php {ot_fee:,.2f}", ln=1)
             
         pdf.ln(5)
         pdf.line(10, pdf.get_y(), 200, pdf.get_y())
         pdf.ln(5)
         
         pdf.set_font("Helvetica", '', 12)
-        pdf.cell(0, 8, f"Total Deductions: Php {total_deduct:,.2f}", ln=True)
-        pdf.cell(0, 8, f"Less Initial Deposit: (Php 5,000.00)", ln=True)
+        pdf.cell(190, 8, f"Total Deductions: Php {total_deduct:,.2f}", ln=1)
+        pdf.cell(190, 8, f"Less Initial Deposit: (Php 5,000.00)", ln=1)
         pdf.ln(2) 
         
         pdf.set_font("Helvetica", 'B', 12)
         if total_deduct > 5000.0:
             amount_payable = total_deduct - 5000.0
-            pdf.cell(0, 10, f"NET PAYABLE TO AFFILIATE: Php {amount_payable:,.2f}", ln=True)
+            pdf.cell(190, 10, f"NET PAYABLE TO AFFILIATE: Php {amount_payable:,.2f}", ln=1)
         else:
-            pdf.cell(0, 10, f"NET REFUND TO RENTER: Php {refund:,.2f}", ln=True)
+            pdf.cell(190, 10, f"NET REFUND TO RENTER: Php {refund:,.2f}", ln=1)
             
         current_y = pdf.get_y() + 15
         
+        # Prevent manual offsets from pushing the cursor into the bottom margin
+        if current_y > 230:
+            pdf.add_page()
+            current_y = pdf.get_y() + 5
+            
         try:
             if sig_ret is not None:
                 r_path = os.path.join(UPLOAD_DIR, f"ret_r_{booking_ref}.jpg")
@@ -402,7 +418,7 @@ def main():
         
         pdf.ln(20)
         pdf.set_font("Helvetica", 'I', 9)
-        pdf.cell(0, 5, "Legally generated by DriveElite Platform", align='C', ln=True)
+        pdf.cell(190, 5, "Legally generated by DriveElite Platform", align='C', ln=1)
         
         return pdf.output(dest="S").encode("latin1")
 
