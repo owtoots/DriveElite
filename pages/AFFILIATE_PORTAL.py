@@ -263,9 +263,9 @@ def main():
         pdf = FPDF(orientation='P', unit='mm', format='A4')
         pdf.add_page()
         # Safely truncate long strings to fit standard PDF cell widths
-renter_name = (renter_name[:30] + '..') if len(renter_name) > 30 else renter_name
-affiliate_name = (affiliate_name[:30] + '..') if len(affiliate_name) > 30 else affiliate_name
-car_name = (car_name[:40] + '..') if len(car_name) > 40 else car_name
+        renter_name = (renter_name[:30] + '..') if len(renter_name) > 30 else renter_name
+        affiliate_name = (affiliate_name[:30] + '..') if len(affiliate_name) > 30 else affiliate_name
+        car_name = (car_name[:40] + '..') if len(car_name) > 40 else car_name
         try:
             pdf.image("logo.png", x=80, y=10, w=50)
             pdf.set_y(45) 
@@ -332,9 +332,9 @@ car_name = (car_name[:40] + '..') if len(car_name) > 40 else car_name
         pdf = FPDF(orientation='P', unit='mm', format='A4')
         pdf.add_page()
         # Safely truncate long strings to fit standard PDF cell widths
-renter = (renter[:25] + '..') if len(renter) > 25 else renter
-vehicle = (vehicle[:35] + '..') if len(vehicle) > 35 else vehicle
-plate = (plate[:15] + '..') if len(plate) > 15 else plate
+        renter = (renter[:25] + '..') if len(renter) > 25 else renter
+        vehicle = (vehicle[:35] + '..') if len(vehicle) > 35 else vehicle
+        plate = (plate[:15] + '..') if len(plate) > 15 else plate
         try:
             pdf.image("logo.png", x=80, y=10, w=50)
             pdf.set_y(45) 
