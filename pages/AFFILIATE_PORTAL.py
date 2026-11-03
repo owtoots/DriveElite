@@ -717,9 +717,7 @@ def main():
                                             background_color="#FFFFFF", 
                                             height=140, 
                                             width=350, 
-                                            key=f"sr_canvas_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}",
-                                            return_image_data=True,
-                                            update_streamlit=True
+                                            key=f"sr_canvas_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}"
                                         )
                                         if st.button("Clear Renter Pad", use_container_width=True, key=f"btn_clr_r_{b['id']}"): 
                                             st.session_state[f"clr_sr_{b['id']}"] += 1
@@ -737,9 +735,7 @@ def main():
                                             background_color="#FFFFFF", 
                                             height=140, 
                                             width=350, 
-                                            key=f"sa_canvas_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}",
-                                            return_image_data=True,
-                                            update_streamlit=True
+                                            key=f"sa_canvas_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}"
                                         )
                                         if st.button("Clear Host Pad", use_container_width=True, key=f"btn_clr_h_{b['id']}"): 
                                             st.session_state[f"clr_sa_{b['id']}"] += 1
@@ -896,9 +892,7 @@ def main():
                                         background_color="#FFFFFF", 
                                         height=140, 
                                         width=350, 
-                                        key=f"sret_canvas_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}",
-                                        return_image_data=True,
-                                        update_streamlit=True
+                                        key=f"sret_canvas_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}"
                                     )
                                     if st.button("Clear Renter Pad", use_container_width=True, key=f"btn_clr_sret_{b['id']}"): 
                                         st.session_state[f"clr_sret_{b['id']}"] += 1
@@ -916,9 +910,7 @@ def main():
                                         background_color="#FFFFFF", 
                                         height=140, 
                                         width=350, 
-                                        key=f"sreta_canvas_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}",
-                                        return_image_data=True,
-                                        update_streamlit=True
+                                        key=f"sreta_canvas_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}"
                                     )
                                     if st.button("Clear Host Pad", use_container_width=True, key=f"btn_clr_sreta_{b['id']}"): 
                                         st.session_state[f"clr_sreta_{b['id']}"] += 1
