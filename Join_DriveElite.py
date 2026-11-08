@@ -184,7 +184,23 @@ try:
     conn.commit()
 except: 
     pass
+# --- ADD THIS NEW PATCH BLOCK HERE ---
+try: 
+    conn.execute("ALTER TABLE platform_users ADD COLUMN bank_name TEXT")
+    conn.commit()
+except: 
+    pass
 
+try: 
+    conn.execute("ALTER TABLE platform_users ADD COLUMN bank_account_num TEXT")
+    conn.commit()
+except: 
+    pass
+# ------------------------------------
+
+try:
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS platform_users (
 try:
     conn.execute('''
         CREATE TABLE IF NOT EXISTS platform_users (
