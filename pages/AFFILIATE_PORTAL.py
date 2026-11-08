@@ -298,7 +298,7 @@ def main():
         pdf.ln(5)
 
         pdf.set_font("Helvetica", 'B', 12)
-        pdf.cell(0, 10, "IMPORTANT REMINDERS FOR RENTER:", ln=1)
+        pdf.cell(190, 10, "IMPORTANT REMINDERS FOR RENTER:", ln=1)
         pdf.set_font("Helvetica", '', 10)
         pdf.multi_cell(0, 6, f"1. Tire Pressure: Please maintain the tire pressure at {tire_pressure} to ensure safety and optimal fuel efficiency.")
         pdf.multi_cell(0, 6, f"2. Preferred Fuel: This vehicle requires {preferred_fuel}. Please ensure the correct fuel type is used to avoid engine damage charges.")
@@ -667,39 +667,46 @@ def main():
                                 except: 
                                     st.error("Could not load chat history.")
 
-                            with st.form(key=f"chat_form_{b_ref_str}", clear_on_submit=True):
-                                c_msg, c_btn = st.columns([4, 1])
+                            # --- BULLETPROOF CHAT INPUT ---
+                            input_key = f"chat_input_{b_ref_str}"
+                            if input_key not in st.session_state:
+                                st.session_state[input_key] = ""
                                 
-                                with c_msg: 
-                                    chat_text = st.text_input("Reply", key=f"chat_input_{b_ref_str}", placeholder="Type message and press Enter...", label_visibility="collapsed")
-                                    
-                                with c_btn:
-                                    submitted = st.form_submit_button("Send", use_container_width=True)
-                                    
-                                with st.expander("📎 Attach Photo(s)", expanded=False):
-                                    a_img = st.file_uploader("Upload images here", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"a_img_{b_ref_str}", label_visibility="collapsed")
+                            current_text = st.session_state[input_key]
 
-                                if submitted:
-                                    has_text = bool(chat_text.strip())
-                                    has_imgs = bool(a_img and len(a_img) > 0)
-                                    
-                                    if has_text or has_imgs:
-                                        try:
-                                            if has_imgs:
-                                                for idx, img_file in enumerate(a_img):
-                                                    path = save_chat_image(img_file, b_ref_str)
-                                                    text_to_save = chat_text if idx == 0 else ""
-                                                    if idx == 0 and not has_text: text_to_save = "📸 Sent a photo."
-                                                    conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                                                (b_ref_str, st.session_state.username, b['renter_username'], text_to_save, path))
-                                            else:
+                            c_msg, c_btn = st.columns([4, 1])
+                            with c_msg: 
+                                chat_text = st.text_input("Reply", key=input_key, placeholder="Type message and press Enter...", label_visibility="collapsed")
+                                
+                            with st.expander("📎 Attach Photo(s)", expanded=False):
+                                a_img = st.file_uploader("Upload images here", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"a_img_{b_ref_str}", label_visibility="collapsed")
+
+                            with c_btn:
+                                submitted = st.button("Send", use_container_width=True, key=f"send_btn_{b_ref_str}", type="primary")
+
+                            if submitted:
+                                final_text = chat_text.strip() if chat_text.strip() else current_text.strip()
+                                has_text = bool(final_text)
+                                has_imgs = bool(a_img and len(a_img) > 0)
+                                
+                                if has_text or has_imgs:
+                                    try:
+                                        if has_imgs:
+                                            for idx, img_file in enumerate(a_img):
+                                                path = save_chat_image(img_file, b_ref_str)
+                                                text_to_save = final_text if idx == 0 else ""
+                                                if idx == 0 and not has_text: text_to_save = "📸 Sent a photo."
                                                 conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                                            (b_ref_str, st.session_state.username, b['renter_username'], chat_text, ""))
-                                            
-                                            conn.commit()
-                                            st.rerun()
-                                        except Exception as e:
-                                            st.warning(f" **DATABASE ERROR:** {str(e)}")
+                                                            (b_ref_str, st.session_state.username, b['renter_username'], text_to_save, path))
+                                        else:
+                                            conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                                        (b_ref_str, st.session_state.username, b['renter_username'], final_text, ""))
+                                        
+                                        conn.commit()
+                                        st.session_state[input_key] = ""
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.warning(f" **DATABASE ERROR:** {str(e)}")
                                             
                             st.divider()
 
