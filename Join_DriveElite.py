@@ -33,7 +33,7 @@ st.set_page_config(
     page_title="DriveElite", 
     page_icon="logo.png",
     layout="wide",
-    initial_sidebar_state="expanded"  # <-- ADDED THIS TO PIN MENU ON LAPTOP
+    initial_sidebar_state="expanded"
 )
 
 try:
@@ -41,10 +41,8 @@ try:
 except:
     pass
 
-# --- CSS RESET ---
 st.markdown("""
 <style>
-    /* Mobile-Specific Overrides */
     @media (max-width: 768px) {
         [data-testid="stAppViewContainer"] > .main > div {
             padding-left: 1rem !important;
@@ -55,19 +53,13 @@ st.markdown("""
             max-width: 100% !important;
         }
     }
-/* Hide Streamlit Branding */
-    
     footer {visibility: hidden;}
-    
-    /* Fixed Image Styling */
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
         height: 200px !important;
         width: 100% !important;
         object-fit: cover !important;
         border-radius: 8px !important;
     }
-    
-    /* Force the sidebar toggle to be more visible */
     [data-testid="stSidebarCollapse"] {
         background-color: rgba(255, 255, 255, 0.8) !important;
         border: 2px solid #2563EB !important;
@@ -131,28 +123,26 @@ st.markdown("""
     input { color: #1E293B !important; }
     h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
     label { color: #475569 !important; font-weight: 600 !important; }
-/* 🚨 MAKE MOBILE MENU ARROW MASSIVE AND VISIBLE */
-        [data-testid="collapsedControl"] {
-            position: fixed !important;  /* <-- THIS DETACHES IT FROM THE SCROLLING HEADER */
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            background-color: #2563EB !important;
-            border-radius: 50% !important;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
-            top: 15px !important;
-            left: 15px !important;
-            padding: 8px !important;
-            z-index: 999999 !important;
-            transition: transform 0.2s ease !important;
-        }
-        
-        [data-testid="collapsedControl"] svg {
-            fill: #FFFFFF !important;
-            color: #FFFFFF !important;
-            width: 24px !important;
-            height: 24px !important;
-        }
+    [data-testid="collapsedControl"] {
+        position: fixed !important; 
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background-color: #2563EB !important;
+        border-radius: 50% !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+        top: 15px !important;
+        left: 15px !important;
+        padding: 8px !important;
+        z-index: 999999 !important;
+        transition: transform 0.2s ease !important;
+    }
+    [data-testid="collapsedControl"] svg {
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
+        width: 24px !important;
+        height: 24px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -176,28 +166,28 @@ if st.session_state.current_page != "JOIN":
         st.stop()
 
 # ==========================================
-# 5. DATABASE SETUP
+# 5. DATABASE & PATH SETUP
 # ==========================================
 conn = get_connection()
+
+# Universal Upload Directory Setup
+UPLOAD_DIR = os.path.join(os.getcwd(), "data", "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 try: 
     conn.execute("ALTER TABLE platform_users ADD COLUMN xendit_sub_id TEXT")
     conn.commit()
-except: 
-    pass
+except: pass
 
-# --- NEW PATCH BLOCK ---
 try: 
     conn.execute("ALTER TABLE platform_users ADD COLUMN bank_name TEXT")
     conn.commit()
-except: 
-    pass
+except: pass
 
 try: 
     conn.execute("ALTER TABLE platform_users ADD COLUMN bank_account_num TEXT")
     conn.commit()
-except: 
-    pass
-# -----------------------
+except: pass
 
 try:
     conn.execute('''
@@ -223,17 +213,13 @@ try:
         )
     ''')
     conn.commit()
-except: 
-    pass
+except: pass
 
 for col_name, col_type in [("area_code", "TEXT DEFAULT '+63'"), ("admin_status", "TEXT DEFAULT 'PENDING'")]:
     try:
         conn.execute(f"ALTER TABLE platform_users ADD COLUMN {col_name} {col_type}")
         conn.commit()
     except: pass
-
-if not os.path.exists("uploads"):
-    os.makedirs("/data/uploads", exist_ok=True)
 
 # ==========================================
 # 6. UTILITY FUNCTIONS
@@ -271,7 +257,6 @@ def send_welcome_email(recipient_email, role, filepath):
 
     try:
         app_password = "chcskxti6hc2d7ao"
-            
         with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
             smtp.login(sender_email, app_password)
             smtp.send_message(msg)
@@ -281,7 +266,7 @@ def send_welcome_email(recipient_email, role, filepath):
 def create_legit_pdf_contract(data, role, sig_bytes, conn):
     is_affiliate = role.upper() == "AFFILIATE"
     prefix = "MOA" if is_affiliate else "RENTER"
-    pdf_filename = f"/data/uploads/{prefix}_{data['username']}.pdf"
+    pdf_filename = os.path.join(UPLOAD_DIR, f"{prefix}_{data['username']}.pdf")
     
     try:
         settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct, operator_name FROM platform_settings WHERE id = 1", conn)
@@ -426,7 +411,7 @@ In the case of total loss (including theft), the LESSEE assumes financial respon
 - Survival Clause: The LESSEE acknowledges that traffic citations are often delayed. The LESSEE's liability for these violations strictly survives the termination of this Agreement and the return of the Security Deposit. If a violation from the rental period is reported at any point in the future, the LESSEE remains legally bound to reimburse the OWNER/AGENCY immediately upon demand.
 - LTO Demerit Transfer: In the event of an LTO alarm or traffic citation, the LESSEE explicitly agrees to accept any corresponding demerit points to their personal Driver's License. The LESSEE agrees to fully cooperate and sign any necessary documents to clear the OWNER's vehicle and license from said violations."""
 
-    # 🚨 FIX: Force text encoding to strip out invisible crashing characters
+    # 🚨 Force text encoding to strip out invisible crashing characters
     safe_body_text = body_text.encode('latin-1', 'ignore').decode('latin-1')
     pdf.multi_cell(0, 4, safe_body_text)
     
@@ -436,7 +421,7 @@ In the case of total loss (including theft), the LESSEE assumes financial respon
     pdf.set_font("Helvetica", 'B', 10)
     pdf.cell(0, 10, f"DIGITALLY SIGNED BY {'OWNER' if is_affiliate else 'RENTER'}:", ln=1)
     
-    temp_sig = f"/data/uploads/temp_{data['username']}.png"
+    temp_sig = os.path.join(UPLOAD_DIR, f"temp_{data['username']}.png")
     with open(temp_sig, "wb") as f:
         f.write(sig_bytes)
     pdf.image(temp_sig, w=40)
@@ -448,6 +433,7 @@ In the case of total loss (including theft), the LESSEE assumes financial respon
     
     pdf.output(pdf_filename)
     return pdf_filename
+
 
 # ==========================================
 # 7. 🚗 MAIN REGISTRATION SCREEN
@@ -575,16 +561,14 @@ if reg_type in ["Affiliate", "Renter"]:
                     if not check.empty:
                         st.error("🚨 Username already taken.")
                     else:
-                        # 🚨 Save massive images to disk to prevent RAM crash
-                        gov_path = f"/data/uploads/gov_{un}.jpg"
-                        lic_path = f"/data/uploads/lic_{un}.jpg"
+                        gov_path = os.path.join(UPLOAD_DIR, f"gov_{un}.jpg")
+                        lic_path = os.path.join(UPLOAD_DIR, f"lic_{un}.jpg")
                         
                         with open(gov_path, "wb") as f:
                             f.write(g_id.getbuffer())
                         with open(lic_path, "wb") as f:
                             f.write(l_id.getbuffer())
                             
-                        # Save only the lightweight file PATHS and Bank details in session state
                         st.session_state[f"temp_{reg_type.lower()}_data"] = {
                             "username": un, "password": pwd, "full_name": f"{fn} {mn} {sn}".strip(), 
                             "email": em, "age": age, "nationality": nat, "address": ad, 
@@ -595,7 +579,7 @@ if reg_type in ["Affiliate", "Renter"]:
                         st.rerun()
 
     # ==========================================
-    # STEP 2: DIGITAL SIGNATURE & SEND OTP
+    # STEP 2: DIGITAL SIGNATURE
     # ==========================================
     elif st.session_state[step_key] == 2:
         st.subheader(f"Step 2: Digital {reg_type} Agreement")
@@ -629,13 +613,11 @@ if reg_type in ["Affiliate", "Renter"]:
                     except Exception as e:
                         st.error(f"PDF Generation Error: {e}")
                     
-                    # 🚨 Read the images back into memory ONLY right before saving
                     with open(data["gov_path"], "rb") as f:
                         gov_bytes = f.read()
                     with open(data["lic_path"], "rb") as f:
                         lic_bytes = f.read()
 
-                    # Included bank_name and bank_acc in the payload array
                     st.session_state.reg_payload = (
                         data["username"], data["password"], reg_type.upper(), data["full_name"], 
                         data["email"], data["age"], data["nationality"], data["address"], 
@@ -644,14 +626,14 @@ if reg_type in ["Affiliate", "Renter"]:
                     )
                     st.session_state.verify_contact = data["contact"]
                     
-                    # Send OTP via Email
+                    # Send OTP
                     otp_code = str(random.randint(100000, 999999))
                     st.session_state.generated_otp = otp_code
                     
                     success = send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
                     
                     if success:
-                        st.session_state[step_key] = 3      # <-- Moves cleanly to Step 3
+                        st.session_state[step_key] = 3
                         st.rerun()
                     else:
                         st.error("🚨 Failed to send verification. Please try again.")
@@ -664,11 +646,9 @@ if reg_type in ["Affiliate", "Renter"]:
     elif st.session_state[step_key] == 3:
         st.subheader(f"Step 3: Verify Your Email (OTP)")
         
-        # Grab the email from the temporarily stored data
         user_email = st.session_state[f"temp_{reg_type.lower()}_data"]["email"]
         st.info(f"We've sent a 6-digit verification code to **{user_email}**. Please enter it below.")
         
-        # The actual OTP Input box
         user_otp = st.text_input("Enter 6-Digit OTP Code", max_chars=6)
         
         c_back, c_ver = st.columns([1, 4])
@@ -681,13 +661,10 @@ if reg_type in ["Affiliate", "Renter"]:
             if user_otp == st.session_state.generated_otp:
                 with st.spinner("Saving your account to the secure database..."):
                     try:
-                        # ==========================================
                         # 🚨 1. XENDIT AUTOMATED SUB-ACCOUNT CREATION
-                        # ==========================================
                         generated_sub_id = None
                         data = st.session_state[f"temp_{reg_type.lower()}_data"]
                         
-                        # Only trigger Xendit if they are an Affiliate
                         if reg_type.upper() == "AFFILIATE":
                             SECRET_KEY = os.environ.get("xendit_active_key")
                             if not SECRET_KEY:
@@ -701,7 +678,6 @@ if reg_type in ["Affiliate", "Renter"]:
                                     
                                     url = "https://api.xendit.co/v2/accounts"
                                     
-                                    # Include bank details in Xendit account creation payload
                                     payload = {
                                         "type": "OWNED",
                                         "business_profile": {
@@ -725,10 +701,7 @@ if reg_type in ["Affiliate", "Renter"]:
                                 except Exception as e:
                                     print(f"Failed to generate Xendit Sub-Account: {e}")
                         
-                        # ==========================================
                         # 🚨 2. SINGLE DATABASE INSERTION
-                        # ==========================================
-                        # Append the generated_sub_id (or None if Renter) to the payload
                         final_payload = st.session_state.reg_payload + (generated_sub_id,)
                         
                         conn.execute("""
@@ -740,9 +713,7 @@ if reg_type in ["Affiliate", "Renter"]:
                         """, final_payload)
                         conn.commit()
                         
-                        # ==========================================
                         # 3. ADMIN ALERTS & EMAILS
-                        # ==========================================
                         try:
                             admin_phone = "09688811400" 
                             admin_email = "contact@driveelite.ph"
@@ -755,19 +726,20 @@ if reg_type in ["Affiliate", "Renter"]:
                         except Exception:
                             pass
                         
+                        # 🚨 Fix: Ensure the Welcome Email is surfaced if it fails
                         try:
                             un, role, email = st.session_state.reg_payload[0], st.session_state.reg_payload[2], st.session_state.reg_payload[4]
                             prefix = "MOA" if role == "AFFILIATE" else "RENTER"
-                            final_p = f"/data/uploads/{prefix}_{un}.pdf"
+                            final_p = os.path.join(UPLOAD_DIR, f"{prefix}_{un}.pdf")
                             send_welcome_email(email, role, final_p)
+                            
+                            st.info("✉️ We have emailed you a copy of your signed agreement.")
                         except Exception as e:
-                            print(f"Welcome email failed: {e}")
+                            st.warning(f"⚠️ Account created successfully, but the welcome email failed to send: {e}")
 
                         st.success("🎉 Registration Complete! Your account is now pending Admin approval.")
-                        st.info("✉️ We have emailed you a copy of your signed agreement.")
                         time.sleep(3)
                         
-                        # Clear everything so the form resets for the next person
                         for key in list(st.session_state.keys()):
                             del st.session_state[key]
                         st.rerun()
