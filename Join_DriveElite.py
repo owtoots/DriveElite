@@ -289,9 +289,9 @@ def create_legit_pdf_contract(data, role, sig_bytes, conn):
     
     pdf.set_font("Helvetica", 'B', 14)
     if is_affiliate:
-        pdf.cell(0, 10, "MEMORANDUM OF AGREEMENT", ln=True, align='C')
+        pdf.cell(0, 10, "MEMORANDUM OF AGREEMENT", ln=1, align='C')
         pdf.set_font("Helvetica", 'B', 10)
-        pdf.cell(0, 6, "DriveElite, a Peer-to-Peer Car Rentals", ln=True, align='C')
+        pdf.cell(0, 6, "DriveElite, a Peer-to-Peer Car Rentals", ln=1, align='C')
         pdf.ln(5)
         
         pdf.set_font("Helvetica", '', 8)
@@ -346,7 +346,7 @@ The AGENCY reserves the right to suspend accounts of users who fail to settle va
 
 8. Failure to Deliver and Affiliate Cancellations
 1. No-Show Penalty: Failure to deliver the vehicle at the scheduled time incurs a penalty of PHP 2,000.00.
-2. Late Cancellation Penalty: Canceling a confirmed booking with 24 to 48 hours notice incurs a penalty of PHP 1,000.00.
+​2. Late Cancellation Penalty: Canceling a confirmed booking with 24 to 48 hours notice incurs a penalty of PHP 1,000.00.
 3. Account Suspension: Three (3) instances of cancellation or two (2) instances of a No-Show within a twelve (12) month period will result in permanent deactivation.
 
 9. MISCELLANEOUS 
@@ -354,9 +354,9 @@ a. Electronic Consent: Digital acceptance on the platform carries the same legal
 b. Venue: Disputes shall be instituted exclusively in the proper courts of Pasig City."""
 
     else:
-        pdf.cell(0, 10, "MASTER RENTER AGREEMENT", ln=True, align='C')
+        pdf.cell(0, 10, "MASTER RENTER AGREEMENT", ln=1, align='C')
         pdf.set_font("Helvetica", 'B', 10)
-        pdf.cell(0, 6, "DriveElite, a Peer-to-Peer Car Rentals", ln=True, align='C')
+        pdf.cell(0, 6, "DriveElite, a Peer-to-Peer Car Rentals", ln=1, align='C')
         pdf.ln(5)
         
         pdf.set_font("Helvetica", '', 8)
@@ -417,7 +417,7 @@ In the case of total loss (including theft), the LESSEE assumes financial respon
     
     # 4. Digital Signature
     pdf.set_font("Helvetica", 'B', 10)
-    pdf.cell(0, 10, f"DIGITALLY SIGNED BY {'OWNER' if is_affiliate else 'RENTER'}:", ln=True)
+    pdf.cell(0, 10, f"DIGITALLY SIGNED BY {'OWNER' if is_affiliate else 'RENTER'}:", ln=1)
     
     temp_sig = f"/data/uploads/temp_{data['username']}.png"
     with open(temp_sig, "wb") as f:
@@ -426,8 +426,8 @@ In the case of total loss (including theft), the LESSEE assumes financial respon
     os.remove(temp_sig)
     
     pdf.set_font("Helvetica", '', 9)
-    pdf.cell(0, 5, f"{data['full_name'].upper()}", ln=True)
-    pdf.cell(0, 5, f"Date Signed: {date_str}", ln=True)
+    pdf.cell(0, 5, f"{data['full_name'].upper()}", ln=1)
+    pdf.cell(0, 5, f"Date Signed: {date_str}", ln=1)
     
     pdf.output(pdf_filename)
     return pdf_filename
@@ -528,12 +528,16 @@ if reg_type in ["Affiliate", "Renter"]:
             em = st.text_input("Email Address")
             ad = st.text_area("Complete Physical Address")
 
-            # 🚨 BANK DETAILS INPUTS (FOR AFFILIATES OR ALL USERS)
-            st.markdown("---")
-            st.markdown("#### 🏦 Payout Bank / E-Wallet Details")
-            b_col1, b_col2 = st.columns(2)
-            bank_name = b_col1.selectbox("Bank / E-Wallet", ["Select...", "BPI", "BDO", "UnionBank", "Metrobank", "GCash", "Maya"])
-            bank_acc = b_col2.text_input("Account Number / Mobile Number")
+            # 🚨 BANK DETAILS INPUTS (ONLY FOR AFFILIATES)
+            if reg_type == "Affiliate":
+                st.markdown("---")
+                st.markdown("#### 🏦 Payout Bank / E-Wallet Details")
+                b_col1, b_col2 = st.columns(2)
+                bank_name = b_col1.selectbox("Bank / E-Wallet", ["Select...", "BPI", "BDO", "UnionBank", "Metrobank", "GCash", "Maya"])
+                bank_acc = b_col2.text_input("Account Number / Mobile Number")
+            else:
+                bank_name = ""
+                bank_acc = ""
             
             un = st.text_input("Choose Username")
             p1, p2 = st.columns(2)
@@ -548,6 +552,8 @@ if reg_type in ["Affiliate", "Renter"]:
                     st.error("🚨 Passwords do not match.")
                 elif not all([fn, sn, un, pwd, g_id, l_id, cn, em, ad]):
                     st.error("🚨 Please fill all required fields and upload your documents.")
+                elif reg_type == "Affiliate" and (bank_name == "Select..." or not bank_acc):
+                    st.error("🚨 Please provide your payout bank details.")
                 else:
                     check = pd.read_sql_query("SELECT username FROM platform_users WHERE username=?", conn, params=(un,))
                     if not check.empty:
@@ -562,11 +568,12 @@ if reg_type in ["Affiliate", "Renter"]:
                         with open(lic_path, "wb") as f:
                             f.write(l_id.getbuffer())
                             
-                        # Save only the lightweight file PATHS in session state
+                        # Save only the lightweight file PATHS and Bank details in session state
                         st.session_state[f"temp_{reg_type.lower()}_data"] = {
                             "username": un, "password": pwd, "full_name": f"{fn} {mn} {sn}".strip(), 
                             "email": em, "age": age, "nationality": nat, "address": ad, 
-                            "area_code": ac, "contact": cn, "gov_path": gov_path, "lic_path": lic_path
+                            "area_code": ac, "contact": cn, "gov_path": gov_path, "lic_path": lic_path,
+                            "bank_name": bank_name, "bank_acc": bank_acc
                         }
                         st.session_state[step_key] = 2
                         st.rerun()
@@ -579,14 +586,13 @@ if reg_type in ["Affiliate", "Renter"]:
         st.info("By signing below, you agree to the DriveElite Terms of Service and Privacy Policy.")
         
         canvas = st_canvas(
-    stroke_width=3, 
-    stroke_color="#000000", 
-    background_color="#FFFFFF", 
-    height=150, 
-    width=400, 
-    key=f"sig_{reg_type}",
-    return_image_data=True  # <-- ADD THIS PARAMETER
-)
+            stroke_width=3, 
+            stroke_color="#000000", 
+            background_color="#FFFFFF", 
+            height=150, 
+            width=400, 
+            key=f"sig_{reg_type}"
+        )
         
         c_back, c_sub = st.columns([1, 4])
         if c_back.button("⬅️ BACK"):
@@ -613,10 +619,12 @@ if reg_type in ["Affiliate", "Renter"]:
                     with open(data["lic_path"], "rb") as f:
                         lic_bytes = f.read()
 
+                    # Included bank_name and bank_acc in the payload array
                     st.session_state.reg_payload = (
                         data["username"], data["password"], reg_type.upper(), data["full_name"], 
                         data["email"], data["age"], data["nationality"], data["address"], 
-                        data["area_code"], data["contact"], gov_bytes, lic_bytes, sig_bytes
+                        data["area_code"], data["contact"], gov_bytes, lic_bytes, sig_bytes,
+                        data["bank_name"], data["bank_acc"]
                     )
                     st.session_state.verify_contact = data["contact"]
                     
@@ -661,6 +669,9 @@ if reg_type in ["Affiliate", "Renter"]:
                         # 🚨 1. XENDIT AUTOMATED SUB-ACCOUNT CREATION
                         # ==========================================
                         generated_sub_id = None
+                        data = st.session_state[f"temp_{reg_type.lower()}_data"]
+                        
+                        # Only trigger Xendit if they are an Affiliate
                         if reg_type.upper() == "AFFILIATE":
                             SECRET_KEY = os.environ.get("xendit_active_key")
                             if not SECRET_KEY:
@@ -701,14 +712,15 @@ if reg_type in ["Affiliate", "Renter"]:
                         # ==========================================
                         # 🚨 2. SINGLE DATABASE INSERTION
                         # ==========================================
-                        # Append the generated_sub_id (or None if Renter) to the 13-item payload
+                        # Append the generated_sub_id (or None if Renter) to the 15-item payload
                         final_payload = st.session_state.reg_payload + (generated_sub_id,)
                         
                         conn.execute("""
                             INSERT INTO platform_users (
                                 username, password, role, full_name, email, age, nationality, address, 
-                                area_code, contact_number, govt_id_img, license_img, signature_img, admin_status, xendit_sub_id
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
+                                area_code, contact_number, govt_id_img, license_img, signature_img, 
+                                bank_name, bank_account_num, admin_status, xendit_sub_id
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
                         """, final_payload)
                         conn.commit()
                         
