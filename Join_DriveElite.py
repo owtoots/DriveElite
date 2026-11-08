@@ -579,7 +579,7 @@ if reg_type in ["Affiliate", "Renter"]:
                         st.rerun()
 
     # ==========================================
-    # STEP 2: DIGITAL SIGNATURE
+    # STEP 2: DIGITAL SIGNATURE & SEND OTP
     # ==========================================
     elif st.session_state[step_key] == 2:
         st.subheader(f"Step 2: Digital {reg_type} Agreement")
@@ -628,14 +628,14 @@ if reg_type in ["Affiliate", "Renter"]:
                     )
                     st.session_state.verify_contact = data["contact"]
                     
-                    # Send OTP
+                    # Send OTP via Email
                     otp_code = str(random.randint(100000, 999999))
                     st.session_state.generated_otp = otp_code
                     
                     success = send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
                     
                     if success:
-                        st.session_state[step_key] = 3      # <-- Now it moves cleanly to Step 3!
+                        st.session_state[step_key] = 3      # <-- Moves cleanly to Step 3
                         st.rerun()
                     else:
                         st.error("🚨 Failed to send verification. Please try again.")
@@ -712,7 +712,7 @@ if reg_type in ["Affiliate", "Renter"]:
                         # ==========================================
                         # 🚨 2. SINGLE DATABASE INSERTION
                         # ==========================================
-                        # Append the generated_sub_id (or None if Renter) to the 15-item payload
+                        # Append the generated_sub_id (or None if Renter) to the payload
                         final_payload = st.session_state.reg_payload + (generated_sub_id,)
                         
                         conn.execute("""
