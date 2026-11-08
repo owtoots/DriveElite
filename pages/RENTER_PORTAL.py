@@ -641,7 +641,7 @@ def main():
                                             if st.button("🏠 RETURN TO LANDING PAGE", key=f"return_main_{car['id']}_{cat}", type="primary", use_container_width=True):
                                                 st.session_state.current_page = "JOIN"
                                                 st.rerun()
-                                                
+                                            
                                             st.write("") # Spacer
 
                                             with st.container(border=True):
@@ -720,7 +720,7 @@ def main():
                                                 st.session_state[stage_key] = 0
                                                 del st.session_state[ref_key]
                                                 st.rerun()
-                                                
+                                            
                                             if c_paid.button("I Have Paid", key=f"paid_pm_{car['id']}_{cat}", use_container_width=True):
                                                 with st.spinner("Notifying Admin..."):
                                                     conn.execute("UPDATE bookings SET status = 'VERIFYING' WHERE booking_ref = ?", (b_ref,))
@@ -829,28 +829,34 @@ def main():
                                 st.error("Could not load chat.")
 
                         # --- BULLETPROOF CHAT INPUT (MOBILE OPTIMIZED) ---
-                        with st.form(key=f"chat_form_{b_ref_str}", clear_on_submit=True):
-                            # 1. Full-width text input on top
-                            chat_val = st.text_input("Message", label_visibility="collapsed", placeholder="Type your message here...")
+                        input_key = f"chat_input_{b_ref_str}"
+                        if input_key not in st.session_state:
+                            st.session_state[input_key] = ""
                             
-                            # 2. Neat dropdown for photo attachments
-                            with st.expander("📎 Attach Photo (Optional)"):
-                                r_img = st.file_uploader("Upload", type=['jpg','png','jpeg'], key=f"r_img_{b_ref_str}", label_visibility="collapsed")
+                        current_text = st.session_state[input_key]
 
-                            # 3. Full-width send button
-                            submit_chat = st.form_submit_button("SEND MESSAGE", type="primary", use_container_width=True)
+                        c_msg, c_btn = st.columns([4, 1])
+                        with c_msg: 
+                            chat_val = st.text_input("Reply", key=input_key, label_visibility="collapsed", placeholder="Type your message here...")
+                            
+                        with st.expander("📎 Attach Photo (Optional)"):
+                            r_img = st.file_uploader("Upload", type=['jpg','png','jpeg'], key=f"r_img_{b_ref_str}", label_visibility="collapsed")
 
-                            if submit_chat:
-                                has_text = bool(chat_val.strip())
+                        with c_btn:
+                            if st.button("Send", type="primary", use_container_width=True, key=f"send_btn_{b_ref_str}"):
+                                final_text = chat_val.strip() if chat_val.strip() else current_text.strip()
+                                has_text = bool(final_text)
                                 has_img = bool(r_img)
 
                                 if has_text or has_img:
                                     img_path = save_chat_image(r_img, b_ref_str) if has_img else ""
-                                    text_to_save = chat_val if has_text else "📸 Sent a photo."
+                                    text_to_save = final_text if has_text else "📸 Sent a photo."
 
                                     conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)",
                                                  (b_ref_str, renter_user, b['owner_username'], text_to_save, img_path))
                                     conn.commit()
+                                    
+                                    st.session_state[input_key] = ""
                                     st.rerun() 
 
                     # --- THE REVIEW SYSTEM ---
