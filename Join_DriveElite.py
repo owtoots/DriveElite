@@ -44,10 +44,9 @@ try:
 except:
     pass
 
-# --- CSS RESET ---
+# --- CSS RESET & SIDEBAR OVERRIDE ---
 st.markdown("""
 <style>
-    /* Mobile-Specific Overrides */
     @media (max-width: 768px) {
         [data-testid="stAppViewContainer"] > .main > div {
             padding-left: 1rem !important;
@@ -58,11 +57,10 @@ st.markdown("""
             max-width: 100% !important;
         }
     }
-/* Hide Streamlit Branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    /* Fixed Image Styling */
+    
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
         height: 200px !important;
         width: 100% !important;
@@ -70,7 +68,7 @@ st.markdown("""
         border-radius: 8px !important;
     }
     
-    /* Force the sidebar toggle to always be visible on all screens */
+    /* 🚨 FORCE SIDEBAR TOGGLE ARROWS TO ALWAYS APPEAR */
     [data-testid="collapsedControl"] {
         display: flex !important;
         visibility: visible !important;
@@ -89,6 +87,12 @@ st.markdown("""
         color: #FFFFFF !important;
         width: 24px !important;
         height: 24px !important;
+    }
+
+    [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: #F8FAFC !important;
+        color: #0F172A !important;
+        font-family: 'Inter', -apple-system, sans-serif !important;
     }
     [data-testid="stSidebar"] {
         background-color: #FFFFFF !important;
@@ -215,10 +219,10 @@ for col_name, col_type in [("area_code", "TEXT DEFAULT '+63'"), ("admin_status",
         conn.commit()
     except: pass
 
-if not os.path.exists("uploads"):
-    os.makedirs("/data/uploads", exist_ok=True)
+# 🚨 ROBUST DIRECTORY SETUP
 UPLOAD_DIR = os.path.join(os.getcwd(), "data", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 # ==========================================
 # 6. UTILITY FUNCTIONS
 # ==========================================
@@ -418,7 +422,7 @@ In the case of total loss (including theft), the LESSEE assumes financial respon
     pdf.set_font("Helvetica", 'B', 10)
     pdf.cell(0, 10, f"DIGITALLY SIGNED BY {'OWNER' if is_affiliate else 'RENTER'}:", ln=True)
     
-    temp_sig = f"/data/uploads/temp_{data['username']}.png"
+    temp_sig = os.path.join(UPLOAD_DIR, f"temp_{data['username']}.png")
     with open(temp_sig, "wb") as f:
         f.write(sig_bytes)
     pdf.image(temp_sig, w=40)
@@ -603,7 +607,7 @@ if reg_type in ["Affiliate", "Renter"]:
                     )
                     st.session_state.verify_contact = data["contact"]
                     
-                    # Send OTP & Show Developer Bypass on Screen
+                    # 🚨 SEND OTP & SHOW DEVELOPER BYPASS
                     otp_code = str(random.randint(100000, 999999))
                     st.session_state.generated_otp = otp_code
                     
@@ -641,7 +645,9 @@ if reg_type in ["Affiliate", "Renter"]:
             if user_otp == st.session_state.generated_otp:
                 with st.spinner("Saving your account to the secure database..."):
                     try:
+                        # --------------------------------------------------
                         # 1. XENDIT ESCROW SUB-ACCOUNT CREATION
+                        # --------------------------------------------------
                         generated_sub_id = None
                         data = st.session_state[f"temp_{reg_type.lower()}_data"]
                         
@@ -674,7 +680,9 @@ if reg_type in ["Affiliate", "Renter"]:
                                 except Exception as e:
                                     print(f"Failed to generate Xendit Sub-Account: {e}")
 
+                        # --------------------------------------------------
                         # 2. DATABASE INSERTION
+                        # --------------------------------------------------
                         final_payload = st.session_state.reg_payload + (generated_sub_id,)
                         
                         conn.execute("""
@@ -695,11 +703,11 @@ if reg_type in ["Affiliate", "Renter"]:
                             
                             from database_utils import send_sms_alert, send_alert_email
                             send_sms_alert(admin_phone, f"DriveElite Admin: A new {new_role} ({new_name}) just registered!")
-                            send_alert_email(admin_email, f"🚨 New {new_role} Registration: {new_name}", f"Hello Admin,\n\nA new {new_role} named {new_name} has registered.")
+                            send_alert_email(admin_email, f"🚨 New {new_role} Registration: {new_name}", f"Hello Admin,\n\nA new {new_role} named {new_name} has successfully verified their account.\n\nPlease log into the Admin Command Center to review their ID and License.")
                         except Exception:
                             pass
                         
-                        # --- Welcome Email & MOA Dispatch ---
+                        # 🚨 WELCOME EMAIL & MOA DISPATCH
                         try:
                             un, role, email = st.session_state.reg_payload[0], st.session_state.reg_payload[2], st.session_state.reg_payload[4]
                             prefix = "MOA" if role == "AFFILIATE" else "RENTER"
