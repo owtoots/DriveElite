@@ -210,7 +210,8 @@ for col_name, col_type in [("area_code", "TEXT DEFAULT '+63'"), ("admin_status",
 
 if not os.path.exists("uploads"):
     os.makedirs("/data/uploads", exist_ok=True)
-
+UPLOAD_DIR = os.path.join(os.getcwd(), "data", "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 # ==========================================
 # 6. UTILITY FUNCTIONS
 # ==========================================
@@ -228,7 +229,7 @@ def crop_signature(image_data):
 def get_secret(key, default_val=None):
     return os.environ.get(key) or st.secrets.get(key, default_val)
 
-def send__email(recipient_email, role, filepath):
+def send_welcome_email(recipient_email, role, filepath):
     msg = EmailMessage()
     doc_label = "MOA" if role == "AFFILIATE" else "RENTER"
     msg['Subject'] = f'DriveElite: Your Official {doc_label} Agreement'
@@ -238,7 +239,7 @@ def send__email(recipient_email, role, filepath):
     msg['To'] = recipient_email
     msg['Bcc'] = sender_email
 
-    msg.set_content(f"Hello,\n\n to DriveElite! Attached is your signed {doc_label} agreement.\n\nBest,\nThe DriveElite Team")
+    msg.set_content(f"Hello,\n\nWelcome to DriveElite! Attached is your signed {doc_label} agreement.\n\nBest,\nThe DriveElite Team")
 
     with open(filepath, 'rb') as f:
         file_data = f.read()
@@ -257,7 +258,7 @@ def send__email(recipient_email, role, filepath):
 def create_legit_pdf_contract(data, role, sig_bytes, conn):
     is_affiliate = role.upper() == "AFFILIATE"
     prefix = "MOA" if is_affiliate else "RENTER"
-    pdf_filename = f"/data/uploads/{prefix}_{data['username']}.pdf"
+    pdf_filename = os.path.join(UPLOAD_DIR, f"{prefix}_{data['username']}.pdf")
     
     try:
         settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct, operator_name FROM platform_settings WHERE id = 1", conn)
@@ -706,7 +707,7 @@ if reg_type in ["Affiliate", "Renter"]:
                             prefix = "MOA" if role == "AFFILIATE" else "RENTER"
                             
                             # Use universal pathing so it works locally and on Render
-                            final_p = os.path.join(os.getcwd(), "data", "uploads", f"{prefix}_{un}.pdf")
+                            final_p = os.path.join(UPLOAD_DIR, f"{prefix}_{un}.pdf")
                             
                             if os.path.exists(final_p):
                                 send_welcome_email(email, role, final_p)
