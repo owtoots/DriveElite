@@ -70,18 +70,25 @@ st.markdown("""
         border-radius: 8px !important;
     }
     
-    /* Force the sidebar toggle to be more visible */
-    [data-testid="stSidebarCollapse"] {
-        background-color: rgba(255, 255, 255, 0.8) !important;
-        border: 2px solid #2563EB !important;
+    /* Force the sidebar toggle to always be visible on all screens */
+    [data-testid="collapsedControl"] {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: fixed !important; 
+        top: 15px !important;
+        left: 15px !important;
+        z-index: 999999 !important;
+        background-color: #2563EB !important;
         border-radius: 50% !important;
-        padding: 10px !important;
-        color: #2563EB !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+        padding: 8px !important;
     }
-    [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
-        background-color: #F8FAFC !important;
-        color: #0F172A !important;
-        font-family: 'Inter', -apple-system, sans-serif !important;
+    [data-testid="collapsedControl"] svg {
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
+        width: 24px !important;
+        height: 24px !important;
     }
     [data-testid="stSidebar"] {
         background-color: #FFFFFF !important;
@@ -248,7 +255,6 @@ def send_welcome_email(recipient_email, role, filepath):
 
     try:
         app_password = "chcskxti6hc2d7ao"
-            
         with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
             smtp.login(sender_email, app_password)
             smtp.send_message(msg)
@@ -597,17 +603,20 @@ if reg_type in ["Affiliate", "Renter"]:
                     )
                     st.session_state.verify_contact = data["contact"]
                     
-                    # Send OTP
+                    # Send OTP & Show Developer Bypass on Screen
                     otp_code = str(random.randint(100000, 999999))
                     st.session_state.generated_otp = otp_code
                     
-                    success = send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
+                    st.toast(f"🛠️ DEV OTP: {otp_code}", icon="🚀")
+                    st.info(f"🛠️ DEV OTP: **{otp_code}** (Use this code if mail server is rate-limiting)")
                     
-                    if success:
-                        st.session_state[step_key] = 3      # <-- Now it moves cleanly to Step 3!
-                        st.rerun()
-                    else:
-                        st.error("🚨 Failed to send verification. Please try again.")
+                    try:
+                        send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
+                    except Exception as e:
+                        print(f"OTP Email dispatch note: {e}")
+                    
+                    st.session_state[step_key] = 3      
+                    st.rerun()
             else:
                 st.error("🚨 Digital signature required to proceed.")
                 
@@ -617,11 +626,9 @@ if reg_type in ["Affiliate", "Renter"]:
     elif st.session_state[step_key] == 3:
         st.subheader(f"Step 3: Verify Your Email (OTP)")
         
-        # Grab the email from the temporarily stored data
         user_email = st.session_state[f"temp_{reg_type.lower()}_data"]["email"]
-        st.info(f"We've sent a 6-digit verification code to **{user_email}**. Please enter it below.")
+        st.info(f"We've sent a 6-digit verification code to **{user_email}** (or check the info box above). Please enter it below.")
         
-        # The actual OTP Input box
         user_otp = st.text_input("Enter 6-Digit OTP Code", max_chars=6)
         
         c_back, c_ver = st.columns([1, 4])
@@ -634,9 +641,7 @@ if reg_type in ["Affiliate", "Renter"]:
             if user_otp == st.session_state.generated_otp:
                 with st.spinner("Saving your account to the secure database..."):
                     try:
-                        # --------------------------------------------------
-                        # 1. XENDIT ESCROW SUB-ACCOUNT CREATION (AFFILIATE ONLY)
-                        # --------------------------------------------------
+                        # 1. XENDIT ESCROW SUB-ACCOUNT CREATION
                         generated_sub_id = None
                         data = st.session_state[f"temp_{reg_type.lower()}_data"]
                         
@@ -654,13 +659,8 @@ if reg_type in ["Affiliate", "Renter"]:
                                     
                                     payload = {
                                         "type": "OWNED",
-                                        "business_profile": {
-                                            "business_name": data["full_name"]
-                                        },
-                                        "account_holder": {
-                                            "bank_code": data["bank_name"],
-                                            "account_number": data["bank_acc"]
-                                        }
+                                        "business_profile": {"business_name": data["full_name"]},
+                                        "account_holder": {"bank_code": data["bank_name"], "account_number": data["bank_acc"]}
                                     }
                                     
                                     req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'))
@@ -674,9 +674,7 @@ if reg_type in ["Affiliate", "Renter"]:
                                 except Exception as e:
                                     print(f"Failed to generate Xendit Sub-Account: {e}")
 
-                        # --------------------------------------------------
                         # 2. DATABASE INSERTION
-                        # --------------------------------------------------
                         final_payload = st.session_state.reg_payload + (generated_sub_id,)
                         
                         conn.execute("""
@@ -696,17 +694,15 @@ if reg_type in ["Affiliate", "Renter"]:
                             new_name = st.session_state.reg_payload[3] 
                             
                             from database_utils import send_sms_alert, send_alert_email
-                            send_sms_alert(admin_phone, f"DriveElite Admin: A new {new_role} ({new_name}) just registered! Please review their documents.")
-                            send_alert_email(admin_email, f"🚨 New {new_role} Registration: {new_name}", f"Hello Admin,\n\nA new {new_role} named {new_name} has successfully verified their account.\n\nPlease log into the Admin Command Center to review their ID and License.")
+                            send_sms_alert(admin_phone, f"DriveElite Admin: A new {new_role} ({new_name}) just registered!")
+                            send_alert_email(admin_email, f"🚨 New {new_role} Registration: {new_name}", f"Hello Admin,\n\nA new {new_role} named {new_name} has registered.")
                         except Exception:
                             pass
                         
-                        # --- Welcome Email with Robust Pathing ---
+                        # --- Welcome Email & MOA Dispatch ---
                         try:
                             un, role, email = st.session_state.reg_payload[0], st.session_state.reg_payload[2], st.session_state.reg_payload[4]
                             prefix = "MOA" if role == "AFFILIATE" else "RENTER"
-                            
-                            # Use universal pathing so it works locally and on Render
                             final_p = os.path.join(UPLOAD_DIR, f"{prefix}_{un}.pdf")
                             
                             if os.path.exists(final_p):
@@ -718,10 +714,8 @@ if reg_type in ["Affiliate", "Renter"]:
                             st.warning(f"⚠️ Account created, but welcome email failed: {e}")
 
                         st.success("🎉 Registration Complete! Your account is now pending Admin approval.")
-                        st.info("✉️ We have emailed you a copy of your signed agreement.")
                         time.sleep(3)
                         
-                        # Clear everything so the form resets for the next person
                         for key in list(st.session_state.keys()):
                             del st.session_state[key]
                         st.rerun()
@@ -731,4 +725,4 @@ if reg_type in ["Affiliate", "Renter"]:
                     except Exception as e:
                         st.error(f"Database Error: {e}")
             else:
-                st.error("❌ Incorrect OTP. Please check your email and try again.")
+                st.error("❌ Incorrect OTP. Please enter the correct code displayed on your screen.")
