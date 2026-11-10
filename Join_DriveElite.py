@@ -575,7 +575,7 @@ if reg_type in ["Affiliate", "Renter"]:
                         st.session_state[step_key] = 2
                         st.rerun()
 
-    # ==========================================
+   # ==========================================
     # STEP 2: DIGITAL SIGNATURE
     # ==========================================
     elif st.session_state[step_key] == 2:
@@ -588,8 +588,7 @@ if reg_type in ["Affiliate", "Renter"]:
             background_color="#FFFFFF", 
             height=150, 
             width=400, 
-            key=f"sig_{reg_type}",
-            return_image_data=True  
+            key=f"sig_{reg_type}"
         )
         
         c_back, c_sub = st.columns([1, 4])
