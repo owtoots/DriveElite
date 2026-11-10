@@ -579,7 +579,7 @@ if reg_type in ["Affiliate", "Renter"]:
                         st.rerun()
 
     # ==========================================
-    # STEP 2: DIGITAL SIGNATURE
+    # STEP 2: DIGITAL SIGNATURE & OTP DISPATCH
     # ==========================================
     elif st.session_state[step_key] == 2:
         st.subheader(f"Step 2: Digital {reg_type} Agreement")
@@ -626,17 +626,21 @@ if reg_type in ["Affiliate", "Renter"]:
                     )
                     st.session_state.verify_contact = data["contact"]
                     
-                    # Send OTP
+                    # 🛠️ GENERATE & BYPASS OTP SAFELY
                     otp_code = str(random.randint(100000, 999999))
                     st.session_state.generated_otp = otp_code
                     
-                    success = send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
+                    # Force print the OTP on screen so you are never locked out by rate limits
+                    st.toast(f"🛠️ DEV MODE OTP: {otp_code}", icon="🚀")
+                    st.info(f"🛠️ DEV MODE OTP: **{otp_code}** (Use this code if email delivery is delayed)")
                     
-                    if success:
-                        st.session_state[step_key] = 3
-                        st.rerun()
-                    else:
-                        st.error("🚨 Failed to send verification. Please try again.")
+                    try:
+                        send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
+                    except Exception as email_err:
+                        st.warning(f"⚠️ OTP Email dispatch encountered an issue: {email_err}")
+                    
+                    st.session_state[step_key] = 3
+                    st.rerun()
             else:
                 st.error("🚨 Digital signature required to proceed.")
                 
@@ -647,7 +651,7 @@ if reg_type in ["Affiliate", "Renter"]:
         st.subheader(f"Step 3: Verify Your Email (OTP)")
         
         user_email = st.session_state[f"temp_{reg_type.lower()}_data"]["email"]
-        st.info(f"We've sent a 6-digit verification code to **{user_email}**. Please enter it below.")
+        st.info(f"We've sent a 6-digit verification code to **{user_email}** (or check the info box above if testing locally). Please enter it below.")
         
         user_otp = st.text_input("Enter 6-Digit OTP Code", max_chars=6)
         
@@ -661,7 +665,7 @@ if reg_type in ["Affiliate", "Renter"]:
             if user_otp == st.session_state.generated_otp:
                 with st.spinner("Saving your account to the secure database..."):
                     try:
-                        # 🚨 1. XENDIT AUTOMATED SUB-ACCOUNT CREATION
+                        # 1. XENDIT SUB-ACCOUNT CREATION
                         generated_sub_id = None
                         data = st.session_state[f"temp_{reg_type.lower()}_data"]
                         
@@ -675,35 +679,24 @@ if reg_type in ["Affiliate", "Renter"]:
                                 try:
                                     auth_string = f"{SECRET_KEY}:"
                                     base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
-                                    
                                     url = "https://api.xendit.co/v2/accounts"
-                                    
                                     payload = {
                                         "type": "OWNED",
-                                        "business_profile": {
-                                            "business_name": data["full_name"]
-                                        },
-                                        "account_holder": {
-                                            "bank_code": data["bank_name"],
-                                            "account_number": data["bank_acc"]
-                                        }
+                                        "business_profile": {"business_name": data["full_name"]},
+                                        "account_holder": {"bank_code": data["bank_name"], "account_number": data["bank_acc"]}
                                     }
-                                    
                                     req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'))
                                     req.add_header('accept', 'application/json')
                                     req.add_header('content-type', 'application/json')
                                     req.add_header('authorization', f'Basic {base64_auth}')
-                                    
                                     response = urllib.request.urlopen(req)
                                     xendit_data = json.loads(response.read().decode('utf-8'))
                                     generated_sub_id = xendit_data.get('id')
-                                    
                                 except Exception as e:
                                     print(f"Failed to generate Xendit Sub-Account: {e}")
                         
-                        # 🚨 2. SINGLE DATABASE INSERTION
+                        # 2. DATABASE INSERTION
                         final_payload = st.session_state.reg_payload + (generated_sub_id,)
-                        
                         conn.execute("""
                             INSERT INTO platform_users (
                                 username, password, role, full_name, email, age, nationality, address, 
@@ -713,7 +706,7 @@ if reg_type in ["Affiliate", "Renter"]:
                         """, final_payload)
                         conn.commit()
                         
-                        # 3. ADMIN ALERTS & EMAILS
+                        # 3. ADMIN ALERTS
                         try:
                             admin_phone = "09688811400" 
                             admin_email = "contact@driveelite.ph"
@@ -721,24 +714,27 @@ if reg_type in ["Affiliate", "Renter"]:
                             new_name = st.session_state.reg_payload[3] 
                             
                             from database_utils import send_sms_alert, send_alert_email
-                            send_sms_alert(admin_phone, f"DriveElite Admin: A new {new_role} ({new_name}) just registered! Please review their documents.")
-                            send_alert_email(admin_email, f"🚨 New {new_role} Registration: {new_name}", f"Hello Admin,\n\nA new {new_role} named {new_name} has successfully verified their account.\n\nPlease log into the Admin Command Center to review their ID and License.")
+                            send_sms_alert(admin_phone, f"DriveElite Admin: A new {new_role} ({new_name}) just registered!")
+                            send_alert_email(admin_email, f"🚨 New {new_role} Registration: {new_name}", f"Hello Admin,\n\nA new {new_role} named {new_name} has registered.")
                         except Exception:
                             pass
                         
-                        # 🚨 Fix: Ensure the Welcome Email is surfaced if it fails
+                        # 4. WELCOME EMAIL & MOA CONTRACT DISPATCH WITH EXPLICIT TRAPPING
                         try:
                             un, role, email = st.session_state.reg_payload[0], st.session_state.reg_payload[2], st.session_state.reg_payload[4]
                             prefix = "MOA" if role == "AFFILIATE" else "RENTER"
                             final_p = os.path.join(UPLOAD_DIR, f"{prefix}_{un}.pdf")
-                            send_welcome_email(email, role, final_p)
                             
-                            st.info("✉️ We have emailed you a copy of your signed agreement.")
-                        except Exception as e:
-                            st.warning(f"⚠️ Account created successfully, but the welcome email failed to send: {e}")
+                            if os.path.exists(final_p):
+                                send_welcome_email(email, role, final_p)
+                                st.success("✉️ Official agreement successfully emailed to your account!")
+                            else:
+                                st.warning(f"⚠️ Account created, but contract PDF was not found at: {final_p}")
+                        except Exception as email_err:
+                            st.warning(f"⚠️ Account created successfully in database, but welcome email dispatch failed: {email_err}")
 
                         st.success("🎉 Registration Complete! Your account is now pending Admin approval.")
-                        time.sleep(3)
+                        time.sleep(4)
                         
                         for key in list(st.session_state.keys()):
                             del st.session_state[key]
@@ -749,4 +745,4 @@ if reg_type in ["Affiliate", "Renter"]:
                     except Exception as e:
                         st.error(f"Database Error: {e}")
             else:
-                st.error("❌ Incorrect OTP. Please check your email and try again.")
+                st.error("❌ Incorrect OTP. Please enter the correct code displayed on your screen.")
