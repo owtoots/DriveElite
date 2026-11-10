@@ -228,7 +228,7 @@ def crop_signature(image_data):
 def get_secret(key, default_val=None):
     return os.environ.get(key) or st.secrets.get(key, default_val)
 
-def send_welcome_email(recipient_email, role, filepath):
+def send__email(recipient_email, role, filepath):
     msg = EmailMessage()
     doc_label = "MOA" if role == "AFFILIATE" else "RENTER"
     msg['Subject'] = f'DriveElite: Your Official {doc_label} Agreement'
@@ -238,7 +238,7 @@ def send_welcome_email(recipient_email, role, filepath):
     msg['To'] = recipient_email
     msg['Bcc'] = sender_email
 
-    msg.set_content(f"Hello,\n\nWelcome to DriveElite! Attached is your signed {doc_label} agreement.\n\nBest,\nThe DriveElite Team")
+    msg.set_content(f"Hello,\n\n to DriveElite! Attached is your signed {doc_label} agreement.\n\nBest,\nThe DriveElite Team")
 
     with open(filepath, 'rb') as f:
         file_data = f.read()
@@ -700,14 +700,21 @@ if reg_type in ["Affiliate", "Renter"]:
                         except Exception:
                             pass
                         
-                        # --- Welcome Email ---
+                        # --- Welcome Email with Robust Pathing ---
                         try:
                             un, role, email = st.session_state.reg_payload[0], st.session_state.reg_payload[2], st.session_state.reg_payload[4]
                             prefix = "MOA" if role == "AFFILIATE" else "RENTER"
-                            final_p = f"/data/uploads/{prefix}_{un}.pdf"
-                            send_welcome_email(email, role, final_p)
+                            
+                            # Use universal pathing so it works locally and on Render
+                            final_p = os.path.join(os.getcwd(), "data", "uploads", f"{prefix}_{un}.pdf")
+                            
+                            if os.path.exists(final_p):
+                                send_welcome_email(email, role, final_p)
+                                st.info("✉️ Official MOA agreement successfully emailed to your account.")
+                            else:
+                                st.warning(f"⚠️ Registration saved, but PDF contract not found at: {final_p}")
                         except Exception as e:
-                            print(f"Welcome email failed: {e}")
+                            st.warning(f"⚠️ Account created, but welcome email failed: {e}")
 
                         st.success("🎉 Registration Complete! Your account is now pending Admin approval.")
                         st.info("✉️ We have emailed you a copy of your signed agreement.")
