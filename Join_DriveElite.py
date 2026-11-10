@@ -279,6 +279,7 @@ def send_welcome_email(recipient_email, role, filepath):
     try:
         app_password = "chcskxti6hc2d7ao"
         with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
+            smtp.set_debuglevel(1)  # <--- ADD THIS LINE TO EXPOSE SERVER LOGS
             smtp.login(sender_email, app_password)
             smtp.send_message(msg)
     except Exception as e:
