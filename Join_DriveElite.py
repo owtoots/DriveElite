@@ -10,10 +10,6 @@ from streamlit_drawable_canvas import st_canvas
 from database_utils import get_connection
 from database_utils import send_otp
 from fpdf import FPDF
-import urllib.request
-import urllib.error
-import json
-import base64
 
 # ==========================================
 # 1. INITIALIZE SESSION STATE (MUST BE FIRST)
@@ -31,41 +27,24 @@ if "portal" in query_params:
         st.session_state.current_page = target_page
 
 # ==========================================
-# 3. PAGE CONFIGURATION & SIDEBAR MENU
+# 3. PAGE CONFIGURATION & CSS
 # ==========================================
 st.set_page_config(
     page_title="DriveElite", 
     page_icon="logo.png",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"  # <-- ADDED THIS TO PIN MENU ON LAPTOP
 )
 
-# 🚨 FORCE SIDEBAR CONTENT SO STREAMLIT RENDERS THE ARROW TOGGLE
-with st.sidebar:
-    try:
-        st.image("logo.png", use_container_width=True)
-    except:
-        st.markdown("## DriveElite")
-        
-    st.markdown("---")
-    st.markdown("### Navigation")
-    
-    if st.button("🏠 Home / Join", use_container_width=True):
-        st.session_state.current_page = "JOIN"
-        st.rerun()
-    if st.button("💼 Affiliate Login", use_container_width=True):
-        st.session_state.current_page = "AFFILIATE"
-        st.rerun()
-    if st.button("🚙 Renter Login", use_container_width=True):
-        st.session_state.current_page = "RENTER"
-        st.rerun()
-    if st.button("⚙️ Admin Command", use_container_width=True):
-        st.session_state.current_page = "ADMIN"
-        st.rerun()
+try:
+    st.sidebar.image("logo.png", use_container_width=True)
+except:
+    pass
 
-# --- CSS RESET & SIDEBAR OVERRIDE ---
+# --- CSS RESET ---
 st.markdown("""
 <style>
+    /* Mobile-Specific Overrides */
     @media (max-width: 768px) {
         [data-testid="stAppViewContainer"] > .main > div {
             padding-left: 1rem !important;
@@ -76,10 +55,11 @@ st.markdown("""
             max-width: 100% !important;
         }
     }
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+/* Hide Streamlit Branding */
     
+    footer {visibility: hidden;}
+    
+    /* Fixed Image Styling */
     div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
         height: 200px !important;
         width: 100% !important;
@@ -87,27 +67,14 @@ st.markdown("""
         border-radius: 8px !important;
     }
     
-    /* 🚨 FORCE SIDEBAR TOGGLE ARROWS TO ALWAYS APPEAR */
-    [data-testid="collapsedControl"] {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        position: fixed !important; 
-        top: 15px !important;
-        left: 15px !important;
-        z-index: 999999 !important;
-        background-color: #2563EB !important;
+    /* Force the sidebar toggle to be more visible */
+    [data-testid="stSidebarCollapse"] {
+        background-color: rgba(255, 255, 255, 0.8) !important;
+        border: 2px solid #2563EB !important;
         border-radius: 50% !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
-        padding: 8px !important;
+        padding: 10px !important;
+        color: #2563EB !important;
     }
-    [data-testid="collapsedControl"] svg {
-        fill: #FFFFFF !important;
-        color: #FFFFFF !important;
-        width: 24px !important;
-        height: 24px !important;
-    }
-
     [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background-color: #F8FAFC !important;
         color: #0F172A !important;
@@ -164,6 +131,28 @@ st.markdown("""
     input { color: #1E293B !important; }
     h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
     label { color: #475569 !important; font-weight: 600 !important; }
+/* 🚨 MAKE MOBILE MENU ARROW MASSIVE AND VISIBLE */
+        [data-testid="collapsedControl"] {
+            position: fixed !important;  /* <-- THIS DETACHES IT FROM THE SCROLLING HEADER */
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background-color: #2563EB !important;
+            border-radius: 50% !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+            top: 15px !important;
+            left: 15px !important;
+            padding: 8px !important;
+            z-index: 999999 !important;
+            transition: transform 0.2s ease !important;
+        }
+        
+        [data-testid="collapsedControl"] svg {
+            fill: #FFFFFF !important;
+            color: #FFFFFF !important;
+            width: 24px !important;
+            height: 24px !important;
+        }
 </style>
 """, unsafe_allow_html=True)
 
@@ -190,21 +179,11 @@ if st.session_state.current_page != "JOIN":
 # 5. DATABASE SETUP
 # ==========================================
 conn = get_connection()
-
 try: 
     conn.execute("ALTER TABLE platform_users ADD COLUMN xendit_sub_id TEXT")
     conn.commit()
-except: pass
-
-try: 
-    conn.execute("ALTER TABLE platform_users ADD COLUMN bank_name TEXT")
-    conn.commit()
-except: pass
-
-try: 
-    conn.execute("ALTER TABLE platform_users ADD COLUMN bank_account_num TEXT")
-    conn.commit()
-except: pass
+except: 
+    pass
 
 try:
     conn.execute('''
@@ -230,7 +209,8 @@ try:
         )
     ''')
     conn.commit()
-except: pass
+except: 
+    pass
 
 for col_name, col_type in [("area_code", "TEXT DEFAULT '+63'"), ("admin_status", "TEXT DEFAULT 'PENDING'")]:
     try:
@@ -238,9 +218,8 @@ for col_name, col_type in [("area_code", "TEXT DEFAULT '+63'"), ("admin_status",
         conn.commit()
     except: pass
 
-# 🚨 ROBUST DIRECTORY SETUP
-UPLOAD_DIR = os.path.join(os.getcwd(), "data", "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+if not os.path.exists("uploads"):
+    os.makedirs("/data/uploads", exist_ok=True)
 
 # ==========================================
 # 6. UTILITY FUNCTIONS
@@ -278,8 +257,8 @@ def send_welcome_email(recipient_email, role, filepath):
 
     try:
         app_password = "chcskxti6hc2d7ao"
+            
         with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
-            smtp.set_debuglevel(1)  # <--- ADD THIS LINE TO EXPOSE SERVER LOGS
             smtp.login(sender_email, app_password)
             smtp.send_message(msg)
     except Exception as e:
@@ -288,7 +267,7 @@ def send_welcome_email(recipient_email, role, filepath):
 def create_legit_pdf_contract(data, role, sig_bytes, conn):
     is_affiliate = role.upper() == "AFFILIATE"
     prefix = "MOA" if is_affiliate else "RENTER"
-    pdf_filename = os.path.join(UPLOAD_DIR, f"{prefix}_{data['username']}.pdf")
+    pdf_filename = f"/data/uploads/{prefix}_{data['username']}.pdf"
     
     try:
         settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct, operator_name FROM platform_settings WHERE id = 1", conn)
@@ -340,13 +319,14 @@ b. Fulfillment: Once a renter confirms a booking, the OWNER is strictly obligate
 c. Penalties: Failure to fulfill a confirmed booking results in a PHP 3,000 penalty. If the OWNER fails to notify the AGENCY of unavailability in time, an additional PHP 3,000 penalty plus replacement costs shall apply. 
 d. Driver Liability: Any driver provided is the sole employee/agent of the OWNER. The AGENCY holds no employer-employee relationship and zero liability for accidents or violations caused by the driver.
 
-3. COMPENSATION, TAXES, AND DELIVERY FEES 
-a. Revenue Split: The Gross Rental Revenue (excluding delivery/logistics fees) shall be shared directly as follows:
+3. PAYMENT PROCESSING, COMPENSATION, AND TAX MATTERS
+a. Automated Escrow & Split: All rental payments are processed through a licensed third-party payment gateway and held securely in a digital escrow. Upon successful completion of the booking, the gateway automatically splits and disburses the funds directly to the respective bank accounts of the parties. The OWNER's share is routed directly and never enters the AGENCY's corporate bank account.
+b. Revenue Split: The Gross Rental Revenue (excluding delivery/logistics fees) shall be shared as follows:
 - OWNER Share: {owner_share_val}
-- AGENCY Share: {agency_share_val}
-- Tax Independence & EWT: The AGENCY is not a withholding agent for the OWNER. The AGENCY shall only declare and pay taxes on its own {agency_share_val} commission. The OWNER receives their full {owner_share_val} share (less gateway fees) and assumes 100% legal and financial responsibility for filing, declaring, and paying their own taxes-including the 2% Expanded Withholding Tax (EWT) and Personal Income Tax-to the Bureau of Internal Revenue (BIR).
-- Delivery Fees: 100% of delivery/pick-up fees are remitted to the OWNER and are exempt from the AGENCY's {agency_share_val} fee.
-- Payment Processing Fees: Third-party payment gateway surcharges associated with their gross earnings shall be absorbed by the OWNER and deducted prior to final remittance.
+- Platform Share: {agency_share_val}
+c. E-Marketplace Withholding Tax (BIR Form 2307): In compliance with BIR regulations for e-marketplaces, the payment gateway shall automatically deduct a 0.5% creditable withholding tax from the OWNER's gross remittance. The OWNER shall be provided a BIR Form 2307 (Certificate of Creditable Tax Withheld at Source) for this deduction.
+d. Invoicing and Local Taxes (LGU): The AGENCY operates strictly as a platform broker. The AGENCY shall issue an Official Receipt/Sales Invoice ONLY for its {agency_share_val} commission. The OWNER retains 100% responsibility for issuing their own receipts to the renter for their {owner_share_val} share and declaring their income for Local Business Tax (LGU) and BIR Income Tax.
+e. Delivery & Gateway Fees: 100% of delivery/pick-up fees are remitted to the OWNER. Third-party payment gateway transaction surcharges applied to the total booking shall be absorbed by the OWNER and deducted prior to final remittance.
 
 4. CANCELLATION PENALTIES AND COMPENSATION 
 In the event that a Renter cancels a confirmed booking and a cancellation penalty is applied, the standard revenue split shall not apply to the penalty amount. Instead, the collected penalty shall be subject to a 60% / 40% distribution. The OWNER shall receive sixty percent (60%) as compensation, and the AGENCY shall retain forty percent (40%) to cover administrative overhead.
@@ -366,7 +346,7 @@ The AGENCY reserves the right to suspend accounts of users who fail to settle va
 
 8. Failure to Deliver and Affiliate Cancellations
 1. No-Show Penalty: Failure to deliver the vehicle at the scheduled time incurs a penalty of PHP 2,000.00.
-​2. Late Cancellation Penalty: Canceling a confirmed booking with 24 to 48 hours notice incurs a penalty of PHP 1,000.00.
+2. Late Cancellation Penalty: Canceling a confirmed booking with 24 to 48 hours notice incurs a penalty of PHP 1,000.00.
 3. Account Suspension: Three (3) instances of cancellation or two (2) instances of a No-Show within a twelve (12) month period will result in permanent deactivation.
 
 9. MISCELLANEOUS 
@@ -432,17 +412,14 @@ In the case of total loss (including theft), the LESSEE assumes financial respon
 - Survival Clause: The LESSEE acknowledges that traffic citations are often delayed. The LESSEE's liability for these violations strictly survives the termination of this Agreement and the return of the Security Deposit. If a violation from the rental period is reported at any point in the future, the LESSEE remains legally bound to reimburse the OWNER/AGENCY immediately upon demand.
 - LTO Demerit Transfer: In the event of an LTO alarm or traffic citation, the LESSEE explicitly agrees to accept any corresponding demerit points to their personal Driver's License. The LESSEE agrees to fully cooperate and sign any necessary documents to clear the OWNER's vehicle and license from said violations."""
 
-    # Force text encoding to strip out invisible crashing characters
-    safe_body_text = body_text.encode('latin-1', 'ignore').decode('latin-1')
-    pdf.multi_cell(0, 4, safe_body_text)
-    
+    pdf.multi_cell(0, 4, body_text)
     pdf.ln(5)
     
     # 4. Digital Signature
     pdf.set_font("Helvetica", 'B', 10)
     pdf.cell(0, 10, f"DIGITALLY SIGNED BY {'OWNER' if is_affiliate else 'RENTER'}:", ln=True)
     
-    temp_sig = os.path.join(UPLOAD_DIR, f"temp_{data['username']}.png")
+    temp_sig = f"/data/uploads/temp_{data['username']}.png"
     with open(temp_sig, "wb") as f:
         f.write(sig_bytes)
     pdf.image(temp_sig, w=40)
@@ -551,16 +528,12 @@ if reg_type in ["Affiliate", "Renter"]:
             em = st.text_input("Email Address")
             ad = st.text_area("Complete Physical Address")
 
-            # 🚨 BANK DETAILS INPUTS (ONLY FOR AFFILIATES)
-            if reg_type == "Affiliate":
-                st.markdown("---")
-                st.markdown("#### 🏦 Payout Bank / E-Wallet Details")
-                b_col1, b_col2 = st.columns(2)
-                bank_name = b_col1.selectbox("Bank / E-Wallet", ["Select...", "BPI", "BDO", "UnionBank", "Metrobank", "GCash", "Maya"])
-                bank_acc = b_col2.text_input("Account Number / Mobile Number")
-            else:
-                bank_name = ""
-                bank_acc = ""
+            # 🚨 BANK DETAILS INPUTS (FOR AFFILIATES OR ALL USERS)
+            st.markdown("---")
+            st.markdown("#### 🏦 Payout Bank / E-Wallet Details")
+            b_col1, b_col2 = st.columns(2)
+            bank_name = b_col1.selectbox("Bank / E-Wallet", ["Select...", "BPI", "BDO", "UnionBank", "Metrobank", "GCash", "Maya"])
+            bank_acc = b_col2.text_input("Account Number / Mobile Number")
             
             un = st.text_input("Choose Username")
             p1, p2 = st.columns(2)
@@ -575,18 +548,25 @@ if reg_type in ["Affiliate", "Renter"]:
                     st.error("🚨 Passwords do not match.")
                 elif not all([fn, sn, un, pwd, g_id, l_id, cn, em, ad]):
                     st.error("🚨 Please fill all required fields and upload your documents.")
-                elif reg_type == "Affiliate" and (bank_name == "Select..." or not bank_acc):
-                    st.error("🚨 Please provide your payout bank details.")
                 else:
                     check = pd.read_sql_query("SELECT username FROM platform_users WHERE username=?", conn, params=(un,))
                     if not check.empty:
                         st.error("🚨 Username already taken.")
                     else:
+                        # 🚨 Save massive images to disk to prevent RAM crash
+                        gov_path = f"/data/uploads/gov_{un}.jpg"
+                        lic_path = f"/data/uploads/lic_{un}.jpg"
+                        
+                        with open(gov_path, "wb") as f:
+                            f.write(g_id.getbuffer())
+                        with open(lic_path, "wb") as f:
+                            f.write(l_id.getbuffer())
+                            
+                        # Save only the lightweight file PATHS in session state
                         st.session_state[f"temp_{reg_type.lower()}_data"] = {
                             "username": un, "password": pwd, "full_name": f"{fn} {mn} {sn}".strip(), 
                             "email": em, "age": age, "nationality": nat, "address": ad, 
-                            "area_code": ac, "contact": cn, "gov_id": g_id.read(), "lic_id": l_id.read(),
-                            "bank_name": bank_name, "bank_acc": bank_acc
+                            "area_code": ac, "contact": cn, "gov_path": gov_path, "lic_path": lic_path
                         }
                         st.session_state[step_key] = 2
                         st.rerun()
@@ -598,7 +578,15 @@ if reg_type in ["Affiliate", "Renter"]:
         st.subheader(f"Step 2: Digital {reg_type} Agreement")
         st.info("By signing below, you agree to the DriveElite Terms of Service and Privacy Policy.")
         
-        canvas = st_canvas(stroke_width=3, stroke_color="#000000", background_color="#FFFFFF", height=150, width=400, key=f"sig_{reg_type}")
+        canvas = st_canvas(
+    stroke_width=3, 
+    stroke_color="#000000", 
+    background_color="#FFFFFF", 
+    height=150, 
+    width=400, 
+    key=f"sig_{reg_type}",
+    return_image_data=True  # <-- ADD THIS PARAMETER
+)
         
         c_back, c_sub = st.columns([1, 4])
         if c_back.button("⬅️ BACK"):
@@ -619,28 +607,30 @@ if reg_type in ["Affiliate", "Renter"]:
                     except Exception as e:
                         st.error(f"PDF Generation Error: {e}")
                     
+                    # 🚨 Read the images back into memory ONLY right before saving
+                    with open(data["gov_path"], "rb") as f:
+                        gov_bytes = f.read()
+                    with open(data["lic_path"], "rb") as f:
+                        lic_bytes = f.read()
+
                     st.session_state.reg_payload = (
                         data["username"], data["password"], reg_type.upper(), data["full_name"], 
                         data["email"], data["age"], data["nationality"], data["address"], 
-                        data["area_code"], data["contact"], data["gov_id"], data["lic_id"], sig_bytes,
-                        data["bank_name"], data["bank_acc"]
+                        data["area_code"], data["contact"], gov_bytes, lic_bytes, sig_bytes
                     )
                     st.session_state.verify_contact = data["contact"]
                     
-                    # 🚨 SEND OTP & SHOW DEVELOPER BYPASS
+                    # Send OTP
                     otp_code = str(random.randint(100000, 999999))
                     st.session_state.generated_otp = otp_code
                     
-                    st.toast(f"🛠️ DEV OTP: {otp_code}", icon="🚀")
-                    st.info(f"🛠️ DEV OTP: **{otp_code}** (Use this code if mail server is rate-limiting)")
+                    success = send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
                     
-                    try:
-                        send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
-                    except Exception as e:
-                        print(f"OTP Email dispatch note: {e}")
-                    
-                    st.session_state[step_key] = 3      
-                    st.rerun()
+                    if success:
+                        st.session_state[step_key] = 3      # <-- Now it moves cleanly to Step 3!
+                        st.rerun()
+                    else:
+                        st.error("🚨 Failed to send verification. Please try again.")
             else:
                 st.error("🚨 Digital signature required to proceed.")
                 
@@ -650,9 +640,11 @@ if reg_type in ["Affiliate", "Renter"]:
     elif st.session_state[step_key] == 3:
         st.subheader(f"Step 3: Verify Your Email (OTP)")
         
+        # Grab the email from the temporarily stored data
         user_email = st.session_state[f"temp_{reg_type.lower()}_data"]["email"]
-        st.info(f"We've sent a 6-digit verification code to **{user_email}** (or check the info box above). Please enter it below.")
+        st.info(f"We've sent a 6-digit verification code to **{user_email}**. Please enter it below.")
         
+        # The actual OTP Input box
         user_otp = st.text_input("Enter 6-Digit OTP Code", max_chars=6)
         
         c_back, c_ver = st.columns([1, 4])
@@ -665,12 +657,10 @@ if reg_type in ["Affiliate", "Renter"]:
             if user_otp == st.session_state.generated_otp:
                 with st.spinner("Saving your account to the secure database..."):
                     try:
-                        # --------------------------------------------------
-                        # 1. XENDIT ESCROW SUB-ACCOUNT CREATION
-                        # --------------------------------------------------
+                        # ==========================================
+                        # 🚨 1. XENDIT AUTOMATED SUB-ACCOUNT CREATION
+                        # ==========================================
                         generated_sub_id = None
-                        data = st.session_state[f"temp_{reg_type.lower()}_data"]
-                        
                         if reg_type.upper() == "AFFILIATE":
                             SECRET_KEY = os.environ.get("xendit_active_key")
                             if not SECRET_KEY:
@@ -681,12 +671,19 @@ if reg_type in ["Affiliate", "Renter"]:
                                 try:
                                     auth_string = f"{SECRET_KEY}:"
                                     base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+                                    
                                     url = "https://api.xendit.co/v2/accounts"
                                     
+                                    # Include bank details in Xendit account creation payload
                                     payload = {
                                         "type": "OWNED",
-                                        "business_profile": {"business_name": data["full_name"]},
-                                        "account_holder": {"bank_code": data["bank_name"], "account_number": data["bank_acc"]}
+                                        "business_profile": {
+                                            "business_name": data["full_name"]
+                                        },
+                                        "account_holder": {
+                                            "bank_code": data["bank_name"],
+                                            "account_number": data["bank_acc"]
+                                        }
                                     }
                                     
                                     req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'))
@@ -697,24 +694,27 @@ if reg_type in ["Affiliate", "Renter"]:
                                     response = urllib.request.urlopen(req)
                                     xendit_data = json.loads(response.read().decode('utf-8'))
                                     generated_sub_id = xendit_data.get('id')
+                                    
                                 except Exception as e:
                                     print(f"Failed to generate Xendit Sub-Account: {e}")
-
-                        # --------------------------------------------------
-                        # 2. DATABASE INSERTION
-                        # --------------------------------------------------
+                        
+                        # ==========================================
+                        # 🚨 2. SINGLE DATABASE INSERTION
+                        # ==========================================
+                        # Append the generated_sub_id (or None if Renter) to the 13-item payload
                         final_payload = st.session_state.reg_payload + (generated_sub_id,)
                         
                         conn.execute("""
                             INSERT INTO platform_users (
                                 username, password, role, full_name, email, age, nationality, address, 
-                                area_code, contact_number, govt_id_img, license_img, signature_img, 
-                                bank_name, bank_account_num, admin_status, xendit_sub_id
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
+                                area_code, contact_number, govt_id_img, license_img, signature_img, admin_status, xendit_sub_id
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
                         """, final_payload)
                         conn.commit()
                         
-                        # --- Admin Alerts ---
+                        # ==========================================
+                        # 3. ADMIN ALERTS & EMAILS
+                        # ==========================================
                         try:
                             admin_phone = "09688811400" 
                             admin_email = "contact@driveelite.ph"
@@ -722,28 +722,24 @@ if reg_type in ["Affiliate", "Renter"]:
                             new_name = st.session_state.reg_payload[3] 
                             
                             from database_utils import send_sms_alert, send_alert_email
-                            send_sms_alert(admin_phone, f"DriveElite Admin: A new {new_role} ({new_name}) just registered!")
+                            send_sms_alert(admin_phone, f"DriveElite Admin: A new {new_role} ({new_name}) just registered! Please review their documents.")
                             send_alert_email(admin_email, f"🚨 New {new_role} Registration: {new_name}", f"Hello Admin,\n\nA new {new_role} named {new_name} has successfully verified their account.\n\nPlease log into the Admin Command Center to review their ID and License.")
                         except Exception:
                             pass
                         
-                        # 🚨 WELCOME EMAIL & MOA DISPATCH
                         try:
                             un, role, email = st.session_state.reg_payload[0], st.session_state.reg_payload[2], st.session_state.reg_payload[4]
                             prefix = "MOA" if role == "AFFILIATE" else "RENTER"
-                            final_p = os.path.join(UPLOAD_DIR, f"{prefix}_{un}.pdf")
-                            
-                            if os.path.exists(final_p):
-                                send_welcome_email(email, role, final_p)
-                                st.info("✉️ Official MOA agreement successfully emailed to your account.")
-                            else:
-                                st.warning(f"⚠️ Registration saved, but PDF contract not found at: {final_p}")
+                            final_p = f"/data/uploads/{prefix}_{un}.pdf"
+                            send_welcome_email(email, role, final_p)
                         except Exception as e:
-                            st.warning(f"⚠️ Account created, but welcome email failed: {e}")
+                            print(f"Welcome email failed: {e}")
 
                         st.success("🎉 Registration Complete! Your account is now pending Admin approval.")
+                        st.info("✉️ We have emailed you a copy of your signed agreement.")
                         time.sleep(3)
                         
+                        # Clear everything so the form resets for the next person
                         for key in list(st.session_state.keys()):
                             del st.session_state[key]
                         st.rerun()
@@ -753,4 +749,4 @@ if reg_type in ["Affiliate", "Renter"]:
                     except Exception as e:
                         st.error(f"Database Error: {e}")
             else:
-                st.error("❌ Incorrect OTP. Please enter the correct code displayed on your screen.")
+                st.error("❌ Incorrect OTP. Please check your email and try again.")
