@@ -31,18 +31,37 @@ if "portal" in query_params:
         st.session_state.current_page = target_page
 
 # ==========================================
-# 3. PAGE CONFIGURATION & CSS
+# 3. PAGE CONFIGURATION & SIDEBAR MENU
 # ==========================================
 st.set_page_config(
     page_title="DriveElite", 
     page_icon="logo.png",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-try:
-    st.sidebar.image("logo.png", use_container_width=True)
-except:
-    pass
+# 🚨 FORCE SIDEBAR CONTENT SO STREAMLIT RENDERS THE ARROW TOGGLE
+with st.sidebar:
+    try:
+        st.image("logo.png", use_container_width=True)
+    except:
+        st.markdown("## DriveElite")
+        
+    st.markdown("---")
+    st.markdown("### Navigation")
+    
+    if st.button("🏠 Home / Join", use_container_width=True):
+        st.session_state.current_page = "JOIN"
+        st.rerun()
+    if st.button("💼 Affiliate Login", use_container_width=True):
+        st.session_state.current_page = "AFFILIATE"
+        st.rerun()
+    if st.button("🚙 Renter Login", use_container_width=True):
+        st.session_state.current_page = "RENTER"
+        st.rerun()
+    if st.button("⚙️ Admin Command", use_container_width=True):
+        st.session_state.current_page = "ADMIN"
+        st.rerun()
 
 # --- CSS RESET & SIDEBAR OVERRIDE ---
 st.markdown("""
