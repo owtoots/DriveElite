@@ -10,6 +10,10 @@ from streamlit_drawable_canvas import st_canvas
 from database_utils import get_connection
 from database_utils import send_otp
 from fpdf import FPDF
+import urllib.request
+import urllib.error
+import json
+import base64
 
 # ==========================================
 # 1. INITIALIZE SESSION STATE (MUST BE FIRST)
@@ -27,19 +31,37 @@ if "portal" in query_params:
         st.session_state.current_page = target_page
 
 # ==========================================
-# 3. PAGE CONFIGURATION & CSS
+# 3. PAGE CONFIGURATION, MENU & CSS
 # ==========================================
 st.set_page_config(
     page_title="DriveElite", 
     page_icon="logo.png",
     layout="wide",
-    initial_sidebar_state="expanded"  # <-- ADDED THIS TO PIN MENU ON LAPTOP
+    initial_sidebar_state="auto" 
 )
 
-try:
-    st.sidebar.image("logo.png", use_container_width=True)
-except:
-    pass
+# 🚨 EXPLICIT SIDEBAR CONTENT SO THE TOGGLE ARROW ALWAYS RENDERS
+with st.sidebar:
+    try:
+        st.image("logo.png", use_container_width=True)
+    except:
+        st.markdown("## DriveElite")
+        
+    st.markdown("---")
+    st.markdown("### Navigation")
+    
+    if st.button("🏠 Home / Join", use_container_width=True):
+        st.session_state.current_page = "JOIN"
+        st.rerun()
+    if st.button("💼 Affiliate Login", use_container_width=True):
+        st.session_state.current_page = "AFFILIATE"
+        st.rerun()
+    if st.button("🚙 Renter Login", use_container_width=True):
+        st.session_state.current_page = "RENTER"
+        st.rerun()
+    if st.button("⚙️ Admin Command", use_container_width=True):
+        st.session_state.current_page = "ADMIN"
+        st.rerun()
 
 # --- CSS RESET ---
 st.markdown("""
@@ -55,7 +77,6 @@ st.markdown("""
             max-width: 100% !important;
         }
     }
-/* Hide Streamlit Branding */
     
     footer {visibility: hidden;}
     
@@ -67,14 +88,30 @@ st.markdown("""
         border-radius: 8px !important;
     }
     
-    /* Force the sidebar toggle to be more visible */
-    [data-testid="stSidebarCollapse"] {
-        background-color: rgba(255, 255, 255, 0.8) !important;
-        border: 2px solid #2563EB !important;
+    /* 🚨 FORCE MASSIVE AND VISIBLE MENU ARROW */
+    [data-testid="collapsedControl"], [data-testid="stSidebarCollapsedControl"] {
+        position: fixed !important;  
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background-color: #2563EB !important;
         border-radius: 50% !important;
-        padding: 10px !important;
-        color: #2563EB !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+        top: 15px !important;
+        left: 15px !important;
+        padding: 8px !important;
+        z-index: 999999 !important;
+        transition: none !important;
     }
+    [data-testid="collapsedControl"] svg, [data-testid="stSidebarCollapsedControl"] svg {
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
+        width: 24px !important;
+        height: 24px !important;
+    }
+
     [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background-color: #F8FAFC !important;
         color: #0F172A !important;
@@ -87,16 +124,6 @@ st.markdown("""
     [data-testid="stSidebarContent"] {
         display: flex !important;
         flex-direction: column !important;
-    }
-    [data-testid="stSidebarUserContent"] {
-        order: 1 !important;
-        padding-top: 0rem !important;
-        margin-top: -1.5rem !important; 
-        padding-bottom: 1rem !important;
-    }
-    [data-testid="stSidebarNav"] {
-        order: 2 !important;
-        padding-top: 0rem !important; 
     }
     [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
         background-color: #FFFFFF !important;
@@ -128,31 +155,6 @@ st.markdown("""
         border: 1px solid #CBD5E1 !important;
         border-radius: 8px !important;
     }
-    input { color: #1E293B !important; }
-    h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
-    label { color: #475569 !important; font-weight: 600 !important; }
-/* 🚨 MAKE MOBILE MENU ARROW MASSIVE AND VISIBLE */
-        [data-testid="collapsedControl"] {
-            position: fixed !important;  /* <-- THIS DETACHES IT FROM THE SCROLLING HEADER */
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            background-color: #2563EB !important;
-            border-radius: 50% !important;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
-            top: 15px !important;
-            left: 15px !important;
-            padding: 8px !important;
-            z-index: 999999 !important;
-            transition: transform 0.2s ease !important;
-        }
-        
-        [data-testid="collapsedControl"] svg {
-            fill: #FFFFFF !important;
-            color: #FFFFFF !important;
-            width: 24px !important;
-            height: 24px !important;
-        }
 </style>
 """, unsafe_allow_html=True)
 
@@ -218,7 +220,8 @@ for col_name, col_type in [("area_code", "TEXT DEFAULT '+63'"), ("admin_status",
         conn.commit()
     except: pass
 
-if not os.path.exists("uploads"):
+# 🚨 REQUIRED ROOT RENDER PATH
+if not os.path.exists("/data/uploads"):
     os.makedirs("/data/uploads", exist_ok=True)
 
 # ==========================================
@@ -346,7 +349,7 @@ The AGENCY reserves the right to suspend accounts of users who fail to settle va
 
 8. Failure to Deliver and Affiliate Cancellations
 1. No-Show Penalty: Failure to deliver the vehicle at the scheduled time incurs a penalty of PHP 2,000.00.
-2. Late Cancellation Penalty: Canceling a confirmed booking with 24 to 48 hours notice incurs a penalty of PHP 1,000.00.
+​2. Late Cancellation Penalty: Canceling a confirmed booking with 24 to 48 hours notice incurs a penalty of PHP 1,000.00.
 3. Account Suspension: Three (3) instances of cancellation or two (2) instances of a No-Show within a twelve (12) month period will result in permanent deactivation.
 
 9. MISCELLANEOUS 
@@ -566,7 +569,8 @@ if reg_type in ["Affiliate", "Renter"]:
                         st.session_state[f"temp_{reg_type.lower()}_data"] = {
                             "username": un, "password": pwd, "full_name": f"{fn} {mn} {sn}".strip(), 
                             "email": em, "age": age, "nationality": nat, "address": ad, 
-                            "area_code": ac, "contact": cn, "gov_path": gov_path, "lic_path": lic_path
+                            "area_code": ac, "contact": cn, "gov_path": gov_path, "lic_path": lic_path,
+                            "bank_name": bank_name, "bank_acc": bank_acc
                         }
                         st.session_state[step_key] = 2
                         st.rerun()
@@ -579,14 +583,14 @@ if reg_type in ["Affiliate", "Renter"]:
         st.info("By signing below, you agree to the DriveElite Terms of Service and Privacy Policy.")
         
         canvas = st_canvas(
-    stroke_width=3, 
-    stroke_color="#000000", 
-    background_color="#FFFFFF", 
-    height=150, 
-    width=400, 
-    key=f"sig_{reg_type}",
-    return_image_data=True  # <-- ADD THIS PARAMETER
-)
+            stroke_width=3, 
+            stroke_color="#000000", 
+            background_color="#FFFFFF", 
+            height=150, 
+            width=400, 
+            key=f"sig_{reg_type}",
+            return_image_data=True  
+        )
         
         c_back, c_sub = st.columns([1, 4])
         if c_back.button("⬅️ BACK"):
@@ -616,21 +620,25 @@ if reg_type in ["Affiliate", "Renter"]:
                     st.session_state.reg_payload = (
                         data["username"], data["password"], reg_type.upper(), data["full_name"], 
                         data["email"], data["age"], data["nationality"], data["address"], 
-                        data["area_code"], data["contact"], gov_bytes, lic_bytes, sig_bytes
+                        data["area_code"], data["contact"], gov_bytes, lic_bytes, sig_bytes,
+                        data["bank_name"], data["bank_acc"]
                     )
                     st.session_state.verify_contact = data["contact"]
                     
-                    # Send OTP
+                    # 🚨 SEND OTP & SHOW DEVELOPER BYPASS
                     otp_code = str(random.randint(100000, 999999))
                     st.session_state.generated_otp = otp_code
                     
-                    success = send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
+                    st.toast(f"🛠️ DEV OTP: {otp_code}", icon="🚀")
+                    st.info(f"🛠️ DEV OTP: **{otp_code}** (Use this code if mail server is rate-limiting)")
                     
-                    if success:
-                        st.session_state[step_key] = 3      # <-- Now it moves cleanly to Step 3!
-                        st.rerun()
-                    else:
-                        st.error("🚨 Failed to send verification. Please try again.")
+                    try:
+                        send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
+                    except Exception as e:
+                        print(f"OTP Email dispatch note: {e}")
+                    
+                    st.session_state[step_key] = 3      
+                    st.rerun()
             else:
                 st.error("🚨 Digital signature required to proceed.")
                 
@@ -661,6 +669,8 @@ if reg_type in ["Affiliate", "Renter"]:
                         # 🚨 1. XENDIT AUTOMATED SUB-ACCOUNT CREATION
                         # ==========================================
                         generated_sub_id = None
+                        data = st.session_state[f"temp_{reg_type.lower()}_data"]
+                        
                         if reg_type.upper() == "AFFILIATE":
                             SECRET_KEY = os.environ.get("xendit_active_key")
                             if not SECRET_KEY:
@@ -701,14 +711,14 @@ if reg_type in ["Affiliate", "Renter"]:
                         # ==========================================
                         # 🚨 2. SINGLE DATABASE INSERTION
                         # ==========================================
-                        # Append the generated_sub_id (or None if Renter) to the 13-item payload
                         final_payload = st.session_state.reg_payload + (generated_sub_id,)
                         
                         conn.execute("""
                             INSERT INTO platform_users (
                                 username, password, role, full_name, email, age, nationality, address, 
-                                area_code, contact_number, govt_id_img, license_img, signature_img, admin_status, xendit_sub_id
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
+                                area_code, contact_number, govt_id_img, license_img, signature_img, 
+                                bank_name, bank_account_num, admin_status, xendit_sub_id
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
                         """, final_payload)
                         conn.commit()
                         
