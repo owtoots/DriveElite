@@ -132,27 +132,40 @@ st.markdown("""
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
     }
     div.stButton > button, [data-testid="stFormSubmitButton"] > button {
-        background-color: #2563EB !important;
+        background: linear-gradient(145deg, #3B82F6, #1D4ED8) !important;
         color: #FFFFFF !important;
         border: none !important;
-        font-weight: 700 !important;
-        border-radius: 10px !important;
-        padding: 10px 24px !important;
+        font-weight: 800 !important;
+        border-radius: 12px !important;
+        padding: 12px 24px !important;
         text-transform: uppercase !important;
-        transition: all 0.2s ease !important;
+        letter-spacing: 1px !important;
+        /* Layered shadows for 3D depth: Drop shadow + Top Highlight + Bottom Shading */
+        box-shadow: 
+            0 6px 15px rgba(29, 78, 216, 0.4), 
+            inset 0 2px 0 rgba(255, 255, 255, 0.25), 
+            inset 0 -3px 0 rgba(0, 0, 0, 0.2) !important;
+        transition: all 0.2s ease-in-out !important;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
     }
     div.stButton > button p, [data-testid="stFormSubmitButton"] > button p {
         color: #FFFFFF !important;
     }
-    div.stButton > button:hover {
-        background-color: #1D4ED8 !important;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
-        transform: translateY(-1px) !important;
+    div.stButton > button:hover, [data-testid="stFormSubmitButton"] > button:hover {
+        background: linear-gradient(145deg, #60A5FA, #2563EB) !important;
+        box-shadow: 
+            0 8px 20px rgba(29, 78, 216, 0.5), 
+            inset 0 2px 0 rgba(255, 255, 255, 0.35), 
+            inset 0 -3px 0 rgba(0, 0, 0, 0.2) !important;
+        transform: translateY(-2px) !important;
     }
-    div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
-        background-color: #FFFFFF !important;
-        border: 1px solid #CBD5E1 !important;
-        border-radius: 8px !important;
+    div.stButton > button:active, [data-testid="stFormSubmitButton"] > button:active {
+        background: #1D4ED8 !important;
+        /* The 'pressed' state: removes bottom shading and adds inner shadow */
+        box-shadow: 
+            0 2px 5px rgba(29, 78, 216, 0.4), 
+            inset 0 4px 6px rgba(0, 0, 0, 0.4) !important;
+        transform: translateY(2px) !important;
     }
 </style>
 """, unsafe_allow_html=True)
