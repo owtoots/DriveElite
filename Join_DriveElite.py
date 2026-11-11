@@ -40,37 +40,18 @@ st.set_page_config(
     initial_sidebar_state="auto" 
 )
 
-# 🚨 EXPLICIT SIDEBAR CONTENT SO THE TOGGLE ARROW ALWAYS RENDERS
+# 🚨 EXPLICIT SIDEBAR CONTENT
 with st.sidebar:
     try:
         st.image("logo.png", use_container_width=True)
     except:
         st.markdown("## DriveElite")
-        
-    st.markdown("---")
-    st.markdown("### Navigation")
-    
-    if st.button("🏠 Home / Join", use_container_width=True):
-        st.session_state.current_page = "JOIN"
-        st.rerun()
-    if st.button("💼 Affiliate Login", use_container_width=True):
-        st.session_state.current_page = "AFFILIATE"
-        st.rerun()
-    if st.button("🚙 Renter Login", use_container_width=True):
-        st.session_state.current_page = "RENTER"
-        st.rerun()
-    if st.button("⚙️ Admin Command", use_container_width=True):
-        st.session_state.current_page = "ADMIN"
-        st.rerun()
 
 # --- CSS RESET ---
 st.markdown("""
 <style>
-    /* Mobile-Specific Overrides */
+   /* Mobile-Specific Overrides */
     @media (max-width: 768px) {
-        [data-testid="stSidebarNav"] {
-        display: none !important; 
-    }
         .stImage, .stPDF, [data-testid="stForm"], [data-testid="stExpander"] {
             width: 100% !important;
             max-width: 100% !important;
@@ -87,7 +68,7 @@ st.markdown("""
         border-radius: 8px !important;
     }
     
-    /* 🚨 FORCE MASSIVE AND VISIBLE MENU ARROW */
+    /* 🚨 MASSIVE MENU ARROW (Matched to Green Theme) */
     [data-testid="collapsedControl"], [data-testid="stSidebarCollapsedControl"] {
         position: fixed !important;  
         display: flex !important;
@@ -95,14 +76,13 @@ st.markdown("""
         opacity: 1 !important;
         align-items: center !important;
         justify-content: center !important;
-        background-color: #2563EB !important;
+        background-color: #22C55E !important; 
         border-radius: 50% !important;
         box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
         top: 15px !important;
         left: 15px !important;
         padding: 8px !important;
         z-index: 999999 !important;
-        transition: none !important;
     }
     [data-testid="collapsedControl"] svg, [data-testid="stSidebarCollapsedControl"] svg {
         fill: #FFFFFF !important;
@@ -120,10 +100,7 @@ st.markdown("""
         background-color: #FFFFFF !important;
         border-right: 1px solid #E2E8F0 !important;
     }
-    [data-testid="stSidebarContent"] {
-        display: flex !important;
-        flex-direction: column !important;
-    }
+    
     [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
         background-color: #FFFFFF !important;
         padding: 20px !important;
@@ -131,41 +108,33 @@ st.markdown("""
         border: 1px solid #E2E8F0 !important;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
     }
+    
+    /* 🚨 FRESH GREEN DASHBOARD BUTTONS WITH ADJUSTED FONT */
     div.stButton > button, [data-testid="stFormSubmitButton"] > button {
-        background: linear-gradient(145deg, #3B82F6, #1D4ED8) !important;
+        background-color: #22C55E !important;
         color: #FFFFFF !important;
         border: none !important;
-        font-weight: 800 !important;
-        border-radius: 12px !important;
+        font-size: 16px !important; 
+        font-weight: 700 !important;
+        border-radius: 8px !important;
         padding: 12px 24px !important;
         text-transform: uppercase !important;
-        letter-spacing: 1px !important;
-        /* Layered shadows for 3D depth: Drop shadow + Top Highlight + Bottom Shading */
-        box-shadow: 
-            0 6px 15px rgba(29, 78, 216, 0.4), 
-            inset 0 2px 0 rgba(255, 255, 255, 0.25), 
-            inset 0 -3px 0 rgba(0, 0, 0, 0.2) !important;
-        transition: all 0.2s ease-in-out !important;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+        letter-spacing: 0.5px !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2) !important;
     }
     div.stButton > button p, [data-testid="stFormSubmitButton"] > button p {
         color: #FFFFFF !important;
+        font-size: 16px !important; 
     }
     div.stButton > button:hover, [data-testid="stFormSubmitButton"] > button:hover {
-        background: linear-gradient(145deg, #60A5FA, #2563EB) !important;
-        box-shadow: 
-            0 8px 20px rgba(29, 78, 216, 0.5), 
-            inset 0 2px 0 rgba(255, 255, 255, 0.35), 
-            inset 0 -3px 0 rgba(0, 0, 0, 0.2) !important;
+        background-color: #16A34A !important;
+        box-shadow: 0 6px 12px rgba(34, 197, 94, 0.3) !important;
         transform: translateY(-2px) !important;
     }
     div.stButton > button:active, [data-testid="stFormSubmitButton"] > button:active {
-        background: #1D4ED8 !important;
-        /* The 'pressed' state: removes bottom shading and adds inner shadow */
-        box-shadow: 
-            0 2px 5px rgba(29, 78, 216, 0.4), 
-            inset 0 4px 6px rgba(0, 0, 0, 0.4) !important;
-        transform: translateY(2px) !important;
+        background-color: #15803D !important;
+        transform: translateY(0px) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -310,6 +279,7 @@ def create_legit_pdf_contract(data, role, sig_bytes, conn):
         pdf.ln(5)
         
         pdf.set_font("Helvetica", '', 8)
+        # 🚨 CLEANED TEXT: ALL HIDDEN CHARACTERS REMOVED
         body_text = f"""This Memorandum of Agreement (the "Agreement") is made and entered into this {date_str} upon digital acceptance by and between:
 
 {legal_entity}, a business operating under the laws of the Republic of the Philippines, with its registered address in Pasig City, Metro Manila, hereinafter referred to as the "AGENCY",
@@ -361,7 +331,7 @@ The AGENCY reserves the right to suspend accounts of users who fail to settle va
 
 8. Failure to Deliver and Affiliate Cancellations
 1. No-Show Penalty: Failure to deliver the vehicle at the scheduled time incurs a penalty of PHP 2,000.00.
-​2. Late Cancellation Penalty: Canceling a confirmed booking with 24 to 48 hours notice incurs a penalty of PHP 1,000.00.
+2. Late Cancellation Penalty: Canceling a confirmed booking with 24 to 48 hours notice incurs a penalty of PHP 1,000.00.
 3. Account Suspension: Three (3) instances of cancellation or two (2) instances of a No-Show within a twelve (12) month period will result in permanent deactivation.
 
 9. MISCELLANEOUS 
@@ -427,8 +397,8 @@ In the case of total loss (including theft), the LESSEE assumes financial respon
 - Survival Clause: The LESSEE acknowledges that traffic citations are often delayed. The LESSEE's liability for these violations strictly survives the termination of this Agreement and the return of the Security Deposit. If a violation from the rental period is reported at any point in the future, the LESSEE remains legally bound to reimburse the OWNER/AGENCY immediately upon demand.
 - LTO Demerit Transfer: In the event of an LTO alarm or traffic citation, the LESSEE explicitly agrees to accept any corresponding demerit points to their personal Driver's License. The LESSEE agrees to fully cooperate and sign any necessary documents to clear the OWNER's vehicle and license from said violations."""
 
-    # 🚨 Force text encoding to strip out ALL invisible crashing characters before printing
-    safe_body_text = body_text.encode('latin-1', 'ignore').decode('latin-1')
+    # 🚨 Brutal sanitize just in case any other invisible characters snuck in
+    safe_body_text = body_text.replace('\u200b', '').encode('latin-1', 'replace').decode('latin-1')
     pdf.multi_cell(0, 4, safe_body_text)
     pdf.ln(5)
     
