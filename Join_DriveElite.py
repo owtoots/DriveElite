@@ -427,7 +427,9 @@ In the case of total loss (including theft), the LESSEE assumes financial respon
 - Survival Clause: The LESSEE acknowledges that traffic citations are often delayed. The LESSEE's liability for these violations strictly survives the termination of this Agreement and the return of the Security Deposit. If a violation from the rental period is reported at any point in the future, the LESSEE remains legally bound to reimburse the OWNER/AGENCY immediately upon demand.
 - LTO Demerit Transfer: In the event of an LTO alarm or traffic citation, the LESSEE explicitly agrees to accept any corresponding demerit points to their personal Driver's License. The LESSEE agrees to fully cooperate and sign any necessary documents to clear the OWNER's vehicle and license from said violations."""
 
-    pdf.multi_cell(0, 4, body_text)
+    # 🚨 Force text encoding to strip out ALL invisible crashing characters before printing
+    safe_body_text = body_text.encode('latin-1', 'ignore').decode('latin-1')
+    pdf.multi_cell(0, 4, safe_body_text)
     pdf.ln(5)
     
     # 4. Digital Signature
