@@ -753,9 +753,8 @@ if reg_type in ["Affiliate", "Renter"]:
                             un, role, email = st.session_state.reg_payload[0], st.session_state.reg_payload[2], st.session_state.reg_payload[4]
                             prefix = "MOA" if role == "AFFILIATE" else "RENTER"
                             
-                            # Safely find the PDF whether you are on Windows or Render
-                            UPLOAD_DIR = os.path.join(os.getcwd(), "data", "uploads")
-                            final_p = os.path.join(UPLOAD_DIR, f"{prefix}_{un}.pdf")
+                            # Look in the exact hardcoded Render folder where FPDF saved it
+                            final_p = f"/data/uploads/{prefix}_{un}.pdf"
                             
                             if not os.path.exists(final_p):
                                 st.error(f"🛑 PDF ERROR: The system could not find the contract at {final_p}. It cannot be attached!")
