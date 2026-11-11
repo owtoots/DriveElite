@@ -29,6 +29,7 @@ def main():
     except:
         pass
 
+    
     # ==========================================
     # 💎 2. THE "CRYSTAL ELITE" CSS ENGINE
     # ==========================================
@@ -43,11 +44,12 @@ def main():
             object-fit: cover !important;
             border-radius: 8px !important;
         }
-        /* --- GLOBAL THEME --- */
+        
+        /* --- GLOBAL THEME & TYPOGRAPHY --- */
         [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
             background-color: #F8FAFC !important;
             color: #0F172A !important;
-            font-family: 'Inter', -apple-system, sans-serif !important;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
         }
         
         /* --- SIDEBAR & LOGO REORDER HACK --- */
@@ -55,25 +57,22 @@ def main():
             background-color: #FFFFFF !important;
             border-right: 1px solid #E2E8F0 !important;
         }
-        
         [data-testid="stSidebarContent"] {
             display: flex !important;
             flex-direction: column !important;
         }
-        
         [data-testid="stSidebarUserContent"] {
             order: 1 !important;
             padding-top: 0rem !important;
             margin-top: -1.5rem !important; 
             padding-bottom: 1rem !important;
         }
-
         [data-testid="stSidebarNav"] {
             order: 2 !important;
             padding-top: 0rem !important; 
         }
 
-        /* --- CARDS & BUTTONS --- */
+        /* --- CARDS & PANELS --- */
         [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
             background-color: #FFFFFF !important;
             padding: 20px !important;
@@ -82,25 +81,35 @@ def main():
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
         }
 
+        /* 🚨 FRESH GREEN DASHBOARD BUTTONS WITH BOLD FONT */
         div.stButton > button, [data-testid="stFormSubmitButton"] > button {
-            background-color: #2563EB !important;
+            background-color: #22C55E !important;
             color: #FFFFFF !important;
             border: none !important;
-            font-weight: 700 !important;
-            border-radius: 10px !important;
-            padding: 10px 24px !important;
+            font-family: 'Segoe UI', Arial, sans-serif !important;
+            font-size: 16px !important; 
+            font-weight: 800 !important; 
+            border-radius: 8px !important;
+            padding: 12px 24px !important;
             text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
             transition: all 0.2s ease !important;
+            box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2) !important;
         }
-        
         div.stButton > button p, [data-testid="stFormSubmitButton"] > button p {
             color: #FFFFFF !important;
+            font-family: 'Segoe UI', Arial, sans-serif !important;
+            font-size: 16px !important; 
+            font-weight: 800 !important;
         }
-
-        div.stButton > button:hover {
-            background-color: #1D4ED8  !important;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
-            transform: translateY(-1px) !important;
+        div.stButton > button:hover, [data-testid="stFormSubmitButton"] > button:hover {
+            background-color: #16A34A !important;
+            box-shadow: 0 6px 12px rgba(34, 197, 94, 0.3) !important;
+            transform: translateY(-2px) !important;
+        }
+        div.stButton > button:active, [data-testid="stFormSubmitButton"] > button:active {
+            background-color: #15803D !important;
+            transform: translateY(0px) !important;
         }
 
         /* --- TYPOGRAPHY & INPUTS --- */
@@ -112,13 +121,14 @@ def main():
         input { color: #1E293B !important; }
         h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
         label { color: #475569 !important; font-weight: 600 !important; }
-    /* 🚨 MAKE MOBILE MENU ARROW MASSIVE AND VISIBLE */
+        
+        /* 🚨 MAKE MOBILE MENU ARROW MASSIVE AND GREEN */
         [data-testid="collapsedControl"] {
-            position: fixed !important;  /* <-- THIS DETACHES IT FROM THE SCROLLING HEADER */
+            position: fixed !important;  
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
-            background-color: #2563EB !important;
+            background-color: #22C55E !important;
             border-radius: 50% !important;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
             top: 15px !important;
