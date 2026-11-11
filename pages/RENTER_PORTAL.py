@@ -612,46 +612,49 @@ def main():
                                                             conn.commit()
                                                             
                                                             try:
-                                                                SECRET_KEY = os.environ.get("xendit_active_key")
-                                                                if not SECRET_KEY:
-                                                                    try: SECRET_KEY = st.secrets.get("xendit_active_key")
-                                                                    except: pass 
-                                                                    
-                                                                if not SECRET_KEY:
-                                                                    st.error("Missing API Key: Please add 'xendit_active_key' to your variables.")
-                                                                else:
-                                                                    # Xendit uses exact PHP amounts (not cents)
-                                                                    pay_amount = int(grand_total)
-                                                                    auth_string = f"{SECRET_KEY}:"
-                                                                    base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
-                                                                    
-                                                                    url = "https://api.xendit.co/v2/invoices"
-                                                                    payload = {
-                                                                        "external_id": str(b_ref),
-                                                                        "amount": pay_amount,
-                                                                        "currency": "PHP",
-                                                                        "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})"
-                                                                    }
-                                                                    
-                                                                    req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'))
-                                                                    req.add_header('accept', 'application/json')
-                                                                    req.add_header('content-type', 'application/json')
-                                                                    req.add_header('authorization', f'Basic {base64_auth}')
-                                                                    
-                                                                    response = urllib.request.urlopen(req)
-                                                                    checkout_url = json.loads(response.read().decode('utf-8'))['invoice_url']
-                                                                    
-                                                                    # LOCK THE UI TO STAGE 2 (XENDIT)
-                                                                    st.session_state[f"pay_url_{car['id']}"] = checkout_url
-                                                                    st.session_state[ref_key] = b_ref
-                                                                    st.session_state[stage_key] = 2
-                                                                    st.rerun()
-                                                                    
-                                                            except urllib.error.HTTPError as e:
-                                                                error_info = e.read().decode()
-                                                                st.error(f"Xendit Rejected the Request: {error_info}")
-                                                            except Exception as e:
-                                                                st.error(f"System Error generating link: {e}")
+                                                            SECRET_KEY = os.environ.get("xendit_active_key")
+                                                            if not SECRET_KEY:
+                                                                try: SECRET_KEY = st.secrets.get("xendit_active_key")
+                                                                except: pass 
+                                                            
+                                                            if not SECRET_KEY:
+                                                                st.error("Missing API Key: Please add 'xendit_active_key' to your variables.")
+                                                            else:
+                                                                # Format Xendit Amounts (Integers only)
+                                                                pay_amount = int(grand_total)
+                                                                
+                                                                auth_string = f"{SECRET_KEY}:"
+                                                                base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+                                                                
+                                                                url = "https://api.xendit.co/v2/invoices"
+                                                                
+                                                                # Escrow Mode: 100% of funds route to the NBS OPC Master Account
+                                                                payload = {
+                                                                    "external_id": str(b_ref),
+                                                                    "amount": pay_amount,
+                                                                    "currency": "PHP",
+                                                                    "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})"
+                                                                }
+                                                                
+                                                                req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'))
+                                                                req.add_header('accept', 'application/json')
+                                                                req.add_header('content-type', 'application/json')
+                                                                req.add_header('authorization', f'Basic {base64_auth}')
+                                                                
+                                                                response = urllib.request.urlopen(req)
+                                                                checkout_url = json.loads(response.read().decode('utf-8'))['invoice_url']
+                                                                
+                                                                # LOCK THE UI TO STAGE 2 (XENDIT)
+                                                                st.session_state[f"pay_url_{car['id']}"] = checkout_url
+                                                                st.session_state[ref_key] = b_ref
+                                                                st.session_state[stage_key] = 2
+                                                                st.rerun()
+                                                                
+                                                        except urllib.error.HTTPError as e:
+                                                            error_info = e.read().decode()
+                                                            st.error(f"Xendit Rejected the Request: {error_info}")
+                                                        except Exception as e:
+                                                            st.error(f"System Error generating link: {e}")
                                                         
                                                         # --- MANUAL BPI FLOW (FALLBACK) ---
                                                         else:
