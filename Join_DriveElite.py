@@ -748,13 +748,23 @@ if reg_type in ["Affiliate", "Renter"]:
                         except Exception:
                             pass
                         
+                        # 🚨 BULLETPROOF ON-SCREEN MOA DIAGNOSTICS
                         try:
                             un, role, email = st.session_state.reg_payload[0], st.session_state.reg_payload[2], st.session_state.reg_payload[4]
                             prefix = "MOA" if role == "AFFILIATE" else "RENTER"
-                            final_p = f"/data/uploads/{prefix}_{un}.pdf"
-                            send_welcome_email(email, role, final_p)
+                            
+                            # Safely find the PDF whether you are on Windows or Render
+                            UPLOAD_DIR = os.path.join(os.getcwd(), "data", "uploads")
+                            final_p = os.path.join(UPLOAD_DIR, f"{prefix}_{un}.pdf")
+                            
+                            if not os.path.exists(final_p):
+                                st.error(f"🛑 PDF ERROR: The system could not find the contract at {final_p}. It cannot be attached!")
+                            else:
+                                send_welcome_email(email, role, final_p)
+                                st.success("✉️ Official MOA successfully attached and handed off to Zoho!")
+                                
                         except Exception as e:
-                            print(f"Welcome email failed: {e}")
+                            st.error(f"🛑 EMAIL CRASHED: Zoho rejected the connection. Error: {e}")
 
                         st.success("🎉 Registration Complete! Your account is now pending Admin approval.")
                         st.info("✉️ We have emailed you a copy of your signed agreement.")
