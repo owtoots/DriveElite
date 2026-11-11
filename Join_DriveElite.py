@@ -642,12 +642,9 @@ if reg_type in ["Affiliate", "Renter"]:
                     )
                     st.session_state.verify_contact = data["contact"]
                     
-                    # 🚨 SEND OTP & SHOW DEVELOPER BYPASS
+                    # 🚨 SEND SECURE OTP (EMAIL ONLY)
                     otp_code = str(random.randint(100000, 999999))
                     st.session_state.generated_otp = otp_code
-                    
-                    st.toast(f"🛠️ DEV OTP: {otp_code}", icon="🚀")
-                    st.info(f"🛠️ DEV OTP: **{otp_code}** (Use this code if mail server is rate-limiting)")
                     
                     try:
                         send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
@@ -754,25 +751,25 @@ if reg_type in ["Affiliate", "Renter"]:
                         except Exception:
                             pass
                         
-                        # 🚨 BULLETPROOF ON-SCREEN MOA DIAGNOSTICS
+                        # ==========================================
+                        # 4. FINAL AGREEMENT DISPATCH
+                        # ==========================================
                         try:
                             un, role, email = st.session_state.reg_payload[0], st.session_state.reg_payload[2], st.session_state.reg_payload[4]
                             prefix = "MOA" if role == "AFFILIATE" else "RENTER"
                             
-                            # Look in the exact hardcoded Render folder where FPDF saved it
                             final_p = f"/data/uploads/{prefix}_{un}.pdf"
                             
                             if not os.path.exists(final_p):
-                                st.error(f"🛑 PDF ERROR: The system could not find the contract at {final_p}. It cannot be attached!")
+                                st.warning("⚠️ Account created, but there was a delay generating your contract. Admin will email it shortly.")
                             else:
                                 send_welcome_email(email, role, final_p)
-                                st.success("✉️ Official MOA successfully attached and handed off to Zoho!")
+                                st.info("✉️ Please check your email for a copy of your signed agreement.")
                                 
-                        except Exception as e:
-                            st.error(f"🛑 EMAIL CRASHED: Zoho rejected the connection. Error: {e}")
+                        except Exception:
+                            st.warning("⚠️ Account created, but email delivery is temporarily delayed. You will receive your contract shortly.")
 
                         st.success("🎉 Registration Complete! Your account is now pending Admin approval.")
-                        st.info("✉️ We have emailed you a copy of your signed agreement.")
                         time.sleep(3)
                         
                         # Clear everything so the form resets for the next person
