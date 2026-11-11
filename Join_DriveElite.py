@@ -543,12 +543,16 @@ if reg_type in ["Affiliate", "Renter"]:
             em = st.text_input("Email Address")
             ad = st.text_area("Complete Physical Address")
 
-            # 🚨 BANK DETAILS INPUTS (FOR AFFILIATES OR ALL USERS)
-            st.markdown("---")
-            st.markdown("#### 🏦 Payout Bank / E-Wallet Details")
-            b_col1, b_col2 = st.columns(2)
-            bank_name = b_col1.selectbox("Bank / E-Wallet", ["Select...", "BPI", "BDO", "UnionBank", "Metrobank", "GCash", "Maya"])
-            bank_acc = b_col2.text_input("Account Number / Mobile Number")
+            # 🚨 BANK DETAILS INPUTS (ONLY FOR AFFILIATES)
+            if reg_type == "Affiliate":
+                st.markdown("---")
+                st.markdown("#### 🏦 Payout Bank / E-Wallet Details")
+                b_col1, b_col2 = st.columns(2)
+                bank_name = b_col1.selectbox("Bank / E-Wallet", ["Select...", "BPI", "BDO", "UnionBank", "Metrobank", "GCash", "Maya"])
+                bank_acc = b_col2.text_input("Account Number / Mobile Number")
+            else:
+                bank_name = ""
+                bank_acc = ""
             
             un = st.text_input("Choose Username")
             p1, p2 = st.columns(2)
