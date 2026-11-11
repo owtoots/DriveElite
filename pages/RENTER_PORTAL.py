@@ -620,26 +620,41 @@ def main():
                                                             if not SECRET_KEY:
                                                                 st.error("Missing API Key: Please add 'xendit_active_key' to your variables.")
                                                             else:
-                                                                # Format Xendit Amounts (Integers only)
+                                                                # 1. Fetch the Affiliate's Xendit Sub-Account ID
+                                                                owner_data = pd.read_sql_query("SELECT xendit_sub_id FROM platform_users WHERE username=?", conn, params=(car['owner_username'],))
+                                                                sub_id = owner_data.iloc[0]['xendit_sub_id'] if not owner_data.empty else None
+                                                                
+                                                                # 2. Format Xendit Amounts (Integers only)
                                                                 pay_amount = int(grand_total)
+                                                                platform_cut = int(platform_fee)
                                                                 
                                                                 auth_string = f"{SECRET_KEY}:"
                                                                 base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
                                                                 
                                                                 url = "https://api.xendit.co/v2/invoices"
                                                                 
-                                                                # Escrow Mode: 100% of funds route to the NBS OPC Master Account
+                                                                # 3. Add the Platform Fee to the payload
                                                                 payload = {
                                                                     "external_id": str(b_ref),
                                                                     "amount": pay_amount,
                                                                     "currency": "PHP",
-                                                                    "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})"
+                                                                    "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})",
+                                                                    "fees": [
+                                                                        {
+                                                                            "type": "DriveElite Platform Commission",
+                                                                            "value": platform_cut
+                                                                        }
+                                                                    ]
                                                                 }
                                                                 
                                                                 req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'))
                                                                 req.add_header('accept', 'application/json')
                                                                 req.add_header('content-type', 'application/json')
                                                                 req.add_header('authorization', f'Basic {base64_auth}')
+                                                                
+                                                                # 4. TAX & ESCROW MAGIC: Route to Affiliate's locked Xendit balance
+                                                                if sub_id:
+                                                                    req.add_header('for-user-id', sub_id)
                                                                 
                                                                 response = urllib.request.urlopen(req)
                                                                 checkout_url = json.loads(response.read().decode('utf-8'))['invoice_url']
@@ -654,7 +669,7 @@ def main():
                                                             error_info = e.read().decode()
                                                             st.error(f"Xendit Rejected the Request: {error_info}")
                                                         except Exception as e:
-                                                            st.error(f"System Error generating link: {e}")
+                                                            st.error(f"System Error generating link: {e}"))
                                                         
                                                         # --- MANUAL BPI FLOW (FALLBACK) ---
                                                         else:
