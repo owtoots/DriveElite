@@ -669,7 +669,7 @@ def main():
                                                             error_info = e.read().decode()
                                                             st.error(f"Xendit Rejected the Request: {error_info}")
                                                         except Exception as e:
-                                                            st.error(f"System Error generating link: {e}"))
+                                                            st.error(f"System Error generating link: {e}")
                                                         
                                                         # --- MANUAL BPI FLOW (FALLBACK) ---
                                                         else:
