@@ -751,7 +751,7 @@ if reg_type in ["Affiliate", "Renter"]:
                         except Exception:
                             pass
                         
-                        # ==========================================
+                       # ==========================================
                         # 4. FINAL AGREEMENT DISPATCH
                         # ==========================================
                         try:
@@ -761,7 +761,7 @@ if reg_type in ["Affiliate", "Renter"]:
                             final_p = f"/data/uploads/{prefix}_{un}.pdf"
                             
                             if not os.path.exists(final_p):
-                                st.warning("⚠️ Account created, but there was a delay generating your contract. Admin will email it shortly.")
+                                st.warning("⚠️ Account created, but there was a delay generating your contract. The Admin will email it to you shortly.")
                             else:
                                 send_welcome_email(email, role, final_p)
                                 st.info("✉️ Please check your email for a copy of your signed agreement.")
@@ -770,7 +770,7 @@ if reg_type in ["Affiliate", "Renter"]:
                             st.warning("⚠️ Account created, but email delivery is temporarily delayed. You will receive your contract shortly.")
 
                         st.success("🎉 Registration Complete! Your account is now pending Admin approval.")
-                        time.sleep(3)
+                        time.sleep(4)
                         
                         # Clear everything so the form resets for the next person
                         for key in list(st.session_state.keys()):
