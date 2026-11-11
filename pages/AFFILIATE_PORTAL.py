@@ -34,75 +34,101 @@ def main():
     # 2. THE "CRYSTAL ELITE" CSS ENGINE
     # ==========================================
     st.markdown("""
-    <style>
-        [data-testid="stSignaturePad"],
-        [data-testid="stSignaturePad"] > div > canvas {
-            background-color: #FFFFFF !important; 
-            border: 2px solid #E2E8F0 !important; 
-            border-radius: 12px !important;     
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.03) !important; 
+<style>
+    /* Mobile-Specific Overrides */
+    @media (max-width: 768px) {
+        .stImage, .stPDF, [data-testid="stForm"], [data-testid="stExpander"] {
+            width: 100% !important;
+            max-width: 100% !important;
         }
-        [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
-            background-color: #F8FAFC !important;
-            color: #0F172A !important;
-            font-family: 'Inter', -apple-system, sans-serif !important;
-        }
-        [data-testid="stSidebar"] {
-            background-color: #FFFFFF !important;
-            border-right: 1px solid #E2E8F0 !important;
-        }
-        [data-testid="stSidebarContent"] {
-            display: flex !important;
-            flex-direction: column !important;
-        }
-        [data-testid="stSidebarUserContent"] {
-            order: 1 !important;
-            padding-top: 0rem !important;
-            margin-top: -1.5rem !important; 
-            padding-bottom: 1rem !important;
-        }
-        [data-testid="stSidebarNav"] {
-            order: 2 !important;
-            padding-top: 0rem !important; 
-        }
-        [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
-            background-color: #FFFFFF !important;
-            padding: 20px !important;
-            border-radius: 16px !important;
-            border: 1px solid #E2E8F0 !important;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
-        }
-        div.stButton > button, [data-testid="stFormSubmitButton"] > button {
-            background-color: #2563EB !important;
-            color: #FFFFFF !important;
-            border: none !important;
-            font-weight: 700 !important;
-            border-radius: 10px !important;
-            padding: 10px 24px !important;
-            text-transform: uppercase !important;
-            transition: all 0.2s ease !important;
-        }
-        div.stButton > button p, [data-testid="stFormSubmitButton"] > button p {
-            color: #FFFFFF !important;
-        }
-        div.stButton > button:hover {
-            background-color: #1D4ED8 !important;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
-            transform: translateY(-1px) !important;
-        }
-        div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
-            background-color: #FFFFFF !important;
-            border: 1px solid #CBD5E1 !important;
-            border-radius: 8px !important;
-        }
-        input { color: #1E293B !important; }
-        h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
-        label { color: #475569 !important; font-weight: 600 !important; }
-        [data-testid="stAppViewContainer"] > .main { transition: none !important; }
-        .element-container, .stMarkdown, .stText { transition: none !important; animation: none !important; opacity: 1 !important; }
-        div[data-testid="stStaleElement"] { opacity: 1 !important; transition: none !important; }
-    </style>
-    """, unsafe_allow_html=True)
+    }
+    
+    footer {visibility: hidden;}
+    
+    /* Fixed Image Styling */
+    div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
+        height: 200px !important;
+        width: 100% !important;
+        object-fit: cover !important;
+        border-radius: 8px !important;
+    }
+    
+    /* 🚨 MASSIVE MENU ARROW (Matched to Green Theme) */
+    [data-testid="collapsedControl"], [data-testid="stSidebarCollapsedControl"] {
+        position: fixed !important;  
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background-color: #22C55E !important; 
+        border-radius: 50% !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+        top: 15px !important;
+        left: 15px !important;
+        padding: 8px !important;
+        z-index: 999999 !important;
+    }
+    [data-testid="collapsedControl"] svg, [data-testid="stSidebarCollapsedControl"] svg {
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
+        width: 24px !important;
+        height: 24px !important;
+    }
+
+    [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: #F8FAFC !important;
+        color: #0F172A !important;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #FFFFFF !important;
+        border-right: 1px solid #E2E8F0 !important;
+    }
+    
+    [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
+        background-color: #FFFFFF !important;
+        padding: 20px !important;
+        border-radius: 16px !important;
+        border: 1px solid #E2E8F0 !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+    }
+    
+    /* 🚨 FRESH GREEN DASHBOARD BUTTONS WITH BOLD FONT */
+    div.stButton > button, [data-testid="stFormSubmitButton"] > button {
+        background-color: #22C55E !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        
+        /* Font adjustments matching your screenshot */
+        font-family: 'Segoe UI', Arial, sans-serif !important;
+        font-size: 16px !important; 
+        font-weight: 800 !important; /* Increased boldness */
+        
+        border-radius: 8px !important;
+        padding: 12px 24px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2) !important;
+    }
+    div.stButton > button p, [data-testid="stFormSubmitButton"] > button p {
+        color: #FFFFFF !important;
+        font-family: 'Segoe UI', Arial, sans-serif !important;
+        font-size: 16px !important; 
+        font-weight: 800 !important;
+    }
+    div.stButton > button:hover, [data-testid="stFormSubmitButton"] > button:hover {
+        background-color: #16A34A !important;
+        box-shadow: 0 6px 12px rgba(34, 197, 94, 0.3) !important;
+        transform: translateY(-2px) !important;
+    }
+    div.stButton > button:active, [data-testid="stFormSubmitButton"] > button:active {
+        background-color: #15803D !important;
+        transform: translateY(0px) !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
     # ==========================================
     # 3. DATABASE CONNECTION & SELF-REPAIR
