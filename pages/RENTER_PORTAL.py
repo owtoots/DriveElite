@@ -84,7 +84,8 @@ def main():
         /* 🚨 FRESH GREEN DASHBOARD BUTTONS WITH BOLD FONT */
         div.stButton > button, 
         [data-testid="stFormSubmitButton"] > button,
-        [data-testid="stPopover"] > button {
+        [data-testid="stPopover"] > button,
+        div[data-testid="stPopover"] > button {
             background-color: #22C55E !important;
             color: #FFFFFF !important;
             border: none !important;
@@ -97,27 +98,31 @@ def main():
             letter-spacing: 0.5px !important;
             transition: all 0.2s ease !important;
             box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2) !important;
+            -webkit-text-fill-color: #FFFFFF !important;
         }
         
         div.stButton > button p, 
         [data-testid="stFormSubmitButton"] > button p,
         [data-testid="stPopover"] > button p,
-        [data-testid="stPopover"] > button div {
+        div[data-testid="stPopover"] > button div {
             color: #FFFFFF !important;
             font-family: 'Segoe UI', Arial, sans-serif !important;
             font-size: 16px !important; 
             font-weight: 800 !important;
+            -webkit-text-fill-color: #FFFFFF !important;
         }
 
         /* Ensure the little popover dropdown arrow turns white */
-        [data-testid="stPopover"] > button svg {
+        [data-testid="stPopover"] > button svg,
+        div[data-testid="stPopover"] > button svg {
             fill: #FFFFFF !important;
             color: #FFFFFF !important;
         }
 
         div.stButton > button:hover, 
         [data-testid="stFormSubmitButton"] > button:hover,
-        [data-testid="stPopover"] > button:hover {
+        [data-testid="stPopover"] > button:hover,
+        div[data-testid="stPopover"] > button:hover {
             background-color: #16A34A !important;
             box-shadow: 0 6px 12px rgba(34, 197, 94, 0.3) !important;
             transform: translateY(-2px) !important;
@@ -125,7 +130,8 @@ def main():
         
         div.stButton > button:active, 
         [data-testid="stFormSubmitButton"] > button:active,
-        [data-testid="stPopover"] > button:active {
+        [data-testid="stPopover"] > button:active,
+        div[data-testid="stPopover"] > button:active {
             background-color: #15803D !important;
             transform: translateY(0px) !important;
         }
