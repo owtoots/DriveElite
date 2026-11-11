@@ -68,10 +68,9 @@ st.markdown("""
 <style>
     /* Mobile-Specific Overrides */
     @media (max-width: 768px) {
-        [data-testid="stAppViewContainer"] > .main > div {
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
-        }
+        [data-testid="stSidebarNav"] {
+        display: none !important; 
+    }
         .stImage, .stPDF, [data-testid="stForm"], [data-testid="stExpander"] {
             width: 100% !important;
             max-width: 100% !important;
