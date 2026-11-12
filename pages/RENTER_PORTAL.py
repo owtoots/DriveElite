@@ -24,12 +24,12 @@ def main():
     # 1. PAGE CONFIG & LOGO (Must be first!)
     # ==========================================
     st.set_page_config(page_title="DriveElite Renter", layout="wide", initial_sidebar_state="expanded")
-    try:
-        st.sidebar.image("logo.png", use_container_width=True)
+   try:
+        # 🚨 Fixed width to make the logo smaller
+        st.sidebar.image("logo.png", width=140)
     except:
         pass
 
-    
     # ==========================================
     # 💎 2. THE "CRYSTAL ELITE" CSS ENGINE
     # ==========================================
@@ -62,14 +62,14 @@ def main():
             flex-direction: column !important;
         }
         [data-testid="stSidebarUserContent"] {
-            order: 1 !important;
-            padding-top: 0rem !important;
-            margin-top: -1.5rem !important; 
-            padding-bottom: 1rem !important;
+            order: 1 !important; /* Forces Logo to the Top */
+            padding-top: 2rem !important;
+            padding-bottom: 1.5rem !important; /* 🚨 Gap below logo */
+            margin-top: 0 !important;
         }
         [data-testid="stSidebarNav"] {
-            order: 2 !important;
-            padding-top: 0rem !important; 
+            order: 2 !important; /* Forces Menu below Logo */
+            padding-top: 1rem !important; /* 🚨 Gap above menu */
         }
 
         /* --- CARDS & PANELS --- */
@@ -81,7 +81,7 @@ def main():
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
         }
 
-        /* 🚨 FRESH GREEN DASHBOARD BUTTONS WITH BOLD FONT */
+        /* 🚨 FRESH GREEN DASHBOARD BUTTONS (SMALLER, NOT BOLD) */
         div.stButton > button, 
         [data-testid="stFormSubmitButton"] > button,
         [data-testid="stPopover"] > button,
@@ -90,10 +90,10 @@ def main():
             color: #FFFFFF !important;
             border: none !important;
             font-family: 'Segoe UI', Arial, sans-serif !important;
-            font-size: 16px !important; 
-            font-weight: 800 !important; 
+            font-size: 14px !important;  /* Reduced from 16px */
+            font-weight: 500 !important; /* Normal weight */
             border-radius: 8px !important;
-            padding: 12px 24px !important;
+            padding: 10px 20px !important; /* Scaled down padding */
             text-transform: uppercase !important;
             letter-spacing: 0.5px !important;
             transition: all 0.2s ease !important;
@@ -107,8 +107,8 @@ def main():
         div[data-testid="stPopover"] > button div {
             color: #FFFFFF !important;
             font-family: 'Segoe UI', Arial, sans-serif !important;
-            font-size: 16px !important; 
-            font-weight: 800 !important;
+            font-size: 14px !important;  
+            font-weight: 500 !important; 
             -webkit-text-fill-color: #FFFFFF !important;
         }
 
@@ -168,6 +168,8 @@ def main():
             width: 24px !important;
             height: 24px !important;
         }
+    </style>
+    """, unsafe_allow_html=True)
     </style>
     """, unsafe_allow_html=True)
 
