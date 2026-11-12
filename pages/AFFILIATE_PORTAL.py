@@ -346,10 +346,10 @@ def main():
         pdf.set_font("Helvetica", 'B', 12)
         pdf.cell(190, 10, "DIGITAL SIGNATORIES:", ln=1)
         
-        y_sig = pdf.get_y()
+        y_sig = pdf.get_y() + 2
         if y_sig > 220:
             pdf.add_page()
-            y_sig = pdf.get_y()
+            y_sig = pdf.get_y() + 2
             
         try:
             if r_sig_path and os.path.exists(r_sig_path):
@@ -363,7 +363,8 @@ def main():
         except Exception:
             pdf.text(120, y_sig + 10, "[Signature Registered]")
         
-        pdf.set_y(y_sig + 30)
+        # 🚨 Tightened the vertical gap to pull names directly under the ink
+        pdf.set_y(y_sig + 16) 
         pdf.set_font("Helvetica", 'U', 11)
         pdf.cell(90, 8, renter_name, align='C')
         pdf.cell(90, 8, affiliate_name, align='C', ln=1)
@@ -371,6 +372,7 @@ def main():
         pdf.cell(90, 5, "Renter", align='C')
         pdf.cell(90, 5, "Affiliate/Host", align='C', ln=1)
         
+        # 🚨 Safely encode the PDF to bytes without crashing
         pdf_out = pdf.output(dest="S")
         return pdf_out.encode('latin-1') if isinstance(pdf_out, str) else bytes(pdf_out)
 
