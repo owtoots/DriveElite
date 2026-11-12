@@ -19,21 +19,28 @@ from fpdf import FPDF
 import streamlit as st
 # --- IMPORT SHARED TOOLS ---
 from database_utils import get_connection, init_db, patch_database, send_sms_alert, send_alert_email
-def main():
-    # --- AUTHENTICATION & PAGE CONFIG ---
-    st.set_page_config(page_title="DriveElite Renter", layout="wide", initial_sidebar_state="expanded")
 
+def main():
+    # ==========================================
+    # 1. PAGE CONFIG & LOGO
+    # ==========================================
+    st.set_page_config(page_title="DriveElite Admin", layout="wide", initial_sidebar_state="expanded")
+
+    # 🚨 SMART LOGO PATH: Automatically finds the logo even if this file is inside a subfolder
+    logo_path = "logo.png"
+    if not os.path.exists(logo_path):
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logo.png")
+        
     try:
-        # 🚨 Changed to fixed width to make it smaller
-        st.sidebar.image("logo.png", width=140)
+        st.sidebar.image(logo_path, width=140)
     except:
-        pass
+        st.sidebar.markdown("## DriveElite")
 
     # ==========================================
-    # 2. THE "CRYSTAL ELITE" CSS ENGINE
+    # 💎 2. THE "CRYSTAL ELITE" CSS ENGINE
     # ==========================================
     st.markdown("""
-<style>
+    <style>
     /* Mobile-Specific Overrides */
     @media (max-width: 768px) {
         .stImage, .stPDF, [data-testid="stForm"], [data-testid="stExpander"] {
@@ -93,11 +100,12 @@ def main():
     [data-testid="stSidebarUserContent"] {
         order: 1 !important; /* Forces Logo to the Top */
         padding-top: 2rem !important;
-        padding-bottom: 1.5rem !important; /* 🚨 Gap below logo */
+        padding-bottom: 1.5rem !important; /* Gap below logo */
+        margin-top: 0 !important;
     }
     [data-testid="stSidebarNav"] {
         order: 2 !important; /* Forces Menu below Logo */
-        padding-top: 1rem !important; /* 🚨 Gap above menu */
+        padding-top: 1rem !important; /* Gap above menu */
     }
     
     [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
@@ -108,11 +116,10 @@ def main():
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
     }
     
-    /* 🚨 FRESH GREEN DASHBOARD BUTTONS (SMALLER, NOT BOLD) */
+    /* 🚨 FRESH GREEN DASHBOARD BUTTONS (Aggressive form selector) */
     div.stButton > button, 
-    [data-testid="stFormSubmitButton"] > button,
-    [data-testid="stPopover"] > button,
-    div[data-testid="stPopover"] > button {
+    [data-testid="stFormSubmitButton"] button,
+    [data-testid="stPopover"] button {
         background-color: #22C55E !important;
         color: #FFFFFF !important;
         border: none !important;
@@ -129,9 +136,8 @@ def main():
     }
     
     div.stButton > button p, 
-    [data-testid="stFormSubmitButton"] > button p,
-    [data-testid="stPopover"] > button p,
-    div[data-testid="stPopover"] > button div {
+    [data-testid="stFormSubmitButton"] button p,
+    [data-testid="stPopover"] button p {
         color: #FFFFFF !important;
         font-family: 'Segoe UI', Arial, sans-serif !important;
         font-size: 14px !important;  
@@ -140,30 +146,27 @@ def main():
     }
 
     /* Ensure the little popover dropdown arrow turns white */
-    [data-testid="stPopover"] > button svg,
-    div[data-testid="stPopover"] > button svg {
+    [data-testid="stPopover"] button svg {
         fill: #FFFFFF !important;
         color: #FFFFFF !important;
     }
 
     div.stButton > button:hover, 
-    [data-testid="stFormSubmitButton"] > button:hover,
-    [data-testid="stPopover"] > button:hover,
-    div[data-testid="stPopover"] > button:hover {
+    [data-testid="stFormSubmitButton"] button:hover,
+    [data-testid="stPopover"] button:hover {
         background-color: #16A34A !important;
         box-shadow: 0 6px 12px rgba(34, 197, 94, 0.3) !important;
         transform: translateY(-2px) !important;
     }
     
     div.stButton > button:active, 
-    [data-testid="stFormSubmitButton"] > button:active,
-    [data-testid="stPopover"] > button:active,
-    div[data-testid="stPopover"] > button:active {
+    [data-testid="stFormSubmitButton"] button:active,
+    [data-testid="stPopover"] button:active {
         background-color: #15803D !important;
         transform: translateY(0px) !important;
     }
-</style>
-""", unsafe_allow_html=True)
+    </style>
+    """, unsafe_allow_html=True))
 
 
 # ==========================================
