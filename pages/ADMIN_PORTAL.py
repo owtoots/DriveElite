@@ -23,7 +23,7 @@ def main():
     # --- AUTHENTICATION & PAGE CONFIG ---
     st.set_page_config(page_title="DriveElite Renter", layout="wide", initial_sidebar_state="expanded")
 
-try:
+    try:
         # 🚨 Changed to fixed width to make it smaller
         st.sidebar.image("logo.png", width=140)
     except:
