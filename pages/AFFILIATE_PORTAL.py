@@ -94,12 +94,12 @@ def main():
     }
     [data-testid="stSidebarUserContent"] {
         order: 1 !important; /* Forces Logo to the Top */
-        padding-top: 1rem !important;
-        padding-bottom: 0rem !important;
+        padding-top: 2rem !important;
+        padding-bottom: 1.5rem !important; /* 🚨 Gap below logo */
     }
     [data-testid="stSidebarNav"] {
         order: 2 !important; /* Forces Menu below Logo */
-        padding-top: 0rem !important; 
+        padding-top: 1rem !important; /* 🚨 Gap above menu */
     }
     
     [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
@@ -119,10 +119,10 @@ def main():
         color: #FFFFFF !important;
         border: none !important;
         font-family: 'Segoe UI', Arial, sans-serif !important;
-        font-size: 14px !important;  /* Reduced from 16px */
-        font-weight: 500 !important; /* Normal weight (not bold) */
+        font-size: 14px !important;  
+        font-weight: 500 !important; 
         border-radius: 8px !important;
-        padding: 10px 20px !important; /* Scaled down padding */
+        padding: 10px 20px !important; 
         text-transform: uppercase !important;
         letter-spacing: 0.5px !important;
         transition: all 0.2s ease !important;
@@ -136,8 +136,8 @@ def main():
     div[data-testid="stPopover"] > button div {
         color: #FFFFFF !important;
         font-family: 'Segoe UI', Arial, sans-serif !important;
-        font-size: 14px !important;  /* Reduced from 16px */
-        font-weight: 500 !important; /* Normal weight (not bold) */
+        font-size: 14px !important;  
+        font-weight: 500 !important; 
         -webkit-text-fill-color: #FFFFFF !important;
     }
 
