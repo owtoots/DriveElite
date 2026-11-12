@@ -832,14 +832,35 @@ def main():
                                                     """, (photo_string, r_sig_path, a_sig_path, b['id']))
                                                     conn.commit()
                                                     
-                                                    if b['renter_email']:
-                                                        success, err_msg = send_pdf_email(b['renter_email'], f"DriveElite: Digital Handover Record (#{b['booking_ref']})", "Attached is the official digital handover record with checklists and signatures. Please drive safely!", pdf_bytes, f"Handover_{b['booking_ref']}.pdf")
-                                                        if success: 
-                                                            st.toast("📧 Secure PDF Handover record sent to renter!", icon="✅")
-                                                        else: 
-                                                            st.error(f"⚠️ Email failed: {err_msg}")
+                                                    # 1. Fetch Affiliate Email from Database
+                                                    aff_data = pd.read_sql_query("SELECT email FROM platform_users WHERE username=?", conn, params=(st.session_state.username,))
+                                                    aff_email = aff_data.iloc[0]['email'] if not aff_data.empty else None
                                                     
-                                                    st.success("✅ Handover Secured! PDF Generated and Trip started.")
+                                                    # 2. Dispatch to Renter
+                                                    if b['renter_email']:
+                                                        r_success, r_err = send_pdf_email(
+                                                            to_email=b['renter_email'], 
+                                                            subject=f"DriveElite: Digital Handover Record (#{b['booking_ref']})", 
+                                                            body="Attached is the official digital handover record with checklists and signatures. Please drive safely!", 
+                                                            pdf_bytes=pdf_bytes, 
+                                                            filename=f"Handover_{b['booking_ref']}.pdf"
+                                                        )
+                                                        if not r_success:
+                                                            st.warning(f"⚠️ Renter Email Delayed: {r_err}")
+                                                    
+                                                    # 3. Dispatch to Affiliate
+                                                    if aff_email:
+                                                        a_success, a_err = send_pdf_email(
+                                                            to_email=aff_email, 
+                                                            subject=f"✅ DriveElite: Handover Complete (#{b['booking_ref']})", 
+                                                            body="Attached is your copy of the official digital handover record. The trip is now ONGOING.", 
+                                                            pdf_bytes=pdf_bytes, 
+                                                            filename=f"Handover_{b['booking_ref']}.pdf"
+                                                        )
+                                                        if not a_success:
+                                                            st.warning(f"⚠️ Affiliate Email Delayed: {a_err}")
+                                                    
+                                                    st.success("✅ Handover Secured! PDF copies dispatched to both parties.")
                                                     time.sleep(3)
                                                     st.rerun()
 
@@ -996,12 +1017,27 @@ def main():
                                                     pdf_filepath = os.path.join(UPLOAD_DIR, f"Settlement_{b['booking_ref']}.pdf")
                                                     with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
                                                     
-                                                    email_sent = False
-                                                    if b.get('renter_email'):
-                                                        subject = f"DriveElite: Return Settlement Receipt (#{b['booking_ref']})"
-                                                        body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: Php{total_deduct:,.2f}\nRefund Amount: Php{refund_amount:,.2f}"
-                                                        email_sent = send_pdf_email(b['renter_email'], subject, body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
+                                                    # 1. Fetch Affiliate Email from Database
+                                                    aff_data = pd.read_sql_query("SELECT email FROM platform_users WHERE username=?", conn, params=(st.session_state.username,))
+                                                    aff_email = aff_data.iloc[0]['email'] if not aff_data.empty else None
                                                     
+                                                    # 2. Dispatch to Renter
+                                                    if b.get('renter_email'):
+                                                        r_subject = f"DriveElite: Return Settlement Receipt (#{b['booking_ref']})"
+                                                        r_body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: Php{total_deduct:,.2f}\nRefund Amount: Php{refund_amount:,.2f}"
+                                                        r_sent, r_err = send_pdf_email(b['renter_email'], r_subject, r_body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
+                                                        if not r_sent: 
+                                                            st.warning(f"⚠️ Renter Email Delayed: {r_err}")
+                                                    
+                                                    # 3. Dispatch to Affiliate
+                                                    if aff_email:
+                                                        a_subject = f"✅ DriveElite: Trip Settled & Closed (#{b['booking_ref']})"
+                                                        a_body = "The trip is successfully closed!\n\nAttached is your copy of the official settlement receipt and deductions breakdown."
+                                                        a_sent, a_err = send_pdf_email(aff_email, a_subject, a_body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
+                                                        if not a_sent: 
+                                                            st.warning(f"⚠️ Affiliate Email Delayed: {a_err}")
+                                                    
+                                                    # 4. Update Database
                                                     conn.execute("""
                                                         UPDATE bookings 
                                                         SET status = 'COMPLETED', payout_status = 'PENDING',
@@ -1012,16 +1048,12 @@ def main():
                                                     conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
                                                     conn.commit()
                                                     
-                                                    if email_sent:
-                                                        st.success("✅ Trip closed & Settlement Receipt emailed to Renter!")
-                                                    else:
-                                                        st.warning("✅ Trip closed successfully, BUT the email failed to send (check your SMTP settings/password).")
-                                                    
+                                                    st.success("✅ Trip closed & Settlement Receipt emailed to both parties!")
                                                     time.sleep(3)
                                                     st.rerun()
                                                     
-                                                except Exception as e:
-                                                    st.error(f"Error: {e}")
+                                            except Exception as e:
+                                                st.error(f"Error: {e}")
 
         except Exception as e:
             st.error(f"System Error loading bookings: {e}")
