@@ -22,18 +22,23 @@ from database_utils import get_connection, init_db, patch_database, send_sms_ale
 
 def main():
     # ==========================================
-    # 1. PAGE CONFIG & LOGO (Runs first for everyone)
+    # 1. PAGE CONFIG & LOGO
     # ==========================================
     st.set_page_config(page_title="DriveElite Admin", layout="wide", initial_sidebar_state="expanded")
 
-    logo_path = "logo.png"
-    if not os.path.exists(logo_path):
-        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logo.png")
-        
-    try:
-        st.sidebar.image(logo_path, width=140)
-    except:
-        st.sidebar.markdown("## DriveElite")
+    # 🚨 RELIABLE LOGO LOADER WITH VISIBLE FALLBACK
+    logo_candidates = ["logo.png", "../logo.png", os.path.join(os.path.dirname(__file__), "..", "logo.png")]
+    loaded_logo = None
+    for path in logo_candidates:
+        if os.path.exists(path):
+            loaded_logo = path
+            break
+
+    with st.sidebar:
+        if loaded_logo:
+            st.image(loaded_logo, width=140)
+        else:
+            st.markdown("## 🚗 DriveElite")
 
     # ==========================================
     # 💎 2. THE "CRYSTAL ELITE" CSS ENGINE
@@ -115,11 +120,12 @@ def main():
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
     }
     
-    /* 🚨 FRESH GREEN DASHBOARD & LOGIN BUTTONS */
+    /* 🚨 UNIVERSAL GREEN BUTTON OVERRIDE */
     div.stButton > button, 
     button[kind="formSubmit"],
     [data-testid="stFormSubmitButton"] button,
-    [data-testid="stPopover"] button {
+    [data-testid="baseButton-secondary"],
+    [data-testid="baseButton-primary"] {
         background-color: #22C55E !important;
         color: #FFFFFF !important;
         border: none !important;
@@ -130,37 +136,15 @@ def main():
         padding: 10px 20px !important; 
         text-transform: uppercase !important;
         letter-spacing: 0.5px !important;
-        transition: all 0.2s ease !important;
         box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2) !important;
         -webkit-text-fill-color: #FFFFFF !important;
     }
     
     div.stButton > button p, 
     button[kind="formSubmit"] p,
-    [data-testid="stFormSubmitButton"] button p,
-    [data-testid="stPopover"] button p {
+    [data-testid="stFormSubmitButton"] button p {
         color: #FFFFFF !important;
-        font-family: 'Segoe UI', Arial, sans-serif !important;
-        font-size: 14px !important;  
-        font-weight: 500 !important; 
         -webkit-text-fill-color: #FFFFFF !important;
-    }
-
-    div.stButton > button:hover, 
-    button[kind="formSubmit"]:hover,
-    [data-testid="stFormSubmitButton"] button:hover,
-    [data-testid="stPopover"] button:hover {
-        background-color: #16A34A !important;
-        box-shadow: 0 6px 12px rgba(34, 197, 94, 0.3) !important;
-        transform: translateY(-2px) !important;
-    }
-    
-    div.stButton > button:active, 
-    button[kind="formSubmit"]:active,
-    [data-testid="stFormSubmitButton"] button:active,
-    [data-testid="stPopover"] button:active {
-        background-color: #15803D !important;
-        transform: translateY(0px) !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -179,7 +163,8 @@ def main():
         with st.form("login"):
             u = st.text_input("Username")
             p = st.text_input("Password", type="password")
-            if st.form_submit_button("LOG IN"):
+            # 🚨 Added type="primary" to explicitly trigger native green primary styling
+            if st.form_submit_button("LOG IN", type="primary", use_container_width=True):
                 if not ADMIN_PASSWORD:
                     st.error("Critical System Error: Admin credentials are not configured in the secrets manager.")
                 elif u == ADMIN_USERNAME and p == ADMIN_PASSWORD:
