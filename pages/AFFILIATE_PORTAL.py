@@ -1055,8 +1055,11 @@ def main():
                                                     time.sleep(3)
                                                     st.rerun()
                                                     
-                                            except Exception as e:
-                                                st.error(f"Error: {e}")
+                                                except Exception as e:
+                                                    st.error(f"Error: {e}")
+
+        except Exception as e:
+            st.error(f"System Error loading bookings: {e}")
 
        
     # --- TAB 1: MY ASSETS ---
