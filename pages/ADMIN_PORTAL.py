@@ -24,9 +24,9 @@ def main():
     # ==========================================
     # 1. PAGE CONFIG & LOGO
     # ==========================================
-    st.set_page_config(page_title="DriveElite Admin", layout="wide", initial_sidebar_state="expanded")
-
-    # 🚨 SMART LOGO PATH: Automatically finds the logo even if this file is inside a subfolder
+    st.set_page_config(page_title="DriveElite", layout="wide", initial_sidebar_state="expanded")
+    
+    # 🚨 SMART LOGO PATH: Automatically finds the logo even from inside the pages/ folder
     logo_path = "logo.png"
     if not os.path.exists(logo_path):
         logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logo.png")
@@ -41,130 +41,134 @@ def main():
     # ==========================================
     st.markdown("""
     <style>
-    /* Mobile-Specific Overrides */
-    @media (max-width: 768px) {
-        .stImage, .stPDF, [data-testid="stForm"], [data-testid="stExpander"] {
+    /* =========================================
+        📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
+        ========================================= */
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
+            height: 200px !important;
             width: 100% !important;
-            max-width: 100% !important;
+            object-fit: cover !important;
+            border-radius: 8px !important;
         }
-    }
-    
-    footer {visibility: hidden;}
-    
-    /* Fixed Image Styling */
-    div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
-        height: 200px !important;
-        width: 100% !important;
-        object-fit: cover !important;
-        border-radius: 8px !important;
-    }
-    
-    /* 🚨 MASSIVE MENU ARROW (Matched to Green Theme) */
-    [data-testid="collapsedControl"], [data-testid="stSidebarCollapsedControl"] {
-        position: fixed !important;  
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background-color: #22C55E !important; 
-        border-radius: 50% !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
-        top: 15px !important;
-        left: 15px !important;
-        padding: 8px !important;
-        z-index: 999999 !important;
-    }
-    [data-testid="collapsedControl"] svg, [data-testid="stSidebarCollapsedControl"] svg {
-        fill: #FFFFFF !important;
-        color: #FFFFFF !important;
-        width: 24px !important;
-        height: 24px !important;
-    }
+        
+        /* --- GLOBAL THEME & TYPOGRAPHY --- */
+        [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+            background-color: #F8FAFC !important;
+            color: #0F172A !important;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+        }
+        
+        /* --- SIDEBAR & LOGO REORDER HACK --- */
+        [data-testid="stSidebar"] {
+            background-color: #FFFFFF !important;
+            border-right: 1px solid #E2E8F0 !important;
+        }
+        [data-testid="stSidebarContent"] {
+            display: flex !important;
+            flex-direction: column !important;
+        }
+        [data-testid="stSidebarUserContent"] {
+            order: 1 !important; /* Forces Logo to the Top */
+            padding-top: 2rem !important;
+            padding-bottom: 1.5rem !important; /* Gap below logo */
+            margin-top: 0 !important;
+        }
+        [data-testid="stSidebarNav"] {
+            order: 2 !important; /* Forces Menu below Logo */
+            padding-top: 1rem !important; /* Gap above menu */
+        }
 
-    [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
-        background-color: #F8FAFC !important;
-        color: #0F172A !important;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-    }
-    
-    /* --- SIDEBAR & LOGO REORDER HACK --- */
-    [data-testid="stSidebar"] {
-        background-color: #FFFFFF !important;
-        border-right: 1px solid #E2E8F0 !important;
-    }
-    [data-testid="stSidebarContent"] {
-        display: flex !important;
-        flex-direction: column !important;
-    }
-    [data-testid="stSidebarUserContent"] {
-        order: 1 !important; /* Forces Logo to the Top */
-        padding-top: 2rem !important;
-        padding-bottom: 1.5rem !important; /* Gap below logo */
-        margin-top: 0 !important;
-    }
-    [data-testid="stSidebarNav"] {
-        order: 2 !important; /* Forces Menu below Logo */
-        padding-top: 1rem !important; /* Gap above menu */
-    }
-    
-    [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
-        background-color: #FFFFFF !important;
-        padding: 20px !important;
-        border-radius: 16px !important;
-        border: 1px solid #E2E8F0 !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
-    }
-    
-    /* 🚨 FRESH GREEN DASHBOARD BUTTONS (Aggressive form selector) */
-    div.stButton > button, 
-    [data-testid="stFormSubmitButton"] button,
-    [data-testid="stPopover"] button {
-        background-color: #22C55E !important;
-        color: #FFFFFF !important;
-        border: none !important;
-        font-family: 'Segoe UI', Arial, sans-serif !important;
-        font-size: 14px !important;  
-        font-weight: 500 !important; 
-        border-radius: 8px !important;
-        padding: 10px 20px !important; 
-        text-transform: uppercase !important;
-        letter-spacing: 0.5px !important;
-        transition: all 0.2s ease !important;
-        box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2) !important;
-        -webkit-text-fill-color: #FFFFFF !important;
-    }
-    
-    div.stButton > button p, 
-    [data-testid="stFormSubmitButton"] button p,
-    [data-testid="stPopover"] button p {
-        color: #FFFFFF !important;
-        font-family: 'Segoe UI', Arial, sans-serif !important;
-        font-size: 14px !important;  
-        font-weight: 500 !important; 
-        -webkit-text-fill-color: #FFFFFF !important;
-    }
+        /* --- CARDS & PANELS --- */
+        [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
+            background-color: #FFFFFF !important;
+            padding: 20px !important;
+            border-radius: 16px !important;
+            border: 1px solid #E2E8F0 !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+        }
 
-    /* Ensure the little popover dropdown arrow turns white */
-    [data-testid="stPopover"] button svg {
-        fill: #FFFFFF !important;
-        color: #FFFFFF !important;
-    }
+        /* 🚨 FRESH GREEN DASHBOARD BUTTONS (Aggressive form selector) */
+        div.stButton > button, 
+        [data-testid="stFormSubmitButton"] button,
+        [data-testid="stPopover"] button {
+            background-color: #22C55E !important;
+            color: #FFFFFF !important;
+            border: none !important;
+            font-family: 'Segoe UI', Arial, sans-serif !important;
+            font-size: 14px !important;  
+            font-weight: 500 !important; 
+            border-radius: 8px !important;
+            padding: 10px 20px !important; 
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+            transition: all 0.2s ease !important;
+            box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2) !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+        }
+        
+        div.stButton > button p, 
+        [data-testid="stFormSubmitButton"] button p,
+        [data-testid="stPopover"] button p {
+            color: #FFFFFF !important;
+            font-family: 'Segoe UI', Arial, sans-serif !important;
+            font-size: 14px !important;  
+            font-weight: 500 !important; 
+            -webkit-text-fill-color: #FFFFFF !important;
+        }
 
-    div.stButton > button:hover, 
-    [data-testid="stFormSubmitButton"] button:hover,
-    [data-testid="stPopover"] button:hover {
-        background-color: #16A34A !important;
-        box-shadow: 0 6px 12px rgba(34, 197, 94, 0.3) !important;
-        transform: translateY(-2px) !important;
-    }
-    
-    div.stButton > button:active, 
-    [data-testid="stFormSubmitButton"] button:active,
-    [data-testid="stPopover"] button:active {
-        background-color: #15803D !important;
-        transform: translateY(0px) !important;
-    }
+        /* Ensure the little popover dropdown arrow turns white */
+        [data-testid="stPopover"] button svg {
+            fill: #FFFFFF !important;
+            color: #FFFFFF !important;
+        }
+
+        div.stButton > button:hover, 
+        [data-testid="stFormSubmitButton"] button:hover,
+        [data-testid="stPopover"] button:hover {
+            background-color: #16A34A !important;
+            box-shadow: 0 6px 12px rgba(34, 197, 94, 0.3) !important;
+            transform: translateY(-2px) !important;
+        }
+        
+        div.stButton > button:active, 
+        [data-testid="stFormSubmitButton"] button:active,
+        [data-testid="stPopover"] button:active {
+            background-color: #15803D !important;
+            transform: translateY(0px) !important;
+        }
+
+        /* --- TYPOGRAPHY & INPUTS --- */
+        div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
+            background-color: #FFFFFF !important;
+            border: 1px solid #CBD5E1 !important;
+            border-radius: 8px !important;
+        }
+        input { color: #1E293B !important; }
+        h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
+        label { color: #475569 !important; font-weight: 600 !important; }
+        
+        /* 🚨 MAKE MOBILE MENU ARROW MASSIVE AND GREEN */
+        [data-testid="collapsedControl"] {
+            position: fixed !important;  
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background-color: #22C55E !important;
+            border-radius: 50% !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+            top: 15px !important;
+            left: 15px !important;
+            padding: 8px !important;
+            z-index: 999999 !important;
+            transition: transform 0.2s ease !important;
+        }
+        
+        [data-testid="collapsedControl"] svg {
+            fill: #FFFFFF !important;
+            color: #FFFFFF !important;
+            width: 24px !important;
+            height: 24px !important;
+        }
     </style>
     """, unsafe_allow_html=True))
 
