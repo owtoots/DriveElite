@@ -43,14 +43,17 @@ st.set_page_config(
 # 🚨 EXPLICIT SIDEBAR CONTENT
 with st.sidebar:
     try:
-        st.image("logo.png", use_container_width=True)
+        # 🚨 Changed to fixed width to make it smaller
+        st.sidebar.image("logo.png", width=140)
     except:
-        st.markdown("## DriveElite")
+        pass
 
-# --- CSS RESET ---
-st.markdown("""
+    # ==========================================
+    # 2. THE "CRYSTAL ELITE" CSS ENGINE
+    # ==========================================
+    st.markdown("""
 <style>
-   /* Mobile-Specific Overrides */
+    /* Mobile-Specific Overrides */
     @media (max-width: 768px) {
         .stImage, .stPDF, [data-testid="stForm"], [data-testid="stExpander"] {
             width: 100% !important;
@@ -94,11 +97,26 @@ st.markdown("""
     [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background-color: #F8FAFC !important;
         color: #0F172A !important;
-        font-family: 'Inter', -apple-system, sans-serif !important;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
     }
+    
+    /* --- SIDEBAR & LOGO REORDER HACK --- */
     [data-testid="stSidebar"] {
         background-color: #FFFFFF !important;
         border-right: 1px solid #E2E8F0 !important;
+    }
+    [data-testid="stSidebarContent"] {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    [data-testid="stSidebarUserContent"] {
+        order: 1 !important; /* Forces Logo to the Top */
+        padding-top: 2rem !important;
+        padding-bottom: 1.5rem !important; /* 🚨 Gap below logo */
+    }
+    [data-testid="stSidebarNav"] {
+        order: 2 !important; /* Forces Menu below Logo */
+        padding-top: 1rem !important; /* 🚨 Gap above menu */
     }
     
     [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
@@ -109,30 +127,57 @@ st.markdown("""
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
     }
     
-    /* 🚨 FRESH GREEN DASHBOARD BUTTONS WITH ADJUSTED FONT */
-    div.stButton > button, [data-testid="stFormSubmitButton"] > button {
+    /* 🚨 FRESH GREEN DASHBOARD BUTTONS (SMALLER, NOT BOLD) */
+    div.stButton > button, 
+    [data-testid="stFormSubmitButton"] > button,
+    [data-testid="stPopover"] > button,
+    div[data-testid="stPopover"] > button {
         background-color: #22C55E !important;
         color: #FFFFFF !important;
         border: none !important;
-        font-size: 16px !important; 
-        font-weight: 700 !important;
+        font-family: 'Segoe UI', Arial, sans-serif !important;
+        font-size: 14px !important;  
+        font-weight: 500 !important; 
         border-radius: 8px !important;
-        padding: 12px 24px !important;
+        padding: 10px 20px !important; 
         text-transform: uppercase !important;
         letter-spacing: 0.5px !important;
         transition: all 0.2s ease !important;
         box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2) !important;
+        -webkit-text-fill-color: #FFFFFF !important;
     }
-    div.stButton > button p, [data-testid="stFormSubmitButton"] > button p {
+    
+    div.stButton > button p, 
+    [data-testid="stFormSubmitButton"] > button p,
+    [data-testid="stPopover"] > button p,
+    div[data-testid="stPopover"] > button div {
         color: #FFFFFF !important;
-        font-size: 16px !important; 
+        font-family: 'Segoe UI', Arial, sans-serif !important;
+        font-size: 14px !important;  
+        font-weight: 500 !important; 
+        -webkit-text-fill-color: #FFFFFF !important;
     }
-    div.stButton > button:hover, [data-testid="stFormSubmitButton"] > button:hover {
+
+    /* Ensure the little popover dropdown arrow turns white */
+    [data-testid="stPopover"] > button svg,
+    div[data-testid="stPopover"] > button svg {
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
+    }
+
+    div.stButton > button:hover, 
+    [data-testid="stFormSubmitButton"] > button:hover,
+    [data-testid="stPopover"] > button:hover,
+    div[data-testid="stPopover"] > button:hover {
         background-color: #16A34A !important;
         box-shadow: 0 6px 12px rgba(34, 197, 94, 0.3) !important;
         transform: translateY(-2px) !important;
     }
-    div.stButton > button:active, [data-testid="stFormSubmitButton"] > button:active {
+    
+    div.stButton > button:active, 
+    [data-testid="stFormSubmitButton"] > button:active,
+    [data-testid="stPopover"] > button:active,
+    div[data-testid="stPopover"] > button:active {
         background-color: #15803D !important;
         transform: translateY(0px) !important;
     }
