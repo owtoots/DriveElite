@@ -606,16 +606,18 @@ def main():
                                                         is_drvr_int = 1 if "Driver" in drive_mode else 0
                                                         
                                                         # --- XENDIT AUTOMATED FLOW ---
-                                                        if gateway_mode == "XENDIT":
-                                                            conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
-                                                                         (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_drvr_int, b_ref))
-                                                            conn.commit()
-                                                            
-                                                            try:
+                                                    if gateway_mode == "XENDIT":
+                                                        conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
+                                                                     (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"{p_zone}: {p_exact}", f"{r_zone}: {r_exact}", is_drvr_int, b_ref))
+                                                        conn.commit()
+                                                        
+                                                        try:
                                                             SECRET_KEY = os.environ.get("xendit_active_key")
                                                             if not SECRET_KEY:
-                                                                try: SECRET_KEY = st.secrets.get("xendit_active_key")
-                                                                except: pass 
+                                                                try: 
+                                                                    SECRET_KEY = st.secrets.get("xendit_active_key")
+                                                                except: 
+                                                                    pass 
                                                             
                                                             if not SECRET_KEY:
                                                                 st.error("Missing API Key: Please add 'xendit_active_key' to your variables.")
