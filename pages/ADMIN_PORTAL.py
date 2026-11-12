@@ -170,7 +170,7 @@ def main():
             height: 24px !important;
         }
     </style>
-    """, unsafe_allow_html=True))
+    """, unsafe_allow_html=True)
 
 
 # ==========================================
