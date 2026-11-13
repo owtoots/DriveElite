@@ -445,24 +445,49 @@ Pasig City, Metro Manila, Philippines
         with asset_tabs[0]:
             try:
                 pv = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'PENDING'", conn)
-                if pv.empty: st.info("No vehicles currently pending approval.")
-                for i, r in pv.iterrows():
-                    with st.expander(f"{r['make']} {r['model']} ({r['plate']}) - Cat: {r['category']}"):
-                        base_category_rate = float(r.get('approved_price', 0.0))
-                        age = int(r.get('vehicle_age', 0))
-                        depreciation_pct = min(age * 0.05, 0.50)
-                        suggested_rate = base_category_rate * (1 - depreciation_pct)
-                        
-                        c1, c2 = st.columns(2)
-                        c1.metric("Suggested Rate (Depreciation Applied)", f"₱{suggested_rate:,.2f}/day")
-                        final_price = c2.number_input("Final Approved Rate (₱/day)", min_value=0.0, step=100.0, value=float(suggested_rate), key=f"fr_{r['id']}")
-                        
-                        if st.button("✅ APPROVE & ACTIVATE VEHICLE", key=f"v_app_{r['id']}", type="primary", use_container_width=True):
-                            conn.execute("UPDATE vehicles SET admin_status = 'APPROVED', booking_status = 'AVAILABLE', approved_price = ? WHERE id = ?", (final_price, r['id']))
-                            conn.commit()
-                            st.success("Vehicle successfully activated on showroom!")
-                            time.sleep(1); st.rerun()
-            except Exception as e: st.warning(f"Error loading pending vehicles: {e}")
+                if pv.empty: 
+                    st.info("No vehicles currently pending approval.")
+                else:
+                    for i, r in pv.iterrows():
+                        with st.expander(f"🚗 {r['make']} {r['model']} ({r['plate']}) - Cat: {r['category']}"):
+                            
+                            # ==========================================
+                            # 🔍 PROMINENT VEHICLE CONDITION INSPECTION
+                            # ==========================================
+                            st.write("### 🔍 Vehicle Condition Inspection")
+                            vehicle_img_path = r.get('vehicle_img')
+                            if vehicle_img_path:
+                                if not os.path.exists(vehicle_img_path) and os.path.exists(os.path.join(os.getcwd(), vehicle_img_path.lstrip("/"))):
+                                    vehicle_img_path = os.path.join(os.getcwd(), vehicle_img_path.lstrip("/"))
+                                st.image(vehicle_img_path, caption=f"Submitted Photo: {r['make']} {r['model']} ({r['plate']})", use_container_width=True)
+                            else:
+                                st.error("❌ No vehicle photo was provided by the affiliate.")
+                            
+                            st.write("### 📄 Supporting Legal Documents")
+                            c_doc1, c_doc2, c_doc3 = st.columns(3)
+                            with c_doc1: display_document(r.get('or_img'), "Official Receipt (OR)")
+                            with c_doc2: display_document(r.get('cr_img'), "Certificate of Reg (CR)")
+                            with c_doc3: display_document(r.get('insurance_img'), "Insurance Policy")
+                            
+                            st.divider()
+                            
+                            # --- 🧮 PRICING CALCULATOR & APPROVAL ---
+                            base_category_rate = float(r.get('approved_price', 0.0))
+                            age = int(r.get('vehicle_age', 0))
+                            depreciation_pct = min(age * 0.05, 0.50)
+                            suggested_rate = base_category_rate * (1 - depreciation_pct)
+                            
+                            c1, c2 = st.columns(2)
+                            c1.metric("Suggested Rate (Depreciation Applied)", f"₱{suggested_rate:,.2f}/day")
+                            final_price = c2.number_input("Final Approved Rate (₱/day)", min_value=0.0, step=100.0, value=float(suggested_rate), key=f"fr_{r['id']}")
+                            
+                            if st.button("✅ APPROVE & ACTIVATE VEHICLE", key=f"v_app_{r['id']}", type="primary", use_container_width=True):
+                                conn.execute("UPDATE vehicles SET admin_status = 'APPROVED', booking_status = 'AVAILABLE', approved_price = ? WHERE id = ?", (final_price, r['id']))
+                                conn.commit()
+                                st.success("Vehicle successfully activated on showroom!")
+                                time.sleep(1); st.rerun()
+            except Exception as e: 
+                st.warning(f"Error loading pending vehicles: {e}")
 
         with asset_tabs[1]:
             try:
