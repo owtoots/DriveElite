@@ -638,12 +638,67 @@ Pasig City, Metro Manila, Philippines
                         st.rerun()
             else: st.info("No documents archived yet.")
 
-    # --- TAB 5: PROMOS & SETTINGS ---
+    # --- TAB 5: PROMOS & DB HOUSEKEEPING ---
     with tabs[5]:
         render_platform_settings(conn)
         st.divider()
         render_admin_discount_table(conn)
+        
+        st.divider()
+        st.markdown("<h3 style='text-align: center; color: #ef4444;'>🧹 Database Housekeeping & Testing Cleanup</h3>", unsafe_allow_html=True)
+        
+        with st.container(border=True):
+            st.write("#### 🗑️ Selective Test Data Cleanup")
+            st.caption("Safely purge dummy accounts, test vehicles, or trial bookings matching 'test' without destroying production records.")
+            
+            clean_target = st.selectbox(
+                "Select Target to Purge:", 
+                ["Test Users (Renters/Affiliates matching 'test')", "Test Vehicles", "Pending/Unpaid Test Bookings"]
+            )
+            
+            if st.button("Execute Selective Cleanup", type="secondary"):
+                try:
+                    if clean_target == "Test Users (Renters/Affiliates matching 'test')":
+                        cursor = conn.execute("DELETE FROM platform_users WHERE username LIKE '%test%' OR email LIKE '%test%'")
+                        conn.commit()
+                        st.success(f"Purged test user accounts successfully.")
+                    elif clean_target == "Test Vehicles":
+                        cursor = conn.execute("DELETE FROM vehicles WHERE make LIKE '%test%' OR plate LIKE '%TEST%'")
+                        conn.commit()
+                        st.success(f"Purged test vehicle records successfully.")
+                    elif clean_target == "Pending/Unpaid Test Bookings":
+                        cursor = conn.execute("DELETE FROM bookings WHERE status = 'PENDING'")
+                        conn.commit()
+                        st.success("Purged all pending/unpaid test bookings.")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Cleanup error: {e}")
 
+        st.write("")
+        
+        with st.container(border=True):
+            st.markdown("<h4 style='color: #ef4444;'>☢️ Nuclear Database Reset (Danger Zone)</h4>", unsafe_allow_html=True)
+            st.warning("⚠️ **Warning:** This will clear all transactions, active bookings, vehicles, and non-admin users. Your master admin account (`masterom`) will be preserved.")
+            
+            confirm_key = st.text_input("Type 'WIPE ALL DATA' below to unlock the nuclear reset button:")
+            
+            if confirm_key == "WIPE ALL DATA":
+                if st.button("🚨 EXECUTE FULL NUCLEAR RESET", type="primary"):
+                    try:
+                        conn.execute("DELETE FROM bookings")
+                        conn.execute("DELETE FROM vehicles")
+                        conn.execute("DELETE FROM drivers")
+                        conn.execute("DELETE FROM chat_messages")
+                        conn.execute("DELETE FROM admin_promos")
+                        conn.execute("DELETE FROM platform_users WHERE role != 'ADMIN'")
+                        conn.commit()
+                        
+                        st.success("💥 Nuclear reset complete! All test data and transactional records have been wiped clean.")
+                        time.sleep(2)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Nuclear wipe failed: {e}")
     # --- TAB 6: GLOBAL REVIEWS ---
     with tabs[6]:
         st.markdown("<h3 style='text-align: center;'>⭐ PLATFORM REVIEWS</h3>", unsafe_allow_html=True)
