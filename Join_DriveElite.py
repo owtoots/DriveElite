@@ -314,6 +314,17 @@ def create_legit_pdf_contract(data, role, sig_bytes, conn):
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
     
+    # 🚨 INJECT THE CORPORATE LOGO AT THE TOP CENTER
+    try:
+        logo_path = "logo.png"
+        if os.path.exists(logo_path):
+            pdf.image(logo_path, x=85, y=10, w=40)
+            pdf.set_y(32) # Pushes the title down so it leaves clean breathing room under the logo
+        else:
+            pdf.set_y(15)
+    except Exception:
+        pdf.set_y(15)
+
     date_str = datetime.date.today().strftime("%B %d, %Y")
     
     pdf.set_font("Helvetica", 'B', 14)
@@ -324,7 +335,6 @@ def create_legit_pdf_contract(data, role, sig_bytes, conn):
         pdf.ln(5)
         
         pdf.set_font("Helvetica", '', 8)
-        # 🚨 CLEANED TEXT: ALL HIDDEN CHARACTERS REMOVED
         body_text = f"""This Memorandum of Agreement (the "Agreement") is made and entered into this {date_str} upon digital acceptance by and between:
 
 {legal_entity}, a business operating under the laws of the Republic of the Philippines, with its registered address in Pasig City, Metro Manila, hereinafter referred to as the "AGENCY",
@@ -434,7 +444,7 @@ Excluding normal wear and tear, the following charges apply upon return:
 - Lost/Damaged Keys: Replacement or emergency unlock services will incur a fee ranging from PHP 3,000.00 to PHP 15,000.00.
 
 6. DAMAGE, MAJOR LOSS, OR THEFT
-In the event of damage, major loss, total loss, or theft of the Rental Vehicle, the LESSEE must immediately secure a Police Report, a notarized affidavit explaining the incident, and provide a copy of their driver's license. The LESSEE must notify DriveElite within 24 hours of the incident.
+In the event of damage, major loss, total loss, or theft of the Rental Vehicle, the LESSEE must immediately secure a Police Report, a notarized affidavit explaining the incident, and provide a call copy of their driver's license. The LESSEE must notify DriveElite within 24 hours of the incident.
 In the case of total loss (including theft), the LESSEE assumes financial responsibility and shall pay 30% of the Fair Market Value of the vehicle as determined by the AGENCY/OWNER.
 
 7. TRAFFIC VIOLATIONS, TOLLS, AND SURVIVAL OF LIABILITY
@@ -442,12 +452,11 @@ In the case of total loss (including theft), the LESSEE assumes financial respon
 - Survival Clause: The LESSEE acknowledges that traffic citations are often delayed. The LESSEE's liability for these violations strictly survives the termination of this Agreement and the return of the Security Deposit. If a violation from the rental period is reported at any point in the future, the LESSEE remains legally bound to reimburse the OWNER/AGENCY immediately upon demand.
 - LTO Demerit Transfer: In the event of an LTO alarm or traffic citation, the LESSEE explicitly agrees to accept any corresponding demerit points to their personal Driver's License. The LESSEE agrees to fully cooperate and sign any necessary documents to clear the OWNER's vehicle and license from said violations."""
 
-    # 🚨 Brutal sanitize just in case any other invisible characters snuck in
     safe_body_text = body_text.replace('\u200b', '').encode('latin-1', 'replace').decode('latin-1')
     pdf.multi_cell(0, 4, safe_body_text)
     pdf.ln(5)
     
-    # 4. Digital Signature
+    # 4. Digital Signature Block
     pdf.set_font("Helvetica", 'B', 10)
     pdf.cell(0, 10, f"DIGITALLY SIGNED BY {'OWNER' if is_affiliate else 'RENTER'}:", ln=True)
     
