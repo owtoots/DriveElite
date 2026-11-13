@@ -26,7 +26,8 @@ def main():
     st.set_page_config(page_title="DriveElite Affiliate", layout="wide")
 
     try:
-        st.sidebar.image("logo.png", use_container_width=True)
+        # 🚨 Changed to fixed width to make it smaller
+        st.sidebar.image("logo.png", width=140)
     except:
         pass
 
@@ -81,9 +82,24 @@ def main():
         color: #0F172A !important;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
     }
+    
+    /* --- SIDEBAR & LOGO REORDER HACK --- */
     [data-testid="stSidebar"] {
         background-color: #FFFFFF !important;
         border-right: 1px solid #E2E8F0 !important;
+    }
+    [data-testid="stSidebarContent"] {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    [data-testid="stSidebarUserContent"] {
+        order: 1 !important; /* Forces Logo to the Top */
+        padding-top: 2rem !important;
+        padding-bottom: 1.5rem !important; /* 🚨 Gap below logo */
+    }
+    [data-testid="stSidebarNav"] {
+        order: 2 !important; /* Forces Menu below Logo */
+        padding-top: 1rem !important; /* 🚨 Gap above menu */
     }
     
     [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
@@ -94,36 +110,57 @@ def main():
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
     }
     
-    /* 🚨 FRESH GREEN DASHBOARD BUTTONS WITH BOLD FONT */
-    div.stButton > button, [data-testid="stFormSubmitButton"] > button {
+    /* 🚨 FRESH GREEN DASHBOARD BUTTONS (SMALLER, NOT BOLD) */
+    div.stButton > button, 
+    [data-testid="stFormSubmitButton"] > button,
+    [data-testid="stPopover"] > button,
+    div[data-testid="stPopover"] > button {
         background-color: #22C55E !important;
         color: #FFFFFF !important;
         border: none !important;
-        
-        /* Font adjustments matching your screenshot */
         font-family: 'Segoe UI', Arial, sans-serif !important;
-        font-size: 16px !important; 
-        font-weight: 800 !important; /* Increased boldness */
-        
+        font-size: 14px !important;  
+        font-weight: 500 !important; 
         border-radius: 8px !important;
-        padding: 12px 24px !important;
+        padding: 10px 20px !important; 
         text-transform: uppercase !important;
         letter-spacing: 0.5px !important;
         transition: all 0.2s ease !important;
         box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2) !important;
+        -webkit-text-fill-color: #FFFFFF !important;
     }
-    div.stButton > button p, [data-testid="stFormSubmitButton"] > button p {
+    
+    div.stButton > button p, 
+    [data-testid="stFormSubmitButton"] > button p,
+    [data-testid="stPopover"] > button p,
+    div[data-testid="stPopover"] > button div {
         color: #FFFFFF !important;
         font-family: 'Segoe UI', Arial, sans-serif !important;
-        font-size: 16px !important; 
-        font-weight: 800 !important;
+        font-size: 14px !important;  
+        font-weight: 500 !important; 
+        -webkit-text-fill-color: #FFFFFF !important;
     }
-    div.stButton > button:hover, [data-testid="stFormSubmitButton"] > button:hover {
+
+    /* Ensure the little popover dropdown arrow turns white */
+    [data-testid="stPopover"] > button svg,
+    div[data-testid="stPopover"] > button svg {
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
+    }
+
+    div.stButton > button:hover, 
+    [data-testid="stFormSubmitButton"] > button:hover,
+    [data-testid="stPopover"] > button:hover,
+    div[data-testid="stPopover"] > button:hover {
         background-color: #16A34A !important;
         box-shadow: 0 6px 12px rgba(34, 197, 94, 0.3) !important;
         transform: translateY(-2px) !important;
     }
-    div.stButton > button:active, [data-testid="stFormSubmitButton"] > button:active {
+    
+    div.stButton > button:active, 
+    [data-testid="stFormSubmitButton"] > button:active,
+    [data-testid="stPopover"] > button:active,
+    div[data-testid="stPopover"] > button:active {
         background-color: #15803D !important;
         transform: translateY(0px) !important;
     }
@@ -286,15 +323,20 @@ def main():
         return None
 
     def generate_handover_pdf(ref_no, car_name, renter_name, travel_dates, checklist, r_sig_path, a_sig_path, affiliate_name, tire_pressure="Standard", preferred_fuel="Unleaded"):
+        # 🚨 Text Sanitizer: Strips out hidden crashing characters and newlines
+        def safe_text(val):
+            return str(val).replace('\n', ' ').replace('\r', '').replace('\u200b', '').encode('latin-1', 'replace').decode('latin-1')
+
         pdf = FPDF(orientation='P', unit='mm', format='A4')
+        pdf.set_auto_page_break(auto=True, margin=15) # 🚨 Enforces safe page boundaries
         pdf.add_page()
         
-        # Safely truncate long strings and prevent unbroken-string overflow
-        renter_name = (renter_name[:30] + '..') if len(renter_name) > 30 else renter_name
-        affiliate_name = (affiliate_name[:30] + '..') if len(affiliate_name) > 30 else affiliate_name
-        car_name = (car_name[:40] + '..') if len(car_name) > 40 else car_name
-        tire_pressure = tire_pressure[:30]
-        preferred_fuel = preferred_fuel[:30]
+        # Safely truncate strings
+        renter_name = safe_text((renter_name[:30] + '..') if len(renter_name) > 30 else renter_name)
+        affiliate_name = safe_text((affiliate_name[:30] + '..') if len(affiliate_name) > 30 else affiliate_name)
+        car_name = safe_text((car_name[:40] + '..') if len(car_name) > 40 else car_name)
+        tire_pressure = safe_text(tire_pressure[:30])
+        preferred_fuel = safe_text(preferred_fuel[:30])
         
         try:
             pdf.image("logo.png", x=80, y=10, w=50)
@@ -307,17 +349,17 @@ def main():
         pdf.ln(5)
         
         pdf.set_font("Helvetica", '', 11)
-        pdf.cell(190, 8, f"Reference No: {ref_no}", ln=1)
+        pdf.cell(190, 8, f"Reference No: {safe_text(ref_no)}", ln=1)
         pdf.cell(190, 8, f"Vehicle: {car_name}", ln=1)
         pdf.cell(190, 8, f"Renter Name: {renter_name}", ln=1)
-        pdf.cell(190, 8, f"Travel Dates: {travel_dates}", ln=1)
+        pdf.cell(190, 8, f"Travel Dates: {safe_text(travel_dates)}", ln=1)
         pdf.ln(5)
         
         pdf.set_font("Helvetica", 'B', 12)
         pdf.cell(190, 10, "CHECKLIST VERIFICATION:", ln=1)
         pdf.set_font("Helvetica", '', 11)
         pdf.cell(190, 8, f"1. Cash Deposit (Php 5,000): {'YES' if checklist['deposit'] else 'NO'}", ln=1)
-        pdf.cell(190, 8, f"2. Fuel Level: {checklist['fuel']}", ln=1)
+        pdf.cell(190, 8, f"2. Fuel Level: {safe_text(checklist['fuel'])}", ln=1)
         pdf.cell(190, 8, f"3. Exterior Inspected: {'YES' if checklist['ext'] else 'NO'}", ln=1)
         pdf.cell(190, 8, f"4. Interior Clean: {'YES' if checklist['int'] else 'NO'}", ln=1)
         pdf.cell(190, 8, f"5. Tools/Spare Tire Verified: {'YES' if checklist['tools'] else 'NO'}", ln=1)
@@ -326,20 +368,25 @@ def main():
         pdf.set_font("Helvetica", 'B', 12)
         pdf.cell(190, 10, "IMPORTANT REMINDERS FOR RENTER:", ln=1)
         pdf.set_font("Helvetica", '', 10)
-        pdf.multi_cell(0, 6, f"1. Tire Pressure: Please maintain the tire pressure at {tire_pressure} to ensure safety and optimal fuel efficiency.")
-        pdf.multi_cell(0, 6, f"2. Preferred Fuel: This vehicle requires {preferred_fuel}. Please ensure the correct fuel type is used to avoid engine damage charges.")
+        
+        # 🚨 Explicitly reset X margin before any multi_cell to prevent rendering crashes
+        pdf.set_x(10)
+        pdf.multi_cell(0, 6, safe_text(f"1. Tire Pressure: Please maintain the tire pressure at {tire_pressure} to ensure safety and optimal fuel efficiency."))
+        pdf.set_x(10)
+        pdf.multi_cell(0, 6, safe_text(f"2. Preferred Fuel: This vehicle requires {preferred_fuel}. Please ensure the correct fuel type is used to avoid engine damage charges."))
+        pdf.set_x(10)
         pdf.multi_cell(0, 6, "3. Speed Limits & Violations: Strictly adhere to all local traffic rules. Any NCAP camera citations, traffic violations, or fines incurred during the rental period will be charged directly to the renter to protect the vehicle's LTO demerit points.")
+        pdf.set_x(10)
         pdf.multi_cell(0, 6, "4. Geographic Limits: Driving is strictly restricted to Mainland Luzon. Inter-island ferry transport (RoRo) is strictly prohibited.")
         pdf.ln(10)
         
         pdf.set_font("Helvetica", 'B', 12)
         pdf.cell(190, 10, "DIGITAL SIGNATORIES:", ln=1)
         
-        y_sig = pdf.get_y()
-        # Prevent manual offsets from pushing the cursor into the bottom margin
-        if y_sig > 230:
+        y_sig = pdf.get_y() + 2
+        if y_sig > 220:
             pdf.add_page()
-            y_sig = pdf.get_y()
+            y_sig = pdf.get_y() + 2
             
         try:
             if r_sig_path and os.path.exists(r_sig_path):
@@ -353,7 +400,8 @@ def main():
         except Exception:
             pdf.text(120, y_sig + 10, "[Signature Registered]")
         
-        pdf.set_y(y_sig + 30)
+        # 🚨 Tightened the vertical gap to pull names directly under the ink
+        pdf.set_y(y_sig + 16) 
         pdf.set_font("Helvetica", 'U', 11)
         pdf.cell(90, 8, renter_name, align='C')
         pdf.cell(90, 8, affiliate_name, align='C', ln=1)
@@ -365,14 +413,19 @@ def main():
         pdf_out = pdf.output(dest="S")
         return pdf_out.encode('latin-1') if isinstance(pdf_out, str) else bytes(pdf_out)
 
+
     def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, damage, late, ot_fee, rfid_fee, total_deduct, refund, sig_ret, sig_reta, is_with_driver=False, driver_name=""):
+        # 🚨 Text Sanitizer: Strips out hidden crashing characters and newlines
+        def safe_text(val):
+            return str(val).replace('\n', ' ').replace('\r', '').replace('\u200b', '').encode('latin-1', 'replace').decode('latin-1')
+
         pdf = FPDF(orientation='P', unit='mm', format='A4')
+        pdf.set_auto_page_break(auto=True, margin=15) # 🚨 Enforces safe page boundaries
         pdf.add_page()
         
-        # Safely truncate long strings to prevent overflow
-        renter = (renter[:25] + '..') if len(renter) > 25 else renter
-        vehicle = (vehicle[:35] + '..') if len(vehicle) > 35 else vehicle
-        plate = (plate[:15] + '..') if len(plate) > 15 else plate
+        renter = safe_text((renter[:25] + '..') if len(renter) > 25 else renter)
+        vehicle = safe_text((vehicle[:35] + '..') if len(vehicle) > 35 else vehicle)
+        plate = safe_text((plate[:15] + '..') if len(plate) > 15 else plate)
         
         try:
             pdf.image("logo.png", x=80, y=10, w=50)
@@ -383,7 +436,7 @@ def main():
         pdf.set_font("Helvetica", 'B', 16)
         pdf.cell(190, 10, "DRIVEELITE RETURN & SETTLEMENT RECEIPT", ln=1, align='C')
         pdf.set_font("Helvetica", '', 12)
-        pdf.cell(190, 10, f"Ref: {booking_ref} | Date: {datetime.date.today()}", ln=1)
+        pdf.cell(190, 10, f"Ref: {safe_text(booking_ref)} | Date: {datetime.date.today()}", ln=1)
         pdf.cell(190, 10, f"Vehicle: {vehicle} ({plate}) | Renter: {renter}", ln=1)
         
         pdf.ln(10)
@@ -416,41 +469,39 @@ def main():
         else:
             pdf.cell(190, 10, f"NET REFUND TO RENTER: Php {refund:,.2f}", ln=1)
             
-        current_y = pdf.get_y() + 15
+        current_y = pdf.get_y() + 5
         
-        # Prevent manual offsets from pushing the cursor into the bottom margin
-        if current_y > 230:
+        if current_y > 220:
             pdf.add_page()
             current_y = pdf.get_y() + 5
             
         try:
             if sig_ret is not None:
-                r_path = os.path.join(UPLOAD_DIR, f"ret_r_{booking_ref}.jpg")
-                Image.fromarray(sig_ret.astype('uint8'), 'RGBA').convert('RGB').save(r_path, "JPEG")
-                pdf.image(r_path, x=30, y=current_y, w=50)
+                # 🚨 Now utilizes our new auto-cropping function
+                r_path = save_canvas_image(sig_ret, f"ret_r_{booking_ref}")
+                if r_path: pdf.image(r_path, x=30, y=current_y, w=50)
         except Exception: 
             pass
             
         try:
             if sig_reta is not None:
-                a_path = os.path.join(UPLOAD_DIR, f"ret_a_{booking_ref}.jpg")
-                Image.fromarray(sig_reta.astype('uint8'), 'RGBA').convert('RGB').save(a_path, "JPEG")
-                pdf.image(a_path, x=120, y=current_y, w=50)
+                a_path = save_canvas_image(sig_reta, f"ret_a_{booking_ref}")
+                if a_path: pdf.image(a_path, x=120, y=current_y, w=50)
         except Exception: 
             pass
             
-        pdf.set_xy(30, current_y + 40)
+        pdf.set_xy(30, current_y + 18) # 🚨 Pulled names WAY up (from 40 to 18)
         pdf.cell(50, 5, "Renter Final Sign-off", align='C')
-        pdf.set_xy(120, current_y + 40)
+        pdf.set_xy(120, current_y + 18)
         pdf.cell(50, 5, "Affiliate Final Sign-off", align='C')
         
-        pdf.ln(20)
+        pdf.set_y(current_y + 30) # 🚨 Pulled footer up
         pdf.set_font("Helvetica", 'I', 9)
         pdf.cell(190, 5, "Legally generated by DriveElite Platform", align='C', ln=1)
         
-        # 🚨 Safely encode the PDF to bytes without crashing
         pdf_out = pdf.output(dest="S")
         return pdf_out.encode('latin-1') if isinstance(pdf_out, str) else bytes(pdf_out)
+    
     def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
         sender_email = 'contact@driveelite.ph'
         app_password = "chcskxti6hc2d7ao"
@@ -1055,8 +1106,11 @@ def main():
                                                     time.sleep(3)
                                                     st.rerun()
                                                     
-                                            except Exception as e:
-                                                st.error(f"Error: {e}")
+                                                except Exception as e:
+                                                    st.error(f"Error: {e}")
+
+        except Exception as e:
+            st.error(f"System Error loading bookings: {e}")
 
        
     # --- TAB 1: MY ASSETS ---
