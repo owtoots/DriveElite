@@ -180,7 +180,9 @@ def main():
         try: conn.execute("CREATE TABLE IF NOT EXISTS admin_promos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, target TEXT DEFAULT 'ALL USERS', active INTEGER DEFAULT 1)"); conn.commit()
         except: pass
         try: conn.execute("ALTER TABLE vehicles ADD COLUMN location TEXT DEFAULT 'Metro Manila'"); conn.commit()
-    except: pass
+        except: pass
+        try: conn.execute("ALTER TABLE bookings ADD COLUMN receipt_img BLOB"); conn.commit()
+        except: pass
         try:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS chat_messages (
@@ -387,6 +389,7 @@ def main():
             JOIN platform_users u ON v.owner_username = u.username 
             WHERE v.admin_status = 'APPROVED' AND v.booking_status = 'AVAILABLE'
         """, conn)
+
         if available_cars.empty:
             st.info("Our fleet is currently fully booked. Please check back later!")
         else:
@@ -562,30 +565,24 @@ def main():
                                                     applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
                                                     platform_fee = discounted_subtotal * applied_renter_fee
                                                     
-                                                    # 🚚 ADMIN PRICING TIER DISTANCE LOOKUP
                                                     # 🚚 DYNAMIC ADDRESS DISTANCE ESTIMATOR
                                                     def estimate_distance_from_address(address_str):
                                                         addr = address_str.lower().strip()
                                                         if not addr:
                                                             return 3.0  # Default local distance
                                                         
-                                                        # Keyword matching for distance tiers (in km)
                                                         if any(k in addr for k in ['airport', 'terminal', 'naia', 'cubao']):
                                                             return 12.0  # Longer distance tier
                                                         elif any(k in addr for k in ['alabang', 'fairview', 'novaliches', 'antipolo']):
                                                             return 15.0  # Maximum tier (15km max)
-                                                        elif any(k in addr for k in ['megamall', 'bgc', 'ortigas', 'pasig', 'makati', 'bgc']):
+                                                        elif any(k in addr for k in ['megamall', 'bgc', 'ortigas', 'pasig', 'makati']):
                                                             return 3.0   # Close proximity tier
                                                         else:
                                                             return 6.0   # Standard mid-range tier
 
-                                                    # Calculate estimated km based on what the renter typed
                                                     estimated_km = estimate_distance_from_address(p_exact)
                                                     
                                                     # Pulls the exact fee you set in the Admin Dashboard for this km tier
-                                                    delivery_fee = get_delivery_fee_for_renter(conn, estimated_km)
-                                                    
-                                                    grand_total = discounted_subtotal + platform_fee + driver_fee + delivery_fee
                                                     delivery_fee = get_delivery_fee_for_renter(conn, estimated_km)
                                                     
                                                     grand_total = discounted_subtotal + platform_fee + driver_fee + delivery_fee
