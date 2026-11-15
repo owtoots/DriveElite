@@ -237,7 +237,7 @@ def main():
             except Exception:
                 pass
         return booked_days
-    def get_delivery_fee_for_renter(conn, total_km):
+def get_delivery_fee_for_renter(conn, total_km):
     """Fetches delivery fee from database tiers and scales for distances exceeding max tier."""
     try:
         tiers_df = pd.read_sql_query("SELECT * FROM delivery_tiers ORDER BY max_km ASC", conn)
