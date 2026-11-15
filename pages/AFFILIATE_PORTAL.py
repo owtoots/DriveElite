@@ -1131,19 +1131,24 @@ def main():
             c1, c2, c3, c4 = st.columns(4)
             cat = c1.selectbox("CAR TYPE", list(FIXED_RATES.keys()))
             ma = c2.text_input("MAKE (e.g., Nissan)")
-            mo = c3.text_input("MODEL (e.g.,Terra VE)")
+            mo = c3.text_input("MODEL (e.g., Terra VE)")
             ye = c4.text_input("YEAR (e.g., 2022)")
             
-            st.write("#### ⚙️ Operational Specs")
+            st.write("#### ⚙️ Operational Specs & Location")
             c5, c6, c7, c8 = st.columns(4)
             pl = c5.text_input("PLATE NUMBER")
-            pf = c6.selectbox("PREF. FUEL", ["Premium Unleaded", "Turbo Diesel", "Diesel"])
-            tp = c7.text_input("TIRE PRESSURE", placeholder="e.g., 32 PSI")
+            
+            # 📍 New Location Input for Showroom Transparency
+            car_location = c6.text_input("Garage / Base Area", placeholder="e.g., Ortigas, Pasig")
+            
+            pf = c7.selectbox("PREF. FUEL", ["Premium Unleaded", "Turbo Diesel", "Diesel"])
             
             with c8:
                 st.write("SERVICE TYPE")
                 service_type = st.radio(" ", ["Self-Drive", "With Driver"], horizontal=True, label_visibility="collapsed")
                 is_with_driver = 1 if service_type == "With Driver" else 0
+            
+            tp = st.text_input("TIRE PRESSURE", placeholder="e.g., 32 PSI")
             
             st.write("#### 📄 Document Uploads")
             c9, c10, c11 = st.columns(3)
@@ -1154,7 +1159,7 @@ def main():
             st.divider()
             
             if st.form_submit_button("SUBMIT FOR APPROVAL", type="primary", use_container_width=True):
-                if ma and mo and ye and pl and vi and len(or_cr_files) >= 1 and ins:
+                if ma and mo and ye and pl and car_location and vi and len(or_cr_files) >= 1 and ins:
                     try:
                         current_year = datetime.date.today().year
                         calculated_age = max(0, current_year - int(ye.strip()))
@@ -1168,21 +1173,28 @@ def main():
                     cr_path = save_file(or_cr_files[1]) if len(or_cr_files) > 1 else or_path
                     ins_path = save_file(ins)
                     
+                    # Ensure table has location column via patch or query
+                    try:
+                        conn.execute("ALTER TABLE vehicles ADD COLUMN location TEXT DEFAULT 'Metro Manila'")
+                        conn.commit()
+                    except:
+                        pass
+
                     conn.execute("""
                         INSERT INTO vehicles (
                             owner_username, make, model, year, vehicle_age, plate, bank_name, account_no, 
                             vehicle_img, or_img, cr_img, insurance_img, category, 
                             approved_price, ref_no, admin_status, booking_status, is_with_driver,
-                            tire_pressure, preferred_fuel
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE', ?, ?, ?)
+                            tire_pressure, preferred_fuel, location
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE', ?, ?, ?, ?)
                     """, (st.session_state.username, ma.title(), mo.title(), ye, calculated_age, pl.upper(), "Profile", "Profile", 
                           car_img_path, or_path, cr_path, ins_path, cat, 
-                          FIXED_RATES.get(cat,0), new_ref_no, is_with_driver, tp, pf))
+                          FIXED_RATES.get(cat, 0), new_ref_no, is_with_driver, tp, pf, car_location.title()))
                     
                     conn.commit()
                     st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
                 else: 
-                    st.error("Please fill all required fields and upload all documents.")
+                    st.error("Please fill all required fields (including Garage/Base Area) and upload all documents.")
 
     # --- TAB 3: ADD DRIVER ---
     with tabs[3]:
