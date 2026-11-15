@@ -638,7 +638,7 @@ Pasig City, Metro Manila, Philippines
                         st.rerun()
             else: st.info("No documents archived yet.")
 
-    # --- TAB 5: PROMOS & DB & USER HOUSEKEEPING ---
+    # --- TAB 5: PROMOS & DB & HOUSEKEEPING SUITE ---
     with tabs[5]:
         render_platform_settings(conn)
         st.divider()
@@ -660,9 +660,7 @@ Pasig City, Metro Manila, Philippines
             if users_df.empty:
                 st.info("No registered renters or affiliates found in the database.")
             else:
-                # Filter toggle for convenience
-                filter_role = st.radio("Filter Directory by Role:", ["All", "RENTER", "AFFILIATE"], horizontal=True)
-                
+                filter_role = st.radio("Filter User Directory by Role:", ["All", "RENTER", "AFFILIATE"], horizontal=True)
                 filtered_df = users_df if filter_role == "All" else users_df[users_df['role'] == filter_role]
                 
                 if filtered_df.empty:
@@ -672,7 +670,6 @@ Pasig City, Metro Manila, Philippines
                         status_badge = "🟢 APPROVED" if u['admin_status'] == 'APPROVED' else "⏳ PENDING"
                         
                         with st.container(border=True):
-                            # Clean horizontal columns: Name | Role & Status | Contact Info | Delete Button at the end
                             c_name, c_role, c_contact, c_btn = st.columns([3, 2, 3, 1.5])
                             
                             with c_name:
@@ -688,7 +685,7 @@ Pasig City, Metro Manila, Philippines
                                 st.caption(f"📱 {u['contact_number'] or 'N/A'}")
                                 
                             with c_btn:
-                                st.write("") # Spacing alignment
+                                st.write("") 
                                 if st.button("🗑️ Delete", key=f"del_user_{u['id']}", type="secondary", use_container_width=True):
                                     try:
                                         conn.execute("DELETE FROM platform_users WHERE id = ?", (u['id'],))
@@ -701,6 +698,66 @@ Pasig City, Metro Manila, Philippines
                                         
         except Exception as e:
             st.warning(f"Error loading user directory: {e}")
+
+        st.divider()
+
+        # ==========================================
+        # 🎫 MASTER BOOKING DIRECTORY & DELETION
+        # ==========================================
+        st.markdown("<h3 style='text-align: center; color: #ef4444;'>🎫 Master Booking Directory & Selective Deletion</h3>", unsafe_allow_html=True)
+        st.caption("Review all live, cancelled, or testing bookings below and selectively remove unwanted records.")
+
+        try:
+            bookings_df = pd.read_sql_query("""
+                SELECT b.id, b.booking_ref, b.status, b.amount, b.pickup_time, 
+                       u.full_name as renter_name, v.make, v.model, v.plate 
+                FROM bookings b
+                JOIN platform_users u ON b.renter_username = u.username
+                JOIN vehicles v ON b.vehicle_id = v.id
+                ORDER BY b.id DESC
+            """, conn)
+
+            if bookings_df.empty:
+                st.info("No bookings found in the database.")
+            else:
+                filter_status = st.selectbox("Filter Bookings by Status:", ["All", "PENDING", "CONFIRMED", "ONGOING", "COMPLETED", "CANCELLED"])
+                filtered_bks = bookings_df if filter_status == "All" else bookings_df[bookings_df['status'] == filter_status]
+
+                if filtered_bks.empty:
+                    st.info(f"No bookings found with status: {filter_status}")
+                else:
+                    for _, bk in filtered_bks.iterrows():
+                        b_ref_display = f"#{bk['booking_ref']}" if pd.notnull(bk.get('booking_ref')) else f"DRV-{bk['id']:05d}"
+                        
+                        with st.container(border=True):
+                            c_ref, c_details, c_amt, c_bbtn = st.columns([2, 3, 2, 1.5])
+                            
+                            with c_ref:
+                                st.markdown(f"**{b_ref_display}**")
+                                st.caption(f"Status: **{bk['status']}**")
+                                
+                            with c_details:
+                                st.markdown(f"👤 **{bk['renter_name']}**")
+                                st.caption(f"🚗 {bk['make']} {bk['model']} ({bk['plate']})")
+                                
+                            with c_amt:
+                                st.markdown(f"💰 ₱{bk['amount']:,.2f}")
+                                st.caption(f"📅 {str(bk['pickup_time'])[:10]}")
+                                
+                            with c_bbtn:
+                                st.write("")
+                                if st.button("🗑️ Delete", key=f"del_bk_{bk['id']}", type="secondary", use_container_width=True):
+                                    try:
+                                        conn.execute("DELETE FROM bookings WHERE id = ?", (bk['id'],))
+                                        conn.commit()
+                                        st.success(f"Deleted booking {b_ref_display} successfully.")
+                                        time.sleep(0.8)
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Failed to delete booking: {e}")
+
+        except Exception as e:
+            st.warning(f"Error loading booking directory: {e}")
 
         st.divider()
         
