@@ -237,7 +237,27 @@ def main():
             except Exception:
                 pass
         return booked_days
-
+    def get_delivery_fee_for_renter(conn, total_km):
+        """Fetches the correct delivery fee from the delivery_tiers table based on total km."""
+        try:
+            tiers_df = pd.read_sql_query("SELECT * FROM delivery_tiers ORDER BY max_km ASC", conn)
+            if tiers_df.empty:
+                return 1200.0 # Fallback default
+            
+            for _, row in tiers_df.iterrows():
+                max_d = float(row.get('max_km') or row.get('km') or 15.0)
+                fee = float(row.get('fee') or row.get('price') or 1200.0)
+                if total_km <= max_d:
+                    return fee
+            
+            # If total km exceeds the highest tier, scale up incrementally
+            highest_row = tiers_df.iloc[-1]
+            max_d = float(highest_row.get('max_km') or highest_row.get('km') or 15.0)
+            base_fee = float(highest_row.get('fee') or highest_row.get('price') or 1200.0)
+            excess_km = total_km - max_d
+            return base_fee + (excess_km * 60.0)
+        except Exception:
+            return 1200.0
     def calculate_24h_rental(p_dt, r_dt, base_rate, hourly_penalty=300.0, grace_mins=59):
         delta = r_dt - p_dt
         total_hours = delta.total_seconds() / 3600.0
