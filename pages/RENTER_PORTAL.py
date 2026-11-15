@@ -387,7 +387,7 @@ def main():
 
     main_tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
 
-    # ==========================================
+# ==========================================
     # 🚘 RENTER SHOWROOM (MAIN TAB 0)
     # ==========================================
     with main_tabs[0]:
@@ -431,35 +431,32 @@ def main():
                             with grid_cols[idx % 4]: 
                                 with st.container(border=True):
                                     
-                          
-                            # --- TOP: Image ---
-                            img_p = car.get('vehicle_img')
-                            resolved_img_path = None
-                            
-                            if img_p:
-                                if os.path.exists(img_p):
-                                    resolved_img_path = img_p
-                                else:
-                                    # Fallback: check filename inside data/uploads relative to root or parent
-                                    filename = os.path.basename(img_p)
-                                    alt_path = os.path.join(os.getcwd(), "data", "uploads", filename)
-                                    if os.path.exists(alt_path):
-                                        resolved_img_path = alt_path
-                                    else:
-                                        alt_path2 = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "uploads", filename)
-                                        if os.path.exists(alt_path2):
-                                            resolved_img_path = alt_path2
+                                    # --- TOP: Robust Image Resolver ---
+                                    img_p = car.get('vehicle_img')
+                                    resolved_img_path = None
+                                    
+                                    if img_p:
+                                        if os.path.exists(img_p):
+                                            resolved_img_path = img_p
+                                        else:
+                                            filename = os.path.basename(img_p)
+                                            alt_path = os.path.join(os.getcwd(), "data", "uploads", filename)
+                                            if os.path.exists(alt_path):
+                                                resolved_img_path = alt_path
+                                            else:
+                                                alt_path2 = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "uploads", filename)
+                                                if os.path.exists(alt_path2):
+                                                    resolved_img_path = alt_path2
 
-                            if resolved_img_path:
-                                st.image(resolved_img_path, use_container_width=True)
-                            else:
-                                st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
+                                    if resolved_img_path:
+                                        st.image(resolved_img_path, use_container_width=True)
+                                    else:
+                                        st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
                                     
                                     # --- MIDDLE: Details ---
                                     base_rate = float(car.get('daily_rate') or car.get('approved_price') or 0.0)
                                     st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}", unsafe_allow_html=True)
                                     
-                                    # 📍 Display Actual Approximate Location & Host
                                     car_location = car.get('location', 'Metro Manila')
                                     owner_display = car.get('owner_name', 'Verified Affiliate')
                                     st.caption(f"📍 Base Area: **{car_location}** (Host: {owner_display})")
@@ -562,7 +559,7 @@ def main():
                                             clashes = requested_days.intersection(unavailable_dates)
                                             if clashes:
                                                 can_book = False
-                                                st.error(f" Vehicle booked on: {', '.join([d.strftime('%b %d') for d in sorted(list(clashes))])}")
+                                                st.error(f"⚠️ Vehicle booked on: {', '.join([d.strftime('%b %d') for d in sorted(list(clashes))])}")
 
                                             drive_mode = st.radio("Mode", ["Self-Drive", "With Driver (+₱1k/day)"], key=f"dm_{car['id']}_{cat}")
                                             dest = st.text_input("Destination", key=f"dest_{car['id']}_{cat}")
@@ -592,8 +589,8 @@ def main():
                                                     applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
                                                     platform_fee = discounted_subtotal * applied_renter_fee
                                                     
-                                                    # 🚚 TRUE LOGISTICAL DISTANCE & FEE CALCULATOR (DEADHEAD LOOP)
-                                                    HUB_LOCATION = "Kapitolyo, Pasig City"
+                                                    # 🚚 DYNAMIC VEHICLE-SPECIFIC HUB LOCATION
+                                                    hub_location = car.get('location', 'Kapitolyo, Pasig City')
 
                                                     def get_route_distance(origin, destination):
                                                         """Queries Google Routes API or provides fallback distance in km."""
@@ -621,16 +618,10 @@ def main():
                                                         except Exception:
                                                             return 11.0
 
-                                                    # 1. Outbound: Hub -> Pickup
-                                                    outbound_km = get_route_distance(HUB_LOCATION, p_exact)
-
-                                                    # 2. Inbound: Return -> Hub
-                                                    return_km = get_route_distance(r_exact, HUB_LOCATION)
-
-                                                    # 3. Total Driver Logistical Distance (Roundtrip loop)
+                                                    outbound_km = get_route_distance(hub_location, p_exact)
+                                                    return_km = get_route_distance(r_exact, hub_location)
                                                     total_logistics_km = outbound_km + return_km
 
-                                                    # 4. Pulls exact fee from Admin Matrix based on total km
                                                     delivery_fee = get_delivery_fee_for_renter(conn, total_logistics_km)
                                                     
                                                     grand_total = discounted_subtotal + platform_fee + driver_fee + delivery_fee
@@ -651,7 +642,6 @@ def main():
                                                     if "Driver" in drive_mode: 
                                                         rows.append(f"<tr><td style='color:#003399;'>Driver Fee</td><td style='text-align:right; color:#003399;'>+₱{driver_fee:,.2f}</td></tr>")
                                                         
-                                                    # Itemized Delivery Fee Row
                                                     rows.append(f"<tr><td style='color:#555;'>Delivery & Meetup Fee ({total_logistics_km} km total logistics tier)</td><td style='text-align:right; color:#555;'>+₱{delivery_fee:,.2f}</td></tr>")
                                                     
                                                     bill_html = f"<div class='bill-box'><table class='table-bill' style='width:100%;'>{''.join(rows)}<tr style='border-top:2px solid #000;'><td class='bill-label' style='font-weight:900;'>GRAND TOTAL</td><td style='text-align:right; font-weight:900; font-size:1.1em;'>₱{grand_total:,.2f}</td></tr></table></div>"
@@ -685,80 +675,84 @@ def main():
                                                     st.stop()
 
                                                 if dest and p_exact and r_exact and luzon_agree:
-                                                    with st.spinner("Securing your dates..."):
-                                                        b_ref = str(random.randint(100000, 999999))
-                                                        is_drvr_int = 1 if "Driver" in drive_mode else 0
-                                                        
-                                                        # --- XENDIT AUTOMATED FLOW ---
-                                                        if gateway_mode == "XENDIT":
-                                                            conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
-                                                                         (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"Pickup: {p_exact}", f"Return: {r_exact}", is_drvr_int, b_ref))
-                                                            conn.commit()
+                                                    # Self-booking safety check
+                                                    if car['owner_username'] == renter_user:
+                                                        st.error("⚠️ You cannot rent your own registered vehicle.")
+                                                    else:
+                                                        with st.spinner("Securing your dates..."):
+                                                            b_ref = str(random.randint(100000, 999999))
+                                                            is_drvr_int = 1 if "Driver" in drive_mode else 0
                                                             
-                                                            try:
-                                                                SECRET_KEY = os.environ.get("xendit_active_key")
-                                                                if not SECRET_KEY:
-                                                                    try: SECRET_KEY = st.secrets.get("xendit_active_key")
-                                                                    except: pass 
+                                                            # --- XENDIT AUTOMATED FLOW ---
+                                                            if gateway_mode == "XENDIT":
+                                                                conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
+                                                                           (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"Pickup: {p_exact}", f"Return: {r_exact}", is_drvr_int, b_ref))
+                                                                conn.commit()
                                                                 
-                                                                if not SECRET_KEY:
-                                                                    st.error("Missing API Key: Please add 'xendit_active_key' to your variables.")
-                                                                else:
-                                                                    owner_data = pd.read_sql_query("SELECT xendit_sub_id FROM platform_users WHERE username=?", conn, params=(car['owner_username'],))
-                                                                    sub_id = owner_data.iloc[0]['xendit_sub_id'] if not owner_data.empty else None
+                                                                try:
+                                                                    SECRET_KEY = os.environ.get("xendit_active_key")
+                                                                    if not SECRET_KEY:
+                                                                        try: SECRET_KEY = st.secrets.get("xendit_active_key")
+                                                                        except: pass 
                                                                     
-                                                                    pay_amount = int(grand_total)
-                                                                    platform_cut = int(platform_fee)
+                                                                    if not SECRET_KEY:
+                                                                        st.error("Missing API Key: Please add 'xendit_active_key' to your variables.")
+                                                                    else:
+                                                                        owner_data = pd.read_sql_query("SELECT xendit_sub_id FROM platform_users WHERE username=?", conn, params=(car['owner_username'],))
+                                                                        sub_id = owner_data.iloc[0]['xendit_sub_id'] if not owner_data.empty else None
+                                                                        
+                                                                        pay_amount = int(grand_total)
+                                                                        platform_cut = int(platform_fee)
+                                                                        
+                                                                        auth_string = f"{SECRET_KEY}:"
+                                                                        base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+                                                                        
+                                                                        url = "https://api.xendit.co/v2/invoices"
+                                                                        
+                                                                        payload = {
+                                                                            "external_id": str(b_ref),
+                                                                            "amount": pay_amount,
+                                                                            "currency": "PHP",
+                                                                            "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})",
+                                                                            "fees": [
+                                                                                {
+                                                                                    "type": "DriveElite Platform Commission",
+                                                                                    "value": platform_cut
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                        
+                                                                        req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'))
+                                                                        req.add_header('accept', 'application/json')
+                                                                        req.add_header('content-type', 'application/json')
+                                                                        req.add_header('authorization', f'Basic {base64_auth}')
+                                                                        
+                                                                        if sub_id:
+                                                                            req.add_header('for-user-id', sub_id)
+                                                                        
+                                                                        response = urllib.request.urlopen(req)
+                                                                        checkout_url = json.loads(response.read().decode('utf-8'))['invoice_url']
+                                                                        
+                                                                        st.session_state[f"pay_url_{car['id']}"] = checkout_url
+                                                                        st.session_state[ref_key] = b_ref
+                                                                        st.session_state[stage_key] = 2
+                                                                        st.rerun()
+                                                                        
+                                                                except urllib.error.HTTPError as e:
+                                                                    error_info = e.read().decode()
+                                                                    st.error(f"Xendit Rejected the Request: {error_info}")
+                                                                except Exception as e:
+                                                                    st.error(f"System Error generating link: {e}")
                                                                     
-                                                                    auth_string = f"{SECRET_KEY}:"
-                                                                    base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
-                                                                    
-                                                                    url = "https://api.xendit.co/v2/invoices"
-                                                                    
-                                                                    payload = {
-                                                                        "external_id": str(b_ref),
-                                                                        "amount": pay_amount,
-                                                                        "currency": "PHP",
-                                                                        "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})",
-                                                                        "fees": [
-                                                                            {
-                                                                                "type": "DriveElite Platform Commission",
-                                                                                "value": platform_cut
-                                                                            }
-                                                                        ]
-                                                                    }
-                                                                    
-                                                                    req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'))
-                                                                    req.add_header('accept', 'application/json')
-                                                                    req.add_header('content-type', 'application/json')
-                                                                    req.add_header('authorization', f'Basic {base64_auth}')
-                                                                    
-                                                                    if sub_id:
-                                                                        req.add_header('for-user-id', sub_id)
-                                                                    
-                                                                    response = urllib.request.urlopen(req)
-                                                                    checkout_url = json.loads(response.read().decode('utf-8'))['invoice_url']
-                                                                    
-                                                                    st.session_state[f"pay_url_{car['id']}"] = checkout_url
-                                                                    st.session_state[ref_key] = b_ref
-                                                                    st.session_state[stage_key] = 2
-                                                                    st.rerun()
-                                                                    
-                                                            except urllib.error.HTTPError as e:
-                                                                error_info = e.read().decode()
-                                                                st.error(f"Xendit Rejected the Request: {error_info}")
-                                                            except Exception as e:
-                                                                st.error(f"System Error generating link: {e}")
-                                                            
-                                                        # --- MANUAL BPI FLOW (FALLBACK) ---
-                                                        else:
-                                                            conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
-                                                                         (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"Pickup: {p_exact}", f"Return: {r_exact}", is_drvr_int, b_ref))
-                                                            conn.commit()
-                                                            
-                                                            st.session_state[stage_key] = 1
-                                                            st.session_state[ref_key] = b_ref
-                                                            st.rerun()
+                                                            # --- MANUAL BPI FLOW (FALLBACK) ---
+                                                            else:
+                                                                conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
+                                                                           (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"Pickup: {p_exact}", f"Return: {r_exact}", is_drvr_int, b_ref))
+                                                                conn.commit()
+                                                                
+                                                                st.session_state[stage_key] = 1
+                                                                st.session_state[ref_key] = b_ref
+                                                                st.rerun()
                                                 else:
                                                     st.error("⚠️ ACTION REQUIRED: Please fill in your Destination, Specific Pickup/Return Addresses, and check the Luzon Travel Agreement box before confirming.")
 
@@ -882,7 +876,7 @@ def main():
                                                 st.session_state[stage_key] = 0
                                                 del st.session_state[ref_key]
                                                 st.session_state.just_booked_ref = b_ref 
-                                                st.rerun()
+                                                st.rerun())
 
     # ==========================================
     # 📅 MY BOOKINGS (MAIN TAB 1)
