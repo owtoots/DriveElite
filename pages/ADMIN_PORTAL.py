@@ -638,50 +638,78 @@ Pasig City, Metro Manila, Philippines
                         st.rerun()
             else: st.info("No documents archived yet.")
 
-    # --- TAB 5: PROMOS & DB HOUSEKEEPING ---
+    # --- TAB 5: PROMOS & DB & USER HOUSEKEEPING ---
     with tabs[5]:
         render_platform_settings(conn)
         st.divider()
         render_admin_discount_table(conn)
         
         st.divider()
-        st.markdown("<h3 style='text-align: center; color: #ef4444;'>🧹 Database Housekeeping & Testing Cleanup</h3>", unsafe_allow_html=True)
-        
-        with st.container(border=True):
-            st.write("#### 🗑️ Selective Test Data Cleanup")
-            st.caption("Safely purge dummy accounts, test vehicles, or trial bookings matching 'test' without destroying production records.")
-            
-            clean_target = st.selectbox(
-                "Select Target to Purge:", 
-                ["Test Users (Renters/Affiliates matching 'test')", "Test Vehicles", "Pending/Unpaid Test Bookings"]
-            )
-            
-            if st.button("Execute Selective Cleanup", type="secondary"):
-                try:
-                    if clean_target == "Test Users (Renters/Affiliates matching 'test')":
-                        cursor = conn.execute("DELETE FROM platform_users WHERE username LIKE '%test%' OR email LIKE '%test%'")
-                        conn.commit()
-                        st.success(f"Purged test user accounts successfully.")
-                    elif clean_target == "Test Vehicles":
-                        cursor = conn.execute("DELETE FROM vehicles WHERE make LIKE '%test%' OR plate LIKE '%TEST%'")
-                        conn.commit()
-                        st.success(f"Purged test vehicle records successfully.")
-                    elif clean_target == "Pending/Unpaid Test Bookings":
-                        cursor = conn.execute("DELETE FROM bookings WHERE status = 'PENDING'")
-                        conn.commit()
-                        st.success("Purged all pending/unpaid test bookings.")
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Cleanup error: {e}")
+        st.markdown("<h3 style='text-align: center; color: #ef4444;'>👥 Master User Directory & Selective Deletion</h3>", unsafe_allow_html=True)
+        st.caption("Review registered renters and affiliates below. Each account shows its specific name, role, and a delete button at the end of the row.")
 
-        st.write("")
+        try:
+            # Fetch all non-admin users
+            users_df = pd.read_sql_query("""
+                SELECT id, username, full_name, role, admin_status, email, contact_number 
+                FROM platform_users 
+                WHERE role != 'ADMIN' 
+                ORDER BY id DESC
+            """, conn)
+
+            if users_df.empty:
+                st.info("No registered renters or affiliates found in the database.")
+            else:
+                # Filter toggle for convenience
+                filter_role = st.radio("Filter Directory by Role:", ["All", "RENTER", "AFFILIATE"], horizontal=True)
+                
+                filtered_df = users_df if filter_role == "All" else users_df[users_df['role'] == filter_role]
+                
+                if filtered_df.empty:
+                    st.info(f"No accounts found for role: {filter_role}")
+                else:
+                    for _, u in filtered_df.iterrows():
+                        status_badge = "🟢 APPROVED" if u['admin_status'] == 'APPROVED' else "⏳ PENDING"
+                        
+                        with st.container(border=True):
+                            # Clean horizontal columns: Name | Role & Status | Contact Info | Delete Button at the end
+                            c_name, c_role, c_contact, c_btn = st.columns([3, 2, 3, 1.5])
+                            
+                            with c_name:
+                                st.markdown(f"**{u['full_name']}**")
+                                st.caption(f"Username: `@{u['username']}`")
+                                
+                            with c_role:
+                                st.markdown(f"**{u['role']}**")
+                                st.caption(status_badge)
+                                
+                            with c_contact:
+                                st.markdown(f"📧 {u['email'] or 'N/A'}")
+                                st.caption(f"📱 {u['contact_number'] or 'N/A'}")
+                                
+                            with c_btn:
+                                st.write("") # Spacing alignment
+                                if st.button("🗑️ Delete", key=f"del_user_{u['id']}", type="secondary", use_container_width=True):
+                                    try:
+                                        conn.execute("DELETE FROM platform_users WHERE id = ?", (u['id'],))
+                                        conn.commit()
+                                        st.success(f"Deleted @{u['username']} successfully.")
+                                        time.sleep(0.8)
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Failed to delete: {e}")
+                                        
+        except Exception as e:
+            st.warning(f"Error loading user directory: {e}")
+
+        st.divider()
         
+        # ☢️ Nuclear Reset Option (Gated)
         with st.container(border=True):
             st.markdown("<h4 style='color: #ef4444;'>☢️ Nuclear Database Reset (Danger Zone)</h4>", unsafe_allow_html=True)
-            st.warning("⚠️ **Warning:** This will clear all transactions, active bookings, vehicles, and non-admin users. Your master admin account (`masterom`) will be preserved.")
+            st.warning("⚠️ **Warning:** This will clear all transactions, active bookings, vehicles, and non-admin users at once.")
             
-            confirm_key = st.text_input("Type 'WIPE ALL DATA' below to unlock the nuclear reset button:")
+            confirm_key = st.text_input("Type 'WIPE ALL DATA' below to unlock the nuclear reset button:", key="nuclear_wipe_input")
             
             if confirm_key == "WIPE ALL DATA":
                 if st.button("🚨 EXECUTE FULL NUCLEAR RESET", type="primary"):
@@ -694,7 +722,7 @@ Pasig City, Metro Manila, Philippines
                         conn.execute("DELETE FROM platform_users WHERE role != 'ADMIN'")
                         conn.commit()
                         
-                        st.success("💥 Nuclear reset complete! All test data and transactional records have been wiped clean.")
+                        st.success("💥 Nuclear reset complete! All test data and records wiped clean.")
                         time.sleep(2)
                         st.rerun()
                     except Exception as e:
