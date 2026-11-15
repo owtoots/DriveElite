@@ -589,7 +589,8 @@ def main():
                                                     applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
                                                     platform_fee = discounted_subtotal * applied_renter_fee
                                                     
-                                                    # 🚚 DYNAMIC VEHICLE-SPECIFIC HUB LOCATION
+                                                   
+                                                    # 🚚 PER-LEG LOGISTICAL DISTANCE & FEE CALCULATOR
                                                     hub_location = car.get('location', 'Kapitolyo, Pasig City')
 
                                                     def get_route_distance(origin, destination):
@@ -618,13 +619,18 @@ def main():
                                                         except Exception:
                                                             return 11.0
 
+                                                    # Leg 1: Hub -> Pickup Address
                                                     outbound_km = get_route_distance(hub_location, p_exact)
-                                                    return_km = get_route_distance(r_exact, hub_location)
-                                                    total_logistics_km = outbound_km + return_km
+                                                    delivery_fee = get_delivery_fee_for_renter(conn, outbound_km)
 
-                                                    delivery_fee = get_delivery_fee_for_renter(conn, total_logistics_km)
+                                                    # Leg 2: Return Address -> Hub
+                                                    return_km = get_route_distance(r_exact, hub_location)
+                                                    return_fee = get_delivery_fee_for_renter(conn, return_km)
+
+                                                    # Total Logistics Fees
+                                                    total_logistics_fee = delivery_fee + return_fee
                                                     
-                                                    grand_total = discounted_subtotal + platform_fee + driver_fee + delivery_fee
+                                                    grand_total = discounted_subtotal + platform_fee + driver_fee + total_logistics_fee
 
                                                     st.markdown("#### 🧾 Cost Breakdown")
                                                     plural = "day" if full_days == 1 else "days"
@@ -642,7 +648,9 @@ def main():
                                                     if "Driver" in drive_mode: 
                                                         rows.append(f"<tr><td style='color:#003399;'>Driver Fee</td><td style='text-align:right; color:#003399;'>+₱{driver_fee:,.2f}</td></tr>")
                                                         
-                                                    rows.append(f"<tr><td style='color:#555;'>Delivery & Meetup Fee ({total_logistics_km} km total logistics tier)</td><td style='text-align:right; color:#555;'>+₱{delivery_fee:,.2f}</td></tr>")
+                                                    # Itemized Per-Leg Fees
+                                                    rows.append(f"<tr><td style='color:#555;'>Delivery Fee (Hub to Pickup: {outbound_km} km)</td><td style='text-align:right; color:#555;'>+₱{delivery_fee:,.2f}</td></tr>")
+                                                    rows.append(f"<tr><td style='color:#555;'>Return Fee (Dropoff to Hub: {return_km} km)</td><td style='text-align:right; color:#555;'>+₱{return_fee:,.2f}</td></tr>")
                                                     
                                                     bill_html = f"<div class='bill-box'><table class='table-bill' style='width:100%;'>{''.join(rows)}<tr style='border-top:2px solid #000;'><td class='bill-label' style='font-weight:900;'>GRAND TOTAL</td><td style='text-align:right; font-weight:900; font-size:1.1em;'>₱{grand_total:,.2f}</td></tr></table></div>"
                                                     
