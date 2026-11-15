@@ -177,28 +177,29 @@ def main():
     # 4. CONFIGURATION & DATABASE INITIALIZATION
     # ==========================================
     def init_delivery_pricing_table(conn):
-    try:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS delivery_pricing (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                tier_name TEXT,
-                max_km REAL,
-                fee REAL
-            )
-        """)
-        # Insert default tiers if empty
-        cursor = conn.execute("SELECT COUNT(*) FROM delivery_pricing")
-        if cursor.fetchone()[0] == 0:
-            default_tiers = [
-                ("Tier 1 (Within 1 km)", 1.0, 0.0),
-                ("Tier 2 (Up to 5 km)", 5.0, 200.0),
-                ("Tier 3 (Up to 10 km)", 10.0, 400.0),
-                ("Tier 4 (Up to 15 km - Max)", 15.0, 700.0)
-            ]
-            conn.executemany("INSERT INTO delivery_pricing (tier_name, max_km, fee) VALUES (?, ?, ?)", default_tiers)
-            conn.commit()
-    except Exception as e:
-        print(f"Error initializing delivery pricing: {e}")
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS delivery_pricing (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tier_name TEXT,
+                    max_km REAL,
+                    fee REAL
+                )
+            """)
+            # Insert default tiers if empty
+            cursor = conn.execute("SELECT COUNT(*) FROM delivery_pricing")
+            if cursor.fetchone()[0] == 0:
+                default_tiers = [
+                    ("Tier 1 (Within 1 km)", 1.0, 0.0),
+                    ("Tier 2 (Up to 5 km)", 5.0, 200.0),
+                    ("Tier 3 (Up to 10 km)", 10.0, 400.0),
+                    ("Tier 4 (Up to 15 km - Max)", 15.0, 700.0)
+                ]
+                conn.executemany("INSERT INTO delivery_pricing (tier_name, max_km, fee) VALUES (?, ?, ?)", default_tiers)
+                conn.commit()
+        except Exception as e:
+            print(f"Error initializing delivery pricing: {e}")
+
     def get_secret(key, default_val=None):
         val = os.environ.get(key)
         if val: return val
@@ -214,6 +215,7 @@ def main():
     init_db()
     patch_database()
     init_discount_db(conn)
+    init_delivery_pricing_table(conn)  # Ensure table and defaults are initialized
 
     # Database Schema Updates
     for col_query in [
@@ -223,8 +225,11 @@ def main():
         "ALTER TABLE platform_users ADD COLUMN penalty_balance REAL DEFAULT 0.0",
         "ALTER TABLE platform_settings ADD COLUMN payment_mode TEXT DEFAULT 'MANUAL_QR'"
     ]:
-        try: conn.execute(col_query); conn.commit()
-        except: pass
+        try: 
+            conn.execute(col_query)
+            conn.commit()
+        except: 
+            passs
 
     # ==========================================
     # 5. UTILITY & EMAIL FUNCTIONS
