@@ -594,42 +594,42 @@ def main():
                                                     hub_location = car.get('location', 'Kapitolyo, Pasig City')
 
                                                     def get_route_distance(origin, destination):
-        """Queries Google Routes API with error reporting for troubleshooting."""
-        try:
-            api_key = os.environ.get("GOOGLE_MAPS_API_KEY") or st.secrets.get("google_maps_api_key")
-            if not api_key:
-                st.warning("⚠️ Google Maps API Key not found in environment or secrets.")
-                return 11.0
+                                                        """Queries Google Routes API with error reporting for troubleshooting."""
+                                                        try:
+                                                            api_key = os.environ.get("GOOGLE_MAPS_API_KEY") or st.secrets.get("google_maps_api_key")
+                                                            if not api_key:
+                                                                st.warning("⚠️ Google Maps API Key not found in environment or secrets.")
+                                                                return 11.0
                 
-            url = "https://routes.googleapis.com/directions/v2:computeRoutes"
-            headers = {
-                "Content-Type": "application/json",
-                "X-Goog-Api-Key": api_key,
-                "X-Goog-FieldMask": "routes.distanceMeters"
-            }
-            payload = {
-                "origin": {"address": origin},
-                "destination": {"address": destination},
-                "travelMode": "DRIVE"
-            }
-            req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers)
-            response = urllib.request.urlopen(req)
-            data = json.loads(response.read().decode('utf-8'))
+                                                            url = "https://routes.googleapis.com/directions/v2:computeRoutes"
+                                                            headers = {
+                                                                "Content-Type": "application/json",
+                                                                "X-Goog-Api-Key": api_key,
+                                                                "X-Goog-FieldMask": "routes.distanceMeters"
+                                                            }
+                                                            payload = {
+                                                                "origin": {"address": origin},
+                                                                "destination": {"address": destination},
+                                                                "travelMode": "DRIVE"
+                                                            }
+                                                            req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers)
+                                                            response = urllib.request.urlopen(req)
+                                                            data = json.loads(response.read().decode('utf-8'))
             
-            if 'routes' not in data or not data['routes']:
-                st.error(f"Google Maps API Response Error: {data}")
-                return 11.0
+                                                            if 'routes' not in data or not data['routes']:
+                                                                st.error(f"Google Maps API Response Error: {data}")
+                                                                return 11.0
                 
-            meters = data['routes'][0]['distanceMeters']
-            return round(meters / 1000.0, 1)
+                                                                meters = data['routes'][0]['distanceMeters']
+                                                                return round(meters / 1000.0, 1)
             
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode()
-            st.error(f"🗺️ Google Maps HTTP Error ({e.code}): {error_body}")
-            return 11.0
-        except Exception as e:
-            st.error(f"🗺️ Maps Routing Exception: {e}")
-            return 11.0
+                                                            except urllib.error.HTTPError as e:
+                                                                error_body = e.read().decode()
+                                                                st.error(f"🗺️ Google Maps HTTP Error ({e.code}): {error_body}")
+                                                                return 11.0
+                                                            except Exception as e:
+                                                                st.error(f"🗺️ Maps Routing Exception: {e}")
+                                                                return 11.0
 
                                                     # Leg 1: Hub -> Pickup Address
                                                     outbound_km = get_route_distance(hub_location, p_exact)
