@@ -3,7 +3,7 @@ import os
 import urllib.parse
 import urllib.request
 import smtplib
-import json  # <-- ADD THIS LINE
+import json 
 import streamlit as st
 from email.message import EmailMessage
 
@@ -37,7 +37,6 @@ def send_alert_email(to_email, subject, body):
     try:
         clean_email = to_email.strip() if to_email else ""
         
-        # Looking exactly for the vault you created in Render!
         api_key = os.environ.get("BREVO_RENDER", "").strip()
 
         url = "https://api.brevo.com/v3/smtp/email"
@@ -61,6 +60,34 @@ def send_alert_email(to_email, subject, body):
         print(f"Alert Email Error: {e}")
         return False
 
+# --- 2.1 AFFILIATE APPROVAL EMAIL UTILITY ---
+def send_approval_email(to_email, subject, body):
+    """Sends affiliate approval notifications using Brevo's REST API over HTTPS."""
+    try:
+        clean_email = to_email.strip() if to_email else ""
+        api_key = os.environ.get("BREVO_RENDER", "").strip()
+
+        url = "https://api.brevo.com/v3/smtp/email"
+        payload = {
+            "sender": {"name": "DriveElite Admin", "email": "contact@driveelite.ph"},
+            "to": [{"email": clean_email}],
+            "subject": subject,
+            "textContent": body
+        }
+        
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(url, data=data, headers={
+            'api-key': api_key,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        })
+        
+        urllib.request.urlopen(req)
+        return True
+    except Exception as e:
+        print(f"Approval Email Error: {e}")
+        return False
+
 # --- 3. CENTRALIZED OTP DISPATCHER ---
 def send_otp(contact_number, email_address, otp_code, method="EMAIL"):
     """Sends a clean OTP using Brevo's REST API over HTTPS."""
@@ -71,7 +98,6 @@ def send_otp(contact_number, email_address, otp_code, method="EMAIL"):
     try:
         clean_email = email_address.strip() if email_address else ""
         
-        # Looking exactly for the vault you created in Render!
         api_key = os.environ.get("BREVO_RENDER", "").strip() 
         
         body = f"Hello,\n\nYour DriveElite registration verification code is:\n{otp_code}\n\nPlease enter this 6-digit code on the registration screen to verify your account.\n\nDrive safely,\nThe DriveElite Team"
@@ -97,6 +123,7 @@ def send_otp(contact_number, email_address, otp_code, method="EMAIL"):
     except Exception as e:
         st.error(f"🔍 API SYSTEM ERROR: {e}")
         return False
+
 # --- 4. DATABASE STRUCTURE ---
 def init_db():
     """Initializes all required tables for DriveElite V2."""
