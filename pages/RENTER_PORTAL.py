@@ -323,14 +323,12 @@ def main():
         with st.form("login_renter"):
             u, p = st.text_input("Username"), st.text_input("Password", type="password")
             if st.form_submit_button("LOGIN TO SHOWROOM", use_container_width=True):
-                # To this (allows any approved user to access the showroom):
-user = pd.read_sql_query("SELECT * FROM platform_users WHERE username=? AND password=? AND admin_status='APPROVED'", conn, params=(u, p))
+                user = pd.read_sql_query("SELECT * FROM platform_users WHERE username=? AND password=? AND admin_status='APPROVED'", conn, params=(u, p))
                 if not user.empty:
-                    if user.iloc[0]['admin_status'] == 'APPROVED':
-                        st.session_state.logged_in, st.session_state.username, st.session_state.role = True, u, 'RENTER'
-                        st.rerun()
-                    else: st.warning("⏳ Your account is pending Admin approval.")
-                else: st.error("❌ Invalid credentials.")
+                    st.session_state.logged_in, st.session_state.username, st.session_state.role = True, u, 'RENTER'
+                    st.rerun()
+                else: 
+                    st.error("❌ Invalid credentials or account pending Admin approval.")
         st.stop()
 
     renter_user = st.session_state.username
