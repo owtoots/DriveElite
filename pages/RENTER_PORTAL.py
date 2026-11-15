@@ -552,78 +552,79 @@ def main():
                                             
                                             # 🚚 EXACT ADDRESS INPUTS (Zones Removed)
                                             p_exact = st.text_input("Specific Pickup Address", placeholder="e.g., NAIA Terminal 3 (Arrivals Bay 8), Shangri-La BGC Lobby", key=f"pa_{car['id']}_{cat}")
-                                            r_exact = st.text_input("Specific Return Address", placeholder="e.g., SM Megamall Fashion Hall, 123 Pearl Dr. Ortigas", key=f"ra_{car['id']}_{cat}")
+                        r_exact = st.text_input("Specific Return Address", placeholder="e.g., SM Megamall Fashion Hall, 123 Pearl Dr. Ortigas", key=f"ra_{car['id']}_{cat}")
 
-                                            p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
+                        p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
                         
-                                            if r_dt_obj <= p_dt_obj: 
-                                                st.error("⚠️ Return time must be after pickup.")
-                                                can_book = False
-                                            else:
-                                                try:
-                                                    full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
-                                                    driver_fee = (full_days + (1 if billed_hrs > 0 else 0)) * 1000.0 if "Driver" in drive_mode else 0.0
+                        if r_dt_obj <= p_dt_obj: 
+                            st.error("⚠️ Return time must be after pickup.")
+                            can_book = False
+                        else:
+                            try:
+                                full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
+                                driver_fee = (full_days + (1 if billed_hrs > 0 else 0)) * 1000.0 if "Driver" in drive_mode else 0.0
                                 
-                                                    try:
-                                                        tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
-                                                        discount_pct = next((float(r['discount_pct']) for _, r in tiers_df.iterrows() if full_days >= r['min_days']), 0.0)
-                                                    except: discount_pct = 0.0
+                                try:
+                                    tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
+                                    discount_pct = next((float(r['discount_pct']) for _, r in tiers_df.iterrows() if full_days >= r['min_days']), 0.0)
+                                except: 
+                                    discount_pct = 0.0
 
-                                                    savings = subtotal * discount_pct
-                                                    discounted_subtotal = subtotal - savings
+                                savings = subtotal * discount_pct
+                                discounted_subtotal = subtotal - savings
                                 
-                                                    applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
-                                                    platform_fee = discounted_subtotal * applied_renter_fee
+                                applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
+                                platform_fee = discounted_subtotal * applied_renter_fee
                                 
-                                                    # 🚚 TRUE LOGISTICAL DISTANCE & FEE CALCULATOR
-                                                    HUB_LOCATION = "Kapitolyo, Pasig City"
+                                # 🚚 TRUE LOGISTICAL DISTANCE & FEE CALCULATOR
+                                HUB_LOCATION = "Kapitolyo, Pasig City"
 
-                                                    def get_route_distance(origin, destination):
-                                                        """Queries Google Routes API or provides fallback distance in km."""
-                                                        try:
-                                                            api_key = os.environ.get("GOOGLE_MAPS_API_KEY") or st.secrets.get("google_maps_api_key")
-                                                            if not api_key:
-                                                                raise ValueError("No API key")
+                                def get_route_distance(origin, destination):
+                                    """Queries Google Routes API or provides fallback distance in km."""
+                                    try:
+                                        api_key = os.environ.get("GOOGLE_MAPS_API_KEY") or st.secrets.get("google_maps_api_key")
+                                        if not api_key:
+                                            raise ValueError("No API key")
                                             
-                                                            url = "https://routes.googleapis.com/directions/v2:computeRoutes"
-                                                            headers = {
-                                                                "Content-Type": "application/json",
-                                                                "X-Goog-Api-Key": api_key,
-                                                                "X-Goog-FieldMask": "routes.distanceMeters"
-                                                            }
-                                                            payload = {
-                                                                "origin": {"address": origin},
-                                                                "destination": {"address": destination},
-                                                                "travelMode": "DRIVE"
-                                                            }
-                                                            req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers)
-                                                            response = urllib.request.urlopen(req)
-                                                            data = json.loads(response.read().decode('utf-8'))
-                                                            meters = data['routes'][0]['distanceMeters']
-                                                            return round(meters / 1000.0, 1)
-                                                        except Exception:
-                                                            return 11.0 # Fallback conservative estimate
+                                        url = "https://routes.googleapis.com/directions/v2:computeRoutes"
+                                        headers = {
+                                            "Content-Type": "application/json",
+                                            "X-Goog-Api-Key": api_key,
+                                            "X-Goog-FieldMask": "routes.distanceMeters"
+                                        }
+                                        payload = {
+                                            "origin": {"address": origin},
+                                            "destination": {"address": destination},
+                                            "travelMode": "DRIVE"
+                                        }
+                                        req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers)
+                                        response = urllib.request.urlopen(req)
+                                        data = json.loads(response.read().decode('utf-8'))
+                                        meters = data['routes'][0]['distanceMeters']
+                                        return round(meters / 1000.0, 1)
+                                    except Exception:
+                                        return 11.0 # Fallback conservative estimate
 
-                                                    # 1. Calculate Outbound: Hub -> Pickup Address
-                                                    outbound_km = get_route_distance(HUB_LOCATION, p_exact)
+                                # 1. Calculate Outbound: Hub -> Pickup Address
+                                outbound_km = get_route_distance(HUB_LOCATION, p_exact)
 
-                                                    # 2. Calculate Inbound: Return Address -> Hub
-                                                    return_km = get_route_distance(r_exact, HUB_LOCATION)
+                                # 2. Calculate Inbound: Return Address -> Hub
+                                return_km = get_route_distance(r_exact, HUB_LOCATION)
 
-                                                    # 3. Total Driver Logistical Distance (Roundtrip deadhead loop)
-                                                    total_logistics_km = outbound_km + return_km
+                                # 3. Total Driver Logistical Distance (Roundtrip deadhead loop)
+                                total_logistics_km = outbound_km + return_km
 
-                                                    # 4. Pulls exact fee from Admin Matrix based on total km
-                                                    delivery_fee = get_delivery_fee_for_renter(conn, total_logistics_km)
+                                # 4. Pulls exact fee from Admin Matrix based on total km
+                                delivery_fee = get_delivery_fee_for_renter(conn, total_logistics_km)
                                 
-                                                    grand_total = discounted_subtotal + platform_fee + driver_fee + delivery_fee
+                                grand_total = discounted_subtotal + platform_fee + driver_fee + delivery_fee
 
-                                                    st.markdown("#### 🧾 Cost Breakdown")
-                                                    plural = "day" if full_days == 1 else "days"
+                                st.markdown("#### 🧾 Cost Breakdown")
+                                plural = "day" if full_days == 1 else "days"
                                 
-                                                    rows = [f"<tr><td class='bill-label'>Base Rental (₱{base_rate:,.2f} x {full_days} {plural})</td><td style='text-align:right; font-weight:bold;'>₱{base_cost:,.2f}</td></tr>"]
+                                rows = [f"<tr><td class='bill-label'>Base Rental (₱{base_rate:,.2f} x {full_days} {plural})</td><td style='text-align:right; font-weight:bold;'>₱{base_cost:,.2f}</td></tr>"]
                                 
-                                                    if billed_hrs > 0: 
+                                if billed_hrs > 0: 
                                     rows.append(f"<tr><td style='color:#d35400;'>Hourly Extension</td><td style='text-align:right; color:#d35400;'>+₱{ext_fee:,.2f}</td></tr>")
                                 
                                 if savings > 0: 
