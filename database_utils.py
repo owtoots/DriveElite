@@ -150,7 +150,7 @@ def init_db():
         conn.commit()
 
     conn.commit()
-    conn.close())
+    conn.close()
 
 # --- 5. EXECUTION GUARD ---
 if __name__ == "__main__":
