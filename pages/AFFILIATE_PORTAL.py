@@ -26,7 +26,6 @@ def main():
     st.set_page_config(page_title="DriveElite Affiliate", layout="wide")
 
     try:
-        # 🚨 Fixed width to make it smaller
         st.sidebar.image("logo.png", width=140)
     except:
         pass
@@ -179,7 +178,7 @@ def main():
         except: pass
         try: conn.execute("ALTER TABLE vehicles ADD COLUMN baseline_price REAL DEFAULT 0.0"); conn.commit()
         except: pass
-        try: conn.execute("ALTER TABLE vehicles ADD COLUMN vehicle_age INTEGER DEFAULT 0"); conn.commit()   
+        try: conn.execute("ALTER TABLE vehicles ADD COLUMN vehicle_age INTEGER DEFAULT 0"); conn.commit()    
         except: pass
         try: conn.execute("ALTER TABLE vehicles ADD COLUMN is_with_driver INTEGER DEFAULT 0"); conn.commit()  
         except: pass
@@ -415,7 +414,6 @@ def main():
         
         pdf_out = pdf.output(dest="S")
         return pdf_out.encode('latin-1') if isinstance(pdf_out, str) else bytes(pdf_out)
-
 
     def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, damage, late, ot_fee, rfid_fee, total_deduct, refund, sig_ret, sig_reta, is_with_driver=False, driver_name=""):
         def safe_text(val):
@@ -744,9 +742,9 @@ def main():
                                                     c_img, c_space = st.columns([1, 2])
                                                     with c_img: st.image(m['image_path'], use_container_width=True)
 
-                                        st.markdown(f'<div id="chat_anchor_{b_ref_str}" style="height: 1px; margin-top: 10px;"></div>', unsafe_allow_html=True)
-                                        except: 
-                                            st.error("Could not load chat history.")
+                                    st.markdown(f'<div id="chat_anchor_{b_ref_str}" style="height: 1px; margin-top: 10px;"></div>', unsafe_allow_html=True)
+                                except: 
+                                    st.error("Could not load chat history.")
 
                             # --- BULLETPROOF CHAT INPUT ---
                             input_key = f"chat_input_{b_ref_str}"
@@ -816,7 +814,7 @@ def main():
 
                                         st.divider()
                                         st.write("### 🖋️ 3. Dual Digital Signatures")
-                                    
+                                        
                                         # --- Renter Handover Signature ---
                                         st.markdown(f"<u><b>{b['renter_name']}</b></u><br><small>Renter Signature</small>", unsafe_allow_html=True)
                                         if f"clr_sr_{b['id']}" not in st.session_state: 
@@ -1072,7 +1070,7 @@ def main():
                                                     aff_data = pd.read_sql_query("SELECT email FROM platform_users WHERE username=?", conn, params=(st.session_state.username,))
                                                     aff_email = aff_data.iloc[0]['email'] if not aff_data.empty else None
                                                     
-                                                    if b.get('renter_email'):
+                                                    if b['renter_email']:
                                                         r_subject = f"DriveElite: Return Settlement Receipt (#{b['booking_ref']})"
                                                         r_body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: Php{total_deduct:,.2f}\nRefund Amount: Php{refund_amount:,.2f}"
                                                         r_sent, r_err = send_pdf_email(b['renter_email'], r_subject, r_body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
@@ -1174,10 +1172,8 @@ def main():
                     cr_path = save_file(or_cr_files[1]) if len(or_cr_files) > 1 else or_path
                     ins_path = save_file(ins)
                     
-                    # Combine Barangay and City into a clean uniform format
                     combined_location = f"Brgy. {garage_brgy.strip().title()}, {garage_city.strip().title()}"
                     
-                    # Ensure table has location column
                     try:
                         conn.execute("ALTER TABLE vehicles ADD COLUMN location TEXT DEFAULT 'Metro Manila'")
                         conn.commit()
