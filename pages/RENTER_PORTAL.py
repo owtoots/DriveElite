@@ -179,8 +179,8 @@ def main():
     def patch_database_tables():
         try: conn.execute("CREATE TABLE IF NOT EXISTS admin_promos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, target TEXT DEFAULT 'ALL USERS', active INTEGER DEFAULT 1)"); conn.commit()
         except: pass
-        try: conn.execute("ALTER TABLE bookings ADD COLUMN receipt_img BLOB"); conn.commit()
-        except: pass
+        try: conn.execute("ALTER TABLE vehicles ADD COLUMN location TEXT DEFAULT 'Metro Manila'"); conn.commit()
+    except: pass
         try:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS chat_messages (
@@ -381,8 +381,12 @@ def main():
     with main_tabs[0]:
         st.header("🚘 Available Fleet")
 
-        available_cars = pd.read_sql_query("SELECT * FROM vehicles WHERE admin_status = 'APPROVED' AND booking_status = 'AVAILABLE'", conn)
-
+        available_cars = pd.read_sql_query("""
+            SELECT v.*, u.full_name as owner_name 
+            FROM vehicles v 
+            JOIN platform_users u ON v.owner_username = u.username 
+            WHERE v.admin_status = 'APPROVED' AND v.booking_status = 'AVAILABLE'
+        """, conn)
         if available_cars.empty:
             st.info("Our fleet is currently fully booked. Please check back later!")
         else:
@@ -424,6 +428,11 @@ def main():
                                     # --- MIDDLE: Details ---
                                     base_rate = float(car.get('daily_rate') or car.get('approved_price') or 0.0)
                                     st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}", unsafe_allow_html=True)
+                                    
+                                    # 📍 Display Actual Approximate Location & Host
+                                    car_location = car.get('location', 'Metro Manila')
+                                    owner_display = car.get('owner_name', 'Verified Affiliate')
+                                    st.caption(f"📍 Base Area: **{car_location}** (Host: {owner_display})")
                                     
                                     # --- CLICKABLE REPUTATION CARD ---
                                     rating_data = conn.execute("""
