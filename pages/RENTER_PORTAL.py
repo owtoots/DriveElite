@@ -3,8 +3,8 @@ import pandas as pd
 import datetime
 import time
 import random
-import os  # <--- Make sure this is here!
-import sys # <--- Make sure this is here!
+import os
+import sys
 import smtplib
 import math
 import urllib.request
@@ -220,28 +220,6 @@ def main():
     # 4. UTILITIES & HELPERS
     # ==========================================
     if "temp_msg_renter" not in st.session_state: st.session_state.temp_msg_renter = ""
-
-    def calculate_true_delivery_fee(hub_coords, pickup_coords, return_coords):
-  # 1. Distance from base hub to where the customer picks up the car
-  outbound_distance_km = get_route_distance(hub_coords, pickup_coords)
-
-  # 2. Distance from where the customer drops off the car back to the base hub
-  return_distance_km = get_route_distance(return_coords, hub_coords)
-
-  # 3. Sum total logistical mileage for your delivery team
-  total_logistics_km = outbound_distance_km + return_distance_km
-
-  # 4. Apply your tier logic based on total logistical km
-  if total_logistics_km <= 10:
-    fee = 600
-  elif total_logistics_km <= 20:
-    fee = 1000
-  elif total_logistics_km <= 30:
-    fee = 1400  # <--- Manila Hotel + MOA split run should land around here (~22km)
-  else:
-    fee = 1800 + ((total_logistics_km - 30) * 50)
-
-  return fee, total_logistics_km
 
     def get_booked_dates(vehicle_id, conn):
         """Finds all dates a specific vehicle is already booked."""
@@ -550,187 +528,100 @@ def main():
                                             dest = st.text_input("Destination", key=f"dest_{car['id']}_{cat}")
                                             luzon_agree = st.checkbox("I agree to LUZON ONLY travel.", key=f"luzon_{car['id']}_{cat}")
                                             
-                                            # 🚚 EXACT ADDRESS INPUTS (Zones Removed)
-                                            p_exact = st.text_input("Specific Pickup Address", placeholder="e.g., NAIA Terminal 3 (Arrivals Bay 8), Shangri-La BGC Lobby", key=f"pa_{car['id']}_{cat}")
-                        r_exact = st.text_input("Specific Return Address", placeholder="e.g., SM Megamall Fashion Hall, 123 Pearl Dr. Ortigas", key=f"ra_{car['id']}_{cat}")
+                                            # 🚚 EXACT ADDRESS INPUTS
+                                            p_exact = st.text_input("Specific Pickup Address", placeholder="e.g., Manila Hotel Lobby, NAIA Terminal 3", key=f"pa_{car['id']}_{cat}")
+                                            r_exact = st.text_input("Specific Return Address", placeholder="e.g., SM Mall of Asia Entrance", key=f"ra_{car['id']}_{cat}")
 
-                        p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
-                        
-                        if r_dt_obj <= p_dt_obj: 
-                            st.error("⚠️ Return time must be after pickup.")
-                            can_book = False
-                        else:
-                            try:
-                                full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
-                                driver_fee = (full_days + (1 if billed_hrs > 0 else 0)) * 1000.0 if "Driver" in drive_mode else 0.0
-                                
-                                try:
-                                    tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
-                                    discount_pct = next((float(r['discount_pct']) for _, r in tiers_df.iterrows() if full_days >= r['min_days']), 0.0)
-                                except: 
-                                    discount_pct = 0.0
+                                            p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
+                                            if r_dt_obj <= p_dt_obj: 
+                                                st.error("⚠️ Return time must be after pickup.")
+                                                can_book = False
+                                            else:
+                                                try:
+                                                    full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
+                                                    driver_fee = (full_days + (1 if billed_hrs > 0 else 0)) * 1000.0 if "Driver" in drive_mode else 0.0
+                                                    
+                                                    try:
+                                                        tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
+                                                        discount_pct = next((float(r['discount_pct']) for _, r in tiers_df.iterrows() if full_days >= r['min_days']), 0.0)
+                                                    except: discount_pct = 0.0
 
-                                savings = subtotal * discount_pct
-                                discounted_subtotal = subtotal - savings
-                                
-                                applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
-                                platform_fee = discounted_subtotal * applied_renter_fee
-                                
-                                # 🚚 TRUE LOGISTICAL DISTANCE & FEE CALCULATOR
-                                HUB_LOCATION = "Kapitolyo, Pasig City"
+                                                    savings = subtotal * discount_pct
+                                                    discounted_subtotal = subtotal - savings
+                                                    
+                                                    applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
+                                                    platform_fee = discounted_subtotal * applied_renter_fee
+                                                    
+                                                    # 🚚 TRUE LOGISTICAL DISTANCE & FEE CALCULATOR (DEADHEAD LOOP)
+                                                    HUB_LOCATION = "Kapitolyo, Pasig City"
 
-                                def get_route_distance(origin, destination):
-                                    """Queries Google Routes API or provides fallback distance in km."""
-                                    try:
-                                        api_key = os.environ.get("GOOGLE_MAPS_API_KEY") or st.secrets.get("google_maps_api_key")
-                                        if not api_key:
-                                            raise ValueError("No API key")
-                                            
-                                        url = "https://routes.googleapis.com/directions/v2:computeRoutes"
-                                        headers = {
-                                            "Content-Type": "application/json",
-                                            "X-Goog-Api-Key": api_key,
-                                            "X-Goog-FieldMask": "routes.distanceMeters"
-                                        }
-                                        payload = {
-                                            "origin": {"address": origin},
-                                            "destination": {"address": destination},
-                                            "travelMode": "DRIVE"
-                                        }
-                                        req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers)
-                                        response = urllib.request.urlopen(req)
-                                        data = json.loads(response.read().decode('utf-8'))
-                                        meters = data['routes'][0]['distanceMeters']
-                                        return round(meters / 1000.0, 1)
-                                    except Exception:
-                                        return 11.0 # Fallback conservative estimate
+                                                    def get_route_distance(origin, destination):
+                                                        """Queries Google Routes API or provides fallback distance in km."""
+                                                        try:
+                                                            api_key = os.environ.get("GOOGLE_MAPS_API_KEY") or st.secrets.get("google_maps_api_key")
+                                                            if not api_key:
+                                                                raise ValueError("No API key")
+                                                                
+                                                            url = "https://routes.googleapis.com/directions/v2:computeRoutes"
+                                                            headers = {
+                                                                "Content-Type": "application/json",
+                                                                "X-Goog-Api-Key": api_key,
+                                                                "X-Goog-FieldMask": "routes.distanceMeters"
+                                                            }
+                                                            payload = {
+                                                                "origin": {"address": origin},
+                                                                "destination": {"address": destination},
+                                                                "travelMode": "DRIVE"
+                                                            }
+                                                            req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers)
+                                                            response = urllib.request.urlopen(req)
+                                                            data = json.loads(response.read().decode('utf-8'))
+                                                            meters = data['routes'][0]['distanceMeters']
+                                                            return round(meters / 1000.0, 1)
+                                                        except Exception:
+                                                            return 11.0
 
-                                # 1. Calculate Outbound: Hub -> Pickup Address
-                                outbound_km = get_route_distance(HUB_LOCATION, p_exact)
+                                                    # 1. Outbound: Hub -> Pickup
+                                                    outbound_km = get_route_distance(HUB_LOCATION, p_exact)
 
-                                # 2. Calculate Inbound: Return Address -> Hub
-                                return_km = get_route_distance(r_exact, HUB_LOCATION)
+                                                    # 2. Inbound: Return -> Hub
+                                                    return_km = get_route_distance(r_exact, HUB_LOCATION)
 
-                                # 3. Total Driver Logistical Distance (Roundtrip deadhead loop)
-                                total_logistics_km = outbound_km + return_km
+                                                    # 3. Total Driver Logistical Distance (Roundtrip loop)
+                                                    total_logistics_km = outbound_km + return_km
 
-                                # 4. Pulls exact fee from Admin Matrix based on total km
-                                delivery_fee = get_delivery_fee_for_renter(conn, total_logistics_km)
-                                
-                                grand_total = discounted_subtotal + platform_fee + driver_fee + delivery_fee
+                                                    # 4. Pulls exact fee from Admin Matrix based on total km
+                                                    delivery_fee = get_delivery_fee_for_renter(conn, total_logistics_km)
+                                                    
+                                                    grand_total = discounted_subtotal + platform_fee + driver_fee + delivery_fee
 
-                                st.markdown("#### 🧾 Cost Breakdown")
-                                plural = "day" if full_days == 1 else "days"
-                                
-                                rows = [f"<tr><td class='bill-label'>Base Rental (₱{base_rate:,.2f} x {full_days} {plural})</td><td style='text-align:right; font-weight:bold;'>₱{base_cost:,.2f}</td></tr>"]
-                                
-                                if billed_hrs > 0: 
-                                    rows.append(f"<tr><td style='color:#d35400;'>Hourly Extension</td><td style='text-align:right; color:#d35400;'>+₱{ext_fee:,.2f}</td></tr>")
-                                
-                                if savings > 0: 
-                                    rows.append(f"<tr><td style='color:#cc0000;'>Duration Discount ({int(discount_pct * 100)}%)</td><td style='text-align:right; color:#cc0000;'>-₱{savings:,.2f}</td></tr>")
-                                
-                                rows.append(f"<tr><td style='padding: 8px; color: #16A34A;'>{operator_name} Fee ({int(applied_renter_fee * 100)}%)</td><td style='text-align:right; color:#27ae60;'>+₱{platform_fee:,.2f}</td></tr>")
-                                
-                                if "Driver" in drive_mode: 
-                                    rows.append(f"<tr><td style='color:#003399;'>Driver Fee</td><td style='text-align:right; color:#003399;'>+₱{driver_fee:,.2f}</td></tr>")
-                                    
-                                # Itemized Delivery Fee Row reflecting true roundtrip mileage tier
-                                rows.append(f"<tr><td style='color:#555;'>Delivery & Meetup Fee ({total_logistics_km} km total logistics tier)</td><td style='text-align:right; color:#555;'>+₱{delivery_fee:,.2f}</td></tr>")
-                                
-                                bill_html = f"<div class='bill-box'><table class='table-bill' style='width:100%;'>{''.join(rows)}<tr style='border-top:2px solid #000;'><td class='bill-label' style='font-weight:900;'>GRAND TOTAL</td><td style='text-align:right; font-weight:900; font-size:1.1em;'>₱{grand_total:,.2f}</td></tr></table></div>"
-                                
-                                st.markdown(bill_html, unsafe_allow_html=True)
-                                st.divider()
+                                                    st.markdown("#### 🧾 Cost Breakdown")
+                                                    plural = "day" if full_days == 1 else "days"
+                                                    
+                                                    rows = [f"<tr><td class='bill-label'>Base Rental (₱{base_rate:,.2f} x {full_days} {plural})</td><td style='text-align:right; font-weight:bold;'>₱{base_cost:,.2f}</td></tr>"]
+                                                    
+                                                    if billed_hrs > 0: 
+                                                        rows.append(f"<tr><td style='color:#d35400;'>Hourly Extension</td><td style='text-align:right; color:#d35400;'>+₱{ext_fee:,.2f}</td></tr>")
+                                                    
+                                                    if savings > 0: 
+                                                        rows.append(f"<tr><td style='color:#cc0000;'>Duration Discount ({int(discount_pct * 100)}%)</td><td style='text-align:right; color:#cc0000;'>-₱{savings:,.2f}</td></tr>")
+                                                    
+                                                    rows.append(f"<tr><td style='padding: 8px; color: #16A34A;'>{operator_name} Fee ({int(applied_renter_fee * 100)}%)</td><td style='text-align:right; color:#27ae60;'>+₱{platform_fee:,.2f}</td></tr>")
+                                                    
+                                                    if "Driver" in drive_mode: 
+                                                        rows.append(f"<tr><td style='color:#003399;'>Driver Fee</td><td style='text-align:right; color:#003399;'>+₱{driver_fee:,.2f}</td></tr>")
+                                                        
+                                                    # Itemized Delivery Fee Row
+                                                    rows.append(f"<tr><td style='color:#555;'>Delivery & Meetup Fee ({total_logistics_km} km total logistics tier)</td><td style='text-align:right; color:#555;'>+₱{delivery_fee:,.2f}</td></tr>")
+                                                    
+                                                    bill_html = f"<div class='bill-box'><table class='table-bill' style='width:100%;'>{''.join(rows)}<tr style='border-top:2px solid #000;'><td class='bill-label' style='font-weight:900;'>GRAND TOTAL</td><td style='text-align:right; font-weight:900; font-size:1.1em;'>₱{grand_total:,.2f}</td></tr></table></div>"
+                                                    
+                                                    st.markdown(bill_html, unsafe_allow_html=True)
+                                                    st.divider()
 
-                            except Exception as e:
-                                st.error(f"Error calculating rate: {e}")
-                                can_book = False
-                            try:
-                                full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
-                                driver_fee = (full_days + (1 if billed_hrs > 0 else 0)) * 1000.0 if "Driver" in drive_mode else 0.0
-                                
-                                try:
-                                    tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
-                                    discount_pct = next((float(r['discount_pct']) for _, r in tiers_df.iterrows() if full_days >= r['min_days']), 0.0)
-                                except: discount_pct = 0.0
-
-                                savings = subtotal * discount_pct
-                                discounted_subtotal = subtotal - savings
-                                
-                                applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
-                                platform_fee = discounted_subtotal * applied_renter_fee
-                                
-                                # 🚚 TRUE LOGISTICAL DISTANCE & FEE CALCULATOR
-                                HUB_LOCATION = "Kapitolyo, Pasig City"
-
-                                def get_route_distance(origin, destination):
-                                    """Queries Google Routes API or provides fallback distance in km."""
-                                    try:
-                                        api_key = os.environ.get("GOOGLE_MAPS_API_KEY") or st.secrets.get("google_maps_api_key")
-                                        if not api_key:
-                                            raise ValueError("No API key")
-                                            
-                                        url = "https://routes.googleapis.com/directions/v2:computeRoutes"
-                                        headers = {
-                                            "Content-Type": "application/json",
-                                            "X-Goog-Api-Key": api_key,
-                                            "X-Goog-FieldMask": "routes.distanceMeters"
-                                        }
-                                        payload = {
-                                            "origin": {"address": origin},
-                                            "destination": {"address": destination},
-                                            "travelMode": "DRIVE"
-                                        }
-                                        req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers)
-                                        response = urllib.request.urlopen(req)
-                                        data = json.loads(response.read().decode('utf-8'))
-                                        meters = data['routes'][0]['distanceMeters']
-                                        return round(meters / 1000.0, 1)
-                                    except Exception:
-                                        return 11.0 # Fallback conservative estimate
-
-                                # 1. Calculate Outbound: Hub -> Pickup Address
-                                outbound_km = get_route_distance(HUB_LOCATION, p_exact)
-
-                                # 2. Calculate Inbound: Return Address -> Hub
-                                return_km = get_route_distance(r_exact, HUB_LOCATION)
-
-                                # 3. Total Driver Logistical Distance (Roundtrip deadhead loop)
-                                total_logistics_km = outbound_km + return_km
-
-                                # 4. Pulls exact fee from Admin Matrix based on total km
-                                delivery_fee = get_delivery_fee_for_renter(conn, total_logistics_km)
-                                
-                                grand_total = discounted_subtotal + platform_fee + driver_fee + delivery_fee
-
-                                st.markdown("#### 🧾 Cost Breakdown")
-                                plural = "day" if full_days == 1 else "days"
-                                
-                                rows = [f"<tr><td class='bill-label'>Base Rental (₱{base_rate:,.2f} x {full_days} {plural})</td><td style='text-align:right; font-weight:bold;'>₱{base_cost:,.2f}</td></tr>"]
-                                
-                                if billed_hrs > 0: 
-                                    rows.append(f"<tr><td style='color:#d35400;'>Hourly Extension</td><td style='text-align:right; color:#d35400;'>+₱{ext_fee:,.2f}</td></tr>")
-                                
-                                if savings > 0: 
-                                    rows.append(f"<tr><td style='color:#cc0000;'>Duration Discount ({int(discount_pct * 100)}%)</td><td style='text-align:right; color:#cc0000;'>-₱{savings:,.2f}</td></tr>")
-                                
-                                rows.append(f"<tr><td style='padding: 8px; color: #16A34A;'>{operator_name} Fee ({int(applied_renter_fee * 100)}%)</td><td style='text-align:right; color:#27ae60;'>+₱{platform_fee:,.2f}</td></tr>")
-                                
-                                if "Driver" in drive_mode: 
-                                    rows.append(f"<tr><td style='color:#003399;'>Driver Fee</td><td style='text-align:right; color:#003399;'>+₱{driver_fee:,.2f}</td></tr>")
-                                    
-                                # Itemized Delivery Fee Row reflecting the true roundtrip mileage tier
-                                rows.append(f"<tr><td style='color:#555;'>Delivery & Meetup Fee ({total_logistics_km} km total logistics tier)</td><td style='text-align:right; color:#555;'>+₱{delivery_fee:,.2f}</td></tr>")
-                                
-                                bill_html = f"<div class='bill-box'><table class='table-bill' style='width:100%;'>{''.join(rows)}<tr style='border-top:2px solid #000;'><td class='bill-label' style='font-weight:900;'>GRAND TOTAL</td><td style='text-align:right; font-weight:900; font-size:1.1em;'>₱{grand_total:,.2f}</td></tr></table></div>"
-                                
-                                st.markdown(bill_html, unsafe_allow_html=True)
-                                st.divider()
-
-                            except Exception as e:
-                                st.error(f"Error calculating rate: {e}")
-                                can_book = False
+                                                except Exception as e:
+                                                    st.error(f"Error calculating rate: {e}")
+                                                    can_book = False
 
                                             st.warning("💳 **RFID POLICY:** You must load your own toll funds. Excess load is **not refunded**. Empty RFID penalty: **₱100 fine** + toll costs.")
                                             
