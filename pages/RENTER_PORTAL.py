@@ -432,11 +432,28 @@ def main():
                                 with st.container(border=True):
                                     
                                     # --- TOP: Image ---
-                                    img_p = car.get('vehicle_img')
-                                    if img_p and os.path.exists(img_p): 
-                                        st.image(img_p, use_container_width=True)
-                                    else: 
-                                        st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
+                                    # --- TOP: Image ---
+                            img_p = car.get('vehicle_img')
+                            resolved_img_path = None
+                            
+                            if img_p:
+                                if os.path.exists(img_p):
+                                    resolved_img_path = img_p
+                                else:
+                                    # Fallback: check filename inside data/uploads relative to root or parent
+                                    filename = os.path.basename(img_p)
+                                    alt_path = os.path.join(os.getcwd(), "data", "uploads", filename)
+                                    if os.path.exists(alt_path):
+                                        resolved_img_path = alt_path
+                                    else:
+                                        alt_path2 = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "uploads", filename)
+                                        if os.path.exists(alt_path2):
+                                            resolved_img_path = alt_path2
+
+                            if resolved_img_path:
+                                st.image(resolved_img_path, use_container_width=True)
+                            else:
+                                st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
                                     
                                     # --- MIDDLE: Details ---
                                     base_rate = float(car.get('daily_rate') or car.get('approved_price') or 0.0)
