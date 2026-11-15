@@ -243,8 +243,8 @@ def main():
     def generate_pos_receipt(b_data):
         return f"""
     ====================================
-           DRIVEELITE PLATFORM
-           POS SETTLEMENT SLIP
+        DRIVEELITE PLATFORM
+        POS SETTLEMENT SLIP
     ====================================
     Ref: {b_data['Ref']}
     Date: {str(b_data['Date'])[:10]}
@@ -261,60 +261,6 @@ def main():
     ====================================
     Status: {b_data['Payout_Status']}
     """
-
-    def send_admin_email_with_attachment(to_email, subject, body, attachment_path, attachment_name):
-        sender_email = "contact@driveelite.ph"
-        sender_password = os.environ.get("EMAIL_PASSWORD")
-        if not sender_password: return False
-        try:
-            msg = MIMEMultipart()
-            msg['From'] = f"DriveElite Admin <{sender_email}>"
-            msg['To'] = to_email
-            msg['Subject'] = subject
-            msg.attach(MIMEText(body, 'plain'))
-            with open(attachment_path, "rb") as attachment:
-                part = MIMEBase('application', 'octet-stream')
-                part.set_payload(attachment.read())
-            encoders.encode_base64(part)
-            part.add_header('Content-Disposition', f"attachment; filename= {attachment_name}")
-            msg.attach(part)
-            with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
-                smtp.login(sender_email, sender_password)
-                smtp.send_message(msg)
-            return True
-        except Exception as e:
-            return False
-
-    def send_approval_email(recipient_email, full_name, role):
-        if not recipient_email: return False, "No email address on file."
-        msg = EmailMessage()
-        msg['Subject'] = f"DriveElite: Notice of {role.title()} Account Approval"
-        sender_email = "contact@driveelite.ph"
-        msg['From'] = f"DriveElite Administration <{sender_email}>"
-        msg['To'] = recipient_email
-        
-        direct_link = "https://www.driveelite.ph/RENTER_PORTAL" if role.upper() == "RENTER" else "https://www.driveelite.ph/AFFILIATE_PORTAL"
-        
-        body = f"""Dear {full_name},
-
-Your registration for a DriveElite {role.title()} account has been successfully reviewed and approved.
-You may now access your dashboard using your secure link:
-
-{direct_link}
-
-Best regards,
-The DriveElite Administration Team
-Pasig City, Metro Manila, Philippines
-"""
-        msg.set_content(body)
-        try:
-            app_password = "chcskxti6hc2d7ao"
-            with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
-                smtp.login(sender_email, app_password)
-                smtp.send_message(msg)
-            return True, "Email sent"
-        except Exception as e:
-            return False, str(e)
 
     @st.cache_data(ttl=300, show_spinner=False)
     def get_all_reviews(_conn):
