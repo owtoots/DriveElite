@@ -876,7 +876,7 @@ def main():
                                                 st.session_state[stage_key] = 0
                                                 del st.session_state[ref_key]
                                                 st.session_state.just_booked_ref = b_ref 
-                                                st.rerun())
+                                                st.rerun()
 
     # ==========================================
     # 📅 MY BOOKINGS (MAIN TAB 1)
