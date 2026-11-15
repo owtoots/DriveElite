@@ -239,25 +239,24 @@ def main():
         return booked_days
 def get_delivery_fee_for_renter(conn, total_km):
     """Fetches delivery fee from database tiers and scales for distances exceeding max tier."""
-    try:
-        tiers_df = pd.read_sql_query("SELECT * FROM delivery_tiers ORDER BY max_km ASC", conn)
-        if tiers_df.empty:
-            return 1200.0
-        
-        for _, row in tiers_df.iterrows():
-            max_d = float(row.get('max_km') or row.get('km') or 15.0)
-            fee = float(row.get('fee') or row.get('price') or 1200.0)
-            if total_km <= max_d:
-                return fee
-        
-        # If total logistics km exceeds the highest tier (e.g., > 15km), calculate incremental extra
-        highest_row = tiers_df.iloc[-1]
-        max_d = float(highest_row.get('max_km') or highest_row.get('km') or 15.0)
-        base_fee = float(highest_row.get('fee') or highest_row.get('price') or 1200.0)
-        excess_km = total_km - max_d
-        per_km_extra = 80.0  # ₱80 per km for any distance beyond the 15km tier
-        
-        return base_fee + (excess_km * per_km_extra)
+    tiers_df = pd.read_sql_query("SELECT * FROM delivery_tiers ORDER BY max_km ASC", conn)
+    if tiers_df.empty:
+        return 1200.0
+    
+    for _, row in tiers_df.iterrows():
+        max_d = float(row.get('max_km') or row.get('km') or 15.0)
+        fee = float(row.get('fee') or row.get('price') or 1200.0)
+        if total_km <= max_d:
+            return fee
+    
+    # If total logistics km exceeds the highest tier (> 15km), calculate incremental extra
+    highest_row = tiers_df.iloc[-1]
+    max_d = float(highest_row.get('max_km') or highest_row.get('km') or 15.0)
+    base_fee = float(highest_row.get('fee') or highest_row.get('price') or 1200.0)
+    excess_km = total_km - max_d
+    per_km_extra = 80.0  # ₱80 per km for any distance beyond the 15km tier
+    
+    return base_fee + (excess_km * per_km_extra)
     except Exception:
         return 1200.0
     def calculate_24h_rental(p_dt, r_dt, base_rate, hourly_penalty=300.0, grace_mins=59):
@@ -321,7 +320,8 @@ def get_delivery_fee_for_renter(conn, total_km):
         with st.form("login_renter"):
             u, p = st.text_input("Username"), st.text_input("Password", type="password")
             if st.form_submit_button("LOGIN TO SHOWROOM", use_container_width=True):
-                user = pd.read_sql_query("SELECT * FROM platform_users WHERE username=? AND password=? AND role='RENTER'", conn, params=(u, p))
+                # To this (allows any approved user to access the showroom):
+user = pd.read_sql_query("SELECT * FROM platform_users WHERE username=? AND password=? AND admin_status='APPROVED'", conn, params=(u, p))
                 if not user.empty:
                     if user.iloc[0]['admin_status'] == 'APPROVED':
                         st.session_state.logged_in, st.session_state.username, st.session_state.role = True, u, 'RENTER'
