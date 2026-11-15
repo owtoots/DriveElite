@@ -178,6 +178,42 @@ def main():
     conn = get_connection()
 
     # --- DATABASE REPAIR PROTOCOLS ---
+    def get_delivery_fee_for_renter(conn, distance_km):
+    """Fetches the delivery fee from the admin-controlled pricing table."""
+    try:
+        query = "SELECT fee FROM delivery_pricing WHERE max_km >= ? ORDER BY max_km ASC LIMIT 1"
+        res = conn.execute(query, (distance_km,)).fetchone()
+        if res:
+            return float(res[0])
+        else:
+            # Fallback to max tier if it exceeds 15km
+            max_tier = conn.execute("SELECT fee FROM delivery_pricing ORDER BY max_km DESC LIMIT 1").fetchone()
+            return float(max_tier[0]) if max_tier else 700.0
+    except Exception:
+        return 0.0
+
+# --- Inside Renter Checkout / Booking Form ---
+st.subheader("📍 Pickup & Delivery Location")
+pickup_address = st.text_input("Pickup Address", placeholder="e.g., Shangri-La BGC Lobby, Taguig")
+
+# Example calculation: (In production, you can calculate exact km from affiliate address or zone)
+# For testing, let's assume a function estimates the distance based on the address input or zone:
+estimated_km = 4.5  # Example: calculated distance in km
+
+# Fetch the exact fee you set in the Admin Dashboard
+dynamic_delivery_fee = get_delivery_fee_for_renter(conn, estimated_km)
+
+# --- Cost Breakdown Section ---
+st.markdown("### 🧾 Cost Breakdown")
+rental_days = 3
+daily_rate = 2500.0
+subtotal = rental_days * daily_rate
+
+st.write(f"Rental Subtotal ({rental_days} days): ₱{subtotal:,.2f}")
+st.write(f"Delivery & Meetup Fee ({estimated_km} km tier): ₱{dynamic_delivery_fee:,.2f}")
+
+total_bill = subtotal + dynamic_delivery_fee
+st.markdown(f"<h3 style='color: #22C55E;'>Total Amount Due: ₱{total_bill:,.2f}</h3>", unsafe_allow_html=True)
     def patch_database_tables():
         try: conn.execute("CREATE TABLE IF NOT EXISTS admin_promos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, target TEXT DEFAULT 'ALL USERS', active INTEGER DEFAULT 1)"); conn.commit()
         except: pass
