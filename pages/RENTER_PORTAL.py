@@ -424,7 +424,8 @@ def main():
                                     # --- MIDDLE: Details ---
                                     base_rate = float(car.get('daily_rate') or car.get('approved_price') or 0.0)
                                     st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}", unsafe_allow_html=True)
-                                    
+                                    # Example inside your vehicle grid loop in renter.py
+st.markdown(f"📍 **Base Area:** {car.get('base_location', 'Metro Manila')}")
                                     # --- CLICKABLE REPUTATION CARD ---
                                     rating_data = conn.execute("""
                                         SELECT AVG(rating), COUNT(rating) 
