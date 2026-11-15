@@ -178,20 +178,7 @@ def main():
     conn = get_connection()
 
     # --- DATABASE REPAIR PROTOCOLS ---
-    def get_delivery_fee_for_renter(conn, distance_km):
-    """Fetches the delivery fee from the admin-controlled pricing table."""
-    try:
-        query = "SELECT fee FROM delivery_pricing WHERE max_km >= ? ORDER BY max_km ASC LIMIT 1"
-        res = conn.execute(query, (distance_km,)).fetchone()
-        if res:
-            return float(res[0])
-        else:
-            # Fallback to max tier if it exceeds 15km
-            max_tier = conn.execute("SELECT fee FROM delivery_pricing ORDER BY max_km DESC LIMIT 1").fetchone()
-            return float(max_tier[0]) if max_tier else 700.0
-    except Exception:
-        return 0.0
-
+    
 # --- Inside Renter Checkout / Booking Form ---
 st.subheader("📍 Pickup & Delivery Location")
 pickup_address = st.text_input("Pickup Address", placeholder="e.g., Shangri-La BGC Lobby, Taguig")
@@ -256,7 +243,19 @@ st.markdown(f"<h3 style='color: #22C55E;'>Total Amount Due: ₱{total_bill:,.2f}
     # 4. UTILITIES & HELPERS
     # ==========================================
     if "temp_msg_renter" not in st.session_state: st.session_state.temp_msg_renter = ""
-
+    def get_delivery_fee_for_renter(conn, distance_km):
+        """Fetches the delivery fee from the admin-controlled pricing table."""
+        try:
+            query = "SELECT fee FROM delivery_pricing WHERE max_km >= ? ORDER BY max_km ASC LIMIT 1"
+            res = conn.execute(query, (distance_km,)).fetchone()
+            if res:
+                return float(res[0])
+            else:
+                # Fallback to max tier if it exceeds 15km
+                max_tier = conn.execute("SELECT fee FROM delivery_pricing ORDER BY max_km DESC LIMIT 1").fetchone()
+                return float(max_tier[0]) if max_tier else 700.0
+        except Exception:
+            return 0.0
     def get_booked_dates(vehicle_id, conn):
         """Finds all dates a specific vehicle is already booked."""
         query = "SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status IN ('CONFIRMED', 'ONGOING', 'PENDING')"
@@ -554,60 +553,69 @@ st.markdown(f"<h3 style='color: #22C55E;'>Total Amount Due: ₱{total_bill:,.2f}
                                                 st.error(f" Vehicle booked on: {', '.join([d.strftime('%b %d') for d in sorted(list(clashes))])}")
 
                                             drive_mode = st.radio("Mode", ["Self-Drive", "With Driver (+₱1k/day)"], key=f"dm_{car['id']}_{cat}")
-                                            dest = st.text_input("Destination", key=f"dest_{car['id']}_{cat}")
-                                            luzon_agree = st.checkbox("I agree to LUZON ONLY travel.", key=f"luzon_{car['id']}_{cat}")
-                                            ZONES = {"HQ: Pasig/Ortigas/BGC (Free)": 0.0, "Zone 1: Cubao/Sta. Mesa/Makati": 500.0, "Zone 2: Manila/QC/MOA": 1000.0, "Zone 3: Alabang/LP": 1500.0}
-                                            p_zone = st.selectbox("Pickup Zone", list(ZONES.keys()), key=f"pz_{car['id']}_{cat}")
-                                            p_exact = st.text_input("Pickup Address", placeholder="e.g., NAIA Terminal 3 (Arrivals Bay 8), Shangri-La BGC Lobby", key=f"pa_{car['id']}_{cat}")
-                                            r_zone = st.selectbox("Return Zone", list(ZONES.keys()), key=f"rz_{car['id']}_{cat}")
-                                            r_exact = st.text_input("Return Address", placeholder="e.g., SM Megamall Fashion Hall, 123 Pearl Dr. Ortigas", key=f"ra_{car['id']}_{cat}")
+    dest = st.text_input("Destination", key=f"dest_{car['id']}_{cat}")
+    luzon_agree = st.checkbox("I agree to LUZON ONLY travel.", key=f"luzon_{car['id']}_{cat}")
+    
+    # 🚚 EXACT ADDRESS INPUTS (Zones Removed)
+    p_exact = st.text_input("Specific Pickup Address", placeholder="e.g., NAIA Terminal 3 (Arrivals Bay 8), Shangri-La BGC Lobby", key=f"pa_{car['id']}_{cat}")
+    r_exact = st.text_input("Specific Return Address", placeholder="e.g., SM Megamall Fashion Hall, 123 Pearl Dr. Ortigas", key=f"ra_{car['id']}_{cat}")
 
-                                            p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
-                                            if r_dt_obj <= p_dt_obj: 
-                                                st.error("⚠️ Return time must be after pickup.")
-                                                can_book = False
-                                            else:
-                                                try:
-                                                    full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
-                                                    driver_fee = (full_days + (1 if billed_hrs > 0 else 0)) * 1000.0 if "Driver" in drive_mode else 0.0
-                                                    
-                                                    try:
-                                                        tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
-                                                        discount_pct = next((float(r['discount_pct']) for _, r in tiers_df.iterrows() if full_days >= r['min_days']), 0.0)
-                                                    except: discount_pct = 0.0
+    p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
+    if r_dt_obj <= p_dt_obj: 
+        st.error("⚠️ Return time must be after pickup.")
+        can_book = False
+    else:
+        try:
+            full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
+            driver_fee = (full_days + (1 if billed_hrs > 0 else 0)) * 1000.0 if "Driver" in drive_mode else 0.0
+            
+            try:
+                tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
+                discount_pct = next((float(r['discount_pct']) for _, r in tiers_df.iterrows() if full_days >= r['min_days']), 0.0)
+            except: discount_pct = 0.0
 
-                                                    savings = subtotal * discount_pct
-                                                    discounted_subtotal = subtotal - savings
-                                                    
-                                                    applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
-                                                    platform_fee = discounted_subtotal * applied_renter_fee
-                                                    p_fee, r_fee = ZONES.get(p_zone, 0.0), ZONES.get(r_zone, 0.0)
-                                                    grand_total = discounted_subtotal + platform_fee + driver_fee + p_fee + r_fee
+            savings = subtotal * discount_pct
+            discounted_subtotal = subtotal - savings
+            
+            applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
+            platform_fee = discounted_subtotal * applied_renter_fee
+            
+            # 🚚 DISTANCE CALCULATION FROM TYPED ADDRESSES
+            # (You can map keywords or calculate distance here. For example, estimating based on text or setting a default tier)
+            estimated_km = 5.0  # Default or calculated dynamically from p_exact / r_exact
+            
+            # Pulls the exact fee you set in the Admin Dashboard for 1km, 5km, 10km, or 15km max
+            delivery_fee = get_delivery_fee_for_renter(conn, estimated_km)
+            
+            grand_total = discounted_subtotal + platform_fee + driver_fee + delivery_fee
 
-                                                    st.markdown("#### 🧾 Cost Breakdown")
-                                                    plural = "day" if full_days == 1 else "days"
-                                                    
-                                                    rows = [f"<tr><td class='bill-label'>Base Rental (₱{base_rate:,.2f} x {full_days} {plural})</td><td style='text-align:right; font-weight:bold;'>₱{base_cost:,.2f}</td></tr>"]
-                                                    
-                                                    if billed_hrs > 0: 
-                                                        rows.append(f"<tr><td style='color:#d35400;'>Hourly Extension</td><td style='text-align:right; color:#d35400;'>+₱{ext_fee:,.2f}</td></tr>")
-                                                    
-                                                    if savings > 0: 
-                                                        rows.append(f"<tr><td style='color:#cc0000;'>Duration Discount ({int(discount_pct * 100)}%)</td><td style='text-align:right; color:#cc0000;'>-₱{savings:,.2f}</td></tr>")
-                                                    
-                                                    rows.append(f"<tr><td style='padding: 8px; color: #16A34A;'>{operator_name} Fee ({int(applied_renter_fee * 100)}%)</td><td style='text-align:right; color:#27ae60;'>+₱{platform_fee:,.2f}</td></tr>")
-                                                    
-                                                    if "Driver" in drive_mode: 
-                                                        rows.append(f"<tr><td style='color:#003399;'>Driver Fee</td><td style='text-align:right; color:#003399;'>+₱{driver_fee:,.2f}</td></tr>")
-                                                    if p_fee > 0: 
-                                                        rows.append(f"<tr><td style='color:#555;'>Pickup Fee</td><td style='text-align:right; color:#555;'>+₱{p_fee:,.2f}</td></tr>")
-                                                    if r_fee > 0: 
-                                                        rows.append(f"<tr><td style='color:#555;'>Return Fee</td><td style='text-align:right; color:#555;'>+₱{r_fee:,.2f}</td></tr>")
-                                                    
-                                                    bill_html = f"<div class='bill-box'><table class='table-bill' style='width:100%;'>{''.join(rows)}<tr style='border-top:2px solid #000;'><td class='bill-label' style='font-weight:900;'>GRAND TOTAL</td><td style='text-align:right; font-weight:900; font-size:1.1em;'>₱{grand_total:,.2f}</td></tr></table></div>"
-                                                    
-                                                    st.markdown(bill_html, unsafe_allow_html=True)
-                                                    st.divider()
+            st.markdown("#### 🧾 Cost Breakdown")
+            plural = "day" if full_days == 1 else "days"
+            
+            rows = [f"<tr><td class='bill-label'>Base Rental (₱{base_rate:,.2f} x {full_days} {plural})</td><td style='text-align:right; font-weight:bold;'>₱{base_cost:,.2f}</td></tr>"]
+            
+            if billed_hrs > 0: 
+                rows.append(f"<tr><td style='color:#d35400;'>Hourly Extension</td><td style='text-align:right; color:#d35400;'>+₱{ext_fee:,.2f}</td></tr>")
+            
+            if savings > 0: 
+                rows.append(f"<tr><td style='color:#cc0000;'>Duration Discount ({int(discount_pct * 100)}%)</td><td style='text-align:right; color:#cc0000;'>-₱{savings:,.2f}</td></tr>")
+            
+            rows.append(f"<tr><td style='padding: 8px; color: #16A34A;'>{operator_name} Fee ({int(applied_renter_fee * 100)}%)</td><td style='text-align:right; color:#27ae60;'>+₱{platform_fee:,.2f}</td></tr>")
+            
+            if "Driver" in drive_mode: 
+                rows.append(f"<tr><td style='color:#003399;'>Driver Fee</td><td style='text-align:right; color:#003399;'>+₱{driver_fee:,.2f}</td></tr>")
+                
+            # Itemized Delivery Fee Row matching your Admin Pricing Matrix
+            rows.append(f"<tr><td style='color:#555;'>Delivery & Meetup Fee ({estimated_km} km tier)</td><td style='text-align:right; color:#555;'>+₱{delivery_fee:,.2f}</td></tr>")
+            
+            bill_html = f"<div class='bill-box'><table class='table-bill' style='width:100%;'>{''.join(rows)}<tr style='border-top:2px solid #000;'><td class='bill-label' style='font-weight:900;'>GRAND TOTAL</td><td style='text-align:right; font-weight:900; font-size:1.1em;'>₱{grand_total:,.2f}</td></tr></table></div>"
+            
+            st.markdown(bill_html, unsafe_allow_html=True)
+            st.divider()
+
+        except Exception as e:
+            st.error(f"Error calculating rate: {e}")
+            can_book = False
 
                                                 except Exception as e:
                                                     st.error("Error calculating rate. Please verify your functions.")
