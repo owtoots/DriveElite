@@ -176,6 +176,29 @@ def main():
     # ==========================================
     # 4. CONFIGURATION & DATABASE INITIALIZATION
     # ==========================================
+    def init_delivery_pricing_table(conn):
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS delivery_pricing (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tier_name TEXT,
+                max_km REAL,
+                fee REAL
+            )
+        """)
+        # Insert default tiers if empty
+        cursor = conn.execute("SELECT COUNT(*) FROM delivery_pricing")
+        if cursor.fetchone()[0] == 0:
+            default_tiers = [
+                ("Tier 1 (Within 1 km)", 1.0, 0.0),
+                ("Tier 2 (Up to 5 km)", 5.0, 200.0),
+                ("Tier 3 (Up to 10 km)", 10.0, 400.0),
+                ("Tier 4 (Up to 15 km - Max)", 15.0, 700.0)
+            ]
+            conn.executemany("INSERT INTO delivery_pricing (tier_name, max_km, fee) VALUES (?, ?, ?)", default_tiers)
+            conn.commit()
+    except Exception as e:
+        print(f"Error initializing delivery pricing: {e}")
     def get_secret(key, default_val=None):
         val = os.environ.get(key)
         if val: return val
@@ -700,7 +723,51 @@ Pasig City, Metro Manila, Philippines
             st.warning(f"Error loading user directory: {e}")
 
         st.divider()
+        # ==========================================
+        # 🚚 DELIVERY DISTANCE PRICING MATRIX
+        # ==========================================
+        st.divider()
+        st.markdown("<h3 style='text-align: center; color: #2563EB;'>🚚 Delivery Distance Pricing Matrix</h3>", unsafe_allow_html=True)
+        st.caption("Configure delivery fee amounts based on the distance between the Affiliate's base and the Renter's drop-off point.")
 
+        try:
+            # Ensure table exists
+            init_delivery_pricing_table(conn)
+            tiers_df = pd.read_sql_query("SELECT * FROM delivery_pricing ORDER BY max_km ASC", conn)
+
+            if not tiers_df.empty:
+                with st.form("delivery_pricing_form"):
+                    updated_fees = {}
+                    
+                    c1, c2, c3 = st.columns([3, 2, 2])
+                    c1.markdown("**Distance Tier**")
+                    c2.markdown("**Max Distance (km)**")
+                    c3.markdown("**Delivery Fee (₱)**")
+                    
+                    for _, row in tiers_df.iterrows():
+                        col_a, col_b, col_c = st.columns([3, 2, 2])
+                        col_a.write(row['tier_name'])
+                        col_b.write(f"{row['max_km']} km")
+                        
+                        new_fee = col_c.number_input(
+                            f"Fee {row['id']}", 
+                            min_value=0.0, 
+                            step=50.0, 
+                            value=float(row['fee']), 
+                            key=f"tier_fee_{row['id']}", 
+                            label_visibility="collapsed"
+                        )
+                        updated_fees[row['id']] = new_fee
+
+                    if st.form_submit_button("💾 Save Delivery Pricing Tiers", type="primary", use_container_width=True):
+                        for tier_id, fee_val in updated_fees.items():
+                            conn.execute("UPDATE delivery_pricing SET fee = ? WHERE id = ?", (fee_val, tier_id))
+                        conn.commit()
+                        st.success("Delivery distance pricing successfully updated!")
+                        time.sleep(1)
+                        st.rerun()
+        except Exception as e:
+            st.error(f"Error loading delivery pricing matrix: {e}")
         # ==========================================
         # 🎫 MASTER BOOKING DIRECTORY & DELETION
         # ==========================================
