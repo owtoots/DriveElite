@@ -17,7 +17,7 @@ from database_utils import get_connection, send_sms_alert, send_alert_email
 import calendar
 from datetime import timedelta
 from streamlit_autorefresh import st_autorefresh
-
+from database_utils import get_connection, init_db, patch_database
 
 def main():
     # ==========================================
