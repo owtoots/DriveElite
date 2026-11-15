@@ -1125,6 +1125,7 @@ def main():
     # --- TAB 2: ADD ASSET ---
     with tabs[2]:
         st.markdown("<h3 style='text-align: center;'>REGISTER A VEHICLE</h3>", unsafe_allow_html=True)
+        st.caption("Specify the vehicle's garage location using Barangay and City so renters can see the approximate pickup area.")
         
         with st.form("add_v"):
             st.write("#### 🚗 Vehicle Information")
@@ -1134,21 +1135,21 @@ def main():
             mo = c3.text_input("MODEL (e.g., Terra VE)")
             ye = c4.text_input("YEAR (e.g., 2022)")
             
-            st.write("#### ⚙️ Operational Specs & Location")
+            st.write("#### 📍 Garage / Base Location")
+            loc_col1, loc_col2 = st.columns(2)
+            garage_brgy = loc_col1.text_input("Barangay", placeholder="e.g., Kapitolyo")
+            garage_city = loc_col2.text_input("City / Municipality", placeholder="e.g., Pasig City")
+
+            st.write("#### ⚙️ Operational Specs")
             c5, c6, c7, c8 = st.columns(4)
             pl = c5.text_input("PLATE NUMBER")
-            
-            # 📍 New Location Input for Showroom Transparency
-            car_location = c6.text_input("Garage / Base Area", placeholder="e.g., Ortigas, Pasig")
-            
-            pf = c7.selectbox("PREF. FUEL", ["Premium Unleaded", "Turbo Diesel", "Diesel"])
+            pf = c6.selectbox("PREF. FUEL", ["Premium Unleaded", "Turbo Diesel", "Diesel"])
+            tp = c7.text_input("TIRE PRESSURE", placeholder="e.g., 32 PSI")
             
             with c8:
                 st.write("SERVICE TYPE")
                 service_type = st.radio(" ", ["Self-Drive", "With Driver"], horizontal=True, label_visibility="collapsed")
                 is_with_driver = 1 if service_type == "With Driver" else 0
-            
-            tp = st.text_input("TIRE PRESSURE", placeholder="e.g., 32 PSI")
             
             st.write("#### 📄 Document Uploads")
             c9, c10, c11 = st.columns(3)
@@ -1159,7 +1160,7 @@ def main():
             st.divider()
             
             if st.form_submit_button("SUBMIT FOR APPROVAL", type="primary", use_container_width=True):
-                if ma and mo and ye and pl and car_location and vi and len(or_cr_files) >= 1 and ins:
+                if ma and mo and ye and pl and garage_brgy and garage_city and vi and len(or_cr_files) >= 1 and ins:
                     try:
                         current_year = datetime.date.today().year
                         calculated_age = max(0, current_year - int(ye.strip()))
@@ -1173,7 +1174,10 @@ def main():
                     cr_path = save_file(or_cr_files[1]) if len(or_cr_files) > 1 else or_path
                     ins_path = save_file(ins)
                     
-                    # Ensure table has location column via patch or query
+                    # Combine Barangay and City into a clean uniform format
+                    combined_location = f"Brgy. {garage_brgy.strip().title()}, {garage_city.strip().title()}"
+                    
+                    # Ensure table has location column
                     try:
                         conn.execute("ALTER TABLE vehicles ADD COLUMN location TEXT DEFAULT 'Metro Manila'")
                         conn.commit()
@@ -1189,12 +1193,12 @@ def main():
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE', ?, ?, ?, ?)
                     """, (st.session_state.username, ma.title(), mo.title(), ye, calculated_age, pl.upper(), "Profile", "Profile", 
                           car_img_path, or_path, cr_path, ins_path, cat, 
-                          FIXED_RATES.get(cat, 0), new_ref_no, is_with_driver, tp, pf, car_location.title()))
+                          FIXED_RATES.get(cat, 0), new_ref_no, is_with_driver, tp, pf, combined_location))
                     
                     conn.commit()
                     st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
                 else: 
-                    st.error("Please fill all required fields (including Garage/Base Area) and upload all documents.")
+                    st.error("Please fill all required fields (including Garage Barangay and City) and upload all documents.")
 
     # --- TAB 3: ADD DRIVER ---
     with tabs[3]:
