@@ -229,7 +229,7 @@ def main():
             conn.execute(col_query)
             conn.commit()
         except: 
-            passs
+            pass
 
     # ==========================================
     # 5. UTILITY & EMAIL FUNCTIONS
