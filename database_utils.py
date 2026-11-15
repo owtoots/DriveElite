@@ -124,7 +124,7 @@ def send_otp(contact_number, email_address, otp_code, method="EMAIL"):
         st.error(f"🔍 API SYSTEM ERROR: {e}")
         return False
 
-# --- 4. DATABASE STRUCTURE ---
+# --- DATABASE STRUCTURE & INITIALIZATION ---
 def init_db():
     """Initializes all required tables for DriveElite V2."""
     conn = get_connection()
@@ -141,21 +141,16 @@ def init_db():
     for table in tables: 
         conn.execute(table)
     
-    # Seed default tiers if the table is empty
+    # Seed default delivery tiers if table is empty
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM delivery_tiers")
     if cursor.fetchone()[0] == 0:
-        default_tiers = [
-            (1.0, 0.0),
-            (5.0, 400.0),
-            (10.0, 800.0),
-            (15.0, 1200.0)
-        ]
-        cursor.executemany("INSERT INTO delivery_tiers (max_km, fee) VALUES (?, ?)", default_tiers)
+        default_tiers = [(1.0, 0.0), (5.0, 400.0), (10.0, 800.0), (15.0, 1200.0)]
+        cursor.executemany("INSERT OR IGNORE INTO delivery_tiers (max_km, fee) VALUES (?, ?)", default_tiers)
         conn.commit()
 
     conn.commit()
-    conn.close()
+    conn.close())
 
 # --- 5. EXECUTION GUARD ---
 if __name__ == "__main__":
