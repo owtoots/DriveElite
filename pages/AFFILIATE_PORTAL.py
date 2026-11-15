@@ -1,231 +1,191 @@
 import streamlit as st
 import pandas as pd
 import datetime
-import sqlite3
-import os
-import random
 import time
-from PIL import Image
-import numpy as np
-from fpdf import FPDF
-from streamlit_drawable_canvas import st_canvas
-# --- Email Imports ---
+import random
+import os  # <--- Make sure this is here!
+import sys # <--- Make sure this is here!
 import smtplib
-from email.message import EmailMessage
+import math
+import urllib.request
+import urllib.error
+import json
+import base64
 from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
-from email import encoders
 from database_utils import get_connection, send_sms_alert, send_alert_email
+import calendar
+from datetime import timedelta
 from streamlit_autorefresh import st_autorefresh
+
 
 def main():
     # ==========================================
     # 1. PAGE CONFIG & LOGO
     # ==========================================
-    st.set_page_config(page_title="DriveElite Affiliate", layout="wide")
-
+    st.set_page_config(page_title="DriveElite Renter", layout="wide", initial_sidebar_state="expanded")
+    
+    # 🚨 SMART LOGO PATH: Automatically finds the logo even from inside the pages/ folder
+    logo_path = "logo.png"
+    if not os.path.exists(logo_path):
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logo.png")
+        
     try:
-        # 🚨 Fixed width to make it smaller
-        st.sidebar.image("logo.png", width=140)
+        st.sidebar.image(logo_path, width=140)
     except:
-        pass
+        st.sidebar.markdown("## DriveElite")
 
     # ==========================================
-    # 2. THE "CRYSTAL ELITE" CSS ENGINE
+    # 💎 2. THE "CRYSTAL ELITE" CSS ENGINE
     # ==========================================
     st.markdown("""
-<style>
-    /* Mobile-Specific Overrides */
-    @media (max-width: 768px) {
-        .stImage, .stPDF, [data-testid="stForm"], [data-testid="stExpander"] {
+    <style>
+    /* =========================================
+        📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
+        ========================================= */
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
+            height: 200px !important;
             width: 100% !important;
-            max-width: 100% !important;
+            object-fit: cover !important;
+            border-radius: 8px !important;
         }
-    }
-    
-    footer {visibility: hidden;}
-    
-    /* Fixed Image Styling */
-    div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
-        height: 200px !important;
-        width: 100% !important;
-        object-fit: cover !important;
-        border-radius: 8px !important;
-    }
-    
-    /* 🚨 MASSIVE MENU ARROW (Matched to Green Theme) */
-    [data-testid="collapsedControl"], [data-testid="stSidebarCollapsedControl"] {
-        position: fixed !important;  
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background-color: #22C55E !important; 
-        border-radius: 50% !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
-        top: 15px !important;
-        left: 15px !important;
-        padding: 8px !important;
-        z-index: 999999 !important;
-    }
-    [data-testid="collapsedControl"] svg, [data-testid="stSidebarCollapsedControl"] svg {
-        fill: #FFFFFF !important;
-        color: #FFFFFF !important;
-        width: 24px !important;
-        height: 24px !important;
-    }
+        
+        /* --- GLOBAL THEME & TYPOGRAPHY --- */
+        [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+            background-color: #F8FAFC !important;
+            color: #0F172A !important;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+        }
+        
+        /* --- SIDEBAR & LOGO REORDER HACK --- */
+        [data-testid="stSidebar"] {
+            background-color: #FFFFFF !important;
+            border-right: 1px solid #E2E8F0 !important;
+        }
+        [data-testid="stSidebarContent"] {
+            display: flex !important;
+            flex-direction: column !important;
+        }
+        [data-testid="stSidebarUserContent"] {
+            order: 1 !important; /* Forces Logo to the Top */
+            padding-top: 2rem !important;
+            padding-bottom: 1.5rem !important; /* Gap below logo */
+            margin-top: 0 !important;
+        }
+        [data-testid="stSidebarNav"] {
+            order: 2 !important; /* Forces Menu below Logo */
+            padding-top: 1rem !important; /* Gap above menu */
+        }
 
-    [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
-        background-color: #F8FAFC !important;
-        color: #0F172A !important;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-    }
-    
-    /* --- SIDEBAR & LOGO REORDER HACK --- */
-    [data-testid="stSidebar"] {
-        background-color: #FFFFFF !important;
-        border-right: 1px solid #E2E8F0 !important;
-    }
-    [data-testid="stSidebarContent"] {
-        display: flex !important;
-        flex-direction: column !important;
-    }
-    [data-testid="stSidebarUserContent"] {
-        order: 1 !important; /* Forces Logo to the Top */
-        padding-top: 2rem !important;
-        padding-bottom: 1.5rem !important; /* 🚨 Gap below logo */
-    }
-    [data-testid="stSidebarNav"] {
-        order: 2 !important; /* Forces Menu below Logo */
-        padding-top: 1rem !important; /* 🚨 Gap above menu */
-    }
-    
-    [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
-        background-color: #FFFFFF !important;
-        padding: 20px !important;
-        border-radius: 16px !important;
-        border: 1px solid #E2E8F0 !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
-    }
-    
-    /* 🚨 FRESH GREEN DASHBOARD BUTTONS (SMALLER, NOT BOLD) */
-    div.stButton > button, 
-    [data-testid="stFormSubmitButton"] > button,
-    [data-testid="stPopover"] > button,
-    div[data-testid="stPopover"] > button {
-        background-color: #22C55E !important;
-        color: #FFFFFF !important;
-        border: none !important;
-        font-family: 'Segoe UI', Arial, sans-serif !important;
-        font-size: 14px !important;  
-        font-weight: 500 !important; 
-        border-radius: 8px !important;
-        padding: 10px 20px !important; 
-        text-transform: uppercase !important;
-        letter-spacing: 0.5px !important;
-        transition: all 0.2s ease !important;
-        box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2) !important;
-        -webkit-text-fill-color: #FFFFFF !important;
-    }
-    
-    div.stButton > button p, 
-    [data-testid="stFormSubmitButton"] > button p,
-    [data-testid="stPopover"] > button p,
-    div[data-testid="stPopover"] > button div {
-        color: #FFFFFF !important;
-        font-family: 'Segoe UI', Arial, sans-serif !important;
-        font-size: 14px !important;  
-        font-weight: 500 !important; 
-        -webkit-text-fill-color: #FFFFFF !important;
-    }
+        /* --- CARDS & PANELS --- */
+        [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
+            background-color: #FFFFFF !important;
+            padding: 20px !important;
+            border-radius: 16px !important;
+            border: 1px solid #E2E8F0 !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+        }
 
-    /* Ensure the little popover dropdown arrow turns white */
-    [data-testid="stPopover"] > button svg,
-    div[data-testid="stPopover"] > button svg {
-        fill: #FFFFFF !important;
-        color: #FFFFFF !important;
-    }
+        /* 🚨 FRESH GREEN DASHBOARD BUTTONS (Aggressive form selector) */
+        div.stButton > button, 
+        [data-testid="stFormSubmitButton"] button,
+        [data-testid="stPopover"] button {
+            background-color: #22C55E !important;
+            color: #FFFFFF !important;
+            border: none !important;
+            font-family: 'Segoe UI', Arial, sans-serif !important;
+            font-size: 14px !important;  
+            font-weight: 500 !important; 
+            border-radius: 8px !important;
+            padding: 10px 20px !important; 
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+            transition: all 0.2s ease !important;
+            box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2) !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+        }
+        
+        div.stButton > button p, 
+        [data-testid="stFormSubmitButton"] button p,
+        [data-testid="stPopover"] button p {
+            color: #FFFFFF !important;
+            font-family: 'Segoe UI', Arial, sans-serif !important;
+            font-size: 14px !important;  
+            font-weight: 500 !important; 
+            -webkit-text-fill-color: #FFFFFF !important;
+        }
 
-    div.stButton > button:hover, 
-    [data-testid="stFormSubmitButton"] > button:hover,
-    [data-testid="stPopover"] > button:hover,
-    div[data-testid="stPopover"] > button:hover {
-        background-color: #16A34A !important;
-        box-shadow: 0 6px 12px rgba(34, 197, 94, 0.3) !important;
-        transform: translateY(-2px) !important;
-    }
-    
-    div.stButton > button:active, 
-    [data-testid="stFormSubmitButton"] > button:active,
-    [data-testid="stPopover"] > button:active,
-    div[data-testid="stPopover"] > button:active {
-        background-color: #15803D !important;
-        transform: translateY(0px) !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+        /* Ensure the little popover dropdown arrow turns white */
+        [data-testid="stPopover"] button svg {
+            fill: #FFFFFF !important;
+            color: #FFFFFF !important;
+        }
 
+        div.stButton > button:hover, 
+        [data-testid="stFormSubmitButton"] button:hover,
+        [data-testid="stPopover"] button:hover {
+            background-color: #16A34A !important;
+            box-shadow: 0 6px 12px rgba(34, 197, 94, 0.3) !important;
+            transform: translateY(-2px) !important;
+        }
+        
+        div.stButton > button:active, 
+        [data-testid="stFormSubmitButton"] button:active,
+        [data-testid="stPopover"] button:active {
+            background-color: #15803D !important;
+            transform: translateY(0px) !important;
+        }
+
+        /* --- TYPOGRAPHY & INPUTS --- */
+        div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
+            background-color: #FFFFFF !important;
+            border: 1px solid #CBD5E1 !important;
+            border-radius: 8px !important;
+        }
+        input { color: #1E293B !important; }
+        h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
+        label { color: #475569 !important; font-weight: 600 !important; }
+        
+        /* 🚨 MAKE MOBILE MENU ARROW MASSIVE AND GREEN */
+        [data-testid="collapsedControl"] {
+            position: fixed !important;  
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background-color: #22C55E !important;
+            border-radius: 50% !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+            top: 15px !important;
+            left: 15px !important;
+            padding: 8px !important;
+            z-index: 999999 !important;
+            transition: transform 0.2s ease !important;
+        }
+        
+        [data-testid="collapsedControl"] svg {
+            fill: #FFFFFF !important;
+            color: #FFFFFF !important;
+            width: 24px !important;
+            height: 24px !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+   
     # ==========================================
-    # 3. DATABASE CONNECTION & SELF-REPAIR
+    # 3. DATABASE CONNECTION & SETUP
     # ==========================================
     conn = get_connection()
 
-    def patch_database():
-        try: conn.execute("ALTER TABLE vehicles ADD COLUMN or_img TEXT"); conn.commit()
+    def patch_database_tables():
+        try: conn.execute("CREATE TABLE IF NOT EXISTS admin_promos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, target TEXT DEFAULT 'ALL USERS', active INTEGER DEFAULT 1)"); conn.commit()
         except: pass
-        try: conn.execute("ALTER TABLE vehicles ADD COLUMN cr_img TEXT"); conn.commit()
-        except: pass
-        try: conn.execute("ALTER TABLE vehicles ADD COLUMN baseline_price REAL DEFAULT 0.0"); conn.commit()
-        except: pass
-        try: conn.execute("ALTER TABLE vehicles ADD COLUMN vehicle_age INTEGER DEFAULT 0"); conn.commit()   
-        except: pass
-        try: conn.execute("ALTER TABLE vehicles ADD COLUMN is_with_driver INTEGER DEFAULT 0"); conn.commit()  
-        except: pass
-        try: conn.execute("ALTER TABLE vehicles ADD COLUMN tire_pressure TEXT DEFAULT 'Standard specs'"); conn.commit()
-        except: pass
-        try: conn.execute("ALTER TABLE vehicles ADD COLUMN preferred_fuel TEXT DEFAULT 'Standard Unleaded'"); conn.commit()
-        except: pass
-        try: conn.execute("ALTER TABLE platform_users ADD COLUMN document_url TEXT"); conn.commit()
-        except: pass
-        try: conn.execute("ALTER TABLE vehicles ADD COLUMN admin_status TEXT DEFAULT 'PENDING'"); conn.commit()
-        except: pass
-        try: conn.execute("ALTER TABLE bookings ADD COLUMN handover_photos TEXT"); conn.commit()
-        except: pass
-        try: conn.execute("ALTER TABLE bookings ADD COLUMN handover_sig_renter TEXT"); conn.commit()
-        except: pass
-        try: conn.execute("ALTER TABLE bookings ADD COLUMN handover_sig_affiliate TEXT"); conn.commit()
-        except: pass
-        
-        # Profile & Bank Columns for platform_users
-        try: conn.execute("ALTER TABLE platform_users ADD COLUMN bank_name TEXT"); conn.commit()
-        except: pass
-        try: conn.execute("ALTER TABLE platform_users ADD COLUMN account_no TEXT"); conn.commit()
-        except: pass
-        try: conn.execute("ALTER TABLE platform_users ADD COLUMN bank_acc_name TEXT"); conn.commit()
-        except: pass
-        
-        # Financial & Dispute Columns
-        try: conn.execute("ALTER TABLE bookings ADD COLUMN damage_fee REAL DEFAULT 0.0"); conn.commit()
-        except: pass
-        try: conn.execute("ALTER TABLE bookings ADD COLUMN late_fee REAL DEFAULT 0.0"); conn.commit()
-        except: pass
-        try: conn.execute("ALTER TABLE bookings ADD COLUMN fuel_fee REAL DEFAULT 0.0"); conn.commit()
-        except: pass
-        try: conn.execute("ALTER TABLE bookings ADD COLUMN cleaning_fee REAL DEFAULT 0.0"); conn.commit()
-        except: pass
-        try: conn.execute("ALTER TABLE bookings ADD COLUMN rfid_fee REAL DEFAULT 0.0"); conn.commit() 
-        except: pass
-        try: conn.execute("ALTER TABLE bookings ADD COLUMN dispute_status TEXT DEFAULT 'CLEAN'"); conn.commit()
-        except: pass
-        
-        try:
-            conn.execute("CREATE TABLE IF NOT EXISTS admin_promos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, target TEXT DEFAULT 'ALL USERS', active INTEGER DEFAULT 1)")
+        try: 
+            conn.execute("ALTER TABLE vehicles ADD COLUMN location TEXT DEFAULT 'Brgy. Kapitolyo, Pasig City'")
             conn.commit()
+        except: 
+            pass
+        try: conn.execute("ALTER TABLE bookings ADD COLUMN receipt_img BLOB"); conn.commit()
         except: pass
-        
-        # Chat Table
         try:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS chat_messages (
@@ -240,316 +200,138 @@ def main():
             """)
             conn.commit()
         except: pass
-        try: conn.execute("ALTER TABLE chat_messages ADD COLUMN image_path TEXT"); conn.commit()
-        except: pass
-        try: conn.execute("ALTER TABLE chat_messages ADD COLUMN receiver_username TEXT"); conn.commit()
-        except: pass
 
-    patch_database()
+    patch_database_tables()
+    os.makedirs("/data/uploads/chat_images", exist_ok=True)
 
-    # RENDER SAFE UPLOAD DIRECTORY
-    UPLOAD_DIR = os.path.join(os.getcwd(), "data", "uploads")
-    if not os.path.exists(UPLOAD_DIR): 
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-    # ==========================================
-    # 3.1 MEMORY-OPTIMIZED CACHED DATA LOADERS
-    # ==========================================
-    @st.cache_data(ttl=300, max_entries=50)
-    def load_affiliate_bookings_cached(username: str):
-        query = """
-            SELECT b.*, v.make, v.model, v.plate, v.is_with_driver, r.full_name as renter_name, r.contact_number as renter_contact, r.email as renter_email
-            FROM bookings b
-            JOIN vehicles v ON b.vehicle_id = v.id
-            JOIN platform_users r ON b.renter_username = r.username
-            WHERE v.owner_username = ? AND b.status NOT IN ('COMPLETED', 'CANCELLED')
-            ORDER BY b.pickup_time ASC
-        """
-        df = pd.read_sql_query(query, conn, params=(username,))
-        if not df.empty and 'status' in df.columns:
-            df['status'] = df['status'].astype('category')
-        return df
-
-    @st.cache_data(ttl=300, max_entries=50)
-    def load_affiliate_fleet_cached(username: str):
-        query = "SELECT id, make, model, plate, booking_status, admin_status, ref_no FROM vehicles WHERE owner_username = ?"
-        df = pd.read_sql_query(query, conn, params=(username,))
-        if not df.empty and 'booking_status' in df.columns:
-            df['booking_status'] = df['booking_status'].astype('category')
-        return df
-
-    # --- FETCH DYNAMIC RATES & SETTINGS ---
+    # --- FETCH DYNAMIC PLATFORM SETTINGS ---
     try:
-        settings_df = pd.read_sql_query("SELECT renter_markup_pct, affiliate_share_pct FROM platform_settings WHERE id = 1", conn)
+        settings_df = pd.read_sql_query("SELECT payment_mode, renter_markup_pct, operator_name FROM platform_settings WHERE id = 1", conn)
+
         if not settings_df.empty:
-            r_markup = float(settings_df.iloc[0]['renter_markup_pct'])
-            a_share_pct = float(settings_df.iloc[0]['affiliate_share_pct'])
+            gateway_mode = settings_df.iloc[0]['payment_mode']
+            raw_fee = settings_df.iloc[0]['renter_markup_pct']
+            dynamic_renter_fee = float(raw_fee) if pd.notnull(raw_fee) else 0.07
+            raw_op = settings_df.iloc[0]['operator_name']
+            operator_name = str(raw_op) if pd.notnull(raw_op) else "Platform"
         else:
-            r_markup, a_share_pct = 0.07, 0.82 
-    except:
-        r_markup, a_share_pct = 0.07, 0.82
-
-    try:
-        cat_df = pd.read_sql_query("SELECT name, default_price FROM vehicle_categories", conn)
-        FIXED_RATES = dict(zip(cat_df['name'], cat_df['default_price']))
-    except Exception: 
-        FIXED_RATES = {"Sedan": 1500.0, "SUV": 2500.0, "Van": 3000.0, "Luxury": 5000.0}
+            gateway_mode, dynamic_renter_fee, operator_name = "MANUAL_QR", 0.07, "Platform"
+    except Exception:
+        gateway_mode, dynamic_renter_fee, operator_name = "MANUAL_QR", 0.07, "Platform"
 
     # ==========================================
     # 4. UTILITIES & HELPERS
     # ==========================================
-    if "temp_msg_affiliate" not in st.session_state:
-        st.session_state.temp_msg_affiliate = ""
+    if "temp_msg_renter" not in st.session_state: st.session_state.temp_msg_renter = ""
 
-    def save_file(uploaded_file):
-        if uploaded_file:
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{timestamp}_{uploaded_file.name}"
-            path = os.path.join(UPLOAD_DIR, filename)
-            with open(path, "wb") as f: f.write(uploaded_file.getbuffer())
-            return path
-        return None
+    def get_delivery_fee_for_renter(conn, distance_km):
+        """Fetches the delivery fee from the admin-controlled pricing table."""
+        try:
+            query = "SELECT fee FROM delivery_pricing WHERE max_km >= ? ORDER BY max_km ASC LIMIT 1"
+            res = conn.execute(query, (distance_km,)).fetchone()
+            if res:
+                return float(res[0])
+            else:
+                max_tier = conn.execute("SELECT fee FROM delivery_pricing ORDER BY max_km DESC LIMIT 1").fetchone()
+                return float(max_tier[0]) if max_tier else 700.0
+        except Exception:
+            return 0.0
 
-    def save_chat_image(uploaded_file, booking_ref):
-        if uploaded_file:
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"chat_{booking_ref}_{timestamp}_{uploaded_file.name}"
-            path = os.path.join(UPLOAD_DIR, filename)
-            with open(path, "wb") as f: f.write(uploaded_file.getbuffer())
+    def get_booked_dates(vehicle_id, conn):
+        """Finds all dates a specific vehicle is already booked."""
+        query = "SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status IN ('CONFIRMED', 'ONGOING', 'PENDING')"
+        df = pd.read_sql_query(query, conn, params=(vehicle_id,))
+        booked_days = set()
+        for _, row in df.iterrows():
+            try:
+                start_date = pd.to_datetime(row['pickup_time']).date()
+                end_date = pd.to_datetime(row['return_time']).date()
+                delta = end_date - start_date
+                for i in range(delta.days + 1):
+                    day = start_date + timedelta(days=i)
+                    booked_days.add(day)
+            except Exception:
+                pass
+        return booked_days
+
+    def calculate_24h_rental(p_dt, r_dt, base_rate, hourly_penalty=300.0, grace_mins=59):
+        delta = r_dt - p_dt
+        total_hours = delta.total_seconds() / 3600.0
+        full_days = int(total_hours // 24)
+        remainder_hours = total_hours % 24
+        billed_hrs = 0
+        if remainder_hours > (grace_mins / 60.0):
+            billed_hrs = math.ceil(remainder_hours)
+        if full_days == 0 and billed_hrs > 0:
+            full_days, billed_hrs = 1, 0
+        base_cost = full_days * base_rate
+        ext_fee = billed_hrs * hourly_penalty
+        return full_days, billed_hrs, base_cost, ext_fee, base_cost + ext_fee
+
+    def clear_renter_chat(b_ref):
+        """Clears the chat input box and stages the message to be sent."""
+        if f"chat_{b_ref}" in st.session_state:
+            st.session_state.temp_msg_renter = st.session_state[f"chat_{b_ref}"]
+            st.session_state[f"chat_{b_ref}"] = ""
+            st.session_state[f"trigger_send_{b_ref}"] = True
+
+    def save_chat_image(img_file, b_ref):
+        """Saves an uploaded image from the chat to the server."""
+        if img_file:
+            path = f"/data/uploads/chat_images/{b_ref}_{img_file.name}"
+            with open(path, "wb") as f:
+                f.write(img_file.getbuffer())
             return path
         return ""
 
-    def save_canvas_image(image_data, prefix):
-        if image_data is not None:
-            img = Image.fromarray(image_data.astype('uint8'), 'RGBA')
-            background = Image.new("RGB", img.size, (255, 255, 255))
-            background.paste(img, mask=img.split()[3])
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = os.path.join(UPLOAD_DIR, f"{prefix}_{timestamp}.jpg")
-            background.save(filename, "JPEG")
-            return filename
-        return None
-
-    def generate_handover_pdf(ref_no, car_name, renter_name, travel_dates, checklist, r_sig_path, a_sig_path, affiliate_name, tire_pressure="Standard", preferred_fuel="Unleaded"):
-        def safe_text(val):
-            return str(val).replace('\n', ' ').replace('\r', '').replace('\u200b', '').encode('latin-1', 'replace').decode('latin-1')
-
-        pdf = FPDF(orientation='P', unit='mm', format='A4')
-        pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.add_page()
+    def send_alert_email(to_email, subject, body):
+        """Sends system alerts using the Corporate DriveElite server."""
+        sender_email = "contact@driveelite.ph" 
+        sender_password = os.environ.get("EMAIL_PASSWORD") 
         
-        renter_name = safe_text((renter_name[:30] + '..') if len(renter_name) > 30 else renter_name)
-        affiliate_name = safe_text((affiliate_name[:30] + '..') if len(affiliate_name) > 30 else affiliate_name)
-        car_name = safe_text((car_name[:40] + '..') if len(car_name) > 40 else car_name)
-        tire_pressure = safe_text(tire_pressure[:30])
-        preferred_fuel = safe_text(preferred_fuel[:30])
-        
-        try:
-            pdf.image("logo.png", x=80, y=10, w=50)
-            pdf.set_y(45) 
-        except Exception: 
-            pdf.set_y(20)
-            
-        pdf.set_font("Helvetica", 'B', 14)
-        pdf.cell(190, 10, "DRIVEELITE OFFICIAL HANDOVER RECORD", ln=1, align='C')
-        pdf.ln(5)
-        
-        pdf.set_font("Helvetica", '', 11)
-        pdf.cell(190, 8, f"Reference No: {safe_text(ref_no)}", ln=1)
-        pdf.cell(190, 8, f"Vehicle: {car_name}", ln=1)
-        pdf.cell(190, 8, f"Renter Name: {renter_name}", ln=1)
-        pdf.cell(190, 8, f"Travel Dates: {safe_text(travel_dates)}", ln=1)
-        pdf.ln(5)
-        
-        pdf.set_font("Helvetica", 'B', 12)
-        pdf.cell(190, 10, "CHECKLIST VERIFICATION:", ln=1)
-        pdf.set_font("Helvetica", '', 11)
-        pdf.cell(190, 8, f"1. Cash Deposit (Php 5,000): {'YES' if checklist['deposit'] else 'NO'}", ln=1)
-        pdf.cell(190, 8, f"2. Fuel Level: {safe_text(checklist['fuel'])}", ln=1)
-        pdf.cell(190, 8, f"3. Exterior Inspected: {'YES' if checklist['ext'] else 'NO'}", ln=1)
-        pdf.cell(190, 8, f"4. Interior Clean: {'YES' if checklist['int'] else 'NO'}", ln=1)
-        pdf.cell(190, 8, f"5. Tools/Spare Tire Verified: {'YES' if checklist['tools'] else 'NO'}", ln=1)
-        pdf.ln(5)
-
-        pdf.set_font("Helvetica", 'B', 12)
-        pdf.cell(190, 10, "IMPORTANT REMINDERS FOR RENTER:", ln=1)
-        pdf.set_font("Helvetica", '', 10)
-        
-        pdf.set_x(10)
-        pdf.multi_cell(0, 6, safe_text(f"1. Tire Pressure: Please maintain the tire pressure at {tire_pressure} to ensure safety and optimal fuel efficiency."))
-        pdf.set_x(10)
-        pdf.multi_cell(0, 6, safe_text(f"2. Preferred Fuel: This vehicle requires {preferred_fuel}. Please ensure the correct fuel type is used to avoid engine damage charges."))
-        pdf.set_x(10)
-        pdf.multi_cell(0, 6, "3. Speed Limits & Violations: Strictly adhere to all local traffic rules. Any NCAP camera citations, traffic violations, or fines incurred during the rental period will be charged directly to the renter to protect the vehicle's LTO demerit points.")
-        pdf.set_x(10)
-        pdf.multi_cell(0, 6, "4. Geographic Limits: Driving is strictly restricted to Mainland Luzon. Inter-island ferry transport (RoRo) is strictly prohibited.")
-        pdf.ln(10)
-        
-        pdf.set_font("Helvetica", 'B', 12)
-        pdf.cell(190, 10, "DIGITAL SIGNATORIES:", ln=1)
-        
-        y_sig = pdf.get_y() + 2
-        if y_sig > 220:
-            pdf.add_page()
-            y_sig = pdf.get_y() + 2
+        if not sender_password: 
+            return False
             
         try:
-            if r_sig_path and os.path.exists(r_sig_path):
-                pdf.image(r_sig_path, x=30, y=y_sig, w=50)
-        except Exception:
-            pdf.text(30, y_sig + 10, "[Signature Registered]")
+            msg = MIMEMultipart()
+            msg['From'] = f"DriveElite Platform <{sender_email}>"
+            msg['To'] = to_email
+            msg['Subject'] = subject
+            msg.attach(MIMEText(body, 'plain'))
             
-        try:
-            if a_sig_path and os.path.exists(a_sig_path):
-                pdf.image(a_sig_path, x=120, y=y_sig, w=50)
-        except Exception:
-            pdf.text(120, y_sig + 10, "[Signature Registered]")
-        
-        pdf.set_y(y_sig + 16) 
-        pdf.set_font("Helvetica", 'U', 11)
-        pdf.cell(90, 8, renter_name, align='C')
-        pdf.cell(90, 8, affiliate_name, align='C', ln=1)
-        pdf.set_font("Helvetica", '', 10)
-        pdf.cell(90, 5, "Renter", align='C')
-        pdf.cell(90, 5, "Affiliate/Host", align='C', ln=1)
-        
-        pdf_out = pdf.output(dest="S")
-        return pdf_out.encode('latin-1') if isinstance(pdf_out, str) else bytes(pdf_out)
-
-
-    def generate_return_receipt(booking_ref, renter, vehicle, plate, fuel, clean, damage, late, ot_fee, rfid_fee, total_deduct, refund, sig_ret, sig_reta, is_with_driver=False, driver_name=""):
-        def safe_text(val):
-            return str(val).replace('\n', ' ').replace('\r', '').replace('\u200b', '').encode('latin-1', 'replace').decode('latin-1')
-
-        pdf = FPDF(orientation='P', unit='mm', format='A4')
-        pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.add_page()
-        
-        renter = safe_text((renter[:25] + '..') if len(renter) > 25 else renter)
-        vehicle = safe_text((vehicle[:35] + '..') if len(vehicle) > 35 else vehicle)
-        plate = safe_text((plate[:15] + '..') if len(plate) > 15 else plate)
-        
-        try:
-            pdf.image("logo.png", x=80, y=10, w=50)
-            pdf.set_y(45) 
-        except Exception: 
-            pdf.set_y(20)
-            
-        pdf.set_font("Helvetica", 'B', 16)
-        pdf.cell(190, 10, "DRIVEELITE RETURN & SETTLEMENT RECEIPT", ln=1, align='C')
-        pdf.set_font("Helvetica", '', 12)
-        pdf.cell(190, 10, f"Ref: {safe_text(booking_ref)} | Date: {datetime.date.today()}", ln=1)
-        pdf.cell(190, 10, f"Vehicle: {vehicle} ({plate}) | Renter: {renter}", ln=1)
-        
-        pdf.ln(10)
-        pdf.set_font("Helvetica", 'B', 12)
-        pdf.cell(190, 10, "SECURITY DEPOSIT DEDUCTIONS:", ln=1)
-        pdf.set_font("Helvetica", '', 11)
-        
-        pdf.cell(190, 8, f"Fuel Replacement: Php {fuel:,.2f}", ln=1)
-        pdf.cell(190, 8, f"Cleaning Penalty: Php {clean:,.2f}", ln=1)
-        pdf.cell(190, 8, f"Damage Penalty: Php {damage:,.2f}", ln=1)
-        pdf.cell(190, 8, f"Net RFID & Toll Deductions: Php {rfid_fee:,.2f}", ln=1)
-        pdf.cell(190, 8, f"Late Penalty: Php {late:,.2f}", ln=1)
-        
-        if is_with_driver and ot_fee > 0:
-            pdf.cell(190, 8, f"Driver Extras/OT: Php {ot_fee:,.2f}", ln=1)
-            
-        pdf.ln(5)
-        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-        pdf.ln(5)
-        
-        pdf.set_font("Helvetica", '', 12)
-        pdf.cell(190, 8, f"Total Deductions: Php {total_deduct:,.2f}", ln=1)
-        pdf.cell(190, 8, f"Less Initial Deposit: (Php 5,000.00)", ln=1)
-        pdf.ln(2) 
-        
-        pdf.set_font("Helvetica", 'B', 12)
-        if total_deduct > 5000.0:
-            amount_payable = total_deduct - 5000.0
-            pdf.cell(190, 10, f"NET PAYABLE TO AFFILIATE: Php {amount_payable:,.2f}", ln=1)
-        else:
-            pdf.cell(190, 10, f"NET REFUND TO RENTER: Php {refund:,.2f}", ln=1)
-            
-        current_y = pdf.get_y() + 5
-        
-        if current_y > 220:
-            pdf.add_page()
-            current_y = pdf.get_y() + 5
-            
-        try:
-            if sig_ret is not None:
-                r_path = save_canvas_image(sig_ret, f"ret_r_{booking_ref}")
-                if r_path: pdf.image(r_path, x=30, y=current_y, w=50)
-        except Exception: 
-            pass
-            
-        try:
-            if sig_reta is not None:
-                a_path = save_canvas_image(sig_reta, f"ret_a_{booking_ref}")
-                if a_path: pdf.image(a_path, x=120, y=current_y, w=50)
-        except Exception: 
-            pass
-            
-        pdf.set_xy(30, current_y + 18)
-        pdf.cell(50, 5, "Renter Final Sign-off", align='C')
-        pdf.set_xy(120, current_y + 18)
-        pdf.cell(50, 5, "Affiliate Final Sign-off", align='C')
-        
-        pdf.set_y(current_y + 30)
-        pdf.set_font("Helvetica", 'I', 9)
-        pdf.cell(190, 5, "Legally generated by DriveElite Platform", align='C', ln=1)
-        
-        pdf_out = pdf.output(dest="S")
-        return pdf_out.encode('latin-1') if isinstance(pdf_out, str) else bytes(pdf_out)
-    
-    def send_pdf_email(to_email, subject, body, pdf_bytes, filename):
-        sender_email = 'contact@driveelite.ph'
-        app_password = "chcskxti6hc2d7ao"
-        
-        msg = EmailMessage()
-        msg['Subject'] = subject
-        msg['From'] = f"DriveElite Admin <{sender_email}>"
-        msg['To'] = to_email
-        msg.set_content(body)
-        
-        msg.add_attachment(pdf_bytes, maintype='application', subtype='pdf', filename=filename)
-        
-        try:
-            with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
-                smtp.login(sender_email, app_password)
-                smtp.send_message(msg)
-            return True, "Success"
-        except Exception as e: 
-            return False, str(e)
+            with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as server:
+                server.login(sender_email, sender_password)
+                server.send_message(msg)
+            return True
+        except Exception as e:
+            print(f"Failed to send email: {e}")
+            return False
 
     # ==========================================
-    # 5. LOGIN FLOW
+    # 5. AUTHENTICATION FLOW
     # ==========================================
-    if not st.session_state.get('logged_in') or st.session_state.get('role') != 'AFFILIATE':
-        st.markdown("<h2 style='text-align: center;'>💼 AFFILIATE LOGIN</h2>", unsafe_allow_html=True)
-        with st.form("login", clear_on_submit=True):
-            u = st.text_input("Username")
-            p = st.text_input("Password", type="password")
-            if st.form_submit_button("LOGIN", use_container_width=True):
-                user = pd.read_sql_query("SELECT * FROM platform_users WHERE username=? AND password=? AND role='AFFILIATE'", conn, params=(u, p))
+    if not st.session_state.get('logged_in') or st.session_state.get('role') != 'RENTER':
+        st.markdown("<h2 style='text-align: center;'>🚙 RENTER LOGIN</h2>", unsafe_allow_html=True)
+        with st.form("login_renter"):
+            u, p = st.text_input("Username"), st.text_input("Password", type="password")
+            if st.form_submit_button("LOGIN TO SHOWROOM", use_container_width=True):
+                user = pd.read_sql_query("SELECT * FROM platform_users WHERE username=? AND password=? AND role='RENTER'", conn, params=(u, p))
                 if not user.empty:
                     if user.iloc[0]['admin_status'] == 'APPROVED':
-                        st.session_state.logged_in, st.session_state.username, st.session_state.role = True, u, 'AFFILIATE'
+                        st.session_state.logged_in, st.session_state.username, st.session_state.role = True, u, 'RENTER'
                         st.rerun()
-                    else:
-                        st.warning("⏳ Account pending Admin approval.")
-                else:
-                    st.error("❌ Invalid credentials.")
+                    else: st.warning("⏳ Your account is pending Admin approval.")
+                else: st.error("❌ Invalid credentials.")
         st.stop()
 
-    aff_info = pd.read_sql_query("SELECT full_name FROM platform_users WHERE username=?", conn, params=(st.session_state.username,))
-    affiliate_full_name = aff_info.iloc[0]['full_name'] if not aff_info.empty else st.session_state.username
+    renter_user = st.session_state.username
 
-    # --- HEADER ---
-    st.markdown("<h1 style='text-align: center;'>💼 AFFILIATE COMMAND CENTER</h1>", unsafe_allow_html=True)
-    top_col1, top_col2 = st.columns([5, 1])
-    with top_col2:
+    # ==========================================
+    # 6. HEADER & MAIN INTERFACE
+    # ==========================================
+    st.markdown("<h1 style='text-align: center;'>🚙 RENTER COMMAND CENTER</h1>", unsafe_allow_html=True)
+    col_l, col_m, col_r = st.columns([1, 4, 1])
+    with col_r:
         if st.button("🔒 LOGOUT", use_container_width=True):
             st.session_state.clear()
             st.rerun()
@@ -559,7 +341,7 @@ def main():
     # 📢 STATIC BROADCAST BANNER
     # ==========================================
     try:
-        promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('AFFILIATE', 'ALL USERS') LIMIT 1", conn)
+        promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('RENTER', 'ALL USERS') LIMIT 1", conn)
         
         if not promo_df.empty:
             title = promo_df.iloc[0]['title']
@@ -569,7 +351,7 @@ def main():
                 <style>
                 .broadcast-box {{ 
                     padding: 25px 20px; 
-                    background-color: #2563EB; 
+                    background-color: #2563EB;
                     color: white; 
                     border-radius: 12px; 
                     margin-bottom: 25px; 
@@ -581,7 +363,7 @@ def main():
                     align-items: center;
                     flex-wrap: wrap; 
                     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                    border: 1px solid rgba(255, 255, 255, 0.15); 
+                    border: 1px solid rgba(255, 255, 255, 0.15);
                 }}
                 .broadcast-title {{
                     font-weight: 900;
@@ -596,709 +378,598 @@ def main():
             """, unsafe_allow_html=True)
     except Exception: pass 
 
-    # ==========================================
-    # 6. TABS (Added PROFILE & BANK Tab)
-    # ==========================================
-    tabs = st.tabs(["BOOKINGS & HANDOVER", "MY ASSETS", "ADD ASSET", "ADD DRIVER", "PROFILE & BANK", "REVIEWS"])
+    main_tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
 
-    # --- TAB 0: BOOKINGS & HANDOVER ---
-    with tabs[0]: 
-        st.header("📦 Active Bookings & Handovers")
-        st.write("Manage your upcoming deliveries, chat with renters, and log your handovers.")
+    # ==========================================
+    # 🚘 RENTER SHOWROOM (MAIN TAB 0)
+    # ==========================================
+    with main_tabs[0]:
+        st.header("🚘 Available Fleet")
+
+        available_cars = pd.read_sql_query("""
+            SELECT v.*, u.full_name as owner_name 
+            FROM vehicles v 
+            JOIN platform_users u ON v.owner_username = u.username 
+            WHERE v.admin_status = 'APPROVED' AND v.booking_status = 'AVAILABLE'
+        """, conn)
+
+        if available_cars.empty:
+            st.info("Our fleet is currently fully booked. Please check back later!")
+        else:
+            if 'category' in available_cars.columns:
+                categories = ["All"] + sorted(available_cars['category'].dropna().unique().tolist())
+            elif 'type' in available_cars.columns:
+                categories = ["All"] + sorted(available_cars['type'].dropna().unique().tolist())
+            else:
+                categories = ["All"]
+                
+            category_tabs = st.tabs(categories)
+            
+            for tab_index, cat in enumerate(categories):
+                with category_tabs[tab_index]:
+                    
+                    if cat == "All":
+                        category_cars = available_cars.copy()
+                    else:
+                        filter_col = 'category' if 'category' in available_cars.columns else 'type'
+                        category_cars = available_cars[available_cars[filter_col] == cat].copy()
+                    
+                    if category_cars.empty:
+                        st.info("No vehicles available in this category right now.")
+                    else:
+                        display_cars = category_cars.head(8).reset_index(drop=True)
+                        grid_cols = st.columns(4)
+                        
+                        for idx, car in display_cars.iterrows():
+                            with grid_cols[idx % 4]: 
+                                with st.container(border=True):
+                                    
+                                    # --- TOP: Image ---
+                                    img_p = car.get('vehicle_img')
+                                    if img_p and os.path.exists(img_p): 
+                                        st.image(img_p, use_container_width=True)
+                                    else: 
+                                        st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
+                                    
+                                    # --- MIDDLE: Details ---
+                                    base_rate = float(car.get('daily_rate') or car.get('approved_price') or 0.0)
+                                    st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}", unsafe_allow_html=True)
+                                    
+                                    # 📍 Display Actual Approximate Location & Host
+                                    car_location = car.get('location', 'Brgy. Kapitolyo, Pasig City')
+                                    owner_display = car.get('owner_name', 'Verified Affiliate')
+                                    st.caption(f"📍 Base Area: **{car_location}** (Host: {owner_display})")
+                                    
+                                    # --- CLICKABLE REPUTATION CARD ---
+                                    rating_data = conn.execute("""
+                                        SELECT AVG(rating), COUNT(rating) 
+                                        FROM bookings 
+                                        WHERE vehicle_id = ? AND rating IS NOT NULL AND status = 'COMPLETED'
+                                    """, (car['id'],)).fetchone()
+                                    
+                                    avg_rating = rating_data[0] if rating_data[0] is not None else 0
+                                    review_count = rating_data[1] if rating_data[1] is not None else 0
+                                    
+                                    if avg_rating > 0:
+                                        stars = '⭐' * int(round(avg_rating))
+                                        with st.popover(f"{stars} ({avg_rating:.1f}) - {review_count} Reviews", use_container_width=True):
+                                            st.write(f"### 📋 Feedback for this {car['make']} {car['model']}")
+                                            
+                                            reviews = pd.read_sql_query("""
+                                                SELECT b.review, b.rating, r.full_name as renter_name 
+                                                FROM bookings b 
+                                                JOIN platform_users r ON b.renter_username = r.username 
+                                                WHERE b.vehicle_id = ? AND b.review IS NOT NULL AND b.review != ''
+                                                ORDER BY b.id DESC LIMIT 10
+                                            """, conn, params=(car['id'],))
+                                            
+                                            if not reviews.empty:
+                                                for _, rev in reviews.iterrows():
+                                                    color = "green" if rev['rating'] >= 4 else "orange"
+                                                    st.markdown(f"**{rev['renter_name']}** rated it :{color}[{'⭐'*int(rev['rating'])}]")
+                                                    st.caption(f"_{rev['review']}_")
+                                                    st.divider()
+                                            else:
+                                                st.write("No written reviews yet.")
+                                    else:
+                                        st.markdown("*No ratings yet*")
+                                    
+                                    st.markdown(f"<h5 style='color: #2563EB;'>₱{base_rate:,.2f} / day</h5>", unsafe_allow_html=True)
+                                    
+                                    # --- BOTTOM: POPOVER CHECKOUT MANAGER ---
+                                    with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
+                                        
+                                        stage_key = f"chk_stage_{car['id']}_{cat}"
+                                        ref_key = f"pend_ref_{car['id']}_{cat}"
+                                        if stage_key not in st.session_state: st.session_state[stage_key] = 0
+                                        
+                                        unavailable_dates = get_booked_dates(car['id'], conn)
+                                        
+                                        # -------------------------------------------------------------
+                                        # CHECKOUT STAGE 0: SELECT DATES & EXACT ADDRESSES
+                                        # -------------------------------------------------------------
+                                        if st.session_state[stage_key] == 0:
+                                            today = datetime.date.today()
+                                            
+                                            d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}_{cat}")
+                                            t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
+                                            d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}")
+                                            t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
+
+                                            # BULLETPROOF FLAT HTML CALENDAR
+                                            cal_year = d1.year
+                                            cal_month = d1.month
+                                            month_matrix = calendar.monthcalendar(cal_year, cal_month)
+                                            month_name = calendar.month_name[cal_month]
+
+                                            cal_html = f"""
+                                            <style>
+                                                .booked-date {{ background-color: #FEE2E2; color: #94A3B8; text-decoration: line-through; border-radius: 6px; padding: 6px 0; font-weight: bold; cursor: not-allowed; }}
+                                                .available-date {{ background-color: #DCFCE7; color: #16A34A; border-radius: 6px; padding: 6px 0; font-weight: bold; border: 1px solid #BBF7D0; }}
+                                                .past-date {{ color: #CBD5E1; padding: 6px 0; }}
+                                            </style>
+                                            <div style='background-color:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:15px; margin-bottom:20px; margin-top:15px;'>
+                                                <h4 style='text-align:center; color:#0F172A; margin-top:0px; margin-bottom:10px; font-size:16px;'>{month_name} {cal_year} Availability</h4>
+                                                <table style='width:100%; border-collapse:separate; border-spacing:4px; text-align:center; font-size:13px;'>
+                                                <tr><th style='color:#64748B;'>Mo</th><th style='color:#64748B;'>Tu</th><th style='color:#64748B;'>We</th><th style='color:#64748B;'>Th</th><th style='color:#64748B;'>Fr</th><th style='color:#64748B;'>Sa</th><th style='color:#64748B;'>Su</th></tr>
+                                            """
+
+                                            for week in month_matrix:
+                                                cal_html += "<tr>"
+                                                for day in week:
+                                                    if day == 0:
+                                                        cal_html += "<td></td>"
+                                                    else:
+                                                        d_iter = datetime.date(cal_year, cal_month, day)
+                                                        if d_iter in unavailable_dates:
+                                                            cal_html += f"<td><div class='booked-date'>{day}</div></td>"
+                                                        elif d_iter < today:
+                                                            cal_html += f"<td><div class='past-date'>{day}</div></td>"
+                                                        else:
+                                                            cal_html += f"<td><div class='available-date'>{day}</div></td>"
+                                                cal_html += "</tr>"
+                                            cal_html += "</table></div>"
+
+                                            st.markdown(cal_html, unsafe_allow_html=True)
+                                            
+                                            # COLLISION DETECTION
+                                            can_book = True
+                                            requested_days = set([d1 + datetime.timedelta(days=j) for j in range((d2 - d1).days + 1)])
+                                            clashes = requested_days.intersection(unavailable_dates)
+                                            if clashes:
+                                                can_book = False
+                                                st.error(f" Vehicle booked on: {', '.join([d.strftime('%b %d') for d in sorted(list(clashes))])}")
+
+                                            drive_mode = st.radio("Mode", ["Self-Drive", "With Driver (+₱1k/day)"], key=f"dm_{car['id']}_{cat}")
+                                            dest = st.text_input("Destination", key=f"dest_{car['id']}_{cat}")
+                                            luzon_agree = st.checkbox("I agree to LUZON ONLY travel.", key=f"luzon_{car['id']}_{cat}")
+                                            
+                                            # 🚚 EXACT ADDRESS INPUTS (Zones Removed)
+                                            p_exact = st.text_input("Specific Pickup Address", placeholder="e.g., NAIA Terminal 3 (Arrivals Bay 8), Shangri-La BGC Lobby", key=f"pa_{car['id']}_{cat}")
+                                            r_exact = st.text_input("Specific Return Address", placeholder="e.g., SM Megamall Fashion Hall, 123 Pearl Dr. Ortigas", key=f"ra_{car['id']}_{cat}")
+
+                                            p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
+                                            if r_dt_obj <= p_dt_obj: 
+                                                st.error("⚠️ Return time must be after pickup.")
+                                                can_book = False
+                                            else:
+                                                try:
+                                                    full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
+                                                    driver_fee = (full_days + (1 if billed_hrs > 0 else 0)) * 1000.0 if "Driver" in drive_mode else 0.0
+                                                    
+                                                    try:
+                                                        tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
+                                                        discount_pct = next((float(r['discount_pct']) for _, r in tiers_df.iterrows() if full_days >= r['min_days']), 0.0)
+                                                    except: discount_pct = 0.0
+
+                                                    savings = subtotal * discount_pct
+                                                    discounted_subtotal = subtotal - savings
+                                                    
+                                                    applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
+                                                    platform_fee = discounted_subtotal * applied_renter_fee
+                                                    
+                                                    # 🚚 DYNAMIC ADDRESS DISTANCE ESTIMATOR
+                                                    def estimate_distance_from_address(address_str):
+                                                        addr = address_str.lower().strip()
+                                                        if not addr:
+                                                            return 3.0  # Default local distance
+                                                        
+                                                        if any(k in addr for k in ['airport', 'terminal', 'naia', 'cubao']):
+                                                            return 12.0  # Longer distance tier
+                                                        elif any(k in addr for k in ['alabang', 'fairview', 'novaliches', 'antipolo']):
+                                                            return 15.0  # Maximum tier (15km max)
+                                                        elif any(k in addr for k in ['megamall', 'bgc', 'ortigas', 'pasig', 'makati']):
+                                                            return 3.0   # Close proximity tier
+                                                        else:
+                                                            return 6.0   # Standard mid-range tier
+
+                                                    estimated_km = estimate_distance_from_address(p_exact)
+                                                    
+                                                    # Pulls the exact fee you set in the Admin Dashboard for this km tier
+                                                    delivery_fee = get_delivery_fee_for_renter(conn, estimated_km)
+                                                    
+                                                    grand_total = discounted_subtotal + platform_fee + driver_fee + delivery_fee
+
+                                                    st.markdown("#### 🧾 Cost Breakdown")
+                                                    plural = "day" if full_days == 1 else "days"
+                                                    
+                                                    rows = [f"<tr><td class='bill-label'>Base Rental (₱{base_rate:,.2f} x {full_days} {plural})</td><td style='text-align:right; font-weight:bold;'>₱{base_cost:,.2f}</td></tr>"]
+                                                    
+                                                    if billed_hrs > 0: 
+                                                        rows.append(f"<tr><td style='color:#d35400;'>Hourly Extension</td><td style='text-align:right; color:#d35400;'>+₱{ext_fee:,.2f}</td></tr>")
+                                                    
+                                                    if savings > 0: 
+                                                        rows.append(f"<tr><td style='color:#cc0000;'>Duration Discount ({int(discount_pct * 100)}%)</td><td style='text-align:right; color:#cc0000;'>-₱{savings:,.2f}</td></tr>")
+                                                    
+                                                    rows.append(f"<tr><td style='padding: 8px; color: #16A34A;'>{operator_name} Fee ({int(applied_renter_fee * 100)}%)</td><td style='text-align:right; color:#27ae60;'>+₱{platform_fee:,.2f}</td></tr>")
+                                                    
+                                                    if "Driver" in drive_mode: 
+                                                        rows.append(f"<tr><td style='color:#003399;'>Driver Fee</td><td style='text-align:right; color:#003399;'>+₱{driver_fee:,.2f}</td></tr>")
+                                                        
+                                                    # Itemized Delivery Fee Row matching Admin Matrix
+                                                    rows.append(f"<tr><td style='color:#555;'>Delivery & Meetup Fee ({estimated_km} km tier)</td><td style='text-align:right; color:#555;'>+₱{delivery_fee:,.2f}</td></tr>")
+                                                    
+                                                    bill_html = f"<div class='bill-box'><table class='table-bill' style='width:100%;'>{''.join(rows)}<tr style='border-top:2px solid #000;'><td class='bill-label' style='font-weight:900;'>GRAND TOTAL</td><td style='text-align:right; font-weight:900; font-size:1.1em;'>₱{grand_total:,.2f}</td></tr></table></div>"
+                                                    
+                                                    st.markdown(bill_html, unsafe_allow_html=True)
+                                                    st.divider()
+
+                                                except Exception as e:
+                                                    st.error(f"Error calculating rate: {e}")
+                                                    can_book = False
+
+                                            st.warning("💳 **RFID POLICY:** You must load your own toll funds. Excess load is **not refunded**. Empty RFID penalty: **₱100 fine** + toll costs.")
+                                            
+                                            agree_to_rfid = st.checkbox("I agree to the RFID rules and ₱100 penalty.", key=f"rfid_agree_{car['id']}_{cat}")
+                                            is_disabled = (not can_book) or (not agree_to_rfid)
+
+                                            if st.button("1. CONFIRM BOOKING (SOFT LOCK)", key=f"conf_{car['id']}_{cat}", type="primary", use_container_width=True, disabled=is_disabled):
+                                                p_dt_str = p_dt_obj.strftime("%Y-%m-%d %H:%M")
+                                                r_dt_str = r_dt_obj.strftime("%Y-%m-%d %H:%M")
+                                                
+                                                overlap_check = pd.read_sql_query("""
+                                                    SELECT booking_ref FROM bookings 
+                                                    WHERE vehicle_id = ? 
+                                                    AND status NOT IN ('CANCELLED', 'REJECTED', 'COMPLETED')
+                                                    AND pickup_time < ? 
+                                                    AND return_time > ?
+                                                """, conn, params=(car['id'], r_dt_str, p_dt_str))
+
+                                                if not overlap_check.empty:
+                                                    st.error("⚠️ Sorry! This vehicle was just booked by someone else for these dates. Please select different dates.")
+                                                    st.stop()
+
+                                                if dest and p_exact and r_exact and luzon_agree:
+                                                    with st.spinner("Securing your dates..."):
+                                                        b_ref = str(random.randint(100000, 999999))
+                                                        is_drvr_int = 1 if "Driver" in drive_mode else 0
+                                                        
+                                                        # --- XENDIT AUTOMATED FLOW ---
+                                                        if gateway_mode == "XENDIT":
+                                                            conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
+                                                                         (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"Pickup: {p_exact}", f"Return: {r_exact}", is_drvr_int, b_ref))
+                                                            conn.commit()
+                                                            
+                                                            try:
+                                                                SECRET_KEY = os.environ.get("xendit_active_key")
+                                                                if not SECRET_KEY:
+                                                                    try: SECRET_KEY = st.secrets.get("xendit_active_key")
+                                                                    except: pass 
+                                                                
+                                                                if not SECRET_KEY:
+                                                                    st.error("Missing API Key: Please add 'xendit_active_key' to your variables.")
+                                                                else:
+                                                                    owner_data = pd.read_sql_query("SELECT xendit_sub_id FROM platform_users WHERE username=?", conn, params=(car['owner_username'],))
+                                                                    sub_id = owner_data.iloc[0]['xendit_sub_id'] if not owner_data.empty else None
+                                                                    
+                                                                    pay_amount = int(grand_total)
+                                                                    platform_cut = int(platform_fee)
+                                                                    
+                                                                    auth_string = f"{SECRET_KEY}:"
+                                                                    base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+                                                                    
+                                                                    url = "https://api.xendit.co/v2/invoices"
+                                                                    
+                                                                    payload = {
+                                                                        "external_id": str(b_ref),
+                                                                        "amount": pay_amount,
+                                                                        "currency": "PHP",
+                                                                        "description": f"DriveElite - {car['make']} {car['model']} (Ref: {b_ref})",
+                                                                        "fees": [
+                                                                            {
+                                                                                "type": "DriveElite Platform Commission",
+                                                                                "value": platform_cut
+                                                                            }
+                                                                        ]
+                                                                    }
+                                                                    
+                                                                    req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'))
+                                                                    req.add_header('accept', 'application/json')
+                                                                    req.add_header('content-type', 'application/json')
+                                                                    req.add_header('authorization', f'Basic {base64_auth}')
+                                                                    
+                                                                    if sub_id:
+                                                                        req.add_header('for-user-id', sub_id)
+                                                                    
+                                                                    response = urllib.request.urlopen(req)
+                                                                    checkout_url = json.loads(response.read().decode('utf-8'))['invoice_url']
+                                                                    
+                                                                    st.session_state[f"pay_url_{car['id']}"] = checkout_url
+                                                                    st.session_state[ref_key] = b_ref
+                                                                    st.session_state[stage_key] = 2
+                                                                    st.rerun()
+                                                                    
+                                                            except urllib.error.HTTPError as e:
+                                                                error_info = e.read().decode()
+                                                                st.error(f"Xendit Rejected the Request: {error_info}")
+                                                            except Exception as e:
+                                                                st.error(f"System Error generating link: {e}")
+                                                            
+                                                        # --- MANUAL BPI FLOW (FALLBACK) ---
+                                                        else:
+                                                            conn.execute("INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?)", 
+                                                                         (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"Pickup: {p_exact}", f"Return: {r_exact}", is_drvr_int, b_ref))
+                                                            conn.commit()
+                                                            
+                                                            st.session_state[stage_key] = 1
+                                                            st.session_state[ref_key] = b_ref
+                                                            st.rerun()
+                                                else:
+                                                    st.error("⚠️ ACTION REQUIRED: Please fill in your Destination, Specific Pickup/Return Addresses, and check the Luzon Travel Agreement box before confirming.")
+
+                                        # -------------------------------------------------------------
+                                        # CHECKOUT STAGE 1: VALIDATE BPI PAYMENT
+                                        # -------------------------------------------------------------
+                                        elif st.session_state[stage_key] == 1:
+                                            b_ref = st.session_state.get(ref_key)
+                                            
+                                            if st.button("🏠 RETURN TO LANDING PAGE", key=f"return_main_{car['id']}_{cat}", type="primary", use_container_width=True):
+                                                st.session_state.current_page = "JOIN"
+                                                st.rerun()
+                                            
+                                            st.write("") 
+
+                                            with st.container(border=True):
+                                                st.markdown("### 🏦 Manual Bank Transfer")
+                                                st.write("**Bank:** BPI")
+                                                st.write("**Account Name:** Romeo Albao Jr.")
+                                                st.write("**Account Number:** 0180 0206 08")
+                                                
+                                                amt_df = pd.read_sql_query("SELECT amount FROM bookings WHERE booking_ref = ?", conn, params=(b_ref,))
+                                                owed_amount = float(amt_df.iloc[0]['amount']) if not amt_df.empty else 0.0
+                                                st.write(f"**Amount to Transfer:** :green[**₱{owed_amount:,.2f}**]")
+                                                
+                                                s1, c_img, s2 = st.columns([1, 1, 1])
+                                                with c_img:
+                                                    try: st.image("bpi_qr.png", use_container_width=True)
+                                                    except: st.info("[BPI QR IMAGE GOES HERE]")
+                                                
+                                                st.divider()
+                                                st.write("#### 📤 Upload Proof of Payment")
+                                                st.caption("Upload a screenshot of your transfer. Admin will lock your schedule upon validation.")
+                                                receipt_file = st.file_uploader("Upload Receipt", type=['jpg', 'png', 'jpeg'], key=f"rec_{car['id']}_{cat}")
+                                                
+                                                c_back, c_val = st.columns([1, 2])
+                                                if c_back.button("Cancel Booking", key=f"canc_{car['id']}_{cat}", use_container_width=True):
+                                                    conn.execute("DELETE FROM bookings WHERE booking_ref = ?", (b_ref,)); conn.commit()
+                                                    st.session_state[stage_key] = 0
+                                                    del st.session_state[ref_key]
+                                                    st.rerun()
+                                                
+                                                if c_val.button("2. VALIDATE PAYMENT SENT", type="primary", use_container_width=True, key=f"val_{car['id']}_{cat}"):
+                                                    if receipt_file:
+                                                        receipt_bytes = receipt_file.read()
+                                                        with st.spinner("Transmitting to Admin..."):
+                                                            conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE booking_ref = ?", (receipt_bytes, b_ref))
+                                                            receipt_path = f"/data/uploads/chat_images/receipt_{b_ref}.jpg"
+                                                            with open(receipt_path, "wb") as f: f.write(receipt_bytes)
+                                                            
+                                                            owner_username = pd.read_sql_query("SELECT owner_username FROM vehicles WHERE id=?", conn, params=(car['id'],)).iloc[0]['owner_username']
+                                                            conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                                                         (b_ref, renter_user, owner_username, "Payment Receipt Uploaded for Admin Verification.", receipt_path))
+                                                            conn.commit()
+                                                        
+                                                        st.toast("✅ Receipt Sent to Admin!")
+                                                        st.session_state[stage_key] = 0
+                                                        del st.session_state[ref_key]
+                                                        st.session_state.just_booked_ref = b_ref 
+                                                        st.rerun()
+                                                    else:
+                                                        st.error("Please upload a screenshot of your receipt.")
+
+                                        # -------------------------------------------------------------
+                                        # CHECKOUT STAGE 2: XENDIT CHECKOUT GATEWAY
+                                        # -------------------------------------------------------------
+                                        elif st.session_state[stage_key] == 2:
+                                            b_ref = st.session_state.get(ref_key)
+                                            pay_url = st.session_state.get(f"pay_url_{car['id']}")
+
+                                            st.markdown(f"""
+                                            <div style="background-color: #EFF6FF; border: 1px solid #BFDBFE; padding: 20px; border-radius: 12px; border-left: 6px solid #2563EB; margin-bottom: 20px;">
+                                                <h4 style="color: #1E3A8A; margin-top: 0; margin-bottom: 8px;">✅ Booking Saved (Ref: #{b_ref})</h4>
+                                                <p style="color: #1D4ED8; font-size: 15px; margin-bottom: 0;">
+                                                    Your vehicle is temporarily locked. Please complete your payment via Xendit to finalize the reservation.
+                                                </p>
+                                            </div>
+                                            """, unsafe_allow_html=True)
+                                            
+                                            st.link_button("💳 PROCEED TO XENDIT SECURE CHECKOUT", pay_url, type="primary", use_container_width=True)
+                                            
+                                            st.divider()
+                                            
+                                            c_back, c_paid = st.columns([1, 1])
+                                            
+                                            if c_back.button("Cancel & Release Vehicle", key=f"canc_pm_{car['id']}_{cat}", use_container_width=True):
+                                                conn.execute("DELETE FROM bookings WHERE booking_ref = ?", (b_ref,))
+                                                conn.commit()
+                                                st.session_state[stage_key] = 0
+                                                del st.session_state[ref_key]
+                                                st.rerun()
+                                            
+                                            if c_paid.button("I Have Paid", key=f"paid_pm_{car['id']}_{cat}", use_container_width=True):
+                                                with st.spinner("Notifying Admin..."):
+                                                    conn.execute("UPDATE bookings SET status = 'VERIFYING' WHERE booking_ref = ?", (b_ref,))
+                                                    owner_username = pd.read_sql_query("SELECT owner_username FROM vehicles WHERE id=?", conn, params=(car['id'],)).iloc[0]['owner_username']
+                                                    
+                                                    try:
+                                                        aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
+                                                        if not aff_data.empty:
+                                                            affiliate_email = aff_data.iloc[0]['email']
+                                                            affiliate_name = aff_data.iloc[0]['full_name']
+                                                            
+                                                            admin_email = "contact@driveelite.ph" 
+                                                            send_alert_email(
+                                                                to_email=admin_email,
+                                                                subject=f"CNF: Xendit Payment Verification Needed for #{b_ref}",
+                                                                body=f"Renter @{renter_user} has booked a {car['make']} {car['model']} and completed the Xendit checkout.\n\nPlease verify this transaction inside your Xendit Dashboard and approve the booking."
+                                                            )
+                                                            send_alert_email(
+                                                                to_email=affiliate_email,
+                                                                subject=f"🚗 DriveElite: New Booking Verifying (#{b_ref})",
+                                                                body=f"Hello {affiliate_name},\n\nA renter has booked your {car['make']} {car['model']} via Xendit.\n\nAdmin is currently verifying the gateway transaction. Once confirmed, this will appear in your Logistics tab!"
+                                                            )
+                                                    except Exception:
+                                                        pass
+                                                    
+                                                    conn.commit()
+
+                                                st.toast("✅ Admin notified of your payment!")
+                                                st.session_state[stage_key] = 0
+                                                del st.session_state[ref_key]
+                                                st.session_state.just_booked_ref = b_ref 
+                                                st.rerun()
+
+    # ==========================================
+    # 📅 MY BOOKINGS (MAIN TAB 1)
+    # ==========================================
+    with main_tabs[1]:
+        st.header("📅 My Booking History")
         
         try:
-            my_bookings = load_affiliate_bookings_cached(st.session_state.username)
+            my_bookings = pd.read_sql_query("""
+                SELECT b.*, v.make, v.model, v.plate, v.owner_username
+                FROM bookings b
+                JOIN vehicles v ON b.vehicle_id = v.id
+                WHERE b.renter_username = ?
+                ORDER BY b.id DESC
+            """, conn, params=(renter_user,))
             
             if my_bookings.empty:
-                st.info("You have no active bookings right now. Ensure your vehicles are marked 'AVAILABLE'.")
+                st.info("You haven't made any bookings yet. Head over to the Vehicle Showroom to start your journey!")
             else:
                 for _, b in my_bookings.iterrows():
-                    b_ref_display = f"#{b['booking_ref']}" if pd.notnull(b.get('booking_ref')) else f"DRV-{b['id']:05d}"
-                    vehicle_info = f"{str(b['pickup_time'])[:16]} | {b['make']} {b['model']} ({b['plate']})"
-                    
-                    if b['status'] in ['PENDING', 'VERIFYING']:
-                        with st.container(border=True):
-                            c_icon, c_info = st.columns([1, 15])
-                            with c_icon: st.markdown("<h2>⏳</h2>", unsafe_allow_html=True)
-                            with c_info:
-                                st.write(f"**Ref: {b_ref_display}** | {vehicle_info}")
-                                
-                                if b['status'] == 'PENDING':
-                                    st.warning("🔒 **AWAITING RENTER PAYMENT.** Renter reserved the dates but hasn't uploaded a receipt yet.")
-                                elif b['status'] == 'VERIFYING':
-                                    st.info("🔒 **VERIFYING RECEIPT.** Renter uploaded proof of payment. Waiting for Admin to confirm the funds.")
-
-                    else:
-                        if b['status'] == 'CONFIRMED':
-                            exp_title = f"✅ [CONFIRMED] Ref: {b_ref_display} | {vehicle_info}"
-                        else:
-                            exp_title = f"🚙 [ONGOING] Ref: {b_ref_display} | {vehicle_info}"
-                            
-                        with st.expander(exp_title):
-                            if b['status'] == 'CONFIRMED':
-                                st.success("✅ **PAYMENT VERIFIED.** You may proceed with the handover.")
-                    
-                            with st.container(border=True):
-                                p_dt = pd.to_datetime(b['pickup_time'])
-                                r_dt = pd.to_datetime(b['return_time'])
-                                days_count = max(1, (r_dt - p_dt).days) 
-                                
-                                active_markup = r_markup if days_count >= 7 else 0.0
-                                base_est = b['amount'] / (1 + active_markup)
-                                affiliate_gross = base_est * a_share_pct
-                                ewt_val = affiliate_gross * 0.01
-                                net_payout = affiliate_gross - ewt_val
-                                
-                                c_earn1, c_earn2, c_earn3 = st.columns(3)
-                                c_earn1.metric("Total Rental", f"Php{b['amount']:,.2f}")
-                                c_earn2.metric("Your Gross", f"Php{affiliate_gross:,.2f}")
-                                c_earn3.metric("Net Payout", f"Php{net_payout:,.2f}")
-                                
-                                if active_markup == 0:
-                                    st.info("💡 **7-Day Rule:** Platform fee was waived for this short trip.")
-                            st.divider()
-                            
-                            st.markdown("### 🗺️ Trip Coordinates")
-                            
-                            col_pickup, col_return = st.columns(2)
-                            
-                            with col_pickup:
-                                st.markdown(f"""
-                                <div style="background-color: rgba(250, 250, 250, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid #2E7D32;">
-                                    <strong style="font-size: 1.1em;">🛫 PICKUP DETAILS</strong><br><br>
-                                    📅 <b>Date & Time:</b> {str(b.get('pickup_time'))[:16]}<br>
-                                    📍 <b>Location:</b> {b.get('pickup_loc', 'N/A')}
-                                </div>
-                                """, unsafe_allow_html=True)
-                            
-                            with col_return:
-                                st.markdown(f"""
-                                <div style="background-color: rgba(250, 250, 250, 0.1); padding: 15px; border-radius: 8px; border-left: 5px solid #C62828;">
-                                    <strong style="font-size: 1.1em;">🛬 RETURN DETAILS</strong><br><br>
-                                    📅 <b>Date & Time:</b> {str(b.get('return_time'))[:16]}<br>
-                                    📍 <b>Location:</b> {b.get('return_loc', 'N/A')}
-                                </div>
-                                """, unsafe_allow_html=True)
-                            
-                            st.write("") 
-                            
-                            col_dest, col_renter, col_type = st.columns([2, 1, 1])
-                            
-                            with col_dest:
-                                dest = b.get('destination', 'Not Specified')
-                                st.info(f"🛣️ **Declared Route/Destination:** {dest}")
-                                
-                            with col_renter:
-                                st.success(f"👤 **Renter:** {b.get('renter_name', 'Verified')}")
-                                
-                            with col_type:
-                                if b.get('is_with_driver', 0) == 1:
-                                    st.warning("🧑‍✈️ **WITH DRIVER**")
-                                else:
-                                    st.info("🚗 **SELF-DRIVE**")
-                                    
-                            st.divider()
-
-                            b_ref_str = str(b['booking_ref'])
-                            st_autorefresh(interval=10000, key=f"chat_ping_affiliate_{b_ref_str}")
-                            
-                            c_title, c_refresh = st.columns([3, 1])
-                            
-                            with c_title:
-                                st.markdown("#### 💬 Message the Renter")
-                                
-                            with c_refresh:
-                                if st.button("🔄 Refresh Chat", key=f"sync_affiliate_{b_ref_str}", use_container_width=True):
-                                    st.rerun()
-                            
-                            chat_win = st.container(height=450, border=True)
-                            with chat_win:
-                                try:
-                                    msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? AND receiver_username != 'ADMIN' ORDER BY timestamp ASC", conn, params=(b_ref_str,))
-                                    
-                                    if msgs.empty:
-                                        st.info("👋 Chat is empty. Say hello to start coordinating your trip!")
-                                    else:
-                                        for _, m in msgs.iterrows():
-                                            if m['sender_username'] == st.session_state.username:
-                                                st.markdown(f"""
-                                                <div style="display: flex; justify-content: flex-end; margin-bottom: 5px;">
-                                                    <div style="background-color: #2c8c80; color: white; padding: 12px 16px; border-radius: 20px 20px 4px 20px; max-width: 75%; box-shadow: 1px 2px 5px rgba(0,0,0,0.2);">
-                                                        {m['message_text']}
-                                                    </div>
-                                                </div>
-                                                """, unsafe_allow_html=True)
-                                                if m.get('image_path') and os.path.exists(m['image_path']): 
-                                                    c_space, c_img = st.columns([2, 1])
-                                                    with c_img: st.image(m['image_path'], use_container_width=True)
-                                            else:
-                                                st.markdown(f"""
-                                                <div style="display: flex; justify-content: flex-start; margin-bottom: 5px;">
-                                                    <div style="background-color: #2b2b2b; color: white; padding: 12px 16px; border-radius: 20px 20px 20px 4px; max-width: 75%; border: 1px solid #444; box-shadow: 1px 2px 5px rgba(0,0,0,0.2);">
-                                                        <div class="sender-tag">@{m['sender_username']}</div>
-                                                        {m['message_text']}
-                                                    </div>
-                                                </div>
-                                                """, unsafe_allow_html=True)
-                                                if m.get('image_path') and os.path.exists(m['image_path']): 
-                                                    c_img, c_space = st.columns([1, 2])
-                                                    with c_img: st.image(m['image_path'], use_container_width=True)
-
-                                st.markdown(f'<div id="chat_anchor_{b_ref_str}" style="height: 1px; margin-top: 10px;"></div>', unsafe_allow_html=True)
-                                except: 
-                                    st.error("Could not load chat history.")
-
-                            # --- BULLETPROOF CHAT INPUT ---
-                            input_key = f"chat_input_{b_ref_str}"
-                            if input_key not in st.session_state:
-                                st.session_state[input_key] = ""
-                                
-                            current_text = st.session_state[input_key]
-
-                            c_msg, c_btn = st.columns([4, 1])
-                            with c_msg: 
-                                chat_text = st.text_input("Reply", key=input_key, placeholder="Type message and press Enter...", label_visibility="collapsed")
-                                
-                            with st.expander("📎 Attach Photo(s)", expanded=False):
-                                a_img = st.file_uploader("Upload images here", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"a_img_{b_ref_str}", label_visibility="collapsed")
-
-                            with c_btn:
-                                submitted = st.button("Send", use_container_width=True, key=f"send_btn_{b_ref_str}", type="primary")
-
-                            if submitted:
-                                final_text = chat_text.strip() if chat_text.strip() else current_text.strip()
-                                has_text = bool(final_text)
-                                has_imgs = bool(a_img and len(a_img) > 0)
-                                
-                                if has_text or has_imgs:
-                                    try:
-                                        if has_imgs:
-                                            for idx, img_file in enumerate(a_img):
-                                                path = save_chat_image(img_file, b_ref_str)
-                                                text_to_save = final_text if idx == 0 else ""
-                                                if idx == 0 and not has_text: text_to_save = "📸 Sent a photo."
-                                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                                             (b_ref_str, st.session_state.username, b['renter_username'], text_to_save, path))
-                                        else:
-                                            conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                                         (b_ref_str, st.session_state.username, b['renter_username'], final_text, ""))
-                                        
-                                        conn.commit()
-                                        st.session_state[input_key] = ""
-                                        st.rerun()
-                                    except Exception as e:
-                                        st.warning(f" ⚠️ **DATABASE ERROR:** {str(e)}")
-                                        
-                            st.divider()
-
-                            if b['status'] == 'CONFIRMED':
-                                st.info(" ℹ️ **ACTION REQUIRED:** Complete the Digital Handover with the Renter present.")
-                                with st.expander("📋 Official Handover & Photo Evidence", expanded=True):
-                                    
-                                    with st.container(border=True): 
-                                        st.write("### 1. Vehicle Checklist")
-                                        c1, c2 = st.columns(2)
-                                        
-                                        with c1:
-                                            c_fuel = st.selectbox("Current Fuel Level", ["Full", "3/4", "1/2", "1/4", "Empty"], key=f"fuel_{b['id']}")
-                                            c_deposit = st.checkbox("Php5,000 Cash Deposit Received", value=False, key=f"dep_{b['id']}")
-                                            c_aircon = st.checkbox("❄️ Aircon Confirmed (Cold & Working)", value=True, key=f"aircon_{b['id']}")
-                                        
-                                        with c2:
-                                            c_ext = st.checkbox("Exterior inspected (No new damage)", value=True, key=f"ext_{b['id']}")
-                                            c_int = st.checkbox("Interior is clean/odor-free", value=True, key=f"int_{b['id']}")
-                                            c_tools = st.checkbox("Tools/Spare tire verified", value=True, key=f"tools_{b['id']}")
-                                            c_rfid = st.checkbox("💳 RFID Handover & Reminded to Load", value=True, key=f"rfid_{b['id']}")
-                                        
-                                        st.write("### 📸 2. Photo Evidence (Min. 6)")
-                                        st.caption("Tap below to upload from your gallery or use your phone's camera.")
-                                        h_photos = st.file_uploader("Upload Handover Photos", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"gal_{b['id']}")
-
-                                        st.divider()
-                                        st.write("### 🖋️ 3. Dual Digital Signatures")
-                                    
-                                        # --- Renter Handover Signature ---
-                                        st.markdown(f"<u><b>{b['renter_name']}</b></u><br><small>Renter Signature</small>", unsafe_allow_html=True)
-                                        if f"clr_sr_{b['id']}" not in st.session_state: 
-                                            st.session_state[f"clr_sr_{b['id']}"] = 0
-                                        s_r = st_canvas(
-                                            stroke_width=3, 
-                                            stroke_color="#000000", 
-                                            background_color="#FFFFFF", 
-                                            height=140, 
-                                            width=350, 
-                                            key=f"sr_canvas_{b['id']}_{st.session_state[f'clr_sr_{b['id']}']}"
-                                        )
-                                        if st.button("Clear Renter Pad", use_container_width=True, key=f"btn_clr_r_{b['id']}"): 
-                                            st.session_state[f"clr_sr_{b['id']}"] += 1
-                                            st.rerun()
-
-                                        st.divider()
-
-                                        # --- Affiliate Handover Signature ---
-                                        st.markdown(f"<u><b>{affiliate_full_name}</b></u><br><small>Affiliate/Host Signature</small>", unsafe_allow_html=True)
-                                        if f"clr_sa_{b['id']}" not in st.session_state: 
-                                            st.session_state[f"clr_sa_{b['id']}"] = 0
-                                        s_a = st_canvas(
-                                            stroke_width=3, 
-                                            stroke_color="#000000", 
-                                            background_color="#FFFFFF", 
-                                            height=140, 
-                                            width=350, 
-                                            key=f"sa_canvas_{b['id']}_{st.session_state[f'clr_sa_{b['id']}']}"
-                                        )
-                                        if st.button("Clear Host Pad", use_container_width=True, key=f"btn_clr_h_{b['id']}"): 
-                                            st.session_state[f"clr_sa_{b['id']}"] += 1
-                                            st.rerun()
-                                        
-                                        st.write("")
-                                        submit_dispatch = st.button("🚀 FINAL LOG HANDOVER & DISPATCH", type="primary", use_container_width=True, key=f"btn_disp_{b['id']}")
-
-                                        if submit_dispatch:
-                                            has_sr = s_r.image_data is not None and len(s_r.json_data.get("objects", [])) > 0
-                                            has_sa = s_a.image_data is not None and len(s_a.json_data.get("objects", [])) > 0
-                                            
-                                            if not h_photos or len(h_photos) < 6:
-                                                st.error("❌ DISPATCH BLOCKED: You must upload at least 6 photos of the vehicle condition.")
-                                            elif not c_deposit:
-                                                st.error("❌ DISPATCH BLOCKED: You must verify receipt of the 5,000 Php Cash Deposit.")
-                                            elif not (has_sr and has_sa):
-                                                st.error("❌ DISPATCH BLOCKED: Both parties must sign on the digital pads.")
-                                            else:
-                                                r_sig_path = save_canvas_image(s_r.image_data, f"sig_r_{b['booking_ref']}")
-                                                a_sig_path = save_canvas_image(s_a.image_data, f"sig_a_{b['booking_ref']}")
-                                                
-                                                chk_data = {'fuel': c_fuel, 'ext': c_ext, 'int': c_int, 'tools': c_tools, 'deposit': c_deposit}
-                                                travel_dates = f"{str(b.get('pickup_time'))[:10]} to {str(b.get('return_time'))[:10]}"
-                                                
-                                                with st.spinner("Building Handover Record..."):
-                                                    pdf_bytes = generate_handover_pdf(b['booking_ref'], f"{b['make']} {b['model']} ({b['plate']})", b['renter_name'], travel_dates, chk_data, r_sig_path, a_sig_path, affiliate_full_name)
-                                                    
-                                                    pdf_filepath = os.path.join(UPLOAD_DIR, f"Handover_{b['booking_ref']}.pdf")
-                                                    with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
-                                                    
-                                                    photo_paths = [save_file(img) for img in h_photos]
-                                                    photo_string = ",".join(filter(None, photo_paths))
-                                                    
-                                                    conn.execute("""
-                                                        UPDATE bookings 
-                                                        SET status = 'ONGOING', handover_photos = ?, handover_sig_renter = ?, handover_sig_affiliate = ? 
-                                                        WHERE id = ?
-                                                    """, (photo_string, r_sig_path, a_sig_path, b['id']))
-                                                    conn.commit()
-                                                    
-                                                    aff_data = pd.read_sql_query("SELECT email FROM platform_users WHERE username=?", conn, params=(st.session_state.username,))
-                                                    aff_email = aff_data.iloc[0]['email'] if not aff_data.empty else None
-                                                    
-                                                    if b['renter_email']:
-                                                        r_success, r_err = send_pdf_email(
-                                                            to_email=b['renter_email'], 
-                                                            subject=f"DriveElite: Digital Handover Record (#{b['booking_ref']})", 
-                                                            body="Attached is the official digital handover record with checklists and signatures. Please drive safely!", 
-                                                            pdf_bytes=pdf_bytes, 
-                                                            filename=f"Handover_{b['booking_ref']}.pdf"
-                                                        )
-                                                        if not r_success: 
-                                                            st.warning(f"⚠️ Renter Email Delayed: {r_err}")
-                                                    
-                                                    if aff_email:
-                                                        a_success, a_err = send_pdf_email(
-                                                            to_email=aff_email, 
-                                                            subject=f"✅ DriveElite: Handover Complete (#{b['booking_ref']})", 
-                                                            body="Attached is your copy of the official digital handover record. The trip is now ONGOING.", 
-                                                            pdf_bytes=pdf_bytes, 
-                                                            filename=f"Handover_{b['booking_ref']}.pdf"
-                                                        )
-                                                        if not a_success: 
-                                                            st.warning(f"⚠️ Affiliate Email Delayed: {a_err}")
-                                                    
-                                                    st.success("✅ Handover Secured! PDF copies dispatched to both parties.")
-                                                    time.sleep(3)
-                                                    st.rerun()
-
-                            elif b['status'] == 'ONGOING':
-                                st.warning("⏱️ This trip is currently active. Coordinate the return below.")
-                                
-                                pdf_filepath = os.path.join(UPLOAD_DIR, f"Handover_{b['booking_ref']}.pdf")
-                                if os.path.exists(pdf_filepath):
-                                    with open(pdf_filepath, "rb") as pdf_file:
-                                        st.download_button("📄 DOWNLOAD SIGNED HANDOVER PDF", data=pdf_file.read(), file_name=f"Handover_{b['booking_ref']}.pdf", mime="application/pdf", type="secondary", use_container_width=True, key=f"dl_handover_{b['id']}")
-                                
-                                if b.get('handover_photos'):
-                                    with st.expander("📸 VIEW ORIGINAL HANDOVER PHOTOS (BEFORE TRIP)", expanded=False):
-                                        st.write("Compare these original photos to the current condition of the vehicle.")
-                                        h_paths = str(b['handover_photos']).split(",")
-                                        h_cols = st.columns(3) 
-                                        for idx, img_path in enumerate(h_paths):
-                                            clean_path = img_path.strip()
-                                            if clean_path and os.path.exists(clean_path):
-                                                with h_cols[idx % 3]:
-                                                    st.image(clean_path, use_container_width=True, caption=f"Original Photo {idx+1}")
-                                st.divider()
-
-                                st.write("#### 🛠️ Final Settlement Details")
-                                settlement_type = st.radio("Trip Type:", ["Self-Drive", "With Driver"], key=f"type_{b['id']}", horizontal=True)
-                                
-                                with st.container(border=True):
-                                    c1, c2 = st.columns(2)
-                                    
-                                    with c1:
-                                        st.write("##### Renter Expenses")
-                                        l_hrs = st.number_input("Vehicle Late Return (Hours)", min_value=0, step=1, key=f"l_hrs_{b['id']}")
-                                        st.caption("Standard penalty for the car (Php 300/hr)")
-                                        late_fee = l_hrs * 300.0
-                                        
-                                        fuel_cost = st.number_input("Refuel Receipt (Php)", min_value=0.0, step=100.0, key=f"f_cost_{b['id']}")
-                                        cleaning_fee = st.number_input("Cleaning/Smoking Fine (Php)", value=0.0, step=500.0, key=f"c_fine_{b['id']}")
-                                        
-                                        st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
-                                        st.write("##### 🛣️ Tolls & Travel Expenses")
-                                        rfid_usage = st.number_input("Tolls Consumed (Php)", min_value=0.0, step=50.0, value=0.0, key=f"r_use_{b['id']}")
-                                        rfid_replenished = st.number_input("Tolls Loaded (Php)", min_value=0.0, step=50.0, value=0.0, key=f"r_load_{b['id']}")
-                                        rfid_penalty = st.checkbox("Apply 100 Php fine (Failure to load)", key=f"r_pen_{b['id']}")
-
-                                    with c2:
-                                        st.write("##### Driver/Owner Liabilities")
-                                        damage_fee = 0.0
-                                        img_damage = None
-                                        
-                                        if settlement_type == "Self-Drive":
-                                            d_ok = st.checkbox("No Damage Found", value=True, key=f"d_{b['id']}")
-                                            if not d_ok:
-                                                img_damage = st.file_uploader("Upload Damage Photos", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"p_dam_{b['id']}")
-                                                if img_damage:
-                                                    d_cols = st.columns(3)
-                                                    for idx, dmg_file in enumerate(img_damage):
-                                                        with d_cols[idx % 3]:
-                                                            st.image(dmg_file, use_container_width=True)
-                                                damage_fee = st.number_input("Estimated Damage Amount (Php)", step=500.0, key=f"d_est_{b['id']}")
-                                        else:
-                                            st.info("🛡️ **With Driver Mode:** The Driver is responsible for the vehicle. Damage liability is waived for the Renter.")
-                                        
-                                        driver_extras = 0.0
-                                        if settlement_type == "With Driver":
-                                            st.write("--- 🧑‍✈️ Driver Allowances & Extras ---")
-                                            driver_ot_hrs = st.number_input("Driver Overtime (Hours)", min_value=0, step=1, key=f"ot_hrs_{b['id']}")
-                                            st.caption("Extra pay for the driver's labor (Php 200/hr)")
-                                            ot_fee = driver_ot_hrs * 200.0
-                                            
-                                            p_fee = st.number_input("Parking Fees (Php)", min_value=0.0, step=20.0, key=f"park_{b['id']}")
-                                            n_diff = st.number_input("Night Differential (Php)", min_value=0.0, step=100.0, key=f"ndiff_{b['id']}")
-                                            m_allow = st.number_input("Meal Allowance (Php)", min_value=0.0, step=50.0, key=f"meal_{b['id']}")
-                                            l_allow = st.number_input("Lodging Allowance (Php)", min_value=0.0, step=100.0, key=f"lodge_{b['id']}")
-                                            
-                                            driver_extras = ot_fee + p_fee + n_diff + m_allow + l_allow
-
-                                    # Master Calculation
-                                    fine_amount = 100.0 if rfid_penalty else 0.0
-                                    rfid_fee = max(0.0, rfid_usage - rfid_replenished) + fine_amount
-                                    
-                                    total_deduct = late_fee + fuel_cost + cleaning_fee + damage_fee + rfid_fee + driver_extras
-                                    refund_amount = max(0, 5000.0 - total_deduct)
-                                    
-                                    st.markdown(f"""
-                                    <div style='background-color: rgba(128, 128, 128, 0.1); padding: 15px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.3); margin-bottom: 10px; margin-top: 15px;'>
-                                        <b style='color: #e74c3c;'>Total Deductions:</b> Php{total_deduct:,.2f}<br>
-                                        <b style='color: #27ae60;'>Deposit Held:</b> Php5,000.00
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                                    
-                                    if total_deduct > 5000.0: 
-                                        st.error(f"⚠️ RENTER OWES EXTRA: Php{(total_deduct - 5000.0):,.2f}. (Collect directly from Renter).")
-                                    else: 
-                                        st.success(f"✅ REFUND CASH TO RENTER NOW: Php{refund_amount:,.2f}")
-
-                                    st.write("#### 🖊️ Final Sign-off")
-                                    
-                                    # --- Renter Return Signature ---
-                                    st.markdown(f"<u><b>{b['renter_name']}</b></u><br><small>Renter</small>", unsafe_allow_html=True)
-                                    if f"clr_sret_{b['id']}" not in st.session_state: 
-                                        st.session_state[f"clr_sret_{b['id']}"] = 0
-                                    s_ret = st_canvas(
-                                        stroke_width=3, 
-                                        stroke_color="#000000", 
-                                        background_color="#FFFFFF", 
-                                        height=140, 
-                                        width=350, 
-                                        key=f"sret_canvas_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}"
-                                    )
-                                    if st.button("Clear Renter Pad", use_container_width=True, key=f"btn_clr_sret_{b['id']}"): 
-                                        st.session_state[f"clr_sret_{b['id']}"] += 1
-                                        st.rerun()
-
-                                    st.divider()
-
-                                    # --- Affiliate Return Signature ---
-                                    st.markdown(f"<u><b>{affiliate_full_name}</b></u><br><small>Affiliate/Host</small>", unsafe_allow_html=True)
-                                    if f"clr_sreta_{b['id']}" not in st.session_state: 
-                                        st.session_state[f"clr_sreta_{b['id']}"] = 0
-                                    s_reta = st_canvas(
-                                        stroke_width=3, 
-                                        stroke_color="#000000", 
-                                        background_color="#FFFFFF", 
-                                        height=140, 
-                                        width=350, 
-                                        key=f"sreta_canvas_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}"
-                                    )
-                                    if st.button("Clear Host Pad", use_container_width=True, key=f"btn_clr_sreta_{b['id']}"): 
-                                        st.session_state[f"clr_sreta_{b['id']}"] += 1
-                                        st.rerun()
-
-                                    st.write("")
-                                    submit = st.button("✅ COMPLETE JOURNEY & CLOSE OUT", type="primary", use_container_width=True, key=f"btn_close_{b['id']}")
-
-                                    if submit:
-                                        has_sig = s_ret.image_data is not None and len(s_ret.json_data.get("objects", [])) > 0
-                                        has_sig_a = s_reta.image_data is not None and len(s_reta.json_data.get("objects", [])) > 0
-                                        
-                                        if not has_sig or not has_sig_a:
-                                            st.error("Both Renter and Affiliate signatures are required to close the trip.")
-                                        elif settlement_type == "Self-Drive" and not d_ok and not img_damage:
-                                            st.error("Upload damage photos to proceed.")
-                                        else:
-                                            d_img_path = ",".join([save_file(img) for img in img_damage]) if img_damage else None
-                                            
-                                            with st.spinner("Generating Settlement PDF and closing trip..."):
-                                                try:
-                                                    pdf_bytes = generate_return_receipt(
-                                                        b['booking_ref'], b['renter_name'], f"{b['make']} {b['model']}", b['plate'], 
-                                                        float(fuel_cost), float(cleaning_fee), float(damage_fee), float(late_fee), float(driver_extras), float(rfid_fee), 
-                                                        float(total_deduct), float(refund_amount), s_ret.image_data, s_reta.image_data
-                                                    )
-                                                    
-                                                    pdf_filepath = os.path.join(UPLOAD_DIR, f"Settlement_{b['booking_ref']}.pdf")
-                                                    with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
-                                                    
-                                                    aff_data = pd.read_sql_query("SELECT email FROM platform_users WHERE username=?", conn, params=(st.session_state.username,))
-                                                    aff_email = aff_data.iloc[0]['email'] if not aff_data.empty else None
-                                                    
-                                                    if b.get('renter_email'):
-                                                        r_subject = f"DriveElite: Return Settlement Receipt (#{b['booking_ref']})"
-                                                        r_body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: Php{total_deduct:,.2f}\nRefund Amount: Php{refund_amount:,.2f}"
-                                                        r_sent, r_err = send_pdf_email(b['renter_email'], r_subject, r_body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
-                                                        if not r_sent: 
-                                                            st.warning(f"⚠️ Renter Email Delayed: {r_err}")
-                                                    
-                                                    if aff_email:
-                                                        a_subject = f"✅ DriveElite: Trip Settled & Closed (#{b['booking_ref']})"
-                                                        a_body = "The trip is successfully closed!\n\nAttached is your copy of the official settlement receipt and deductions breakdown."
-                                                        a_sent, a_err = send_pdf_email(aff_email, a_subject, a_body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
-                                                        if not a_sent: 
-                                                            st.warning(f"⚠️ Affiliate Email Delayed: {a_err}")
-                                                    
-                                                    conn.execute("""
-                                                        UPDATE bookings 
-                                                        SET status = 'COMPLETED', payout_status = 'PENDING',
-                                                            damage_img = ?, rfid_fee = ?, damage_fee = ?, late_fee = ?, fuel_fee = ?, cleaning_fee = ?, dispute_status = 'CLEAN' 
-                                                        WHERE id = ?
-                                                    """, (d_img_path, float(rfid_fee + driver_extras), float(damage_fee), float(late_fee), float(fuel_cost), float(cleaning_fee), b['id']))
-                                                    
-                                                    conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
-                                                    conn.commit()
-                                                    
-                                                    st.success("✅ Trip closed & Settlement Receipt emailed to both parties!")
-                                                    time.sleep(3)
-                                                    st.rerun()
-                                                    
-                                                except Exception as e:
-                                                    st.error(f"Error: {e}")
-
-        except Exception as e:
-            st.error(f"System Error loading bookings: {e}")
-
-    # --- TAB 1: MY ASSETS ---
-    with tabs[1]:
-        st.markdown("<h3 style='text-align: center;'>MY FLEET CONTROLS</h3>", unsafe_allow_html=True)
-        fleet = load_affiliate_fleet_cached(st.session_state.username)
-        if fleet.empty: st.info("You haven't added any vehicles yet.")
-        for _, c in fleet.iterrows():
-            v_ref = c.get('ref_no') if pd.notnull(c.get('ref_no')) else 'PENDING'
-            with st.expander(f" #{v_ref} | {c['make']} {c['model']} ({c['plate']}) - Status: {c['booking_status']} (Admin: {c['admin_status']})"):
-                if c['admin_status'] == 'APPROVED':
-                    if c['booking_status'] == 'AVAILABLE' and st.button("Hide Vehicle", key=f"h_{c['id']}"):
-                        conn.execute("UPDATE vehicles SET booking_status = 'UNAVAILABLE' WHERE id = ?", (c['id'],))
-                        conn.commit(); st.rerun()
-                    elif c['booking_status'] == 'UNAVAILABLE' and st.button("Repost Vehicle", key=f"s_{c['id']}"):
-                        conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (c['id'],))
-                        conn.commit(); st.rerun()
-
-    # --- TAB 2: ADD ASSET ---
-    with tabs[2]:
-        st.markdown("<h3 style='text-align: center;'>REGISTER A VEHICLE</h3>", unsafe_allow_html=True)
-        st.caption("Specify the vehicle's garage location using Barangay and City so renters can see the approximate pickup area.")
-        
-        with st.form("add_v"):
-            st.write("#### 🚗 Vehicle Information")
-            c1, c2, c3, c4 = st.columns(4)
-            cat = c1.selectbox("CAR TYPE", list(FIXED_RATES.keys()))
-            ma = c2.text_input("MAKE (e.g., Nissan)")
-            mo = c3.text_input("MODEL (e.g., Terra VE)")
-            ye = c4.text_input("YEAR (e.g., 2022)")
-            
-            st.write("#### 📍 Garage / Base Location")
-            loc_col1, loc_col2 = st.columns(2)
-            garage_brgy = loc_col1.text_input("Barangay", placeholder="e.g., Kapitolyo")
-            garage_city = loc_col2.text_input("City / Municipality", placeholder="e.g., Pasig City")
-
-            st.write("#### ⚙️ Operational Specs")
-            c5, c6, c7, c8 = st.columns(4)
-            pl = c5.text_input("PLATE NUMBER")
-            pf = c6.selectbox("PREF. FUEL", ["Premium Unleaded", "Turbo Diesel", "Diesel"])
-            tp = c7.text_input("TIRE PRESSURE", placeholder="e.g., 32 PSI")
-            
-            with c8:
-                st.write("SERVICE TYPE")
-                service_type = st.radio(" ", ["Self-Drive", "With Driver"], horizontal=True, label_visibility="collapsed")
-                is_with_driver = 1 if service_type == "With Driver" else 0
-            
-            st.write("#### 📄 Document Uploads")
-            c9, c10, c11 = st.columns(3)
-            vi = c9.file_uploader("Vehicle Photo", type=['jpg','png'])
-            or_cr_files = c10.file_uploader("Upload OR & CR (2 files)", type=['jpg','png','pdf'], accept_multiple_files=True)
-            ins = c11.file_uploader("Insurance Policy", type=['pdf','jpg','png'])
-            
-            st.divider()
-            
-            if st.form_submit_button("SUBMIT FOR APPROVAL", type="primary", use_container_width=True):
-                if ma and mo and ye and pl and garage_brgy and garage_city and vi and len(or_cr_files) >= 1 and ins:
-                    try:
-                        current_year = datetime.date.today().year
-                        calculated_age = max(0, current_year - int(ye.strip()))
-                    except ValueError:
-                        calculated_age = 0
-                    
-                    new_ref_no = str(random.randint(100000, 999999))
-                    
-                    car_img_path = save_file(vi)
-                    or_path = save_file(or_cr_files[0]) if len(or_cr_files) > 0 else ""
-                    cr_path = save_file(or_cr_files[1]) if len(or_cr_files) > 1 else or_path
-                    ins_path = save_file(ins)
-                    
-                    # Combine Barangay and City into a clean uniform format
-                    combined_location = f"Brgy. {garage_brgy.strip().title()}, {garage_city.strip().title()}"
-                    
-                    # Ensure table has location column
-                    try:
-                        conn.execute("ALTER TABLE vehicles ADD COLUMN location TEXT DEFAULT 'Metro Manila'")
-                        conn.commit()
-                    except:
-                        pass
-
-                    conn.execute("""
-                        INSERT INTO vehicles (
-                            owner_username, make, model, year, vehicle_age, plate, bank_name, account_no, 
-                            vehicle_img, or_img, cr_img, insurance_img, category, 
-                            approved_price, ref_no, admin_status, booking_status, is_with_driver,
-                            tire_pressure, preferred_fuel, location
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 'UNAVAILABLE', ?, ?, ?, ?)
-                    """, (st.session_state.username, ma.title(), mo.title(), ye, calculated_age, pl.upper(), "Profile", "Profile", 
-                          car_img_path, or_path, cr_path, ins_path, cat, 
-                          FIXED_RATES.get(cat, 0), new_ref_no, is_with_driver, tp, pf, combined_location))
-                    
-                    conn.commit()
-                    st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
-                else: 
-                    st.error("Please fill all required fields (including Garage Barangay and City) and upload all documents.")
-
-    # --- TAB 3: ADD DRIVER ---
-    with tabs[3]:
-        st.markdown("<h3 style='text-align: center;'>REGISTER A DRIVER</h3>", unsafe_allow_html=True)
-        with st.form("add_d"):
-            c1, c2, c3 = st.columns(3)
-            df_first = c1.text_input("First Name").title()
-            df_mid = c2.text_input("Middle Name").title()
-            df_last = c3.text_input("Last Name").title()
-            c_contact, c_age = st.columns(2)
-            d_contact = c_contact.text_input("Contact No.")
-            d_age = c_age.number_input("Age", min_value=18, max_value=99, step=1)
-            d_address = st.text_area("Full Address")
-            is_owner = st.checkbox("I am the driver (Owner driving)")
-            d_gov = st.file_uploader("Upload Govt ID", type=['jpg','png'])
-            d_lic = st.file_uploader("Upload Professional License", type=['jpg','png'])
-            
-            if st.form_submit_button("SUBMIT DRIVER FOR APPROVAL", type="primary"):
-                if df_first and df_last and d_contact and d_gov and d_lic:
-                    conn.execute("INSERT INTO drivers (owner_username, first_name, middle_name, last_name, age, address, contact_number, is_owner, govt_id_img, license_img, admin_status) VALUES (?,?,?,?,?,?,?,?,?,?, 'PENDING')", 
-                                 (st.session_state.username, df_first, df_mid, df_last, d_age, d_address, d_contact, 1 if is_owner else 0, save_file(d_lic), save_file(d_gov)))
-                    conn.commit()
-                    
-                    admin_phone = "09688811400"
-                    admin_email = "contact@driveelite.ph"
-                    subject = " Action Required: New Driver Pending Approval"
-                    body = f"Hello Admin,\n\nAffiliate @{st.session_state.username} has just registered a new driver: {df_first} {df_last}.\n\nPlease review documents."
-                    
-                    send_sms_alert(admin_phone, f"DriveElite Admin: Affiliate @{st.session_state.username} registered a new driver.")
-                    send_alert_email(admin_email, subject, body)
-
-                    st.success("SUCCESS: Driver Submitted!")
-                else: 
-                    st.error("Please fill required fields.")
-        
-        my_drivers = pd.read_sql_query("SELECT first_name, last_name, contact_number, admin_status FROM drivers WHERE owner_username = ?", conn, params=(st.session_state.username,))
-        if not my_drivers.empty: 
-            st.dataframe(my_drivers, hide_index=True, use_container_width=True)
-
-    # --- TAB 4: PROFILE & BANK SETTINGS ---
-    with tabs[4]:
-        st.markdown("<h3 style='text-align: center;'>💼 PROFILE & BANK SETTINGS</h3>", unsafe_allow_html=True)
-        st.caption("Update your personal profile and payout bank account details at any time without re-registering.")
-        
-        user_record = pd.read_sql_query("SELECT full_name, email, contact_number, bank_name, account_no, bank_acc_name FROM platform_users WHERE username=?", conn, params=(st.session_state.username,))
-        
-        if not user_record.empty:
-            u_row = user_record.iloc[0]
-            with st.form("affiliate_profile_form"):
-                st.write("#### 👤 Personal Information")
-                p_name = st.text_input("Full Name", value=str(u_row.get('full_name', '') if pd.notnull(u_row.get('full_name')) else ''))
-                p_email = st.text_input("Email Address", value=str(u_row.get('email', '') if pd.notnull(u_row.get('email')) else ''))
-                p_contact = st.text_input("Contact Number", value=str(u_row.get('contact_number', '') if pd.notnull(u_row.get('contact_number')) else ''))
-                
-                st.write("#### 🏦 Payout Bank Account Information")
-                p_bank = st.text_input("Bank Name (e.g., BPI, UnionBank, GCash)", value=str(u_row.get('bank_name', '') if pd.notnull(u_row.get('bank_name')) else ''))
-                p_acc_no = st.text_input("Bank Account Number", value=str(u_row.get('account_no', '') if pd.notnull(u_row.get('account_no')) else ''))
-                p_acc_name = st.text_input("Bank Account Name", value=str(u_row.get('bank_acc_name', '') if pd.notnull(u_row.get('bank_acc_name')) else ''))
-                
-                st.divider()
-                if st.form_submit_button("💾 SAVE PROFILE & BANK UPDATES", type="primary", use_container_width=True):
-                    try:
-                        conn.execute("""
-                            UPDATE platform_users 
-                            SET full_name = ?, email = ?, contact_number = ?, bank_name = ?, account_no = ?, bank_acc_name = ?
-                            WHERE username = ?
-                        """, (p_name, p_email, p_contact, p_bank, p_acc_no, p_acc_name, st.session_state.username))
-                        conn.commit()
-                        st.success("✅ Profile and payout bank settings successfully updated!")
-                        time.sleep(1)
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Failed to update profile: {e}")
-
-    # --- TAB 5: REVIEWS ---
-    with tabs[5]:
-        st.markdown("<h3 style='text-align: center;'>⭐ Guest Reviews</h3>", unsafe_allow_html=True)
-        query_reviews = """
-            SELECT b.rating, b.review, b.pickup_time, u.full_name as renter_name, v.make, v.model, v.plate
-            FROM bookings b JOIN vehicles v ON b.vehicle_id = v.id JOIN platform_users u ON b.renter_username = u.username
-            WHERE v.owner_username = ? AND b.rating IS NOT NULL ORDER BY b.id DESC
-        """
-        try:
-            reviews_df = pd.read_sql_query(query_reviews, conn, params=(st.session_state.username,))
-            if reviews_df.empty: 
-                st.info("No reviews yet!")
-            else:
-                for _, rev in reviews_df.iterrows():
                     with st.container(border=True):
-                        if pd.notna(rev['rating']) and rev['rating'] != "":
-                            stars = '⭐' * int(float(rev['rating']))
-                        else:
-                            stars = "No rating provided"
+                        c1, c2 = st.columns([3, 1])
+                        with c1:
+                            st.markdown(f"#### {b['make']} {b['model']} ({b['plate']})")
+                            b_ref = b.get('booking_ref') if pd.notnull(b.get('booking_ref')) else f"DRV-{b['id']:05d}"
+                            st.caption(f"Ref: #{b_ref} | Dates: {str(b['pickup_time'])[:10]} to {str(b['return_time'])[:10]}")
+                        
+                        with c2:
+                            if b['status'] == 'COMPLETED': st.success("COMPLETED")
+                            elif b['status'] == 'ONGOING': st.warning("ONGOING")
+                            elif b['status'] == 'VERIFYING': st.info("VERIFYING PAYMENT")
+                            else: st.info(b['status'])
+
+                    # --- CHAT SYSTEM (For Active Trips) ---
+                    if b['status'] in ['PENDING', 'VERIFYING', 'CONFIRMED', 'ONGOING']:
+                        st.divider()
+                        st.markdown("#### 💬 Message the Host")
+                        b_ref_str = str(b['booking_ref'])
+                        
+                        st_autorefresh(interval=10000, key=f"chat_ping_{b_ref_str}")
+                        
+                        chat_win = st.container(height=300, border=True)
+                        with chat_win:
+                            try:
+                                msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? ORDER BY timestamp ASC", conn, params=(b_ref_str,))
+                                if msgs.empty:
+                                    st.info("👋 Chat is empty. Say hello to your host to coordinate the handover!")
+                                else:
+                                    for _, m in msgs.iterrows():
+                                        if m['sender_username'] == renter_user:
+                                            st.markdown(f"""
+                                            <div style="display: flex; justify-content: flex-end; margin-bottom: 5px;">
+                                                <div style="background-color: #2563EB; color: white; padding: 12px 16px; border-radius: 20px 20px 4px 20px; max-width: 75%; box-shadow: 1px 2px 5px rgba(0,0,0,0.2);">
+                                                    {m['message_text']}
+                                                </div>
+                                            </div>
+                                            """, unsafe_allow_html=True)
+                                            if m.get('image_path') and os.path.exists(m['image_path']): 
+                                                c_space, c_img = st.columns([2, 1])
+                                                with c_img: st.image(m['image_path'], use_container_width=True)
+                                        else:
+                                            st.markdown(f"""
+                                            <div style="display: flex; justify-content: flex-start; margin-bottom: 5px;">
+                                                <div style="background-color: #2b2b2b; color: white; padding: 12px 16px; border-radius: 20px 20px 20px 4px; max-width: 75%; border: 1px solid #444; box-shadow: 1px 2px 5px rgba(0,0,0,0.2);">
+                                                    <div class="sender-tag" style="color: #cbd5e1; font-size: 0.8em; margin-bottom: 4px;">@{m['sender_username']} (Host)</div>
+                                                    {m['message_text']}
+                                                </div>
+                                            </div>
+                                            """, unsafe_allow_html=True)
+                                            if m.get('image_path') and os.path.exists(m['image_path']): 
+                                                c_img, c_space = st.columns([1, 2])
+                                                with c_img: st.image(m['image_path'], use_container_width=True)
+                            except Exception as e:
+                                st.error("Could not load chat.")
+
+                        input_key = f"chat_input_{b_ref_str}"
+                        if input_key not in st.session_state:
+                            st.session_state[input_key] = ""
                             
-                        st.markdown(f"#### {stars} - {rev['make']} {rev['model']} ({rev['plate']})")
-                        st.caption(f"🕵️‍♂️ Renter: {rev['renter_name']} | 📅 Date: {str(rev['pickup_time'])[:10]}")
-                        if pd.notna(rev['review']) and str(rev['review']).strip(): 
-                            st.info(f"💬 \"{rev['review']}\"")
-        except Exception as e: 
-            pass
+                        current_text = st.session_state[input_key]
+
+                        c_msg, c_btn = st.columns([4, 1])
+                        with c_msg: 
+                            chat_val = st.text_input("Reply", key=input_key, label_visibility="collapsed", placeholder="Type your message here...")
+                            
+                        with st.expander("📎 Attach Photo (Optional)"):
+                            r_img = st.file_uploader("Upload", type=['jpg','png','jpeg'], key=f"r_img_{b_ref_str}", label_visibility="collapsed")
+
+                        with c_btn:
+                            if st.button("Send", type="primary", use_container_width=True, key=f"send_btn_{b_ref_str}"):
+                                final_text = chat_val.strip() if chat_val.strip() else current_text.strip()
+                                has_text = bool(final_text)
+                                has_img = bool(r_img)
+
+                                if has_text or has_img:
+                                    img_path = save_chat_image(r_img, b_ref_str) if has_img else ""
+                                    text_to_save = final_text if has_text else "📸 Sent a photo."
+
+                                    conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)",
+                                                 (b_ref_str, renter_user, b['owner_username'], text_to_save, img_path))
+                                    conn.commit()
+                                    
+                                    st.session_state[input_key] = ""
+                                    st.rerun() 
+
+                    # --- THE REVIEW SYSTEM ---
+                    if b['status'] == 'COMPLETED':
+                        st.divider()
+                        if pd.isna(b['rating']) or b['rating'] == "" or b['rating'] == 0:
+                            with st.expander("⭐ Leave a Review for this Trip!", expanded=True):
+                                st.write("**Rate your experience:**")
+                                star_click = st.feedback("stars", key=f"stars_{b['id']}")
+                                new_review = st.text_area("Share your thoughts about the vehicle and host...", key=f"rev_text_{b['id']}")
+                                
+                                if st.button("Submit Review", type="primary", key=f"sub_rev_{b['id']}"):
+                                    if star_click is None:
+                                        st.error(" Please click on the stars to leave a rating!")
+                                    else:
+                                        final_rating = star_click + 1 
+                                        conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (final_rating, new_review, b['id']))
+                                        conn.commit()
+                                        st.success("Thank you! Your review has been published.")
+                                        time.sleep(1.5)
+                                        st.rerun()
+                        else:
+                            stars = int(float(b['rating'])) * '⭐'
+                            st.markdown(f"**Your Rating:** {stars}")
+                            if pd.notna(b['review']) and str(b['review']).strip():
+                                st.info(f"💬 \"{b['review']}\"")
+                                
+        except Exception as e:
+            st.error(f"Could not load bookings: {e}")
 
 if __name__ == "__main__":
     main()
