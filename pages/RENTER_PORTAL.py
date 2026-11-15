@@ -431,8 +431,8 @@ def main():
                             with grid_cols[idx % 4]: 
                                 with st.container(border=True):
                                     
-                                    # --- TOP: Image ---
-                                    # --- TOP: Image ---
+                          
+                            # --- TOP: Image ---
                             img_p = car.get('vehicle_img')
                             resolved_img_path = None
                             
