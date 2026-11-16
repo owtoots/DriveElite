@@ -565,14 +565,18 @@ def main():
                                             dest = st.text_input("Destination", key=f"dest_{car['id']}_{cat}")
                                             luzon_agree = st.checkbox("I agree to LUZON ONLY travel.", key=f"luzon_{car['id']}_{cat}")
                                             
-                                            # 📍 Specific Address Input Fields with Clear Examples
+                                            # 📍 Specific Address Input Fields with Unique Keys per Car
+                                            car_id = car.get('id', 'car') # Fallback identifier
+                                            
                                             p_exact = st.text_input(
                                                 "Specific Pickup Address", 
-                                                placeholder="e.g., NAIA Terminal 1, Pasay City or SM Mall of Asia, Pasay City"
+                                                placeholder="e.g., NAIA Terminal 1, Pasay City or SM Mall of Asia, Pasay City",
+                                                key=f"pickup_addr_{car_id}"
                                             )
                                             r_exact = st.text_input(
                                                 "Specific Return Address", 
-                                                placeholder="e.g., BGC High Street, Taguig City or NAIA Terminal 3, Pasay City"
+                                                placeholder="e.g., BGC High Street, Taguig City or NAIA Terminal 3, Pasay City",
+                                                key=f"return_addr_{car_id}"
                                             )
 
                                             p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
@@ -597,8 +601,9 @@ def main():
                                                     
                                                     # 🚚 PER-LOGISTICS ZONAL DISTANCE CALCULATOR (Independent Legs)
                                                     def get_zone_distance(address):
-                                                        """Evaluates a specific address directly for zone keywords."""
-                                                        addr = address.lower()
+                                                        """Evaluates a specific address safely for zone keywords."""
+                                                        addr = str(address).lower() if address else ""
+                                                        
                                                         if "naia" in addr or "airport" in addr or "terminal" in addr:
                                                             return 12.5
                                                         elif "moa" in addr or "mall of asia" in addr:
@@ -613,6 +618,7 @@ def main():
                                                             return 35.0
                                                         elif "antipolo" in addr:
                                                             return 18.0
+                                                        
                                                         return 15.0 # Default fallback for custom addresses
     
                                                     # Leg 1: Hub to Pickup
