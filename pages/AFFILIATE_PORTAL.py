@@ -819,8 +819,8 @@ def main():
                                                     c_img, c_space = st.columns([1, 2])
                                                     with c_img: st.image(m['image_path'], use_container_width=True)
 
-                                st.markdown(f'<div id="chat_anchor_{b_ref_str}" style="height: 1px; margin-top: 10px;"></div>', unsafe_allow_html=True)
-                                except: 
+                                    st.markdown(f'<div id="chat_anchor_{b_ref_str}" style="height: 1px; margin-top: 10px;"></div>', unsafe_allow_html=True)
+                                except Exception: 
                                     st.error("Could not load chat history.")
 
                             # --- BULLETPROOF CHAT INPUT ---
