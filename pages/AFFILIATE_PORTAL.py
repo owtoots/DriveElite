@@ -171,7 +171,32 @@ def main():
     # 3. DATABASE CONNECTION & SELF-REPAIR
     # ==========================================
     conn = get_connection()
+    
+    def auto_register_city_hook(conn, province, city):
+        city_clean = city.strip().title()
+        province_clean = province.strip().title()
+        
+        # Simple automatic island group/region mapping based on province
+        visayas_provinces = ["Cebu", "Negros Occidental", "Iloilo", "Bohol", "Leyte", "Negros Oriental", "Capiz", "Aklan"]
+        mindanao_provinces = ["Davao Del Sur", "Cagayan De Oro", "Misamis Oriental", "Zamboanga Del Sur", "South Cotabato", "Agusan Del Norte"]
+        
+        if any(p.lower() in province_clean.lower() for p in visayas_provinces):
+            region = "Visayas"
+        elif any(p.lower() in province_clean.lower() for p in mindanao_provinces):
+            region = "Mindanao"
+        else:
+            region = "Luzon" # Default fallback for Metro Manila, Cavite, Laguna, Pampanga, etc.
 
+        # Insert into city expansion registry if it doesn't exist yet
+        try:
+            conn.execute("""
+                INSERT OR IGNORE INTO platform_cities (region, province, city, status) 
+                VALUES (?, ?, ?, 'PENDING_LAUNCH')
+            """, (region, province_clean, city_clean))
+            conn.commit()
+        except Exception as e:
+            print(f"City auto-discovery error: {e}")
+            
     def patch_database():
         try: conn.execute("ALTER TABLE vehicles ADD COLUMN or_img TEXT"); conn.commit()
         except: pass
@@ -1205,7 +1230,7 @@ def main():
     # --- TAB 2: ADD ASSET ---
     with tabs[2]:
         st.markdown("<h3 style='text-align: center;'>REGISTER A VEHICLE</h3>", unsafe_allow_html=True)
-        st.caption("Specify the vehicle's garage location using Barangay and City so renters can see the approximate pickup area.")
+        st.caption("Specify the vehicle's garage location so renters can see the approximate pickup area.")
         
         with st.form("add_v"):
             st.write("#### 🚗 Vehicle Information")
@@ -1216,9 +1241,10 @@ def main():
             ye = c4.text_input("YEAR (e.g., 2022)")
             
             st.write("#### 📍 Garage / Base Location")
-            loc_col1, loc_col2 = st.columns(2)
+            loc_col1, loc_col2, loc_col3 = st.columns(3)
             garage_brgy = loc_col1.text_input("Barangay", placeholder="e.g., Kapitolyo")
             garage_city = loc_col2.text_input("City / Municipality", placeholder="e.g., Pasig City")
+            garage_prov = loc_col3.text_input("Province / Metro Area", placeholder="e.g., Metro Manila or Cebu") # 👈 Added Province input
 
             st.write("#### ⚙️ Operational Specs")
             c5, c6, c7, c8 = st.columns(4)
@@ -1240,7 +1266,7 @@ def main():
             st.divider()
             
             if st.form_submit_button("SUBMIT FOR APPROVAL", type="primary", use_container_width=True):
-                if ma and mo and ye and pl and garage_brgy and garage_city and vi and len(or_cr_files) >= 1 and ins:
+                if ma and mo and ye and pl and garage_brgy and garage_city and garage_prov and vi and len(or_cr_files) >= 1 and ins:
                     try:
                         current_year = datetime.date.today().year
                         calculated_age = max(0, current_year - int(ye.strip()))
@@ -1256,12 +1282,7 @@ def main():
                     
                     combined_location = f"Brgy. {garage_brgy.strip().title()}, {garage_city.strip().title()}"
                     
-                    try:
-                        conn.execute("ALTER TABLE vehicles ADD COLUMN location TEXT DEFAULT 'Metro Manila'")
-                        conn.commit()
-                    except:
-                        pass
-
+                    # 1. Insert vehicle into database
                     conn.execute("""
                         INSERT INTO vehicles (
                             owner_username, make, model, year, vehicle_age, plate, bank_name, account_no, 
@@ -1273,10 +1294,13 @@ def main():
                           car_img_path, or_path, cr_path, ins_path, cat, 
                           FIXED_RATES.get(cat, 0), new_ref_no, is_with_driver, tp, pf, combined_location))
                     
+                    # 2. 🌍 TRIGGER AUTO-DISCOVERY HOOK FOR ADMIN EXPANSION RADAR
+                    auto_register_city_hook(conn, garage_prov, garage_city)
+                    
                     conn.commit()
-                    st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no}.")
+                    st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no} & City registered to expansion radar.")
                 else: 
-                    st.error("Please fill all required fields (including Garage Barangay and City) and upload all documents.")
+                    st.error("Please fill all required fields (including Garage Barangay, City, and Province) and upload all documents.")
 
     # --- TAB 3: ADD DRIVER ---
     with tabs[3]:
