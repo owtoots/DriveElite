@@ -593,7 +593,7 @@ def main():
                                                     # 🚚 PER-LEG LOGISTICAL DISTANCE & FEE CALCULATOR
                                                     hub_location = car.get('location', 'Kapitolyo, Pasig City')
 
-                                                    def gdef get_route_distance(origin, destination):
+                                                    def def get_route_distance(origin, destination):
                                                         """Returns fixed estimated kilometers based on common destination zones."""
                                                         dest_lower = destination.lower()
                                                         
