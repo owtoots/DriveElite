@@ -565,18 +565,18 @@ def main():
                                             dest = st.text_input("Destination", key=f"dest_{car['id']}_{cat}")
                                             luzon_agree = st.checkbox("I agree to LUZON ONLY travel.", key=f"luzon_{car['id']}_{cat}")
                                             
-                                            # 📍 Specific Address Input Fields with Unique Keys per Car
-                                            car_id = car.get('id', 'car') # Fallback identifier
+                                            # 📍 Specific Address Input Fields with Unique Keys per Car & Category Tab
+                                            car_id = car.get('id', 'car')
                                             
                                             p_exact = st.text_input(
                                                 "Specific Pickup Address", 
                                                 placeholder="e.g., NAIA Terminal 1, Pasay City or SM Mall of Asia, Pasay City",
-                                                key=f"pickup_addr_{car_id}"
+                                                key=f"pickup_addr_{car_id}_{cat}"
                                             )
                                             r_exact = st.text_input(
                                                 "Specific Return Address", 
                                                 placeholder="e.g., BGC High Street, Taguig City or NAIA Terminal 3, Pasay City",
-                                                key=f"return_addr_{car_id}"
+                                                key=f"return_addr_{car_id}_{cat}"
                                             )
 
                                             p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
