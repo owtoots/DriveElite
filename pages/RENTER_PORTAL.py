@@ -565,9 +565,15 @@ def main():
                                             dest = st.text_input("Destination", key=f"dest_{car['id']}_{cat}")
                                             luzon_agree = st.checkbox("I agree to LUZON ONLY travel.", key=f"luzon_{car['id']}_{cat}")
                                             
-                                            # 🚚 EXACT ADDRESS INPUTS
-                                            p_exact = st.text_input("Specific Pickup Address", placeholder="e.g., Manila Hotel Lobby, NAIA Terminal 3", key=f"pa_{car['id']}_{cat}")
-                                            r_exact = st.text_input("Specific Return Address", placeholder="e.g., SM Mall of Asia Entrance", key=f"ra_{car['id']}_{cat}")
+                                            # 📍 Specific Address Input Fields with Clear Examples
+                                            p_exact = st.text_input(
+                                                "Specific Pickup Address", 
+                                                placeholder="e.g., NAIA Terminal 1, Pasay City or SM Mall of Asia, Pasay City"
+                                            )
+                                            r_exact = st.text_input(
+                                                "Specific Return Address", 
+                                                placeholder="e.g., BGC High Street, Taguig City or NAIA Terminal 3, Pasay City"
+                                            )
 
                                             p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
                                             if r_dt_obj <= p_dt_obj: 
@@ -589,36 +595,33 @@ def main():
                                                     applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
                                                     platform_fee = discounted_subtotal * applied_renter_fee
                                                     
-                                                    # 🚚 PER-LEG LOGISTICAL DISTANCE & FEE CALCULATOR (Zonal Lookup)
-                                                    hub_location = car.get('location', 'Kapitolyo, Pasig City')
-    
-                                                    def get_route_distance(origin, destination):
-                                                        """Returns estimated driving distance based on common destination zones (No API required)."""
-                                                        dest_lower = destination.lower()
-                                                        if "naia" in dest_lower or "airport" in dest_lower:
+                                                    # 🚚 PER-LOGISTICS ZONAL DISTANCE CALCULATOR (Independent Legs)
+                                                    def get_zone_distance(address):
+                                                        """Evaluates a specific address directly for zone keywords."""
+                                                        addr = address.lower()
+                                                        if "naia" in addr or "airport" in addr or "terminal" in addr:
                                                             return 12.5
-                                                        elif "moa" in dest_lower or "mall of asia" in dest_lower:
+                                                        elif "moa" in addr or "mall of asia" in addr:
                                                             return 11.0
-                                                        elif "bgc" in dest_lower or "taguig" in dest_lower:
+                                                        elif "bgc" in addr or "taguig" in addr:
                                                             return 6.0
-                                                        elif "makati" in dest_lower:
+                                                        elif "makati" in addr:
                                                             return 8.0
-                                                        elif "quezon city" in dest_lower or "qc" in dest_lower:
+                                                        elif "quezon city" in addr or "qc" in addr:
                                                             return 15.0
-                                                        elif "bulacan" in dest_lower:
+                                                        elif "bulacan" in addr:
                                                             return 35.0
-                                                        elif "antipolo" in dest_lower:
+                                                        elif "antipolo" in addr:
                                                             return 18.0
-                                                        return 15.0
+                                                        return 15.0 # Default fallback for custom addresses
     
-                                                    # Leg 1: Hub -> Pickup Address
-                                                    outbound_km = get_route_distance(hub_location, p_exact)
+                                                    # Leg 1: Hub to Pickup
+                                                    outbound_km = get_zone_distance(p_exact)
                                                     delivery_fee = get_delivery_fee_for_renter(conn, outbound_km)
     
-                                                    # Leg 2: Return Address -> Hub
-                                                    return_km = get_route_distance(r_exact, hub_location)
+                                                    # Leg 2: Return to Hub
+                                                    return_km = get_zone_distance(r_exact)
                                                     return_fee = get_delivery_fee_for_renter(conn, return_km)
-    
                                                     # Total Logistics Fees
                                                     total_logistics_fee = delivery_fee + return_fee
                                                     
