@@ -253,10 +253,9 @@ def main():
         os.makedirs(UPLOAD_DIR, exist_ok=True)
 
     # ==========================================
-    # 3.1 MEMORY-OPTIMIZED CACHED DATA LOADERS
+    # 3.1 LIVE DATA LOADER (Uncached for Real-Time Status)
     # ==========================================
-    @st.cache_data(ttl=300, max_entries=50)
-    def load_affiliate_bookings_cached(username: str):
+    def load_affiliate_bookings(username: str):
         query = """
             SELECT b.*, v.make, v.model, v.plate, v.is_with_driver, r.full_name as renter_name, r.contact_number as renter_contact, r.email as renter_email
             FROM bookings b
@@ -266,8 +265,6 @@ def main():
             ORDER BY b.pickup_time ASC
         """
         df = pd.read_sql_query(query, conn, params=(username,))
-        if not df.empty and 'status' in df.columns:
-            df['status'] = df['status'].astype('category')
         return df
 
     @st.cache_data(ttl=300, max_entries=50)
@@ -600,13 +597,12 @@ def main():
     # ==========================================
     tabs = st.tabs(["BOOKINGS & HANDOVER", "MY ASSETS", "ADD ASSET", "ADD DRIVER", "PROFILE & BANK", "REVIEWS"])
 
-    # --- TAB 0: BOOKINGS & HANDOVER ---
     with tabs[0]: 
         st.header("📦 Active Bookings & Handovers")
         st.write("Review distance requests, chat with renters, and log your handovers.")
         
         try:
-            my_bookings = load_affiliate_bookings_cached(st.session_state.username)
+            my_bookings = load_affiliate_bookings(st.session_state.username)
             
             if my_bookings.empty:
                 st.info("You have no active bookings right now. Ensure your vehicles are marked 'AVAILABLE'.")
