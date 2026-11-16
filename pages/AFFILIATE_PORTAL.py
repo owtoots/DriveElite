@@ -262,7 +262,7 @@ def main():
             FROM bookings b
             JOIN vehicles v ON b.vehicle_id = v.id
             JOIN platform_users r ON b.renter_username = r.username
-            WHERE v.owner_username = ? AND b.status NOT IN ('COMPLETED', 'CANCELLED')
+            WHERE v.owner_username = ? AND b.status NOT IN ('COMPLETED', 'CANCELLED', 'REJECTED')
             ORDER BY b.pickup_time ASC
         """
         df = pd.read_sql_query(query, conn, params=(username,))
@@ -382,7 +382,7 @@ def main():
         pdf.set_x(10)
         pdf.multi_cell(0, 6, "3. Speed Limits & Violations: Strictly adhere to all local traffic rules. Any NCAP camera citations, traffic violations, or fines incurred during the rental period will be charged directly to the renter to protect the vehicle's LTO demerit points.")
         pdf.set_x(10)
-        pdf.multi_cell(0, 6, "4. Geographic Limits: Driving is strictly restricted to Mainland Luzon. Inter-island ferry transport (RoRo) is strictly prohibited.")
+        pdf.multi_cell(0, 6, "4. Geographic Limits: Driving is strictly restricted to Mainland Luzon / Regional coverage. Inter-island ferry transport (RoRo) is strictly prohibited unless agreed.")
         pdf.ln(10)
         
         pdf.set_font("Helvetica", 'B', 12)
@@ -603,7 +603,7 @@ def main():
     # --- TAB 0: BOOKINGS & HANDOVER ---
     with tabs[0]: 
         st.header("📦 Active Bookings & Handovers")
-        st.write("Manage your upcoming deliveries, chat with renters, and log your handovers.")
+        st.write("Review distance requests, chat with renters, and log your handovers.")
         
         try:
             my_bookings = load_affiliate_bookings_cached(st.session_state.username)
@@ -615,26 +615,102 @@ def main():
                     b_ref_display = f"#{b['booking_ref']}" if pd.notnull(b.get('booking_ref')) else f"DRV-{b['id']:05d}"
                     vehicle_info = f"{str(b['pickup_time'])[:16]} | {b['make']} {b['model']} ({b['plate']})"
                     
-                    if b['status'] in ['PENDING', 'VERIFYING']:
+                    # ------------------------------------------------------------------
+                    # 1. PENDING APPROVAL (Host Distance Review Stage)
+                    # ------------------------------------------------------------------
+                    if b['status'] == 'PENDING_APPROVAL':
+                        with st.container(border=True):
+                            st.markdown(f"### ⏳ Action Required: Distance Review for Ref: {b_ref_display}")
+                            st.write(f"**Vehicle:** {b['make']} {b['model']} ({b['plate']}) | **Renter:** {b['renter_name']}")
+                            
+                            st.markdown(f"""
+                            <div style="background-color: #FEF3C7; border: 1px solid #F59E0B; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                <b>Requested Handover Locations:</b><br>
+                                🛫 <b>Pickup:</b> {b.get('pickup_loc', 'N/A')}<br>
+                                🛬 <b>Return:</b> {b.get('return_loc', 'N/A')}<br>
+                                🛣️ <b>Route/Destination:</b> {b.get('destination', 'N/A')}<br>
+                                💰 <b>Estimated Total (Inc. Logistics):</b> Php {b['amount']:,.2f}
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Chat for distance negotiation before approval
+                            b_ref_str = str(b['booking_ref'])
+                            st_autorefresh(interval=10000, key=f"chat_ping_app_{b_ref_str}")
+                            
+                            with st.expander("💬 Chat & Negotiate Distance with Renter", expanded=True):
+                                chat_win = st.container(height=200, border=True)
+                                with chat_win:
+                                    try:
+                                        msgs = pd.read_sql_query("SELECT * FROM chat_messages WHERE booking_ref = ? AND receiver_username != 'ADMIN' ORDER BY timestamp ASC", conn, params=(b_ref_str,))
+                                        if msgs.empty:
+                                            st.info("👋 Use this chat to discuss pickup/return distance or delivery terms with the renter.")
+                                        else:
+                                            for _, m in msgs.iterrows():
+                                                if m['sender_username'] == st.session_state.username:
+                                                    st.markdown(f"<div style='text-align:right; color:#2563EB;'><b>You:</b> {m['message_text']}</div>", unsafe_allow_html=True)
+                                                else:
+                                                    st.markdown(f"<div style='text-align:left; color:#334155;'><b>@{m['sender_username']}:</b> {m['message_text']}</div>", unsafe_allow_html=True)
+                                    except: pass
+                                
+                                input_key_app = f"chat_app_input_{b_ref_str}"
+                                if input_key_app not in st.session_state: st.session_state[input_key_app] = ""
+                                c_msg, c_btn = st.columns([4, 1])
+                                chat_txt = c_msg.text_input("Reply", key=input_key_app, label_visibility="collapsed", placeholder="Type message to renter...")
+                                if c_btn.button("Send", key=f"send_app_{b_ref_str}", type="primary", use_container_width=True):
+                                    if chat_txt.strip():
+                                        conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text) VALUES (?, ?, ?, ?)",
+                                                     (b_ref_str, st.session_state.username, b['renter_username'], chat_txt.strip()))
+                                        conn.commit()
+                                        
+                                        # Instant email notification to renter
+                                        try:
+                                            if b['renter_email']:
+                                                send_alert_email(b['renter_email'], f"💬 DriveElite: Message from Host regarding #{b_ref_str}", f"Hello {b['renter_name']},\n\nYour host sent a message regarding booking #{b_ref_str}:\n\n\"{chat_txt.strip()}\"\n\nLog in to your renter portal to reply.")
+                                        except: pass
+
+                                        st.session_state[input_key_app] = ""
+                                        st.rerun()
+
+                            col_app, col_rej = st.columns(2)
+                            if col_app.button("✅ APPROVE DISTANCE & ENABLE PAYMENT", key=f"app_dist_{b['id']}", use_container_width=True):
+                                conn.execute("UPDATE bookings SET status = 'APPROVED_BY_HOST' WHERE id = ?", (b['id'],))
+                                conn.commit()
+                                st.success("✅ Distance approved! Renter can now proceed to payment.")
+                                time.sleep(1)
+                                st.rerun()
+                                
+                            if col_rej.button("❌ REJECT BOOKING", key=f"rej_dist_{b['id']}", use_container_width=True):
+                                conn.execute("UPDATE bookings SET status = 'REJECTED' WHERE id = ?", (b['id'],))
+                                conn.commit()
+                                st.warning("Booking request rejected.")
+                                time.sleep(1)
+                                st.rerun()
+
+                    # ------------------------------------------------------------------
+                    # 2. PENDING / VERIFYING (Awaiting Payment from Renter)
+                    # ------------------------------------------------------------------
+                    elif b['status'] in ['PENDING', 'VERIFYING']:
                         with st.container(border=True):
                             c_icon, c_info = st.columns([1, 15])
                             with c_icon: st.markdown("<h2>⏳</h2>", unsafe_allow_html=True)
                             with c_info:
                                 st.write(f"**Ref: {b_ref_display}** | {vehicle_info}")
-                                
                                 if b['status'] == 'PENDING':
-                                    st.warning("🔒 **AWAITING RENTER PAYMENT.** Renter reserved the dates but hasn't uploaded a receipt yet.")
+                                    st.warning("🔒 **AWAITING RENTER PAYMENT.** Host approved distance; waiting for renter to complete checkout.")
                                 elif b['status'] == 'VERIFYING':
-                                    st.info("🔒 **VERIFYING RECEIPT.** Renter uploaded proof of payment. Waiting for Admin to confirm the funds.")
+                                    st.info("🔒 **VERIFYING RECEIPT.** Renter uploaded proof of payment. Waiting for Admin to confirm funds.")
 
+                    # ------------------------------------------------------------------
+                    # 3. CONFIRMED / ONGOING (Handover & Active Trip Stages)
+                    # ------------------------------------------------------------------
                     else:
-                        if b['status'] == 'CONFIRMED':
+                        if b['status'] in ['CONFIRMED', 'APPROVED_BY_HOST']:
                             exp_title = f"✅ [CONFIRMED] Ref: {b_ref_display} | {vehicle_info}"
                         else:
                             exp_title = f"🚙 [ONGOING] Ref: {b_ref_display} | {vehicle_info}"
                             
                         with st.expander(exp_title):
-                            if b['status'] == 'CONFIRMED':
+                            if b['status'] in ['CONFIRMED', 'APPROVED_BY_HOST']:
                                 st.success("✅ **PAYMENT VERIFIED.** You may proceed with the handover.")
                     
                             with st.container(border=True):
@@ -743,7 +819,7 @@ def main():
                                                     c_img, c_space = st.columns([1, 2])
                                                     with c_img: st.image(m['image_path'], use_container_width=True)
 
-                                    st.markdown(f'<div id="chat_anchor_{b_ref_str}" style="height: 1px; margin-top: 10px;"></div>', unsafe_allow_html=True)
+                                st.markdown(f'<div id="chat_anchor_{b_ref_str}" style="height: 1px; margin-top: 10px;"></div>', unsafe_allow_html=True)
                                 except: 
                                     st.error("Could not load chat history.")
 
@@ -782,6 +858,12 @@ def main():
                                             conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
                                                          (b_ref_str, st.session_state.username, b['renter_username'], final_text, ""))
                                         
+                                        # Email alert to renter
+                                        try:
+                                            if b['renter_email']:
+                                                send_alert_email(b['renter_email'], f"💬 DriveElite: New message from Host (#{b_ref_str})", f"Hello {b['renter_name']},\n\nHost sent a message regarding booking #{b_ref_str}:\n\n\"{final_text}\"")
+                                        except: pass
+
                                         conn.commit()
                                         st.session_state[input_key] = ""
                                         st.rerun()
@@ -790,7 +872,7 @@ def main():
                                         
                             st.divider()
 
-                            if b['status'] == 'CONFIRMED':
+                            if b['status'] in ['CONFIRMED', 'APPROVED_BY_HOST']:
                                 st.info(" ℹ️ **ACTION REQUIRED:** Complete the Digital Handover with the Renter present.")
                                 with st.expander("📋 Official Handover & Photo Evidence", expanded=True):
                                     
@@ -936,6 +1018,8 @@ def main():
                                 st.divider()
 
                                 st.write("#### 🛠️ Final Settlement Details")
+                                st.caption("ℹ️ **Security Deposit & Location Adjustments Policy:** If pickup/return locations were modified after payment to a further distance, add the incremental fee here. Shorter distance changes require no adjustment.")
+                                
                                 settlement_type = st.radio("Trip Type:", ["Self-Drive", "With Driver"], key=f"type_{b['id']}", horizontal=True)
                                 
                                 with st.container(border=True):
@@ -957,7 +1041,7 @@ def main():
                                         rfid_penalty = st.checkbox("Apply 100 Php fine (Failure to load)", key=f"r_pen_{b['id']}")
 
                                     with c2:
-                                        st.write("##### Driver/Owner Liabilities")
+                                        st.write("##### Driver/Owner Liabilities & Adjustments")
                                         damage_fee = 0.0
                                         img_damage = None
                                         
@@ -988,119 +1072,119 @@ def main():
                                             
                                             driver_extras = ot_fee + p_fee + n_diff + m_allow + l_allow
 
-                                    # Master Calculation
-                                    fine_amount = 100.0 if rfid_penalty else 0.0
-                                    rfid_fee = max(0.0, rfid_usage - rfid_replenished) + fine_amount
+                                # Master Calculation
+                                fine_amount = 100.0 if rfid_penalty else 0.0
+                                rfid_fee = max(0.0, rfid_usage - rfid_replenished) + fine_amount
+                                
+                                total_deduct = late_fee + fuel_cost + cleaning_fee + damage_fee + rfid_fee + driver_extras
+                                refund_amount = max(0, 5000.0 - total_deduct)
+                                
+                                st.markdown(f"""
+                                <div style='background-color: rgba(128, 128, 128, 0.1); padding: 15px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.3); margin-bottom: 10px; margin-top: 15px;'>
+                                    <b style='color: #e74c3c;'>Total Deductions:</b> Php{total_deduct:,.2f}<br>
+                                    <b style='color: #27ae60;'>Deposit Held:</b> Php5,000.00
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                if total_deduct > 5000.0: 
+                                    st.error(f"⚠️ RENTER OWES EXTRA: Php{(total_deduct - 5000.0):,.2f}. (Deducted or collected from Renter).")
+                                else: 
+                                    st.success(f"✅ REFUND CASH TO RENTER NOW: Php{refund_amount:,.2f}")
+
+                                st.write("#### 🖊️ Final Sign-off")
+                                
+                                # --- Renter Return Signature ---
+                                st.markdown(f"<u><b>{b['renter_name']}</b></u><br><small>Renter</small>", unsafe_allow_html=True)
+                                if f"clr_sret_{b['id']}" not in st.session_state: 
+                                    st.session_state[f"clr_sret_{b['id']}"] = 0
+                                s_ret = st_canvas(
+                                    stroke_width=3, 
+                                    stroke_color="#000000", 
+                                    background_color="#FFFFFF", 
+                                    height=140, 
+                                    width=350, 
+                                    key=f"sret_canvas_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}"
+                                )
+                                if st.button("Clear Renter Pad", use_container_width=True, key=f"btn_clr_sret_{b['id']}"): 
+                                    st.session_state[f"clr_sret_{b['id']}"] += 1
+                                    st.rerun()
+
+                                st.divider()
+
+                                # --- Affiliate Return Signature ---
+                                st.markdown(f"<u><b>{affiliate_full_name}</b></u><br><small>Affiliate/Host</small>", unsafe_allow_html=True)
+                                if f"clr_sreta_{b['id']}" not in st.session_state: 
+                                    st.session_state[f"clr_sreta_{b['id']}"] = 0
+                                s_reta = st_canvas(
+                                    stroke_width=3, 
+                                    stroke_color="#000000", 
+                                    background_color="#FFFFFF", 
+                                    height=140, 
+                                    width=350, 
+                                    key=f"sreta_canvas_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}"
+                                )
+                                if st.button("Clear Host Pad", use_container_width=True, key=f"btn_clr_sreta_{b['id']}"): 
+                                    st.session_state[f"clr_sreta_{b['id']}"] += 1
+                                    st.rerun()
+
+                                st.write("")
+                                submit = st.button("✅ COMPLETE JOURNEY & CLOSE OUT", type="primary", use_container_width=True, key=f"btn_close_{b['id']}")
+
+                                if submit:
+                                    has_sig = s_ret.image_data is not None and len(s_ret.json_data.get("objects", [])) > 0
+                                    has_sig_a = s_reta.image_data is not None and len(s_reta.json_data.get("objects", [])) > 0
                                     
-                                    total_deduct = late_fee + fuel_cost + cleaning_fee + damage_fee + rfid_fee + driver_extras
-                                    refund_amount = max(0, 5000.0 - total_deduct)
-                                    
-                                    st.markdown(f"""
-                                    <div style='background-color: rgba(128, 128, 128, 0.1); padding: 15px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.3); margin-bottom: 10px; margin-top: 15px;'>
-                                        <b style='color: #e74c3c;'>Total Deductions:</b> Php{total_deduct:,.2f}<br>
-                                        <b style='color: #27ae60;'>Deposit Held:</b> Php5,000.00
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                                    
-                                    if total_deduct > 5000.0: 
-                                        st.error(f"⚠️ RENTER OWES EXTRA: Php{(total_deduct - 5000.0):,.2f}. (Collect directly from Renter).")
-                                    else: 
-                                        st.success(f"✅ REFUND CASH TO RENTER NOW: Php{refund_amount:,.2f}")
-
-                                    st.write("#### 🖊️ Final Sign-off")
-                                    
-                                    # --- Renter Return Signature ---
-                                    st.markdown(f"<u><b>{b['renter_name']}</b></u><br><small>Renter</small>", unsafe_allow_html=True)
-                                    if f"clr_sret_{b['id']}" not in st.session_state: 
-                                        st.session_state[f"clr_sret_{b['id']}"] = 0
-                                    s_ret = st_canvas(
-                                        stroke_width=3, 
-                                        stroke_color="#000000", 
-                                        background_color="#FFFFFF", 
-                                        height=140, 
-                                        width=350, 
-                                        key=f"sret_canvas_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}"
-                                    )
-                                    if st.button("Clear Renter Pad", use_container_width=True, key=f"btn_clr_sret_{b['id']}"): 
-                                        st.session_state[f"clr_sret_{b['id']}"] += 1
-                                        st.rerun()
-
-                                    st.divider()
-
-                                    # --- Affiliate Return Signature ---
-                                    st.markdown(f"<u><b>{affiliate_full_name}</b></u><br><small>Affiliate/Host</small>", unsafe_allow_html=True)
-                                    if f"clr_sreta_{b['id']}" not in st.session_state: 
-                                        st.session_state[f"clr_sreta_{b['id']}"] = 0
-                                    s_reta = st_canvas(
-                                        stroke_width=3, 
-                                        stroke_color="#000000", 
-                                        background_color="#FFFFFF", 
-                                        height=140, 
-                                        width=350, 
-                                        key=f"sreta_canvas_{b['id']}_{st.session_state[f'clr_sreta_{b['id']}']}"
-                                    )
-                                    if st.button("Clear Host Pad", use_container_width=True, key=f"btn_clr_sreta_{b['id']}"): 
-                                        st.session_state[f"clr_sreta_{b['id']}"] += 1
-                                        st.rerun()
-
-                                    st.write("")
-                                    submit = st.button("✅ COMPLETE JOURNEY & CLOSE OUT", type="primary", use_container_width=True, key=f"btn_close_{b['id']}")
-
-                                    if submit:
-                                        has_sig = s_ret.image_data is not None and len(s_ret.json_data.get("objects", [])) > 0
-                                        has_sig_a = s_reta.image_data is not None and len(s_reta.json_data.get("objects", [])) > 0
+                                    if not has_sig or not has_sig_a:
+                                        st.error("Both Renter and Affiliate signatures are required to close the trip.")
+                                    elif settlement_type == "Self-Drive" and not d_ok and not img_damage:
+                                        st.error("Upload damage photos to proceed.")
+                                    else:
+                                        d_img_path = ",".join([save_file(img) for img in img_damage]) if img_damage else None
                                         
-                                        if not has_sig or not has_sig_a:
-                                            st.error("Both Renter and Affiliate signatures are required to close the trip.")
-                                        elif settlement_type == "Self-Drive" and not d_ok and not img_damage:
-                                            st.error("Upload damage photos to proceed.")
-                                        else:
-                                            d_img_path = ",".join([save_file(img) for img in img_damage]) if img_damage else None
-                                            
-                                            with st.spinner("Generating Settlement PDF and closing trip..."):
-                                                try:
-                                                    pdf_bytes = generate_return_receipt(
-                                                        b['booking_ref'], b['renter_name'], f"{b['make']} {b['model']}", b['plate'], 
-                                                        float(fuel_cost), float(cleaning_fee), float(damage_fee), float(late_fee), float(driver_extras), float(rfid_fee), 
-                                                        float(total_deduct), float(refund_amount), s_ret.image_data, s_reta.image_data
-                                                    )
-                                                    
-                                                    pdf_filepath = os.path.join(UPLOAD_DIR, f"Settlement_{b['booking_ref']}.pdf")
-                                                    with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
-                                                    
-                                                    aff_data = pd.read_sql_query("SELECT email FROM platform_users WHERE username=?", conn, params=(st.session_state.username,))
-                                                    aff_email = aff_data.iloc[0]['email'] if not aff_data.empty else None
-                                                    
-                                                    if b['renter_email']:
-                                                        r_subject = f"DriveElite: Return Settlement Receipt (#{b['booking_ref']})"
-                                                        r_body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: Php{total_deduct:,.2f}\nRefund Amount: Php{refund_amount:,.2f}"
-                                                        r_sent, r_err = send_pdf_email(b['renter_email'], r_subject, r_body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
-                                                        if not r_sent: 
-                                                            st.warning(f"⚠️ Renter Email Delayed: {r_err}")
-                                                    
-                                                    if aff_email:
-                                                        a_subject = f"✅ DriveElite: Trip Settled & Closed (#{b['booking_ref']})"
-                                                        a_body = "The trip is successfully closed!\n\nAttached is your copy of the official settlement receipt and deductions breakdown."
-                                                        a_sent, a_err = send_pdf_email(aff_email, a_subject, a_body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
-                                                        if not a_sent: 
-                                                            st.warning(f"⚠️ Affiliate Email Delayed: {a_err}")
-                                                    
-                                                    conn.execute("""
-                                                        UPDATE bookings 
-                                                        SET status = 'COMPLETED', payout_status = 'PENDING',
-                                                            damage_img = ?, rfid_fee = ?, damage_fee = ?, late_fee = ?, fuel_fee = ?, cleaning_fee = ?, dispute_status = 'CLEAN' 
-                                                        WHERE id = ?
-                                                    """, (d_img_path, float(rfid_fee + driver_extras), float(damage_fee), float(late_fee), float(fuel_cost), float(cleaning_fee), b['id']))
-                                                    
-                                                    conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
-                                                    conn.commit()
-                                                    
-                                                    st.success("✅ Trip closed & Settlement Receipt emailed to both parties!")
-                                                    time.sleep(3)
-                                                    st.rerun()
-                                                    
-                                                except Exception as e:
-                                                    st.error(f"Error: {e}")
+                                        with st.spinner("Generating Settlement PDF and closing trip..."):
+                                            try:
+                                                pdf_bytes = generate_return_receipt(
+                                                    b['booking_ref'], b['renter_name'], f"{b['make']} {b['model']}", b['plate'], 
+                                                    float(fuel_cost), float(cleaning_fee), float(damage_fee), float(late_fee), float(driver_extras), float(rfid_fee), 
+                                                    float(total_deduct), float(refund_amount), s_ret.image_data, s_reta.image_data
+                                                )
+                                                
+                                                pdf_filepath = os.path.join(UPLOAD_DIR, f"Settlement_{b['booking_ref']}.pdf")
+                                                with open(pdf_filepath, "wb") as f: f.write(pdf_bytes)
+                                                
+                                                aff_data = pd.read_sql_query("SELECT email FROM platform_users WHERE username=?", conn, params=(st.session_state.username,))
+                                                aff_email = aff_data.iloc[0]['email'] if not aff_data.empty else None
+                                                
+                                                if b['renter_email']:
+                                                    r_subject = f"DriveElite: Return Settlement Receipt (#{b['booking_ref']})"
+                                                    r_body = f"Thank you for using DriveElite!\n\nAttached is your official settlement receipt and deposit breakdown.\n\nTotal Deductions: Php{total_deduct:,.2f}\nRefund Amount: Php{refund_amount:,.2f}"
+                                                    r_sent, r_err = send_pdf_email(b['renter_email'], r_subject, r_body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
+                                                    if not r_sent: 
+                                                        st.warning(f"⚠️ Renter Email Delayed: {r_err}")
+                                                
+                                                if aff_email:
+                                                    a_subject = f"✅ DriveElite: Trip Settled & Closed (#{b['booking_ref']})"
+                                                    a_body = "The trip is successfully closed!\n\nAttached is your copy of the official settlement receipt and deductions breakdown."
+                                                    a_sent, a_err = send_pdf_email(aff_email, a_subject, a_body, pdf_bytes, f"Settlement_{b['booking_ref']}.pdf")
+                                                    if not a_sent: 
+                                                        st.warning(f"⚠️ Affiliate Email Delayed: {a_err}")
+                                                
+                                                conn.execute("""
+                                                    UPDATE bookings 
+                                                    SET status = 'COMPLETED', payout_status = 'PENDING',
+                                                        damage_img = ?, rfid_fee = ?, damage_fee = ?, late_fee = ?, fuel_fee = ?, cleaning_fee = ?, dispute_status = 'CLEAN' 
+                                                    WHERE id = ?
+                                                """, (d_img_path, float(rfid_fee + driver_extras), float(damage_fee), float(late_fee), float(fuel_cost), float(cleaning_fee), b['id']))
+                                                
+                                                conn.execute("UPDATE vehicles SET booking_status = 'AVAILABLE' WHERE id = ?", (b['vehicle_id'],))
+                                                conn.commit()
+                                                
+                                                st.success("✅ Trip closed & Settlement Receipt emailed to both parties!")
+                                                time.sleep(3)
+                                                st.rerun()
+                                                
+                                            except Exception as e:
+                                                st.error(f"Error: {e}")
 
         except Exception as e:
             st.error(f"System Error loading bookings: {e}")
