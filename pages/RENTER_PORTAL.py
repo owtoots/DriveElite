@@ -582,37 +582,76 @@ def main():
                                                         tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
                                                         discount_pct = next((float(r['discount_pct']) for _, r in tiers_df.iterrows() if full_days >= r['min_days']), 0.0)
                                                     except: discount_pct = 0.0
-
+    
                                                     savings = subtotal * discount_pct
                                                     discounted_subtotal = subtotal - savings
                                                     
                                                     applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
                                                     platform_fee = discounted_subtotal * applied_renter_fee
                                                     
-                                                   
-                                                    # 🚚 PER-LEG LOGISTICAL DISTANCE & FEE CALCULATOR
+                                                    # 🚚 PER-LEG LOGISTICAL DISTANCE & FEE CALCULATOR (Zonal Lookup)
                                                     hub_location = car.get('location', 'Kapitolyo, Pasig City')
-
+    
                                                     def get_route_distance(origin, destination):
-                                                        """Returns fixed estimated kilometers based on common destination zones."""
+                                                        """Returns estimated driving distance based on common destination zones (No API required)."""
                                                         dest_lower = destination.lower()
-                                                        
                                                         if "naia" in dest_lower or "airport" in dest_lower:
                                                             return 12.5
                                                         elif "moa" in dest_lower or "mall of asia" in dest_lower:
                                                             return 11.0
                                                         elif "bgc" in dest_lower or "taguig" in dest_lower:
                                                             return 6.0
-                                                        elif "makati" in dest_lower or "bgc" in dest_lower:
+                                                        elif "makati" in dest_lower:
                                                             return 8.0
                                                         elif "quezon city" in dest_lower or "qc" in dest_lower:
                                                             return 15.0
                                                         elif "bulacan" in dest_lower:
                                                             return 35.0
-                                                        
-                                                        # Default fallback distance for unlisted custom addresses
+                                                        elif "antipolo" in dest_lower:
+                                                            return 18.0
                                                         return 15.0
-
+    
+                                                    # Leg 1: Hub -> Pickup Address
+                                                    outbound_km = get_route_distance(hub_location, p_exact)
+                                                    delivery_fee = get_delivery_fee_for_renter(conn, outbound_km)
+    
+                                                    # Leg 2: Return Address -> Hub
+                                                    return_km = get_route_distance(r_exact, hub_location)
+                                                    return_fee = get_delivery_fee_for_renter(conn, return_km)
+    
+                                                    # Total Logistics Fees
+                                                    total_logistics_fee = delivery_fee + return_fee
+                                                    
+                                                    grand_total = discounted_subtotal + platform_fee + driver_fee + total_logistics_fee
+    
+                                                    st.markdown("#### 🧾 Cost Breakdown")
+                                                    plural = "day" if full_days == 1 else "days"
+                                                    
+                                                    rows = [f"<tr><td class='bill-label'>Base Rental (₱{base_rate:,.2f} x {full_days} {plural})</td><td style='text-align:right; font-weight:bold;'>₱{base_cost:,.2f}</td></tr>"]
+                                                    
+                                                    if billed_hrs > 0: 
+                                                        rows.append(f"<tr><td style='color:#d35400;'>Hourly Extension</td><td style='text-align:right; color:#d35400;'>+₱{ext_fee:,.2f}</td></tr>")
+                                                    
+                                                    if savings > 0: 
+                                                        rows.append(f"<tr><td style='color:#cc0000;'>Duration Discount ({int(discount_pct * 100)}%)</td><td style='text-align:right; color:#cc0000;'>-₱{savings:,.2f}</td></tr>")
+                                                    
+                                                    rows.append(f"<tr><td style='padding: 8px; color: #16A34A;'>{operator_name} Fee ({int(applied_renter_fee * 100)}%)</td><td style='text-align:right; color:#27ae60;'>+₱{platform_fee:,.2f}</td></tr>")
+                                                    
+                                                    if "Driver" in drive_mode: 
+                                                        rows.append(f"<tr><td style='color:#003399;'>Driver Fee</td><td style='text-align:right; color:#003399;'>+₱{driver_fee:,.2f}</td></tr>")
+                                                        
+                                                    rows.append(f"<tr><td style='color:#555;'>Delivery Fee (Hub to Pickup: {outbound_km} km)</td><td style='text-align:right; color:#555;'>+₱{delivery_fee:,.2f}</td></tr>")
+                                                    rows.append(f"<tr><td style='color:#555;'>Return Fee (Dropoff to Hub: {return_km} km)</td><td style='text-align:right; color:#555;'>+₱{return_fee:,.2f}</td></tr>")
+                                                    
+                                                    bill_html = f"<div class='bill-box'><table class='table-bill' style='width:100%;'>{''.join(rows)}<tr style='border-top:2px solid #000;'><td class='bill-label' style='font-weight:900;'>GRAND TOTAL</td><td style='text-align:right; font-weight:900; font-size:1.1em;'>₱{grand_total:,.2f}</td></tr></table></div>"
+                                                    
+                                                    st.markdown(bill_html, unsafe_allow_html=True)
+                                                    st.divider()
+    
+                                                except Exception as e:
+                                                    st.error(f"Error calculating rate: {e}")
+                                                    can_book = False
+    
                                             st.warning("💳 **RFID POLICY:** You must load your own toll funds. Excess load is **not refunded**. Empty RFID penalty: **₱100 fine** + toll costs.")
                                             
                                             agree_to_rfid = st.checkbox("I agree to the RFID rules and ₱100 penalty.", key=f"rfid_agree_{car['id']}_{cat}")
