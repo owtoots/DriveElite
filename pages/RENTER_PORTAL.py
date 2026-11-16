@@ -599,27 +599,49 @@ def main():
                                                     applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
                                                     platform_fee = discounted_subtotal * applied_renter_fee
                                                     
-                                                    # 🚚 PER-LOGISTICS ZONAL DISTANCE CALCULATOR (Independent Legs)
+                                                    # 🚚 SMART ZONAL DISTANCE CALCULATOR (Auto-recognizes landmarks & shorthand)
                                                     def get_zone_distance(address):
-                                                        """Evaluates a specific address safely for zone keywords."""
+                                                        """Intelligently evaluates addresses by matching shorthand keywords, terminals, and cities."""
                                                         addr = str(address).lower() if address else ""
                                                         
-                                                        if "naia" in addr or "airport" in addr or "terminal" in addr:
+                                                        # Airports & Terminals (Pasay / Parañaque area)
+                                                        if any(k in addr for k in ["naia", "airport", "terminal", "pasay", "villamor"]):
                                                             return 12.5
-                                                        elif "moa" in addr or "mall of asia" in addr:
+                                                        
+                                                        # Mall of Asia / Bay Area
+                                                        elif any(k in addr for k in ["moa", "mall of asia", "bay area", "solaire", "okada"]):
                                                             return 11.0
-                                                        elif "bgc" in addr or "taguig" in addr:
+                                                        
+                                                        # BGC & Taguig
+                                                        elif any(k in addr for k in ["bgc", "bonifacio", "taguig", "market market", "high street"]):
                                                             return 6.0
-                                                        elif "makati" in addr:
+                                                        
+                                                        # Makati CBD
+                                                        elif any(k in addr for k in ["makati", "ayala", "rockwell", "legaspi", "salcedo"]):
                                                             return 8.0
-                                                        elif "quezon city" in addr or "qc" in addr:
+                                                        
+                                                        # Ortigas & Pasig (Near Hub)
+                                                        elif any(k in addr for k in ["pasig", "ortigas", "kapitolyo", "megamall", "shang"]):
+                                                            return 3.0
+                                                        
+                                                        # Quezon City / Cubao
+                                                        elif any(k in addr for k in ["quezon city", "qc", "cubao", "timog", "trinoma", "sm north"]):
                                                             return 15.0
-                                                        elif "bulacan" in addr:
-                                                            return 35.0
-                                                        elif "antipolo" in addr:
+                                                        
+                                                        # Antipolo & Rizal
+                                                        elif any(k in addr for k in ["antipolo", "rizal", "cainta", "taytay"]):
                                                             return 18.0
                                                         
-                                                        return 15.0 # Default fallback for custom addresses
+                                                        # Bulacan
+                                                        elif any(k in addr for k in ["bulacan", "malolos", "meycauayan", "marilao", "san jose del monte", "sjdm"]):
+                                                            return 35.0
+                                                        
+                                                        # South / North Provinces (Cavite, Laguna, Batangas, Pampanga)
+                                                        elif any(k in addr for k in ["cavite", "tagaytay", "laguna", "nuvali", "batangas", "pampanga", "clark"]):
+                                                            return 55.0
+                                                        
+                                                        # Default fallback distance for unlisted custom addresses
+                                                        return 15.0
     
                                                     # Leg 1: Hub to Pickup
                                                     outbound_km = get_zone_distance(p_exact)
