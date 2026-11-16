@@ -612,9 +612,89 @@ def main():
                 st.info("You have no active bookings right now. Ensure your vehicles are marked 'AVAILABLE'.")
             else:
                 for _, b in my_bookings.iterrows():
-                    b_ref_display = f"#{b['booking_ref']}" if pd.notnull(b.get('booking_ref')) else f"DRV-{b['id']:05d}"
-                    vehicle_info = f"{str(b['pickup_time'])[:16]} | {b['make']} {b['model']} ({b['plate']})"
-                    
+                    with st.container(border=True):
+                        c1, c2 = st.columns([3, 1])
+                        with c1:
+                            st.markdown(f"#### {b['make']} {b['model']} ({b['plate']})")
+                            b_ref = b.get('booking_ref') if pd.notnull(b.get('booking_ref')) else f"DRV-{b['id']:05d}"
+                            st.caption(f"Ref: #{b_ref} | Dates: {str(b['pickup_time'])[:10]} to {str(b['return_time'])[:10]}")
+                
+                        with c2:
+                            st.info(b['status'])
+                    # --- PAYMENT GATEWAY FOR APPROVED BY HOST ---
+                    if b['status'] == 'APPROVED_BY_HOST':
+                        st.divider()
+                        st.markdown("### 💳 Secure Payment Required")
+                        st.success("🎉 Your host has approved your pickup and return locations! Please complete your payment below to secure your reservation.")
+                        
+                        owed_amount = float(b['amount'])
+                        st.write(f"**Total Amount Due:** :green[**₱{owed_amount:,.2f}**]")
+                        
+                        if gateway_mode == "XENDIT":
+                            if st.button("💳 PROCEED TO XENDIT SECURE CHECKOUT", key=f"pay_xendit_my_{b['id']}", type="primary", use_container_width=True):
+                                try:
+                                    SECRET_KEY = os.environ.get("xendit_active_key")
+                                    if not SECRET_KEY:
+                                        try: SECRET_KEY = st.secrets.get("xendit_active_key")
+                                        except: pass
+                                    
+                                    owner_username = b['owner_username']
+                                    owner_data = pd.read_sql_query("SELECT xendit_sub_id FROM platform_users WHERE username=?", conn, params=(owner_username,))
+                                    sub_id = owner_data.iloc[0]['xendit_sub_id'] if not owner_data.empty else None
+                                    
+                                    auth_string = f"{SECRET_KEY}:"
+                                    base64_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
+                                    url = "https://api.xendit.co/v2/invoices"
+                                    
+                                    payload = {
+                                        "external_id": str(b['booking_ref']),
+                                        "amount": int(owed_amount),
+                                        "currency": "PHP",
+                                        "description": f"DriveElite - Ref: #{b['booking_ref']}",
+                                    }
+                                    
+                                    req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'))
+                                    req.add_header('accept', 'application/json')
+                                    req.add_header('content-type', 'application/json')
+                                    req.add_header('authorization', f'Basic {base64_auth}')
+                                    if sub_id: req.add_header('for-user-id', sub_id)
+                                    
+                                    response = urllib.request.urlopen(req)
+                                    checkout_url = json.loads(response.read().decode('utf-8'))['invoice_url']
+                                    st.link_button("👉 CLICK HERE TO PAY VIA XENDIT", checkout_url, type="primary", use_container_width=True)
+                                except Exception as e:
+                                    st.error(f"Xendit Error: {e}")
+                        else:
+                            with st.container(border=True):
+                                st.markdown("#### 🏦 Manual Bank Transfer")
+                                st.write("**Bank:** BPI")
+                                st.write("**Account Name:** Romeo Albao Jr.")
+                                st.write("**Account Number:** 0180 0206 08")
+                                
+                                s1, c_img, s2 = st.columns([1, 1, 1])
+                                with c_img:
+                                    try: st.image("bpi_qr.png", use_container_width=True)
+                                    except: st.info("[BPI QR IMAGE GOES HERE]")
+                                
+                                st.divider()
+                                st.write("#### 📤 Upload Proof of Payment")
+                                receipt_file = st.file_uploader("Upload Receipt", type=['jpg', 'png', 'jpeg'], key=f"my_rec_{b['id']}")
+                                
+                                if st.button("SUBMIT PAYMENT RECEIPT", type="primary", use_container_width=True, key=f"my_val_{b['id']}"):
+                                    if receipt_file:
+                                        receipt_bytes = receipt_file.read()
+                                        conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE id = ?", (receipt_bytes, b['id']))
+                                        receipt_path = f"/data/uploads/chat_images/receipt_{b['booking_ref']}.jpg"
+                                        with open(receipt_path, "wb") as f: f.write(receipt_bytes)
+                                        
+                                        conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                                     (str(b['booking_ref']), renter_user, b['owner_username'], "Payment Receipt Uploaded for Verification.", receipt_path))
+                                        conn.commit()
+                                        st.success("✅ Receipt submitted! Admin & Host notified for verification.")
+                                        time.sleep(1.5)
+                                        st.rerun()
+                                    else:
+                                        st.error("Please upload a screenshot of your receipt.")
                     # ------------------------------------------------------------------
                     # 1. PENDING APPROVAL (Host Distance Review Stage)
                     # ------------------------------------------------------------------
@@ -704,14 +784,18 @@ def main():
                     # 3. CONFIRMED / ONGOING (Handover & Active Trip Stages)
                     # ------------------------------------------------------------------
                     else:
-                        if b['status'] in ['CONFIRMED', 'APPROVED_BY_HOST']:
-                            exp_title = f"✅ [CONFIRMED] Ref: {b_ref_display} | {vehicle_info}"
+                        if b['status'] == 'APPROVED_BY_HOST':
+                            exp_title = f"⏳ [AWAITING PAYMENT] Ref: {b_ref_display} | {vehicle_info}"
+                        elif b['status'] == 'CONFIRMED':
+                            exp_title = f"✅ [CONFIRMED & PAID] Ref: {b_ref_display} | {vehicle_info}"
                         else:
                             exp_title = f"🚙 [ONGOING] Ref: {b_ref_display} | {vehicle_info}"
                             
                         with st.expander(exp_title):
-                            if b['status'] in ['CONFIRMED', 'APPROVED_BY_HOST']:
-                                st.success("✅ **PAYMENT VERIFIED.** You may proceed with the handover.")
+                            if b['status'] == 'APPROVED_BY_HOST':
+                                st.warning("🔒 **AWAITING RENTER PAYMENT.** You approved the distance. The renter has been prompted to pay, but funds are not yet verified by Admin.")
+                            elif b['status'] == 'CONFIRMED':
+                                st.success("✅ **PAYMENT VERIFIED BY ADMIN.** Funds are secured. You may now proceed with the official digital handover.")
                     
                             with st.container(border=True):
                                 p_dt = pd.to_datetime(b['pickup_time'])
