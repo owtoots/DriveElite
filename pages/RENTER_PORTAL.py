@@ -902,11 +902,29 @@ def main():
                         with c_btn:
                             if st.button("Send", type="primary", use_container_width=True, key=f"send_btn_{b_ref_str}"):
                                 if chat_val.strip():
+                                    message_body = chat_val.strip()
                                     conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text) VALUES (?, ?, ?, ?)",
-                                                 (b_ref_str, renter_user, b['owner_username'], chat_val.strip()))
+                                                 (b_ref_str, renter_user, b['owner_username'], message_body))
                                     conn.commit()
+                                    
+                                    # 🚨 INSTANT EMAIL POPUP TO AFFILIATE ON CHAT
+                                    try:
+                                        host_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(b['owner_username'],))
+                                        if not host_data.empty:
+                                            host_email = host_data.iloc[0]['email']
+                                            host_name = host_data.iloc[0]['full_name']
+                                            send_alert_email(
+                                                to_email=host_email,
+                                                subject=f"💬 DriveElite: New Message Regarding Booking #{b_ref_str}",
+                                                body=f"Hello {host_name},\n\nRenter @{renter_user} sent a message regarding booking #{b_ref_str}:\n\n\"{message_body}\"\n\nLog in to your DriveElite dashboard to reply and coordinate handover."
+                                            )
+                                    except Exception:
+                                        pass
+
                                     st.session_state[input_key] = ""
                                     st.rerun()
+
+                        st.caption("ℹ️ **Logistics & Security Deposit Policy:** If pickup or return locations are modified after payment to a further distance, the incremental logistics fee will be automatically **deducted from your ₱5,000 security deposit** upon trip completion.")
 
                     # --- THE REVIEW SYSTEM ---
                     if b['status'] == 'COMPLETED':
