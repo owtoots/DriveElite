@@ -509,37 +509,70 @@ def main():
             f_tabs = st.tabs(["💸 PAYMENT VERIFICATION", "📑 FINANCIAL LEDGER", "📤 AUTOMATED PAYOUTS"])
 
             with f_tabs[0]:
+                st.markdown("### 💸 Payment Verification Queue")
+                st.caption("Review uploaded payment receipts and reference numbers, then confirm to lock escrow and notify the affiliate host.")
+
                 pending_bpi = pd.read_sql_query("""
-                    SELECT b.*, u.full_name as Renter, v.make, v.model
+                    SELECT b.*, u.full_name as Renter, v.make, v.model, v.plate,
+                           u_owner.email as host_email, u_owner.full_name as host_name
                     FROM bookings b 
                     JOIN platform_users u ON b.renter_username = u.username 
                     JOIN vehicles v ON b.vehicle_id = v.id
+                    JOIN platform_users u_owner ON v.owner_username = u_owner.username
                     WHERE b.status IN ('PENDING', 'VERIFYING')
                     ORDER BY b.id DESC
                 """, conn)
-                if pending_bpi.empty: st.info("No payments waiting for confirmation.")
-                for _, row in pending_bpi.iterrows():
-                    with st.container(border=True):
-                        st.write(f"Ref: #{row['booking_ref']} | Renter: {row['Renter']} | Amount: ₱{row['amount']:,.2f}")
-                        if st.button("✅ CONFIRM PAYMENT", key=f"cf_pay_{row['booking_ref']}", type="primary"):
-                            conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE booking_ref = ?", (row['booking_ref'],))
-                            conn.commit()
-                            st.success("Payment confirmed and escrow route locked.")
-                            time.sleep(1); st.rerun()
 
-            ledger_query = """
-                SELECT b.id, b.booking_ref, b.pickup_time as Date, b.return_time, 
-                       u_renter.full_name as Renter, u_owner.full_name as Affiliate,
-                       b.amount as Total_Paid_By_Renter, b.status as Trip_Status, 
-                       b.payout_status as Payout_Status, b.gateway_fee, v.bank_name, v.account_no
-                FROM bookings b
-                JOIN vehicles v ON b.vehicle_id = v.id
-                JOIN platform_users u_renter ON b.renter_username = u_renter.username
-                JOIN platform_users u_owner ON v.owner_username = u_owner.username
-                WHERE b.status != 'PENDING' AND b.status != 'CANCELLED' 
-                ORDER BY b.id DESC
-            """
-            df = pd.read_sql_query(ledger_query, conn)
+                if pending_bpi.empty:
+                    st.info("No payments currently waiting for confirmation.")
+                else:
+                    for _, row in pending_bpi.iterrows():
+                        b_ref_display = f"#{row['booking_ref']}" if pd.notnull(row.get('booking_ref')) else f"DRV-{row['id']:05d}"
+                        
+                        with st.container(border=True):
+                            c_info, c_rec = st.columns([1, 1])
+                            
+                            with c_info:
+                                st.markdown(f"#### Booking Ref: {b_ref_display}")
+                                st.write(f"👤 **Renter:** {row['Renter']}")
+                                st.write(f"🚗 **Vehicle:** {row['make']} {row['model']} ({row['plate']})")
+                                st.write(f"💼 **Host:** {row['host_name']}")
+                                st.write(f"💰 **Amount Due:** :green[**₱{row['amount']:,.2f}**]")
+                                st.write(f"📅 **Dates:** {str(row['pickup_time'])[:10]} to {str(row['return_time'])[:10]}")
+                            
+                            with c_rec:
+                                st.write("#### 📷 Uploaded Receipt / Proof")
+                                if row.get('receipt_img'):
+                                    try:
+                                        st.image(row['receipt_img'], caption="Payment Reference Proof", use_container_width=True)
+                                    except:
+                                        st.warning("Could not render receipt preview.")
+                                else:
+                                    st.info("No receipt uploaded yet (Awaiting renter upload).")
+                            
+                            st.divider()
+                            
+                            if st.button("✅ CONFIRM PAYMENT & NOTIFY HOST", key=f"cf_pay_{row['id']}", type="primary", use_container_width=True):
+                                # 1. Update status to CONFIRMED (unlocks Affiliate Handover panel)
+                                conn.execute("UPDATE bookings SET status = 'CONFIRMED' WHERE id = ?", (row['id'],))
+                                conn.commit()
+                                
+                                # 2. Automatically send alert email to the Affiliate Host
+                                try:
+                                    host_email = row.get('host_email')
+                                    host_name = row.get('host_name', 'Affiliate')
+                                    if host_email:
+                                        send_alert_email(
+                                            to_email=host_email,
+                                            subject=f"✅ DriveElite: Payment Confirmed for Booking {b_ref_display}",
+                                            body=f"Hello {host_name},\n\nAdmin has verified and confirmed the payment for booking {b_ref_display}.\n\nThe booking status is now CONFIRMED. You can now view the trip details and prepare for the digital handover in your Affiliate Portal.\n\nThank you for partnering with DriveElite!"
+                                        )
+                                except Exception as e:
+                                    print(f"Failed to email host notification: {e}")
+
+                                st.success(f"✅ Payment for {b_ref_display} confirmed! Escrow locked and affiliate host notified for handover preparation.")
+                                time.sleep(1.5)
+                                st.rerun()
 
             with f_tabs[1]:
                 if df.empty: st.info("No recorded transactions.")
