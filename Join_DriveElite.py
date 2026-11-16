@@ -240,7 +240,12 @@ try:
 except: 
     pass
 
-for col_name, col_type in [("area_code", "TEXT DEFAULT '+63'"), ("admin_status", "TEXT DEFAULT 'PENDING'")]:
+for col_name, col_type in [
+    ("area_code", "TEXT DEFAULT '+63'"), 
+    ("admin_status", "TEXT DEFAULT 'PENDING'"),
+    ("city", "TEXT"),          # 👈 Added city column
+    ("province", "TEXT")       # 👈 Added province column
+]:
     try:
         conn.execute(f"ALTER TABLE platform_users ADD COLUMN {col_name} {col_type}")
         conn.commit()
@@ -568,7 +573,13 @@ if reg_type in ["Affiliate", "Renter"]:
             
             em = st.text_input("Email Address")
             ad = st.text_area("Complete Physical Address")
-
+            
+            # 📍 NEW: City and Province Capture for Regional Expansion Radar
+            st.markdown("#### 📍 Location Details")
+            reg_col1, reg_col2 = st.columns(2)
+            user_city = reg_col1.text_input("City / Municipality", placeholder="e.g., Bacolod City")
+            user_prov = reg_col2.text_input("Province / Metro Area", placeholder="e.g., Negros Occidental")
+            
             # 🚨 BANK DETAILS INPUTS (ONLY FOR AFFILIATES)
             if reg_type == "Affiliate":
                 st.markdown("---")
@@ -607,10 +618,11 @@ if reg_type in ["Affiliate", "Renter"]:
                         with open(lic_path, "wb") as f:
                             f.write(l_id.getbuffer())
                             
-                        # Save only the lightweight file PATHS in session state
+                        # Save lightweight file PATHS and location details in session state
                         st.session_state[f"temp_{reg_type.lower()}_data"] = {
                             "username": un, "password": pwd, "full_name": f"{fn} {mn} {sn}".strip(), 
                             "email": em, "age": age, "nationality": nat, "address": ad, 
+                            "city": user_city, "province": user_prov, # 👈 Added here
                             "area_code": ac, "contact": cn, "gov_path": gov_path, "lic_path": lic_path,
                             "bank_name": bank_name, "bank_acc": bank_acc
                         }
@@ -658,11 +670,13 @@ if reg_type in ["Affiliate", "Renter"]:
                     with open(data["lic_path"], "rb") as f:
                         lic_bytes = f.read()
 
+                    # Inside Step 3 insertion block:
                     st.session_state.reg_payload = (
                         data["username"], data["password"], reg_type.upper(), data["full_name"], 
                         data["email"], data["age"], data["nationality"], data["address"], 
+                        data["city"], data["province"], # 👈 Added city and province into payload tuple
                         data["area_code"], data["contact"], gov_bytes, lic_bytes, sig_bytes,
-                        data["bank_name"], data["bank_acc"]
+                        data["bank_name"], data["bank_acc"], generated_sub_id
                     )
                     st.session_state.verify_contact = data["contact"]
                     
@@ -754,14 +768,39 @@ if reg_type in ["Affiliate", "Renter"]:
                         conn.execute("""
                             INSERT INTO platform_users (
                                 username, password, role, full_name, email, age, nationality, address, 
-                                area_code, contact_number, govt_id_img, license_img, signature_img, 
+                                city, province, area_code, contact_number, govt_id_img, license_img, signature_img, 
                                 bank_name, bank_account_num, admin_status, xendit_sub_id
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
-                        """, final_payload)
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
+                        """, st.session_state.reg_payload)
                         conn.commit()
-                        
+                        # ==========================================================
+                        # 🌍 3. PASTE THE EXPANSION RADAR HOOK HERE:
+                        # ==========================================================
+                        if reg_type.upper() == "AFFILIATE" and data.get("city") and data.get("province"):
+                            try:
+                                city_clean = data["city"].strip().title()
+                                province_clean = data["province"].strip().title()
+                                
+                                # Simple region mapping logic
+                                visayas_provinces = ["Cebu", "Negros Occidental", "Iloilo", "Bohol", "Leyte", "Negros Oriental", "Capiz", "Aklan"]
+                                mindanao_provinces = ["Davao Del Sur", "Cagayan De Oro", "Misamis Oriental", "Zamboanga Del Sur", "South Cotabato", "Agusan Del Norte"]
+                                
+                                if any(p.lower() in province_clean.lower() for p in visayas_provinces):
+                                    region = "Visayas"
+                                elif any(p.lower() in province_clean.lower() for p in mindanao_provinces):
+                                    region = "Mindanao"
+                                else:
+                                    region = "Luzon"
+
+                                conn.execute("""
+                                    INSERT OR IGNORE INTO platform_cities (region, province, city, status) 
+                                    VALUES (?, ?, ?, 'PENDING_LAUNCH')
+                                """, (region, province_clean, city_clean))
+                                conn.commit()
+                            except Exception as e:
+                                print(f"City radar hook error: {e}")
                         # ==========================================
-                        # 3. ADMIN ALERTS & EMAILS
+                        # 4. ADMIN ALERTS & EMAILS
                         # ==========================================
                         try:
                             admin_phone = "09688811400" 
@@ -776,7 +815,7 @@ if reg_type in ["Affiliate", "Renter"]:
                             pass
                         
                        # ==========================================
-                        # 4. FINAL AGREEMENT DISPATCH
+                        # 5. FINAL AGREEMENT DISPATCH
                         # ==========================================
                         try:
                             un, role, email = st.session_state.reg_payload[0], st.session_state.reg_payload[2], st.session_state.reg_payload[4]
