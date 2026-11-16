@@ -730,6 +730,76 @@ def main():
                                                 st.rerun()
                                             if c_refresh.button("🔄 Refresh Status", key=f"ref_status_{car['id']}_{cat}", use_container_width=True):
                                                 st.rerun()
+                                        # -------------------------------------------------------------
+                                        # CHECKOUT STAGE 2: XENDIT GATEWAY & RECEIPT UPLOAD
+                                        # -------------------------------------------------------------
+                                        elif st.session_state[stage_key] == 2:
+                                            b_ref = st.session_state.get(ref_key)
+                                            pay_url = st.session_state.get(f"pay_url_{car['id']}")
+
+                                            amt_df = pd.read_sql_query("SELECT amount FROM bookings WHERE booking_ref = ?", conn, params=(b_ref,))
+                                            owed_amount = float(amt_df.iloc[0]['amount']) if not amt_df.empty else 0.0
+
+                                            st.markdown(f"""
+                                            <div style="background-color: #EFF6FF; border: 1px solid #BFDBFE; padding: 20px; border-radius: 12px; border-left: 6px solid #2563EB; margin-bottom: 20px;">
+                                                <h4 style="color: #1E3A8A; margin-top: 0; margin-bottom: 8px;">💳 Secure Payment (Ref: #{b_ref})</h4>
+                                                <p style="color: #1D4ED8; font-size: 15px; margin-bottom: 0;">
+                                                    Total Amount Due: <b>₱{owed_amount:,.2f}</b><br>
+                                                    Please complete your payment via Xendit, then take a screenshot of your payment confirmation (showing the reference number) and upload it below for Admin verification.
+                                                </p>
+                                            </div>
+                                            """, unsafe_allow_html=True)
+
+                                            if pay_url:
+                                                st.link_button("👉 CLICK HERE TO PAY VIA XENDIT", pay_url, type="primary", use_container_width=True)
+
+                                            st.divider()
+                                            st.write("#### 📤 Upload Xendit Payment Screenshot")
+                                            st.caption("Upload your payment success screenshot containing the transaction reference number.")
+                                            xendit_receipt = st.file_uploader("Upload Xendit Receipt", type=['jpg', 'png', 'jpeg'], key=f"x_rec_{car['id']}_{cat}")
+
+                                            c_back, c_sub = st.columns([1, 1])
+                                            if c_back.button("Cancel Booking", key=f"canc_x_{car['id']}_{cat}", use_container_width=True):
+                                                conn.execute("DELETE FROM bookings WHERE booking_ref = ?", (b_ref,))
+                                                conn.commit()
+                                                st.session_state[stage_key] = 0
+                                                if ref_key in st.session_state: del st.session_state[ref_key]
+                                                st.rerun()
+
+                                            if c_sub.button("SUBMIT PAYMENT PROOF TO ADMIN", type="primary", use_container_width=True, key=f"sub_x_{car['id']}_{cat}"):
+                                                if xendit_receipt:
+                                                    receipt_bytes = xendit_receipt.read()
+                                                    conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE booking_ref = ?", (receipt_bytes, b_ref))
+                                                    receipt_path = f"/data/uploads/chat_images/receipt_{b_ref}.jpg"
+                                                    with open(receipt_path, "wb") as f: f.write(receipt_bytes)
+
+                                                    owner_username = car['owner_username']
+                                                    conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                                                 (b_ref, renter_user, owner_username, "Xendit Payment Proof Uploaded for Admin Verification.", receipt_path))
+                                                    conn.commit()
+
+                                                    # Alert Admin and Affiliate
+                                                    try:
+                                                        aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
+                                                        if not aff_data.empty:
+                                                            send_alert_email(
+                                                                to_email="contact@driveelite.ph",
+                                                                subject=f"CNF: Xendit Proof Verification Needed for #{b_ref}",
+                                                                body=f"Renter @{renter_user} uploaded Xendit payment proof for booking #{b_ref}. Please verify."
+                                                            )
+                                                            send_alert_email(
+                                                                to_email=aff_data.iloc[0]['email'],
+                                                                subject=f"🚗 DriveElite: Payment Proof Uploaded (#{b_ref})",
+                                                                body=f"Hello {aff_data.iloc[0]['full_name']},\n\nRenter uploaded payment proof for booking #{b_ref}. Admin is verifying."
+                                                            )
+                                                    except: pass
+
+                                                    st.success("✅ Payment proof submitted to Admin for verification!")
+                                                    st.session_state[stage_key] = 0
+                                                    if ref_key in st.session_state: del st.session_state[ref_key]
+                                                    st.rerun()
+                                                else:
+                                                    st.error("Please upload your payment screenshot.")
 
     # ==========================================
     # 📅 MY BOOKINGS (MAIN TAB 1)
