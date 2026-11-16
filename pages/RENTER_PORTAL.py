@@ -599,44 +599,41 @@ def main():
                                                     applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
                                                     platform_fee = discounted_subtotal * applied_renter_fee
                                                     
-                                                    # 🚚 SMART ZONAL DISTANCE CALCULATOR (Auto-recognizes landmarks & shorthand)
+                                                    # 🚚 SMART ZONAL DISTANCE CALCULATOR (Landmark & City Aware)
                                                     def get_zone_distance(address):
-                                                        """Intelligently evaluates addresses by matching shorthand keywords, terminals, and cities."""
+                                                        """Intelligently recognizes specific landmarks, malls, and terminals and maps them to accurate distances."""
                                                         addr = str(address).lower() if address else ""
                                                         
-                                                        # Airports & Terminals (Pasay / Parañaque area)
-                                                        if any(k in addr for k in ["naia", "airport", "terminal", "pasay", "villamor"]):
+                                                        # 1. Pasig / Ortigas Commercial Hubs (Very close to Kapitolyo hub)
+                                                        if any(k in addr for k in ["estancia", "capitol commons", "kapitolyo", "ortigas", "megamall", "shang", "tiendesitas", "pasig"]):
+                                                            return 3.0
+                                                        
+                                                        # 2. Airports & Pasay / Bay Area Hubs (Terminal 3, MOA, etc.)
+                                                        elif any(k in addr for k in ["terminal 3", "t3", "terminal 1", "t1", "terminal 2", "t2", "terminal 4", "t4", "naia", "airport", "pasay", "moa", "mall of asia", "solaire", "okada", "bay area", "villamor"]):
                                                             return 12.5
                                                         
-                                                        # Mall of Asia / Bay Area
-                                                        elif any(k in addr for k in ["moa", "mall of asia", "bay area", "solaire", "okada"]):
-                                                            return 11.0
-                                                        
-                                                        # BGC & Taguig
+                                                        # 3. BGC & Taguig
                                                         elif any(k in addr for k in ["bgc", "bonifacio", "taguig", "market market", "high street"]):
+                                                        
                                                             return 6.0
                                                         
-                                                        # Makati CBD
+                                                        # 4. Makati CBD
                                                         elif any(k in addr for k in ["makati", "ayala", "rockwell", "legaspi", "salcedo"]):
                                                             return 8.0
                                                         
-                                                        # Ortigas & Pasig (Near Hub)
-                                                        elif any(k in addr for k in ["pasig", "ortigas", "kapitolyo", "megamall", "shang"]):
-                                                            return 3.0
-                                                        
-                                                        # Quezon City / Cubao
-                                                        elif any(k in addr for k in ["quezon city", "qc", "cubao", "timog", "trinoma", "sm north"]):
+                                                        # 5. Quezon City / Cubao / Greenhills
+                                                        elif any(k in addr for k in ["quezon city", "qc", "cubao", "timog", "trinoma", "sm north", "greenhills"]):
                                                             return 15.0
                                                         
-                                                        # Antipolo & Rizal
+                                                        # 6. Antipolo & Rizal
                                                         elif any(k in addr for k in ["antipolo", "rizal", "cainta", "taytay"]):
                                                             return 18.0
                                                         
-                                                        # Bulacan
+                                                        # 7. Bulacan
                                                         elif any(k in addr for k in ["bulacan", "malolos", "meycauayan", "marilao", "san jose del monte", "sjdm"]):
                                                             return 35.0
                                                         
-                                                        # South / North Provinces (Cavite, Laguna, Batangas, Pampanga)
+                                                        # 8. South / North Provinces (Cavite, Laguna, Batangas, Pampanga)
                                                         elif any(k in addr for k in ["cavite", "tagaytay", "laguna", "nuvali", "batangas", "pampanga", "clark"]):
                                                             return 55.0
                                                         
