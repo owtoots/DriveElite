@@ -574,6 +574,36 @@ def main():
                                 time.sleep(1.5)
                                 st.rerun()
 
+            # ==========================================================
+            # 🚨 FIX: FETCH THE FINANCIAL DATAFRAME BEFORE TABS 1 & 2
+            # ==========================================================
+            raw_df = pd.read_sql_query("""
+                SELECT b.*, u.full_name as Affiliate 
+                FROM bookings b
+                JOIN vehicles v ON b.vehicle_id = v.id
+                JOIN platform_users u ON v.owner_username = u.username
+                WHERE b.amount IS NOT NULL
+                ORDER BY b.id DESC
+            """, conn)
+
+            if not raw_df.empty:
+                df = raw_df.copy()
+                # Map raw database columns to the Financial Engine's expected format
+                df['Total_Paid_By_Renter'] = pd.to_numeric(df['amount'], errors='coerce').fillna(0.0)
+                df['Date'] = df['pickup_time']
+                df['Trip_Status'] = df['status']
+                
+                # Gracefully handle columns if they don't exist in older database versions
+                if 'payout_status' not in df.columns:
+                    df['payout_status'] = 'PENDING'
+                df['Payout_Status'] = df['payout_status'].fillna('PENDING')
+                
+                if 'gateway_fee' not in df.columns:
+                    df['gateway_fee'] = 0.0
+            else:
+                df = pd.DataFrame()
+
+            # --- FINANCIAL LEDGER (TAB 1) ---
             with f_tabs[1]:
                 if df.empty: st.info("No recorded transactions.")
                 else:
@@ -595,6 +625,7 @@ def main():
                         'Platform_Gross_Cut': '₱{:,.2f}', 'Platform_EWT': '₱{:,.2f}', 'Platform_Net_Income': '₱{:,.2f}'
                     }), use_container_width=True, hide_index=True)
 
+            # --- AUTOMATED PAYOUTS (TAB 2) ---
             with f_tabs[2]:
                 if not df.empty:
                     pending_p = df[(df['Trip_Status'] == 'COMPLETED') & (df['Payout_Status'] == 'PENDING')]
@@ -622,6 +653,10 @@ def main():
 
                             st.write(f"### Adjusted Payout: ₱{final_payout:,.2f}")
                             if st.button("EXECUTE DISBURSEMENT", key=f"ex_pay_{p['id']}", type="primary"):
+                                # Dynamically ensure the schema holds payout_status before updating
+                                try: conn.execute("ALTER TABLE bookings ADD COLUMN payout_status TEXT DEFAULT 'PENDING'"); conn.commit()
+                                except: pass
+                                
                                 conn.execute("UPDATE bookings SET payout_status = 'PAID' WHERE id = ?", (p['id'],))
                                 if penalty_to_deduct > 0:
                                     conn.execute("UPDATE platform_users SET penalty_balance = penalty_balance - ? WHERE username = ?", (penalty_to_deduct, aff_username))
