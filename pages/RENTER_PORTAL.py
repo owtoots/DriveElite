@@ -40,6 +40,9 @@ def main():
     # ==========================================
     st.markdown("""
     <style>
+        /* =========================================
+            📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
+            ========================================= */
         div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
             height: 200px !important;
             width: 100% !important;
@@ -47,12 +50,14 @@ def main():
             border-radius: 8px !important;
         }
         
+        /* --- GLOBAL THEME & TYPOGRAPHY --- */
         [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
             background-color: #F8FAFC !important;
             color: #0F172A !important;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
         }
         
+        /* --- SIDEBAR & LOGO REORDER HACK --- */
         [data-testid="stSidebar"] {
             background-color: #FFFFFF !important;
             border-right: 1px solid #E2E8F0 !important;
@@ -62,16 +67,17 @@ def main():
             flex-direction: column !important;
         }
         [data-testid="stSidebarUserContent"] {
-            order: 1 !important;
+            order: 1 !important; /* Forces Logo to the Top */
             padding-top: 2rem !important;
-            padding-bottom: 1.5rem !important;
+            padding-bottom: 1.5rem !important; /* Gap below logo */
             margin-top: 0 !important;
         }
         [data-testid="stSidebarNav"] {
-            order: 2 !important;
-            padding-top: 1rem !important;
+            order: 2 !important; /* Forces Menu below Logo */
+            padding-top: 1rem !important; /* Gap above menu */
         }
 
+        /* --- CARDS & PANELS --- */
         [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
             background-color: #FFFFFF !important;
             padding: 20px !important;
@@ -80,6 +86,7 @@ def main():
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
         }
 
+        /* 🚨 FRESH GREEN DASHBOARD BUTTONS (Aggressive form selector) */
         div.stButton > button, 
         [data-testid="stFormSubmitButton"] button,
         [data-testid="stPopover"] button {
@@ -87,7 +94,7 @@ def main():
             color: #FFFFFF !important;
             border: none !important;
             font-family: 'Segoe UI', Arial, sans-serif !important;
-            font-size: 14px !important; 
+            font-size: 14px !important;  
             font-weight: 500 !important; 
             border-radius: 8px !important;
             padding: 10px 20px !important; 
@@ -103,11 +110,12 @@ def main():
         [data-testid="stPopover"] button p {
             color: #FFFFFF !important;
             font-family: 'Segoe UI', Arial, sans-serif !important;
-            font-size: 14px !important; 
+            font-size: 14px !important;  
             font-weight: 500 !important; 
             -webkit-text-fill-color: #FFFFFF !important;
         }
 
+        /* Ensure the little popover dropdown arrow turns white */
         [data-testid="stPopover"] button svg {
             fill: #FFFFFF !important;
             color: #FFFFFF !important;
@@ -128,6 +136,7 @@ def main():
             transform: translateY(0px) !important;
         }
 
+        /* --- TYPOGRAPHY & INPUTS --- */
         div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
             background-color: #FFFFFF !important;
             border: 1px solid #CBD5E1 !important;
@@ -137,6 +146,7 @@ def main():
         h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
         label { color: #475569 !important; font-weight: 600 !important; }
         
+        /* 🚨 MAKE MOBILE MENU ARROW MASSIVE AND GREEN */
         [data-testid="collapsedControl"] {
             position: fixed !important;  
             display: flex !important;
@@ -160,6 +170,11 @@ def main():
         }
     </style>
     """, unsafe_allow_html=True)
+   
+    # ==========================================
+    # 3. DATABASE CONNECTION & SETUP
+    # ==========================================
+    conn = get_connection()
          # ======================================
          #   📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
          # ==========================================
