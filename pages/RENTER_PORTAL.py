@@ -686,12 +686,9 @@ def main():
                                     st.rerun()
                                 else:
                                     st.error("Please upload a screenshot of your payment receipt.")
-                    # ==========================================================
+                  
 
-                    # --- CHAT SYSTEM (For Active Trips & Approvals) ---
-                    if b['status'] in ['PENDING_APPROVAL', 'PENDING', 'VERIFYING', 'APPROVED_BY_HOST', 'CONFIRMED', 'ONGOING']:
-                        # (rest of your existing chat code follows here...)
-
+                   
                     # --- CHAT SYSTEM (For Active Trips & Approvals) ---
                     if b['status'] in ['PENDING_APPROVAL', 'PENDING', 'VERIFYING', 'APPROVED_BY_HOST', 'CONFIRMED', 'ONGOING']:
                         st.divider()
