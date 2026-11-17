@@ -790,17 +790,18 @@ if reg_type in ["Affiliate", "Renter"]:
                                     print(f"Failed to generate Xendit Sub-Account: {e}")
                         
                         # ==========================================
-                        # 🚨 2. SINGLE DATABASE INSERTION
+                        # 🚨 2. SINGLE DATABASE INSERTION (FIXED BINDINGS)
                         # ==========================================
-                        final_payload = st.session_state.reg_payload + (generated_sub_id,)
-                        
+                        # We use the exact 17 items from the payload.
+                        # The Xendit Sub ID is removed from this initial creation step.
                         conn.execute("""
                             INSERT INTO platform_users (
                                 username, password, role, full_name, email, age, nationality, address, 
                                 city, province, area_code, contact_number, govt_id_img, license_img, signature_img, 
-                                bank_name, bank_account_num, admin_status, xendit_sub_id
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
+                                bank_name, bank_account_num, admin_status
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
                         """, st.session_state.reg_payload)
+                        
                         conn.commit()
                         # ==========================================================
                         # 🌍 3. PASTE THE EXPANSION RADAR HOOK HERE:
