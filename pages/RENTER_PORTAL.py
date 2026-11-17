@@ -482,23 +482,30 @@ def main():
                                                                 if days_calc >= 10: discount_pct = 0.10
                                                                 
                                                         discount_amount = gross_rental * discount_pct
-                                                        net_rental = gross_rental - discount_amount
-                                                        security_deposit = 5000.00
-                                                        
-                                                        st.write(f"### 📋 Trip Ledger: {car['make']} {car['model']}")
-                                                        st.caption(f"📍 **Destination:** {dest_val} | 📅 **Duration:** {days_calc} Days ({s_d1} to {s_d2})")
-                                                        
-                                                        st.markdown(f"""
-                                                        | Cost Breakdown | Amount (₱) |
-                                                        |---|---:|
-                                                        | **Base Rental** (₱{base_rate:,.2f} x {days_calc} days) | ₱{gross_rental:,.2f} |
-                                                        | **Multi-Day Discount** ({discount_pct*100:.0f}%) | - ₱{discount_amount:,.2f} |
-                                                        | **Net Rental Subtotal** | **₱{net_rental:,.2f}** |
-                                                        | **Refundable Security Deposit** | ₱{security_deposit:,.2f} |
-                                                        | **Pickup/Return Delivery Fee** | *TBD by Host* |
-                                                        """)
-                                                        
-                                                        st.info(f"💡 **Payment Gateway:** Upon host approval of your pickup/return locations, you will be prompted to pay via **{gateway_mode.replace('_', ' ')}** (e.g., Xendit or BPI).")
+net_rental = gross_rental - discount_amount
+
+# Delivery leg calculations
+pickup_leg_fee = 350.0 if pickup_address.lower() != parking_location.lower() else 0.0
+return_leg_fee = 350.0 if return_address.lower() != parking_location.lower() else 0.0
+total_delivery_fee = pickup_leg_fee + return_leg_fee
+
+# 🚨 EXCLUDE SECURITY DEPOSIT FROM ONLINE BILL (Paid directly in cash to host)
+total_online_bill = net_rental + total_delivery_fee
+
+st.write(f"### 📋 Trip Ledger: {car['make']} {car['model']}")
+st.caption(f"📍 **Pickup:** {pickup_address} | 🛬 **Return:** {return_address}")
+
+st.markdown(f"""
+| Cost Breakdown | Amount (₱) |
+|---|---:|
+| **Base Rental** (₱{base_rate:,.2f} x {days_calc} days) | ₱{gross_rental:,.2f} |
+| **Multi-Day Discount** ({discount_pct*100:.0f}%) | - ₱{discount_amount:,.2f} |
+| **Pickup Delivery Leg** | ₱{pickup_leg_fee:,.2f} |
+| **Return Delivery Leg** | ₱{return_leg_fee:,.2f} |
+| **Total Online Payment Due** | **₱{total_online_bill:,.2f}** |
+""")
+
+st.info("💵 **Security Deposit:** A refundable **₱5,000 cash deposit** is required, but it is **not** included in this online bill. It is paid directly in cash to the car host upon physical vehicle handover.")
                                                         
                                                         st.error("""
                                                         **🚨 STRICT PLATFORM RULES:**
