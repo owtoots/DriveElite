@@ -450,14 +450,15 @@ def main():
                                         with grid_cols[idx % 4]: 
                                             with st.container(border=True):
                                                 
-                                                # --- IMAGE RESOLVER ---
+                                                # --- TOP: Robust Image Resolver ---
                                                 img_p = car.get('vehicle_img')
                                                 resolved_img_path = None
+                                                
                                                 if img_p:
                                                     if os.path.exists(img_p):
                                                         resolved_img_path = img_p
                                                     else:
-                                                        filename = os.path.basename(img_p)
+                                                        filename = os.path.basename(str(img_p))
                                                         alt_path = os.path.join(os.getcwd(), "data", "uploads", filename)
                                                         if os.path.exists(alt_path):
                                                             resolved_img_path = alt_path
@@ -479,47 +480,24 @@ def main():
                                                 owner_display = car.get('owner_name', 'Verified Affiliate')
                                                 st.caption(f"📍 Parking Base: **{parking_location}** (Host: {owner_display})")
                                                 
-                                                # --- CLICKABLE REPUTATION CARD ---
-                                                rating_data = conn.execute("""
-                                                    SELECT AVG(rating), COUNT(rating) 
-                                                    FROM bookings 
-                                                    WHERE vehicle_id = ? AND rating IS NOT NULL AND status = 'COMPLETED'
-                                                """, (car['id'],)).fetchone()
-                                                
-                                                avg_rating = rating_data[0] if rating_data[0] is not None else 0
-                                                review_count = rating_data[1] if rating_data[1] is not None else 0
-                                                
-                                                if avg_rating > 0:
-                                                    stars = '⭐' * int(round(avg_rating))
-                                                    with st.popover(f"{stars} ({avg_rating:.1f}) - {review_count} Reviews", use_container_width=True):
-                                                        st.write(f"### 📋 Feedback for this {car['make']} {car['model']}")
-                                                        # (Review popover rendering follows here...)
-                                                
                                                 st.markdown(f"<h5 style='color: #2563EB;'>₱{base_rate:,.2f} / day</h5>", unsafe_allow_html=True)
                                                 
                                                 # --- BOTTOM: POPOVER CHECKOUT MANAGER ---
                                                 with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
-                                                    # (Checkout manager code follows here...)
-                                    
-                                    # --- BOTTOM: POPOVER CHECKOUT MANAGER ---
-                                    with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
-                                        
-                                        stage_key = f"chk_stage_{car['id']}_{cat}"
-                                        ref_key = f"pend_ref_{car['id']}_{cat}"
-                                        if stage_key not in st.session_state: st.session_state[stage_key] = 0
-                                        
-                                        unavailable_dates = get_booked_dates(car['id'], conn)
-                                        
-                                        # -------------------------------------------------------------
-                                        # CHECKOUT STAGE 0: SELECT DATES & EXACT ADDRESSES
-                                        # -------------------------------------------------------------
-                                        if st.session_state[stage_key] == 0:
-                                            today = datetime.date.today()
-                                            
-                                            d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}_{cat}")
-                                            t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
-                                            d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}")
-                                            t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}", step=datetime.timedelta(hours=1))
+                                                    stage_key = f"chk_stage_{car['id']}_{cat}"
+                                                    ref_key = f"pend_ref_{car['id']}_{cat}"
+                                                    if stage_key not in st.session_state: 
+                                                        st.session_state[stage_key] = 0
+                                                    
+                                                    unavailable_dates = get_booked_dates(car['id'], conn)
+                                                    
+                                                    # Stage 0: Select Dates & Addresses
+                                                    if st.session_state[stage_key] == 0:
+                                                        today = datetime.date.today()
+                                                        d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}_{cat}")
+                                                        t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}_{cat}")
+                                                        d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}")
+                                                        t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}")
 
                                             # BULLETPROOF FLAT HTML CALENDAR
                                             cal_year = d1.year
