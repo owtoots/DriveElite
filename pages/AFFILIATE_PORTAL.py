@@ -644,13 +644,16 @@ def main():
                             st.markdown(f"### ⏳ Action Required: Distance Review for Ref: {b_ref_display}")
                             st.write(f"**Vehicle:** {b['make']} {b['model']} ({b['plate']}) | **Renter:** {b['renter_name']}")
                             
+                            p_fee = float(b.get('delivery_fee', 0.0))
+                            r_fee = float(b.get('return_fee', 0.0))
+                            
                             st.markdown(f"""
                             <div style="background-color: #FEF3C7; border: 1px solid #F59E0B; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                                <b>Requested Handover Locations:</b><br>
-                                🛫 <b>Pickup:</b> {b.get('pickup_loc', 'N/A')}<br>
-                                🛬 <b>Return:</b> {b.get('return_loc', 'N/A')}<br>
+                                <b>Requested Handover Locations & Logistics:</b><br>
+                                🛫 <b>Pickup Address:</b> {b.get('pickup_loc', 'Parking Base')} (Leg Fee: ₱{p_fee:,.2f})<br>
+                                🛬 <b>Return Address:</b> {b.get('return_loc', 'Parking Base')} (Leg Fee: ₱{r_fee:,.2f})<br>
                                 🛣️ <b>Route/Destination:</b> {b.get('destination', 'N/A')}<br>
-                                💰 <b>Estimated Total (Inc. Logistics):</b> Php {b['amount']:,.2f}
+                                💰 <b>Total Amount (Inc. Logistics):</b> ₱{b['amount']:,.2f}
                             </div>
                             """, unsafe_allow_html=True)
                             
