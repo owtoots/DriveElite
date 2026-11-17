@@ -25,7 +25,6 @@ def main():
     # ==========================================
     st.set_page_config(page_title="DriveElite Renter", layout="wide", initial_sidebar_state="expanded")
     
-    # 🚨 SMART LOGO PATH: Automatically finds the logo even from inside the pages/ folder
     logo_path = "logo.png"
     if not os.path.exists(logo_path):
         logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logo.png")
@@ -40,9 +39,6 @@ def main():
     # ==========================================
     st.markdown("""
     <style>
-        /* =========================================
-            📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
-            ========================================= */
         div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
             height: 200px !important;
             width: 100% !important;
@@ -50,14 +46,12 @@ def main():
             border-radius: 8px !important;
         }
         
-        /* --- GLOBAL THEME & TYPOGRAPHY --- */
         [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
             background-color: #F8FAFC !important;
             color: #0F172A !important;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
         }
         
-        /* --- SIDEBAR & LOGO REORDER HACK --- */
         [data-testid="stSidebar"] {
             background-color: #FFFFFF !important;
             border-right: 1px solid #E2E8F0 !important;
@@ -67,17 +61,16 @@ def main():
             flex-direction: column !important;
         }
         [data-testid="stSidebarUserContent"] {
-            order: 1 !important; /* Forces Logo to the Top */
+            order: 1 !important; 
             padding-top: 2rem !important;
-            padding-bottom: 1.5rem !important; /* Gap below logo */
+            padding-bottom: 1.5rem !important; 
             margin-top: 0 !important;
         }
         [data-testid="stSidebarNav"] {
-            order: 2 !important; /* Forces Menu below Logo */
-            padding-top: 1rem !important; /* Gap above menu */
+            order: 2 !important; 
+            padding-top: 1rem !important; 
         }
 
-        /* --- CARDS & PANELS --- */
         [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
             background-color: #FFFFFF !important;
             padding: 20px !important;
@@ -86,7 +79,6 @@ def main():
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
         }
 
-        /* 🚨 FRESH GREEN DASHBOARD BUTTONS */
         div.stButton > button, 
         [data-testid="stFormSubmitButton"] button,
         [data-testid="stPopover"] button {
@@ -135,7 +127,6 @@ def main():
             transform: translateY(0px) !important;
         }
 
-        /* --- TYPOGRAPHY & INPUTS --- */
         div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
             background-color: #FFFFFF !important;
             border: 1px solid #CBD5E1 !important;
@@ -145,7 +136,6 @@ def main():
         h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
         label { color: #475569 !important; font-weight: 600 !important; }
         
-        /* 🚨 MAKE MOBILE MENU ARROW MASSIVE AND GREEN */
         [data-testid="collapsedControl"] {
             position: fixed !important;  
             display: flex !important;
@@ -221,7 +211,6 @@ def main():
     if "temp_msg_renter" not in st.session_state: st.session_state.temp_msg_renter = ""
 
     def get_booked_dates(vehicle_id, conn):
-        """Finds all dates a specific vehicle is already booked."""
         query = "SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status IN ('CONFIRMED', 'ONGOING', 'PENDING', 'APPROVED_BY_HOST')"
         df = pd.read_sql_query(query, conn, params=(vehicle_id,))
         booked_days = set()
@@ -241,12 +230,10 @@ def main():
         try:
             if total_km <= 5.0:
                 return 350.0
-            
             base_taxi_fare = 150.0
             fuel_and_time_rate = 50.0
             driver_buffer = 20.0
             return_taxi_estimate = total_km * 45.0 
-            
             calculated_fee = base_taxi_fare + (total_km * fuel_and_time_rate) + return_taxi_estimate + driver_buffer
             return round(calculated_fee, -2) 
         except Exception:
@@ -283,10 +270,8 @@ def main():
     def send_alert_email(to_email, subject, body):
         sender_email = "contact@driveelite.ph" 
         sender_password = os.environ.get("EMAIL_PASSWORD") 
-        
         if not sender_password: 
             return False
-            
         try:
             msg = MIMEMultipart()
             msg['From'] = f"DriveElite Platform <{sender_email}>"
@@ -331,39 +316,15 @@ def main():
             st.rerun()
     st.divider()
 
-    # ==========================================
-    # 📢 STATIC BROADCAST BANNER
-    # ==========================================
     try:
         promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('RENTER', 'ALL USERS') LIMIT 1", conn)
-        
         if not promo_df.empty:
             title = promo_df.iloc[0]['title']
             msg = promo_df.iloc[0]['message']
-            
             st.markdown(f"""
                 <style>
-                .broadcast-box {{ 
-                    padding: 25px 20px; 
-                    background-color: #2563EB;
-                    color: white; 
-                    border-radius: 12px; 
-                    margin-bottom: 25px; 
-                    text-align: center; 
-                    font-size: 22px; 
-                    display: flex; 
-                    flex-direction: row;
-                    justify-content: center;
-                    align-items: center;
-                    flex-wrap: wrap; 
-                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                    border: 1px solid rgba(255, 255, 255, 0.15);
-                }}
-                .broadcast-title {{
-                    font-weight: 900;
-                    margin-right: 12px;
-                    letter-spacing: 0.5px;
-                }}
+                .broadcast-box {{ padding: 25px 20px; background-color: #2563EB; color: white; border-radius: 12px; margin-bottom: 25px; text-align: center; font-size: 22px; display: flex; flex-direction: row; justify-content: center; align-items: center; flex-wrap: wrap; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); }}
+                .broadcast-title {{ font-weight: 900; margin-right: 12px; letter-spacing: 0.5px; }}
                 </style>
                 <div class="broadcast-box">
                     <span class="broadcast-title">📢 {title}:</span> 
@@ -390,7 +351,6 @@ def main():
         if available_cars.empty:
             st.info("Our fleet is currently fully booked. Please check back later!")
         else:
-            # 🌍 DYNAMIC CITY EXTRACTION
             if 'location' in available_cars.columns:
                 available_cars['clean_city'] = available_cars['location'].apply(lambda x: str(x).split(',')[-1].strip() if pd.notnull(x) else "Metro Manila")
                 cities = ["All Cities"] + sorted(available_cars['clean_city'].unique().tolist())
@@ -411,7 +371,6 @@ def main():
                     if city_cars.empty:
                         st.info(f"No vehicles currently available in {city_name}. Check back soon as we expand!")
                     else:
-                        # 🏷️ CATEGORY TABS INSIDE EACH CITY FOLDER
                         if 'category' in city_cars.columns:
                             categories = ["All"] + sorted(city_cars['category'].dropna().unique().tolist())
                         elif 'type' in city_cars.columns:
@@ -438,7 +397,6 @@ def main():
                                     for idx, car in display_cars.iterrows():
                                         with grid_cols[idx % 4]: 
                                             with st.container(border=True):
-                                                
                                                 img_p = car.get('vehicle_img')
                                                 resolved_img_path = None
                                                 
@@ -466,15 +424,13 @@ def main():
                                                 parking_location = car.get('location', 'Metro Manila')
                                                 owner_display = car.get('owner_name', 'Verified Affiliate')
                                                 st.caption(f"📍 Parking Base: **{parking_location}** (Host: {owner_display})")
-                                                
                                                 st.markdown(f"<h5 style='color: #2563EB;'>₱{base_rate:,.2f} / day</h5>", unsafe_allow_html=True)
                                                 
                                                 # --- BOTTOM: POPOVER CHECKOUT MANAGER ---
                                                 with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
-                                                    # 🚨 Added {tab_index} to make keys 100% unique across city tabs
+                                                    # 🚨 UNIQUE KEYS ADDED HERE
                                                     stage_key = f"chk_stage_{car['id']}_{cat}_{tab_index}"
                                                     ref_key = f"pend_ref_{car['id']}_{cat}_{tab_index}"
-                                                    
                                                     if stage_key not in st.session_state: 
                                                         st.session_state[stage_key] = 0
                                                     
@@ -604,6 +560,7 @@ def main():
                                                                 st.rerun()
                                                             else:
                                                                 st.error("Please upload your payment screenshot.")
+
     # ==========================================
     # 📅 MY BOOKINGS (MAIN TAB 1)
     # ==========================================
@@ -674,7 +631,6 @@ def main():
                                     st.rerun()
                                 else:
                                     st.error("Please upload a screenshot of your payment receipt.")
-                    # ==========================================================
 
                     # --- CHAT SYSTEM (For Active Trips & Approvals) ---
                     if b['status'] in ['PENDING_APPROVAL', 'PENDING', 'VERIFYING', 'APPROVED_BY_HOST', 'CONFIRMED', 'ONGOING']:
