@@ -87,37 +87,37 @@ def send_approval_email(to_email, subject, body):
 
 # --- 3. CENTRALIZED OTP DISPATCHER ---
 def send_otp(contact_number, email_address, otp_code, method="EMAIL"):
-    """Sends a clean OTP using Brevo's REST API over HTTPS."""
+    """Sends a clean OTP using standard DriveElite SMTP."""
     if method == "SMS":
         message = f"Your DriveElite OTP is: {otp_code}. Do not share this with anyone."
         return send_sms_alert(contact_number, message)
         
     try:
+        import smtplib
+        from email.message import EmailMessage
+        
         clean_email = email_address.strip() if email_address else ""
-        api_key = os.environ.get("BREVO_RENDER", "").strip() 
+        sender_email = "contact@driveelite.ph"
+        app_password = "chcskxti6hc2d7ao" 
+        
+        msg = EmailMessage()
+        msg['Subject'] = "DriveElite: Your Verification Code"
+        msg['From'] = f"DriveElite Team <{sender_email}>"
+        msg['To'] = clean_email
         
         body = f"Hello,\n\nYour DriveElite registration verification code is:\n{otp_code}\n\nPlease enter this 6-digit code on the registration screen to verify your account.\n\nDrive safely,\nThe DriveElite Team"
+        msg.set_content(body)
         
-        url = "https://api.brevo.com/v3/smtp/email"
-        payload = {
-            "sender": {"name": "DriveElite", "email": "contact@driveelite.ph"},
-            "to": [{"email": clean_email}],
-            "subject": "DriveElite: Your Verification Code",
-            "textContent": body
-        }
-        
-        data = json.dumps(payload).encode('utf-8')
-        req = urllib.request.Request(url, data=data, headers={
-            'api-key': api_key, 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        })
-        
-        urllib.request.urlopen(req)
+        # Connect to your official DriveElite mail server
+        with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as smtp:
+            smtp.login(sender_email, app_password)
+            smtp.send_message(msg)
+            
         return True
         
     except Exception as e:
-        st.error(f"🔍 API SYSTEM ERROR: {e}")
+        # This will now print the exact SMTP failure to your screen if it bounces
+        st.error(f"🔍 SMTP SYSTEM ERROR: {e}")
         return False
 
 # --- 4. DATABASE STRUCTURE & INITIALIZATION ---
