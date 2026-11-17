@@ -19,7 +19,7 @@ from fpdf import FPDF
 import streamlit as st
 
 # --- IMPORT SHARED TOOLS ---
-from database_utils import get_connection, init_db, patch_database, send_sms_alert, send_alert_email
+from database_utils import get_connection, init_db, patch_database, send_sms_alert, send_alert_email, send_approval_email
 
 def main():
     # ==========================================
@@ -393,9 +393,15 @@ def main():
                         if st.button("APPROVE AFFILIATE", key=f"aa_{r['id']}", type="primary", use_container_width=True):
                             conn.execute("UPDATE platform_users SET admin_status = 'APPROVED' WHERE id = ?", (r['id'],))
                             conn.commit()
-                            send_approval_email(r.get('email', ''), r['full_name'], 'AFFILIATE')
+                            
+                            # Send native SMTP approval email
+                            subject = "✅ DriveElite: Your Affiliate Account is Approved!"
+                            body = f"Hello {r['full_name']},\n\nYour DriveElite Affiliate account (@{r['username']}) has been officially approved by the Admin.\n\nYou can now log in, upload your fleet, and start accepting bookings.\n\nWelcome to the platform!"
+                            send_approval_email(r.get('email', ''), subject, body)
+                            
                             st.success("Affiliate approved successfully!")
-                            time.sleep(1); st.rerun()
+                            time.sleep(1)
+                            st.rerun()
             except Exception as e: st.warning(f"Error loading affiliates: {e}")
 
         with p_tabs[2]:
