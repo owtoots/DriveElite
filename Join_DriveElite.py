@@ -644,12 +644,18 @@ if reg_type in ["Affiliate", "Renter"]:
                         st.session_state[step_key] = 2
                         st.rerun()
 
-   # ==========================================
+    # ==========================================
     # STEP 2: DIGITAL SIGNATURE
     # ==========================================
     elif st.session_state[step_key] == 2:
         st.subheader(f"Step 2: Digital {reg_type} Agreement")
         st.info("By signing below, you agree to the DriveElite Terms of Service and Privacy Policy.")
+        
+        # 🚨 FIX: Force a unique key using session state to prevent the canvas from disappearing
+        if "sig_clear_count" not in st.session_state:
+            st.session_state.sig_clear_count = 0
+            
+        canvas_key = f"sig_{reg_type}_{st.session_state.sig_clear_count}"
         
         canvas = st_canvas(
             stroke_width=3, 
@@ -657,8 +663,15 @@ if reg_type in ["Affiliate", "Renter"]:
             background_color="#FFFFFF", 
             height=150, 
             width=400, 
-            key=f"sig_{reg_type}"
+            key=canvas_key
         )
+        
+        c_clear, c_space = st.columns([1, 4])
+        if c_clear.button("🗑️ Clear Pad", use_container_width=True):
+            st.session_state.sig_clear_count += 1
+            st.rerun()
+        
+        st.divider()
         
         c_back, c_sub = st.columns([1, 4])
         if c_back.button("⬅️ BACK"):
@@ -666,6 +679,7 @@ if reg_type in ["Affiliate", "Renter"]:
             st.rerun()
 
         if c_sub.button("SUBMIT REGISTRATION & SEND OTP", type="primary"):
+            # (Keep your existing submit logic here...)
             if canvas.image_data is not None and len(np.unique(canvas.image_data)) > 1:
                 with st.spinner("Generating legal agreement..."):
                     data = st.session_state[f"temp_{reg_type.lower()}_data"]
