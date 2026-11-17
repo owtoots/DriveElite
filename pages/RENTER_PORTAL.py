@@ -160,9 +160,9 @@ def main():
         }
     </style>
     """, unsafe_allow_html=True)
-        /* =========================================
-            📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
-            ========================================= */
+         # ======================================
+         #   📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
+         # ==========================================
         div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
             height: 200px !important;
             width: 100% !important;
