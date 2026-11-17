@@ -471,8 +471,10 @@ def main():
                                                 
                                                 # --- BOTTOM: POPOVER CHECKOUT MANAGER ---
                                                 with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
-                                                    stage_key = f"chk_stage_{car['id']}_{cat}"
-                                                    ref_key = f"pend_ref_{car['id']}_{cat}"
+                                                    # 🚨 Added {tab_index} to make keys 100% unique across city tabs
+                                                    stage_key = f"chk_stage_{car['id']}_{cat}_{tab_index}"
+                                                    ref_key = f"pend_ref_{car['id']}_{cat}_{tab_index}"
+                                                    
                                                     if stage_key not in st.session_state: 
                                                         st.session_state[stage_key] = 0
                                                     
@@ -481,16 +483,16 @@ def main():
                                                     # --- STAGE 0: SELECT DATES & LOCATIONS ---
                                                     if st.session_state[stage_key] == 0:
                                                         today = datetime.date.today()
-                                                        d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}_{cat}")
-                                                        t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}_{cat}")
-                                                        d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}")
-                                                        t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}")
+                                                        d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}_{cat}_{tab_index}")
+                                                        t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}_{cat}_{tab_index}")
+                                                        d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}_{tab_index}")
+                                                        t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}_{tab_index}")
                                                         
-                                                        pickup_loc = st.text_input("Pickup Location / Delivery Address", value=parking_location, key=f"ploc_{car['id']}_{cat}")
-                                                        return_loc = st.text_input("Return Location / Drop-off Address", value=parking_location, key=f"rloc_{car['id']}_{cat}")
-                                                        destination = st.text_input("Declared Trip Route / Destination", placeholder="e.g., Tagaytay or Subic", key=f"dest_{car['id']}_{cat}")
+                                                        pickup_loc = st.text_input("Pickup Location / Delivery Address", value=parking_location, key=f"ploc_{car['id']}_{cat}_{tab_index}")
+                                                        return_loc = st.text_input("Return Location / Drop-off Address", value=parking_location, key=f"rloc_{car['id']}_{cat}_{tab_index}")
+                                                        destination = st.text_input("Declared Trip Route / Destination", placeholder="e.g., Tagaytay or Subic", key=f"dest_{car['id']}_{cat}_{tab_index}")
                                                         
-                                                        if st.button("PROCEED TO SUMMARY", key=f"btn_s0_{car['id']}_{cat}", use_container_width=True):
+                                                        if st.button("PROCEED TO SUMMARY", key=f"btn_s0_{car['id']}_{cat}_{tab_index}", use_container_width=True):
                                                             if not destination.strip():
                                                                 st.error("Please specify your trip route or destination.")
                                                             else:
@@ -501,17 +503,17 @@ def main():
                                                     elif st.session_state[stage_key] == 1:
                                                         st.write("### 📋 Booking Summary")
                                                         st.write(f"🚗 **Vehicle:** {car['make']} {car['model']}")
-                                                        st.write(f"📅 **Pickup:** {st.session_state.get(f'd1_{car['id']}_{cat}')} at {st.session_state.get(f't1_{car['id']}_{cat}')}")
-                                                        st.write(f"📅 **Return:** {st.session_state.get(f'd2_{car['id']}_{cat}')} at {st.session_state.get(f't2_{car['id']}_{cat}')}")
-                                                        st.write(f"🛣️ **Destination:** {st.session_state.get(f'dest_{car['id']}_{cat}')}")
+                                                        st.write(f"📅 **Pickup:** {st.session_state.get(f'd1_{car['id']}_{cat}_{tab_index}')} at {st.session_state.get(f't1_{car['id']}_{cat}_{tab_index}')}")
+                                                        st.write(f"📅 **Return:** {st.session_state.get(f'd2_{car['id']}_{cat}_{tab_index}')} at {st.session_state.get(f't2_{car['id']}_{cat}_{tab_index}')}")
+                                                        st.write(f"🛣️ **Destination:** {st.session_state.get(f'dest_{car['id']}_{cat}_{tab_index}')}")
                                                         
-                                                        if st.button("SUBMIT FOR HOST DISTANCE APPROVAL", key=f"btn_s1_{car['id']}_{cat}", type="primary", use_container_width=True):
+                                                        if st.button("SUBMIT FOR HOST DISTANCE APPROVAL", key=f"btn_s1_{car['id']}_{cat}_{tab_index}", type="primary", use_container_width=True):
                                                             booking_ref = str(random.randint(100000, 999999))
                                                             
-                                                            s_d1 = st.session_state.get(f"d1_{car['id']}_{cat}", datetime.date.today())
-                                                            s_t1 = st.session_state.get(f"t1_{car['id']}_{cat}", datetime.time(9,0))
-                                                            s_d2 = st.session_state.get(f"d2_{car['id']}_{cat}", s_d1)
-                                                            s_t2 = st.session_state.get(f"t2_{car['id']}_{cat}", datetime.time(9,0))
+                                                            s_d1 = st.session_state.get(f"d1_{car['id']}_{cat}_{tab_index}", datetime.date.today())
+                                                            s_t1 = st.session_state.get(f"t1_{car['id']}_{cat}_{tab_index}", datetime.time(9,0))
+                                                            s_d2 = st.session_state.get(f"d2_{car['id']}_{cat}_{tab_index}", s_d1)
+                                                            s_t2 = st.session_state.get(f"t2_{car['id']}_{cat}_{tab_index}", datetime.time(9,0))
                                                             
                                                             pickup_dt = datetime.datetime.combine(s_d1, s_t1)
                                                             return_dt = datetime.datetime.combine(s_d2, s_t2)
@@ -524,9 +526,9 @@ def main():
                                                                     pickup_loc, return_loc, destination, amount, status
                                                                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL')
                                                             """, (booking_ref, car['id'], st.session_state.username, str(pickup_dt), str(return_dt), 
-                                                                  st.session_state.get(f"ploc_{car['id']}_{cat}", ""), 
-                                                                  st.session_state.get(f"rloc_{car['id']}_{cat}", ""), 
-                                                                  st.session_state.get(f"dest_{car['id']}_{cat}", ""), 
+                                                                  st.session_state.get(f"ploc_{car['id']}_{cat}_{tab_index}", ""), 
+                                                                  st.session_state.get(f"rloc_{car['id']}_{cat}_{tab_index}", ""), 
+                                                                  st.session_state.get(f"dest_{car['id']}_{cat}_{tab_index}", ""), 
                                                                   total_amount))
                                                             conn.commit()
                                                             
@@ -559,17 +561,17 @@ def main():
                                                         st.divider()
                                                         st.write("#### 📤 Upload Xendit Payment Screenshot")
                                                         st.caption("Upload your payment success screenshot containing the transaction reference number.")
-                                                        xendit_receipt = st.file_uploader("Upload Xendit Receipt", type=['jpg', 'png', 'jpeg'], key=f"x_rec_{car['id']}_{cat}")
+                                                        xendit_receipt = st.file_uploader("Upload Xendit Receipt", type=['jpg', 'png', 'jpeg'], key=f"x_rec_{car['id']}_{cat}_{tab_index}")
 
                                                         c_back, c_sub = st.columns([1, 1])
-                                                        if c_back.button("Cancel Booking", key=f"canc_x_{car['id']}_{cat}", use_container_width=True):
+                                                        if c_back.button("Cancel Booking", key=f"canc_x_{car['id']}_{cat}_{tab_index}", use_container_width=True):
                                                             conn.execute("DELETE FROM bookings WHERE booking_ref = ?", (b_ref,))
                                                             conn.commit()
                                                             st.session_state[stage_key] = 0
                                                             if ref_key in st.session_state: del st.session_state[ref_key]
                                                             st.rerun()
 
-                                                        if c_sub.button("SUBMIT PAYMENT PROOF TO ADMIN", type="primary", use_container_width=True, key=f"sub_x_{car['id']}_{cat}"):
+                                                        if c_sub.button("SUBMIT PAYMENT PROOF TO ADMIN", type="primary", use_container_width=True, key=f"sub_x_{car['id']}_{cat}_{tab_index}"):
                                                             if xendit_receipt:
                                                                 receipt_bytes = xendit_receipt.read()
                                                                 conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE booking_ref = ?", (receipt_bytes, b_ref))
@@ -602,7 +604,6 @@ def main():
                                                                 st.rerun()
                                                             else:
                                                                 st.error("Please upload your payment screenshot.")
-
     # ==========================================
     # 📅 MY BOOKINGS (MAIN TAB 1)
     # ==========================================
