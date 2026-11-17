@@ -482,30 +482,30 @@ def main():
                                                                 if days_calc >= 10: discount_pct = 0.10
                                                                 
                                                         discount_amount = gross_rental * discount_pct
-net_rental = gross_rental - discount_amount
-
-# Delivery leg calculations
-pickup_leg_fee = 350.0 if pickup_address.lower() != parking_location.lower() else 0.0
-return_leg_fee = 350.0 if return_address.lower() != parking_location.lower() else 0.0
-total_delivery_fee = pickup_leg_fee + return_leg_fee
-
-# 🚨 EXCLUDE SECURITY DEPOSIT FROM ONLINE BILL (Paid directly in cash to host)
-total_online_bill = net_rental + total_delivery_fee
-
-st.write(f"### 📋 Trip Ledger: {car['make']} {car['model']}")
-st.caption(f"📍 **Pickup:** {pickup_address} | 🛬 **Return:** {return_address}")
-
-st.markdown(f"""
-| Cost Breakdown | Amount (₱) |
-|---|---:|
-| **Base Rental** (₱{base_rate:,.2f} x {days_calc} days) | ₱{gross_rental:,.2f} |
-| **Multi-Day Discount** ({discount_pct*100:.0f}%) | - ₱{discount_amount:,.2f} |
-| **Pickup Delivery Leg** | ₱{pickup_leg_fee:,.2f} |
-| **Return Delivery Leg** | ₱{return_leg_fee:,.2f} |
-| **Total Online Payment Due** | **₱{total_online_bill:,.2f}** |
-""")
-
-st.info("💵 **Security Deposit:** A refundable **₱5,000 cash deposit** is required, but it is **not** included in this online bill. It is paid directly in cash to the car host upon physical vehicle handover.")
+                                                        net_rental = gross_rental - discount_amount
+                                                        
+                                                        # Delivery leg calculations
+                                                        pickup_leg_fee = 350.0 if pickup_address.lower() != parking_location.lower() else 0.0
+                                                        return_leg_fee = 350.0 if return_address.lower() != parking_location.lower() else 0.0
+                                                        total_delivery_fee = pickup_leg_fee + return_leg_fee
+                                                        
+                                                        # 🚨 EXCLUDE SECURITY DEPOSIT FROM ONLINE BILL (Paid directly in cash to host)
+                                                        total_online_bill = net_rental + total_delivery_fee
+                                                        
+                                                        st.write(f"### 📋 Trip Ledger: {car['make']} {car['model']}")
+                                                        st.caption(f"📍 **Pickup:** {pickup_address} | 🛬 **Return:** {return_address}")
+                                                        
+                                                        st.markdown(f"""
+                                                        | Cost Breakdown | Amount (₱) |
+                                                        |---|---:|
+                                                        | **Base Rental** (₱{base_rate:,.2f} x {days_calc} days) | ₱{gross_rental:,.2f} |
+                                                        | **Multi-Day Discount** ({discount_pct*100:.0f}%) | - ₱{discount_amount:,.2f} |
+                                                        | **Pickup Delivery Leg** | ₱{pickup_leg_fee:,.2f} |
+                                                        | **Return Delivery Leg** | ₱{return_leg_fee:,.2f} |
+                                                        | **Total Online Payment Due** | **₱{total_online_bill:,.2f}** |
+                                                        """)
+                                                        
+                                                        st.info("💵 **Security Deposit:** A refundable **₱5,000 cash deposit** is required, but it is **not** included in this online bill. It is paid directly in cash to the car host upon physical vehicle handover.")
                                                         
                                                         st.error("""
                                                         **🚨 STRICT PLATFORM RULES:**
@@ -520,13 +520,21 @@ st.info("💵 **Security Deposit:** A refundable **₱5,000 cash deposit** is re
                                                             conn.execute("""
                                                                 INSERT INTO bookings (
                                                                     booking_ref, vehicle_id, renter_username, pickup_time, return_time,
-                                                                    pickup_loc, return_loc, destination, amount, status
-                                                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL')
-                                                            """, (booking_ref, car['id'], st.session_state.username, str(pickup_dt), str(return_dt), 
-                                                                  st.session_state.get(f"ploc_{car['id']}_{cat}_{tab_index}", ""), 
-                                                                  st.session_state.get(f"rloc_{car['id']}_{cat}_{tab_index}", ""), 
-                                                                  dest_val, 
-                                                                  net_rental))
+                                                                    pickup_loc, return_loc, destination, delivery_fee, return_fee, amount, status
+                                                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL')
+                                                            """, (
+                                                                booking_ref, 
+                                                                car['id'], 
+                                                                st.session_state.username, 
+                                                                str(pickup_dt), 
+                                                                str(return_dt), 
+                                                                pickup_address, 
+                                                                return_address, 
+                                                                dest_val, 
+                                                                pickup_leg_fee, 
+                                                                return_leg_fee, 
+                                                                total_online_bill,  # 👈 Includes net rental + delivery legs (₱5k deposit excluded)
+                                                            ))
                                                             conn.commit()
                                                             
                                                             st.success(f"Booking request submitted! Ref #{booking_ref}. Awaiting host distance review.")
@@ -675,19 +683,22 @@ st.info("💵 **Security Deposit:** A refundable **₱5,000 cash deposit** is re
                         st.write("#### 📤 Upload Proof of Payment (Showing Reference No.)")
                         receipt_file = st.file_uploader("Upload Receipt", type=['jpg', 'png', 'jpeg'], key=f"my_rec_{b['id']}")
                         
-                        if st.button("SUBMIT PAYMENT RECEIPT TO ADMIN", type="primary", use_container_width=True, key=f"my_val_{b['id']}"):
-                            if receipt_file:
-                                receipt_bytes = receipt_file.read()
-                                conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE id = ?", (receipt_bytes, b['id']))
-                                receipt_path = f"/data/uploads/chat_images/receipt_{b['booking_ref']}.jpg"
-                                with open(receipt_path, "wb") as f: f.write(receipt_bytes)
-                                
-                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                             (str(b['booking_ref']), renter_user, b['owner_username'], "Payment Receipt Uploaded for Admin Verification.", receipt_path))
-                                conn.commit()
-                                st.success("✅ Receipt submitted! Status updated to VERIFYING. Waiting for Admin confirmation.")
-                                time.sleep(1.5)
-                                st.rerun()
+                        if st.button("AGREE & SUBMIT FOR HOST DISTANCE APPROVAL", key=f"btn_s1_{car['id']}_{cat}_{tab_index}", type="primary", use_container_width=True):
+                            booking_ref = str(random.randint(100000, 999999))
+                            
+                            conn.execute("""
+                                INSERT INTO bookings (
+                                    booking_ref, vehicle_id, renter_username, pickup_time, return_time,
+                                    pickup_loc, return_loc, destination, delivery_fee, return_fee, amount, status
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL')
+                            """, (booking_ref, car['id'], st.session_state.username, str(pickup_dt), str(return_dt), 
+                                  pickup_address, return_address, dest_val, pickup_leg_fee, return_leg_fee, total_online_bill))
+                            conn.commit()
+                            
+                            st.success(f"Booking request submitted! Ref #{booking_ref}. Awaiting host distance review.")
+                            st.session_state[stage_key] = 0
+                            time.sleep(1.5)
+                            st.rerun()
                             else:
                                 st.error("Please upload a screenshot of your payment receipt.")
 
