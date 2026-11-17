@@ -39,144 +39,10 @@ def main():
     # 💎 2. THE "CRYSTAL ELITE" CSS ENGINE
     # ==========================================
     st.markdown("""
-<style>
-/* =========================================
-    📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
-    ========================================= */
-div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
-    height: 200px !important;
-    width: 100% !important;
-    object-fit: cover !important;
-    border-radius: 8px !important;
-}
-
-/* --- GLOBAL THEME & TYPOGRAPHY --- */
-[data-testid="stAppViewContainer"], [data-testid="stHeader"] {
-    background-color: #F8FAFC !important;
-    color: #0F172A !important;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-}
-
-/* --- SIDEBAR & LOGO REORDER HACK --- */
-[data-testid="stSidebar"] {
-    background-color: #FFFFFF !important;
-    border-right: 1px solid #E2E8F0 !important;
-}
-[data-testid="stSidebarContent"] {
-    display: flex !important;
-    flex-direction: column !important;
-}
-[data-testid="stSidebarUserContent"] {
-    order: 1 !important;
-    padding-top: 2rem !important;
-    padding-bottom: 1.5rem !important;
-    margin-top: 0 !important;
-}
-[data-testid="stSidebarNav"] {
-    order: 2 !important;
-    padding-top: 1rem !important;
-}
-
-/* --- CARDS & PANELS --- */
-[data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
-    background-color: #FFFFFF !important;
-    padding: 20px !important;
-    border-radius: 16px !important;
-    border: 1px solid #E2E8F0 !important;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
-}
-
-/* 🚨 FRESH GREEN DASHBOARD BUTTONS */
-div.stButton > button, 
-[data-testid="stFormSubmitButton"] button,
-[data-testid="stPopover"] button {
-    background-color: #22C55E !important;
-    color: #FFFFFF !important;
-    border: none !important;
-    font-family: 'Segoe UI', Arial, sans-serif !important;
-    font-size: 14px !important;  
-    font-weight: 500 !important; 
-    border-radius: 8px !important;
-    padding: 10px 20px !important; 
-    text-transform: uppercase !important;
-    letter-spacing: 0.5px !important;
-    transition: all 0.2s ease !important;
-    box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2) !important;
-    -webkit-text-fill-color: #FFFFFF !important;
-}
-
-div.stButton > button p, 
-[data-testid="stFormSubmitButton"] button p,
-[data-testid="stPopover"] button p {
-    color: #FFFFFF !important;
-    font-family: 'Segoe UI', Arial, sans-serif !important;
-    font-size: 14px !important;  
-    font-weight: 500 !important; 
-    -webkit-text-fill-color: #FFFFFF !important;
-}
-
-[data-testid="stPopover"] button svg {
-    fill: #FFFFFF !important;
-    color: #FFFFFF !important;
-}
-
-div.stButton > button:hover, 
-[data-testid="stFormSubmitButton"] button:hover,
-[data-testid="stPopover"] button:hover {
-    background-color: #16A34A !important;
-    box-shadow: 0 6px 12px rgba(34, 197, 94, 0.3) !important;
-    transform: translateY(-2px) !important;
-}
-
-div.stButton > button:active, 
-[data-testid="stFormSubmitButton"] button:active,
-[data-testid="stPopover"] button:active {
-    background-color: #15803D !important;
-    transform: translateY(0px) !important;
-}
-
-/* --- TYPOGRAPHY & INPUTS --- */
-div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
-    background-color: #FFFFFF !important;
-    border: 1px solid #CBD5E1 !important;
-    border-radius: 8px !important;
-}
-input { color: #1E293B !important; }
-h1, h2, h3 { color: #0F172A !important; font-weight: 800 !important; }
-label { color: #475569 !important; font-weight: 600 !important; }
-
-/* 🚨 MAKE MOBILE MENU ARROW MASSIVE AND GREEN */
-[data-testid="collapsedControl"] {
-    position: fixed !important;  
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background-color: #22C55E !important;
-    border-radius: 50% !important;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
-    top: 15px !important;
-    left: 15px !important;
-    padding: 8px !important;
-    z-index: 999999 !important;
-    transition: transform 0.2s ease !important;
-}
-
-[data-testid="collapsedControl"] svg {
-    fill: #FFFFFF !important;
-    color: #FFFFFF !important;
-    width: 24px !important;
-    height: 24px !important;
-}
-</style>
-    """, unsafe_allow_html=True)
-   
-    # ==========================================
-    # 3. DATABASE CONNECTION & SETUP
-    # ==========================================
-    conn = get_connection()
-         # ======================================
-         #   📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
-         # ==========================================
+    <style>
+        /* =========================================
+            📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
+            ========================================= */
         div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
             height: 200px !important;
             width: 100% !important;
@@ -220,7 +86,7 @@ label { color: #475569 !important; font-weight: 600 !important; }
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
         }
 
-        /* 🚨 FRESH GREEN DASHBOARD BUTTONS (Aggressive form selector) */
+        /* 🚨 FRESH GREEN DASHBOARD BUTTONS */
         div.stButton > button, 
         [data-testid="stFormSubmitButton"] button,
         [data-testid="stPopover"] button {
@@ -249,7 +115,6 @@ label { color: #475569 !important; font-weight: 600 !important; }
             -webkit-text-fill-color: #FFFFFF !important;
         }
 
-        /* Ensure the little popover dropdown arrow turns white */
         [data-testid="stPopover"] button svg {
             fill: #FFFFFF !important;
             color: #FFFFFF !important;
@@ -373,10 +238,6 @@ label { color: #475569 !important; font-weight: 600 !important; }
         return booked_days
         
     def get_dynamic_delivery_fee(total_km):
-        """
-        Calculates dynamic delivery/return fee based on distance, 
-        factoring in fuel/driver effort plus the driver's return taxi/Grab fare + ₱20 buffer.
-        """
         try:
             if total_km <= 5.0:
                 return 350.0
@@ -384,12 +245,10 @@ label { color: #475569 !important; font-weight: 600 !important; }
             base_taxi_fare = 150.0
             fuel_and_time_rate = 50.0
             driver_buffer = 20.0
-            
-            # Estimated return taxi fare back to owner's parking base
             return_taxi_estimate = total_km * 45.0 
             
             calculated_fee = base_taxi_fare + (total_km * fuel_and_time_rate) + return_taxi_estimate + driver_buffer
-            return round(calculated_fee, -2) # Round to nearest hundred for clean pricing
+            return round(calculated_fee, -2) 
         except Exception:
             return 800.0
 
@@ -408,14 +267,12 @@ label { color: #475569 !important; font-weight: 600 !important; }
         return full_days, billed_hrs, base_cost, ext_fee, base_cost + ext_fee
 
     def clear_renter_chat(b_ref):
-        """Clears the chat input box and stages the message to be sent."""
         if f"chat_{b_ref}" in st.session_state:
             st.session_state.temp_msg_renter = st.session_state[f"chat_{b_ref}"]
             st.session_state[f"chat_{b_ref}"] = ""
             st.session_state[f"trigger_send_{b_ref}"] = True
 
     def save_chat_image(img_file, b_ref):
-        """Saves an uploaded image from the chat to the server."""
         if img_file:
             path = f"/data/uploads/chat_images/{b_ref}_{img_file.name}"
             with open(path, "wb") as f:
@@ -424,7 +281,6 @@ label { color: #475569 !important; font-weight: 600 !important; }
         return ""
 
     def send_alert_email(to_email, subject, body):
-        """Sends system alerts using the Corporate DriveElite server."""
         sender_email = "contact@driveelite.ph" 
         sender_password = os.environ.get("EMAIL_PASSWORD") 
         
@@ -517,6 +373,7 @@ label { color: #475569 !important; font-weight: 600 !important; }
     except Exception: pass 
 
     main_tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
+    
     # ==========================================
     # 🚘 RENTER SHOWROOM (MAIN TAB 0)
     # ==========================================
@@ -541,13 +398,11 @@ label { color: #475569 !important; font-weight: 600 !important; }
                 cities = ["All Cities", "Metro Manila"]
                 available_cars['clean_city'] = "Metro Manila"
             
-            # Render Top-Level City Folders (Tabs)
             city_tabs = st.tabs([f"🏙️ {c}" for c in cities])
             
             for tab_index, city_name in enumerate(cities):
                 with city_tabs[tab_index]:
                     
-                    # Filter cars by the selected city folder
                     if city_name == "All Cities":
                         city_cars = available_cars.copy()
                     else:
@@ -584,7 +439,6 @@ label { color: #475569 !important; font-weight: 600 !important; }
                                         with grid_cols[idx % 4]: 
                                             with st.container(border=True):
                                                 
-                                                # --- TOP: Robust Image Resolver ---
                                                 img_p = car.get('vehicle_img')
                                                 resolved_img_path = None
                                                 
@@ -606,7 +460,6 @@ label { color: #475569 !important; font-weight: 600 !important; }
                                                 else:
                                                     st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
                                                 
-                                                # --- MIDDLE: Details ---
                                                 base_rate = float(car.get('daily_rate') or car.get('approved_price') or 0.0)
                                                 st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}", unsafe_allow_html=True)
                                                 
@@ -615,6 +468,7 @@ label { color: #475569 !important; font-weight: 600 !important; }
                                                 st.caption(f"📍 Parking Base: **{parking_location}** (Host: {owner_display})")
                                                 
                                                 st.markdown(f"<h5 style='color: #2563EB;'>₱{base_rate:,.2f} / day</h5>", unsafe_allow_html=True)
+                                                
                                                 # --- BOTTOM: POPOVER CHECKOUT MANAGER ---
                                                 with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
                                                     stage_key = f"chk_stage_{car['id']}_{cat}"
@@ -727,7 +581,6 @@ label { color: #475569 !important; font-weight: 600 !important; }
                                                                              (b_ref, renter_user, owner_username, "Xendit Payment Proof Uploaded for Admin Verification.", receipt_path))
                                                                 conn.commit()
 
-                                                                # Alert Admin and Affiliate
                                                                 try:
                                                                     aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
                                                                     if not aff_data.empty:
@@ -820,9 +673,8 @@ label { color: #475569 !important; font-weight: 600 !important; }
                                     st.rerun()
                                 else:
                                     st.error("Please upload a screenshot of your payment receipt.")
-                  
+                    # ==========================================================
 
-                   
                     # --- CHAT SYSTEM (For Active Trips & Approvals) ---
                     if b['status'] in ['PENDING_APPROVAL', 'PENDING', 'VERIFYING', 'APPROVED_BY_HOST', 'CONFIRMED', 'ONGOING']:
                         st.divider()
