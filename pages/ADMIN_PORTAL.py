@@ -898,9 +898,21 @@ def main():
                     settlement = calculate_moa_cancellation_40_60(gross_rental_paid=gross_paid, logistics_paid=0.0, exact_gateway_fee=0.0, days_before_pickup=days_left)
 
                     st.write(f"Cancellation Timing: **{days_left} days** before pickup.")
-                    st.success(f"Renter Refund: ₱{settlement['renter_refund']:,.2f} | Penalty Applied: ₱{settlement['penalty_applied']:,.2f}")
-                    st.info(f"Recalculated Split -> Platform Cut (40%): ₱{settlement['nucleuz_platform_fee']:,.2f} | Affiliate Comp (60%): ₱{settlement['affiliate_compensation']:,.2f}")
+                    
+                    # Safely extract values using .get() to avoid KeyErrors
+                    renter_refund = settlement.get('renter_refund', 0.0)
+                    penalty = settlement.get('penalty_applied', 0.0)
+                    
+                    # Check for common naming variations of the platform fee
+                    platform_cut = settlement.get('nucleuz_platform_fee', 
+                                   settlement.get('nucleus_platform_fee', 
+                                   settlement.get('platform_fee', 0.0)))
+                                   
+                    affiliate_comp = settlement.get('affiliate_compensation', 
+                                     settlement.get('affiliate_share', 0.0))
 
+                    st.success(f"Renter Refund: ₱{renter_refund:,.2f} | Penalty Applied: ₱{penalty:,.2f}")
+                    st.info(f"Recalculated Split -> Platform Cut (40%): ₱{platform_cut:,.2f} | Affiliate Comp (60%): ₱{affiliate_comp:,.2f}")
                     if st.button("Confirm Cancellation & Execute MOA Split", type="primary"):
                         conn.execute("UPDATE bookings SET status = 'CANCELLED' WHERE booking_ref = ?", (selected_ref,))
                         conn.commit()
