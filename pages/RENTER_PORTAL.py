@@ -25,6 +25,7 @@ def main():
     # ==========================================
     st.set_page_config(page_title="DriveElite Renter", layout="wide", initial_sidebar_state="expanded")
     
+    # 🚨 SMART LOGO PATH: Automatically finds the logo even from inside the pages/ folder
     logo_path = "logo.png"
     if not os.path.exists(logo_path):
         logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logo.png")
@@ -39,6 +40,9 @@ def main():
     # ==========================================
     st.markdown("""
     <style>
+        /* =========================================
+            📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
+            ========================================= */
         div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
             height: 200px !important;
             width: 100% !important;
@@ -46,12 +50,14 @@ def main():
             border-radius: 8px !important;
         }
         
+        /* --- GLOBAL THEME & TYPOGRAPHY --- */
         [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
             background-color: #F8FAFC !important;
             color: #0F172A !important;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
         }
         
+        /* --- SIDEBAR & LOGO REORDER HACK --- */
         [data-testid="stSidebar"] {
             background-color: #FFFFFF !important;
             border-right: 1px solid #E2E8F0 !important;
@@ -71,6 +77,7 @@ def main():
             padding-top: 1rem !important; 
         }
 
+        /* --- CARDS & PANELS --- */
         [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
             background-color: #FFFFFF !important;
             padding: 20px !important;
@@ -79,6 +86,7 @@ def main():
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
         }
 
+        /* 🚨 FRESH GREEN DASHBOARD BUTTONS */
         div.stButton > button, 
         [data-testid="stFormSubmitButton"] button,
         [data-testid="stPopover"] button {
@@ -397,38 +405,41 @@ def main():
                                     for idx, car in display_cars.iterrows():
                                         with grid_cols[idx % 4]: 
                                             with st.container(border=True):
+                                                
                                                 img_p = car.get('vehicle_img')
                                                 resolved_img_path = None
                                                 
-                                                if img_p:
-                                                    if os.path.exists(img_p):
-                                                        resolved_img_path = img_p
+                                                if pd.notnull(img_p) and str(img_p).strip():
+                                                    img_str = str(img_p).strip()
+                                                    filename = os.path.basename(img_str)
+                                                    
+                                                    if os.path.exists(img_str):
+                                                        resolved_img_path = img_str
                                                     else:
-                                                        filename = os.path.basename(str(img_p))
-                                                        alt_path = os.path.join(os.getcwd(), "data", "uploads", filename)
-                                                        if os.path.exists(alt_path):
-                                                            resolved_img_path = alt_path
-                                                        else:
-                                                            alt_path2 = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "uploads", filename)
-                                                            if os.path.exists(alt_path2):
-                                                                resolved_img_path = alt_path2
+                                                        render_path = f"/data/uploads/{filename}"
+                                                        local_path = os.path.join(os.getcwd(), "data", "uploads", filename)
+                                                        script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "uploads", filename)
+                                                        
+                                                        if os.path.exists(render_path): resolved_img_path = render_path
+                                                        elif os.path.exists(local_path): resolved_img_path = local_path
+                                                        elif os.path.exists(script_path): resolved_img_path = script_path
 
                                                 if resolved_img_path:
                                                     st.image(resolved_img_path, use_container_width=True)
                                                 else:
-                                                    st.image("https://placehold.co/600x400?text=Vehicle+Image", use_container_width=True)
+                                                    st.image("https://placehold.co/600x400?text=No+Photo+Found", use_container_width=True)
                                                 
                                                 base_rate = float(car.get('daily_rate') or car.get('approved_price') or 0.0)
                                                 st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}", unsafe_allow_html=True)
                                                 
                                                 parking_location = car.get('location', 'Metro Manila')
-                                                owner_display = car.get('owner_name', 'Verified Affiliate')
-                                                st.caption(f"📍 Parking Base: **{parking_location}** (Host: {owner_display})")
+                                                plate_no = car.get('plate', 'N/A')
+                                                st.caption(f"📍 Parking Base: **{parking_location}** (Plate: {plate_no})")
+                                                
                                                 st.markdown(f"<h5 style='color: #2563EB;'>₱{base_rate:,.2f} / day</h5>", unsafe_allow_html=True)
                                                 
                                                 # --- BOTTOM: POPOVER CHECKOUT MANAGER ---
                                                 with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
-                                                    # 🚨 UNIQUE KEYS ADDED HERE
                                                     stage_key = f"chk_stage_{car['id']}_{cat}_{tab_index}"
                                                     ref_key = f"pend_ref_{car['id']}_{cat}_{tab_index}"
                                                     if stage_key not in st.session_state: 
@@ -467,18 +478,15 @@ def main():
                                                         return_dt = datetime.datetime.combine(s_d2, s_t2)
                                                         days_calc = max(1, (return_dt - pickup_dt).days)
                                                         
-                                                        # --- FINANCIAL ENGINE CALCULATIONS ---
                                                         gross_rental = base_rate * days_calc
                                                         discount_pct = 0.0
                                                         
-                                                        # Dynamically fetch Admin discount tiers if booking is longer than 1 day
                                                         if days_calc > 1:
                                                             try:
                                                                 disc_row = conn.execute("SELECT discount_pct FROM discount_tiers WHERE min_days <= ? ORDER BY min_days DESC LIMIT 1", (days_calc,)).fetchone()
                                                                 if disc_row:
                                                                     discount_pct = float(disc_row[0]) / 100.0 if float(disc_row[0]) > 1 else float(disc_row[0])
                                                             except:
-                                                                # Fallback rule if table doesn't exist yet: 10% off for 10+ days
                                                                 if days_calc >= 10: discount_pct = 0.10
                                                                 
                                                         discount_amount = gross_rental * discount_pct
@@ -488,7 +496,6 @@ def main():
                                                         st.write(f"### 📋 Trip Ledger: {car['make']} {car['model']}")
                                                         st.caption(f"📍 **Destination:** {dest_val} | 📅 **Duration:** {days_calc} Days ({s_d1} to {s_d2})")
                                                         
-                                                        # --- EXCEL-TYPE COST BREAKDOWN TABLE ---
                                                         st.markdown(f"""
                                                         | Cost Breakdown | Amount (₱) |
                                                         |---|---:|
@@ -520,13 +527,79 @@ def main():
                                                                   st.session_state.get(f"ploc_{car['id']}_{cat}_{tab_index}", ""), 
                                                                   st.session_state.get(f"rloc_{car['id']}_{cat}_{tab_index}", ""), 
                                                                   dest_val, 
-                                                                  net_rental)) # Committing the net rental; deposit/delivery managed post-trip or via direct host coordination
+                                                                  net_rental))
                                                             conn.commit()
                                                             
                                                             st.success(f"Booking request submitted! Ref #{booking_ref}. Awaiting host distance review.")
                                                             st.session_state[stage_key] = 0
                                                             time.sleep(1.5)
                                                             st.rerun()
+
+                                                    # --- STAGE 2: XENDIT GATEWAY & RECEIPT UPLOAD ---
+                                                    elif st.session_state[stage_key] == 2:
+                                                        b_ref = st.session_state.get(ref_key)
+                                                        pay_url = st.session_state.get(f"pay_url_{car['id']}")
+
+                                                        amt_df = pd.read_sql_query("SELECT amount FROM bookings WHERE booking_ref = ?", conn, params=(b_ref,))
+                                                        owed_amount = float(amt_df.iloc[0]['amount']) if not amt_df.empty else 0.0
+
+                                                        st.markdown(f"""
+                                                        <div style="background-color: #EFF6FF; border: 1px solid #BFDBFE; padding: 20px; border-radius: 12px; border-left: 6px solid #2563EB; margin-bottom: 20px;">
+                                                            <h4 style="color: #1E3A8A; margin-top: 0; margin-bottom: 8px;">💳 Secure Payment (Ref: #{b_ref})</h4>
+                                                            <p style="color: #1D4ED8; font-size: 15px; margin-bottom: 0;">
+                                                                Total Amount Due: <b>₱{owed_amount:,.2f}</b><br>
+                                                                Please complete your payment via Xendit, then take a screenshot of your payment confirmation (showing the reference number) and upload it below for Admin verification.
+                                                            </p>
+                                                        </div>
+                                                        """, unsafe_allow_html=True)
+
+                                                        if pay_url:
+                                                            st.link_button("👉 CLICK HERE TO PAY VIA XENDIT", pay_url, type="primary", use_container_width=True)
+
+                                                        st.divider()
+                                                        st.write("#### 📤 Upload Xendit Payment Screenshot")
+                                                        st.caption("Upload your payment success screenshot containing the transaction reference number.")
+                                                        xendit_receipt = st.file_uploader("Upload Xendit Receipt", type=['jpg', 'png', 'jpeg'], key=f"x_rec_{car['id']}_{cat}_{tab_index}")
+
+                                                        c_back, c_sub = st.columns([1, 1])
+                                                        if c_back.button("Cancel Booking", key=f"canc_x_{car['id']}_{cat}_{tab_index}", use_container_width=True):
+                                                            conn.execute("DELETE FROM bookings WHERE booking_ref = ?", (b_ref,))
+                                                            conn.commit()
+                                                            st.session_state[stage_key] = 0
+                                                            if ref_key in st.session_state: del st.session_state[ref_key]
+                                                            st.rerun()
+
+                                                        if c_sub.button("SUBMIT PAYMENT PROOF TO ADMIN", type="primary", use_container_width=True, key=f"sub_x_{car['id']}_{cat}_{tab_index}"):
+                                                            if xendit_receipt:
+                                                                receipt_bytes = xendit_receipt.read()
+                                                                conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE booking_ref = ?", (receipt_bytes, b_ref))
+                                                                receipt_path = f"/data/uploads/chat_images/receipt_{b_ref}.jpg"
+                                                                with open(receipt_path, "wb") as f: f.write(receipt_bytes)
+
+                                                                owner_username = car['owner_username']
+                                                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                                                             (b_ref, renter_user, owner_username, "Xendit Payment Proof Uploaded for Admin Verification.", receipt_path))
+                                                                conn.commit()
+
+                                                                try:
+                                                                    aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
+                                                                    if not aff_data.empty:
+                                                                        send_alert_email(
+                                                                            to_email="contact@driveelite.ph",
+                                                                            subject=f"CNF: Xendit Proof Verification Needed for #{b_ref}",
+                                                                            body=f"Renter @{renter_user} uploaded Xendit payment proof for booking #{b_ref}. Please verify."
+                                                                        )
+                                                                        send_alert_email(
+                                                                            to_email=aff_data.iloc[0]['email'],
+                                                                            subject=f"🚗 DriveElite: Payment Proof Uploaded (#{b_ref})",
+                                                                            body=f"Hello {aff_data.iloc[0]['full_name']},\n\nRenter uploaded payment proof for booking #{b_ref}. Admin is verifying."
+                                                                        )
+                                                                except: pass
+
+                                                                st.success("✅ Payment proof submitted to Admin for verification!")
+                                                                st.session_state[stage_key] = 0
+                                                                if ref_key in st.session_state: del st.session_state[ref_key]
+                                                                st.rerun()
                                                             else:
                                                                 st.error("Please upload your payment screenshot.")
 
