@@ -700,12 +700,13 @@ if reg_type in ["Affiliate", "Renter"]:
                         lic_bytes = f.read()
 
                     # Inside Step 3 insertion block:
+                    # Save payload without the sub_id (it gets added in Step 3 after OTP)
                     st.session_state.reg_payload = (
                         data["username"], data["password"], reg_type.upper(), data["full_name"], 
                         data["email"], data["age"], data["nationality"], data["address"], 
-                        data["city"], data["province"], # 👈 Added city and province into payload tuple
+                        data["city"], data["province"], 
                         data["area_code"], data["contact"], gov_bytes, lic_bytes, sig_bytes,
-                        data["bank_name"], data["bank_acc"], generated_sub_id
+                        data["bank_name"], data["bank_acc"]
                     )
                     st.session_state.verify_contact = data["contact"]
                     
@@ -714,9 +715,10 @@ if reg_type in ["Affiliate", "Renter"]:
                     st.session_state.generated_otp = otp_code
                     
                     try:
-                        send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
-                    except Exception as e:
-                        print(f"OTP Email dispatch note: {e}")
+                    send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
+                except Exception as e:
+                    st.error(f"SMTP Dispatch Error: {e}")
+                    st.stop() # Prevents moving to Step 3 if the email fails
                     
                     st.session_state[step_key] = 3      
                     st.rerun()
