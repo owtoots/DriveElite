@@ -25,7 +25,6 @@ def main():
     # ==========================================
     st.set_page_config(page_title="DriveElite Renter", layout="wide", initial_sidebar_state="expanded")
     
-    # 🚨 SMART LOGO PATH: Automatically finds the logo even from inside the pages/ folder
     logo_path = "logo.png"
     if not os.path.exists(logo_path):
         logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logo.png")
@@ -40,9 +39,6 @@ def main():
     # ==========================================
     st.markdown("""
     <style>
-        /* =========================================
-            📸 UNIFORM CAR IMAGES (PERFECT ALIGNMENT)
-            ========================================= */
         div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stImage"] img {
             height: 200px !important;
             width: 100% !important;
@@ -50,14 +46,12 @@ def main():
             border-radius: 8px !important;
         }
         
-        /* --- GLOBAL THEME & TYPOGRAPHY --- */
         [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
             background-color: #F8FAFC !important;
             color: #0F172A !important;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
         }
         
-        /* --- SIDEBAR & LOGO REORDER HACK --- */
         [data-testid="stSidebar"] {
             background-color: #FFFFFF !important;
             border-right: 1px solid #E2E8F0 !important;
@@ -77,7 +71,6 @@ def main():
             padding-top: 1rem !important; 
         }
 
-        /* --- CARDS & PANELS --- */
         [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
             background-color: #FFFFFF !important;
             padding: 20px !important;
@@ -86,7 +79,6 @@ def main():
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
         }
 
-        /* 🚨 FRESH GREEN DASHBOARD BUTTONS */
         div.stButton > button, 
         [data-testid="stFormSubmitButton"] button,
         [data-testid="stPopover"] button {
@@ -535,7 +527,7 @@ def main():
                                                             time.sleep(1.5)
                                                             st.rerun()
 
-                                                    # --- STAGE 2: XENDIT GATEWAY & RECEIPT UPLOAD ---
+                                                    # --- STAGE 2: DYNAMIC GATEWAY (XENDIT OR MANUAL_QR) ---
                                                     elif st.session_state[stage_key] == 2:
                                                         b_ref = st.session_state.get(ref_key)
                                                         pay_url = st.session_state.get(f"pay_url_{car['id']}")
@@ -548,18 +540,31 @@ def main():
                                                             <h4 style="color: #1E3A8A; margin-top: 0; margin-bottom: 8px;">💳 Secure Payment (Ref: #{b_ref})</h4>
                                                             <p style="color: #1D4ED8; font-size: 15px; margin-bottom: 0;">
                                                                 Total Amount Due: <b>₱{owed_amount:,.2f}</b><br>
-                                                                Please complete your payment via Xendit, then take a screenshot of your payment confirmation (showing the reference number) and upload it below for Admin verification.
+                                                                Please complete your payment below, then upload a screenshot of your confirmation for Admin verification.
                                                             </p>
                                                         </div>
                                                         """, unsafe_allow_html=True)
 
-                                                        if pay_url:
-                                                            st.link_button("👉 CLICK HERE TO PAY VIA XENDIT", pay_url, type="primary", use_container_width=True)
+                                                        # 🚨 DYNAMIC CHECK: Is Admin set to Xendit or Manual BPI?
+                                                        if gateway_mode == "XENDIT":
+                                                            if pay_url:
+                                                                st.link_button("👉 CLICK HERE TO PAY VIA XENDIT", pay_url, type="primary", use_container_width=True)
+                                                            else:
+                                                                st.info("Xendit Invoice URL will appear in 'My Bookings' once verified.")
+                                                        else:
+                                                            with st.container(border=True):
+                                                                st.markdown("#### 🏦 Manual Bank Transfer (BPI)")
+                                                                st.write("**Account Name:** Romeo Albao Jr.")
+                                                                st.write("**Account Number:** 0180 0206 08")
+                                                                s1, c_img, s2 = st.columns([1, 1, 1])
+                                                                with c_img:
+                                                                    try: st.image("bpi_qr.png", use_container_width=True)
+                                                                    except: st.info("[BPI QR IMAGE]")
 
                                                         st.divider()
-                                                        st.write("#### 📤 Upload Xendit Payment Screenshot")
+                                                        st.write("#### 📤 Upload Payment Screenshot")
                                                         st.caption("Upload your payment success screenshot containing the transaction reference number.")
-                                                        xendit_receipt = st.file_uploader("Upload Xendit Receipt", type=['jpg', 'png', 'jpeg'], key=f"x_rec_{car['id']}_{cat}_{tab_index}")
+                                                        xendit_receipt = st.file_uploader("Upload Receipt", type=['jpg', 'png', 'jpeg'], key=f"x_rec_{car['id']}_{cat}_{tab_index}")
 
                                                         c_back, c_sub = st.columns([1, 1])
                                                         if c_back.button("Cancel Booking", key=f"canc_x_{car['id']}_{cat}_{tab_index}", use_container_width=True):
@@ -578,7 +583,7 @@ def main():
 
                                                                 owner_username = car['owner_username']
                                                                 conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                                                             (b_ref, renter_user, owner_username, "Xendit Payment Proof Uploaded for Admin Verification.", receipt_path))
+                                                                             (b_ref, renter_user, owner_username, "Payment Proof Uploaded for Admin Verification.", receipt_path))
                                                                 conn.commit()
 
                                                                 try:
@@ -586,8 +591,8 @@ def main():
                                                                     if not aff_data.empty:
                                                                         send_alert_email(
                                                                             to_email="contact@driveelite.ph",
-                                                                            subject=f"CNF: Xendit Proof Verification Needed for #{b_ref}",
-                                                                            body=f"Renter @{renter_user} uploaded Xendit payment proof for booking #{b_ref}. Please verify."
+                                                                            subject=f"CNF: Payment Proof Verification Needed for #{b_ref}",
+                                                                            body=f"Renter @{renter_user} uploaded payment proof for booking #{b_ref}. Please verify."
                                                                         )
                                                                         send_alert_email(
                                                                             to_email=aff_data.iloc[0]['email'],
@@ -633,7 +638,7 @@ def main():
                             st.info(b['status'])
 
                     # ==========================================================
-                    # 💳 PASTE THE PAYMENT BLOCK HERE:
+                    # 💳 DYNAMIC PAYMENT BLOCK (MY BOOKINGS TAB)
                     # ==========================================================
                     if b['status'] == 'APPROVED_BY_HOST':
                         st.divider()
@@ -643,36 +648,41 @@ def main():
                         owed_amount = float(b['amount'])
                         st.write(f"**Total Amount Due:** :green[**₱{owed_amount:,.2f}**]")
                         
-                        with st.container(border=True):
-                            st.markdown("#### 🏦 Manual Bank Transfer")
-                            st.write("**Bank:** BPI")
-                            st.write("**Account Name:** Romeo Albao Jr.")
-                            st.write("**Account Number:** 0180 0206 08")
-                            
-                            s1, c_img, s2 = st.columns([1, 1, 1])
-                            with c_img:
-                                try: st.image("bpi_qr.png", use_container_width=True)
-                                except: st.info("[BPI QR IMAGE GOES HERE]")
-                            
-                            st.divider()
-                            st.write("#### 📤 Upload Proof of Payment (Showing Reference No.)")
-                            receipt_file = st.file_uploader("Upload Receipt", type=['jpg', 'png', 'jpeg'], key=f"my_rec_{b['id']}")
-                            
-                            if st.button("SUBMIT PAYMENT RECEIPT TO ADMIN", type="primary", use_container_width=True, key=f"my_val_{b['id']}"):
-                                if receipt_file:
-                                    receipt_bytes = receipt_file.read()
-                                    conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE id = ?", (receipt_bytes, b['id']))
-                                    receipt_path = f"/data/uploads/chat_images/receipt_{b['booking_ref']}.jpg"
-                                    with open(receipt_path, "wb") as f: f.write(receipt_bytes)
-                                    
-                                    conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                                 (str(b['booking_ref']), renter_user, b['owner_username'], "Payment Receipt Uploaded for Admin Verification.", receipt_path))
-                                    conn.commit()
-                                    st.success("✅ Receipt submitted! Status updated to VERIFYING. Waiting for Admin confirmation.")
-                                    time.sleep(1.5)
-                                    st.rerun()
-                                else:
-                                    st.error("Please upload a screenshot of your payment receipt.")
+                        # 🚨 DYNAMIC CHECK: Matches Admin settings
+                        if gateway_mode == "XENDIT":
+                            st.info("Xendit Secure Gateway Active.")
+                            st.link_button("👉 PROCEED TO XENDIT SECURE CHECKOUT", "https://checkout.xendit.co/web/", type="primary", use_container_width=True)
+                        else:
+                            with st.container(border=True):
+                                st.markdown("#### 🏦 Manual Bank Transfer")
+                                st.write("**Bank:** BPI")
+                                st.write("**Account Name:** Romeo Albao Jr.")
+                                st.write("**Account Number:** 0180 0206 08")
+                                
+                                s1, c_img, s2 = st.columns([1, 1, 1])
+                                with c_img:
+                                    try: st.image("bpi_qr.png", use_container_width=True)
+                                    except: st.info("[BPI QR IMAGE GOES HERE]")
+                        
+                        st.divider()
+                        st.write("#### 📤 Upload Proof of Payment (Showing Reference No.)")
+                        receipt_file = st.file_uploader("Upload Receipt", type=['jpg', 'png', 'jpeg'], key=f"my_rec_{b['id']}")
+                        
+                        if st.button("SUBMIT PAYMENT RECEIPT TO ADMIN", type="primary", use_container_width=True, key=f"my_val_{b['id']}"):
+                            if receipt_file:
+                                receipt_bytes = receipt_file.read()
+                                conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE id = ?", (receipt_bytes, b['id']))
+                                receipt_path = f"/data/uploads/chat_images/receipt_{b['booking_ref']}.jpg"
+                                with open(receipt_path, "wb") as f: f.write(receipt_bytes)
+                                
+                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                             (str(b['booking_ref']), renter_user, b['owner_username'], "Payment Receipt Uploaded for Admin Verification.", receipt_path))
+                                conn.commit()
+                                st.success("✅ Receipt submitted! Status updated to VERIFYING. Waiting for Admin confirmation.")
+                                time.sleep(1.5)
+                                st.rerun()
+                            else:
+                                st.error("Please upload a screenshot of your payment receipt.")
 
                     # --- CHAT SYSTEM (For Active Trips & Approvals) ---
                     if b['status'] in ['PENDING_APPROVAL', 'PENDING', 'VERIFYING', 'APPROVED_BY_HOST', 'CONFIRMED', 'ONGOING']:
