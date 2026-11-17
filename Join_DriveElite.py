@@ -715,15 +715,13 @@ if reg_type in ["Affiliate", "Renter"]:
                     st.session_state.generated_otp = otp_code
                     
                     try:
-                    send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
-                except Exception as e:
-                    st.error(f"SMTP Dispatch Error: {e}")
-                    st.stop() # Prevents moving to Step 3 if the email fails
+                        send_otp(data["contact"], data["email"], otp_code, method="EMAIL")
+                    except Exception as e:
+                        st.error(f"SMTP Dispatch Error: {e}")
+                        st.stop()
                     
                     st.session_state[step_key] = 3      
                     st.rerun()
-            else:
-                st.error("🚨 Digital signature required to proceed.")
                 
     # ==========================================
     # STEP 3: OTP VERIFICATION & DB INSERTION
