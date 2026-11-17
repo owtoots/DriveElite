@@ -599,11 +599,20 @@ if reg_type in ["Affiliate", "Renter"]:
             g_id = st.file_uploader("Upload Government ID", type=['jpg', 'png', 'jpeg'])
             l_id = st.file_uploader("Upload Driver's License", type=['jpg', 'png', 'jpeg'])
             
+            # 🚨 INJECTED VEHICLE PHOTO UPLOADER (ONLY FOR AFFILIATES)
+            if reg_type == "Affiliate":
+                st.markdown("#### 🚗 Vehicle Verification")
+                v_photo = st.file_uploader("Upload a clear photo of your primary vehicle", type=['jpg', 'png', 'jpeg'])
+            else:
+                v_photo = None
+            
             if st.form_submit_button("NEXT: REVIEW & SIGN AGREEMENT"):
                 if pwd != cpwd:
                     st.error("🚨 Passwords do not match.")
                 elif not all([fn, sn, un, pwd, g_id, l_id, cn, em, ad]):
                     st.error("🚨 Please fill all required fields and upload your documents.")
+                elif reg_type == "Affiliate" and not v_photo:
+                    st.error("🚨 Affiliates must upload a photo of their primary vehicle.")
                 else:
                     check = pd.read_sql_query("SELECT username FROM platform_users WHERE username=?", conn, params=(un,))
                     if not check.empty:
@@ -612,18 +621,24 @@ if reg_type in ["Affiliate", "Renter"]:
                         # 🚨 Save massive images to disk to prevent RAM crash
                         gov_path = f"/data/uploads/gov_{un}.jpg"
                         lic_path = f"/data/uploads/lic_{un}.jpg"
+                        v_photo_path = f"/data/uploads/v_photo_{un}.jpg" if v_photo else ""
                         
                         with open(gov_path, "wb") as f:
                             f.write(g_id.getbuffer())
                         with open(lic_path, "wb") as f:
                             f.write(l_id.getbuffer())
                             
+                        if v_photo:
+                            with open(v_photo_path, "wb") as f:
+                                f.write(v_photo.getbuffer())
+                            
                         # Save lightweight file PATHS and location details in session state
                         st.session_state[f"temp_{reg_type.lower()}_data"] = {
                             "username": un, "password": pwd, "full_name": f"{fn} {mn} {sn}".strip(), 
                             "email": em, "age": age, "nationality": nat, "address": ad, 
-                            "city": user_city, "province": user_prov, # 👈 Added here
+                            "city": user_city, "province": user_prov, 
                             "area_code": ac, "contact": cn, "gov_path": gov_path, "lic_path": lic_path,
+                            "v_photo_path": v_photo_path,  # 👈 Passed to the next step
                             "bank_name": bank_name, "bank_acc": bank_acc
                         }
                         st.session_state[step_key] = 2
