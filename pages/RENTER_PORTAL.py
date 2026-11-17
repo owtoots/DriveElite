@@ -481,7 +481,6 @@ def main():
                                                 st.caption(f"📍 Parking Base: **{parking_location}** (Host: {owner_display})")
                                                 
                                                 st.markdown(f"<h5 style='color: #2563EB;'>₱{base_rate:,.2f} / day</h5>", unsafe_allow_html=True)
-                                                
                                                 # --- BOTTOM: POPOVER CHECKOUT MANAGER ---
                                                 with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
                                                     stage_key = f"chk_stage_{car['id']}_{cat}"
@@ -491,300 +490,131 @@ def main():
                                                     
                                                     unavailable_dates = get_booked_dates(car['id'], conn)
                                                     
-                                                    # Stage 0: Select Dates & Addresses
+                                                    # --- STAGE 0: SELECT DATES & LOCATIONS ---
                                                     if st.session_state[stage_key] == 0:
                                                         today = datetime.date.today()
                                                         d1 = st.date_input("Pickup Date", min_value=today, key=f"d1_{car['id']}_{cat}")
                                                         t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}_{cat}")
                                                         d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}")
                                                         t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}")
-
-                                            # BULLETPROOF FLAT HTML CALENDAR
-                                            cal_year = d1.year
-                                            cal_month = d1.month
-                                            month_matrix = calendar.monthcalendar(cal_year, cal_month)
-                                            month_name = calendar.month_name[cal_month]
-
-                                            cal_html = f"""
-                                            <style>
-                                                .booked-date {{ background-color: #FEE2E2; color: #94A3B8; text-decoration: line-through; border-radius: 6px; padding: 6px 0; font-weight: bold; cursor: not-allowed; }}
-                                                .available-date {{ background-color: #DCFCE7; color: #16A34A; border-radius: 6px; padding: 6px 0; font-weight: bold; border: 1px solid #BBF7D0; }}
-                                                .past-date {{ color: #CBD5E1; padding: 6px 0; }}
-                                            </style>
-                                            <div style='background-color:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:15px; margin-bottom:20px; margin-top:15px;'>
-                                                <h4 style='text-align:center; color:#0F172A; margin-top:0px; margin-bottom:10px; font-size:16px;'>{month_name} {cal_year} Availability</h4>
-                                                <table style='width:100%; border-collapse:separate; border-spacing:4px; text-align:center; font-size:13px;'>
-                                                <tr><th style='color:#64748B;'>Mo</th><th style='color:#64748B;'>Tu</th><th style='color:#64748B;'>We</th><th style='color:#64748B;'>Th</th><th style='color:#64748B;'>Fr</th><th style='color:#64748B;'>Sa</th><th style='color:#64748B;'>Su</th></tr>
-                                            """
-
-                                            for week in month_matrix:
-                                                cal_html += "<tr>"
-                                                for day in week:
-                                                    if day == 0:
-                                                        cal_html += "<td></td>"
-                                                    else:
-                                                        d_iter = datetime.date(cal_year, cal_month, day)
-                                                        if d_iter in unavailable_dates:
-                                                            cal_html += f"<td><div class='booked-date'>{day}</div></td>"
-                                                        elif d_iter < today:
-                                                            cal_html += f"<td><div class='past-date'>{day}</div></td>"
-                                                        else:
-                                                            cal_html += f"<td><div class='available-date'>{day}</div></td>"
-                                                cal_html += "</tr>"
-                                            cal_html += "</table></div>"
-
-                                            st.markdown(cal_html, unsafe_allow_html=True)
-                                            
-                                            # COLLISION DETECTION
-                                            can_book = True
-                                            requested_days = set([d1 + datetime.timedelta(days=j) for j in range((d2 - d1).days + 1)])
-                                            clashes = requested_days.intersection(unavailable_dates)
-                                            if clashes:
-                                                can_book = False
-                                                st.error(f"⚠️ Vehicle booked on: {', '.join([d.strftime('%b %d') for d in sorted(list(clashes))])}")
-
-                                            drive_mode = st.radio("Mode", ["Self-Drive", "With Driver (+₱1k/day)"], key=f"dm_{car['id']}_{cat}")
-                                            dest = st.text_input("Destination", key=f"dest_{car['id']}_{cat}")
-                                            luzon_agree = st.checkbox("I agree to regional & nationwide travel rules.", key=f"luzon_{car['id']}_{cat}")
-                                            
-                                            # 📍 Specific Address Input Fields with Unique Keys per Car & Category Tab
-                                            car_id = car.get('id', 'car')
-                                            st.caption(f"🚗 Logistics calculated starting from host parking: **{parking_location}**")
-                                            
-                                            p_exact = st.text_input(
-                                                "Specific Pickup Address", 
-                                                placeholder="e.g., Silay Airport, Bacolod or Session Road, Baguio",
-                                                key=f"pickup_addr_{car_id}_{cat}"
-                                            )
-                                            r_exact = st.text_input(
-                                                "Specific Return Address", 
-                                                placeholder="e.g., BGC High Street, Taguig or Downtown Bacolod",
-                                                key=f"return_addr_{car_id}_{cat}"
-                                            )
-
-                                            p_dt_obj, r_dt_obj = datetime.datetime.combine(d1, t1), datetime.datetime.combine(d2, t2)
-                                            if r_dt_obj <= p_dt_obj: 
-                                                st.error("⚠️ Return time must be after pickup.")
-                                                can_book = False
-                                            else:
-                                                try:
-                                                    full_days, billed_hrs, base_cost, ext_fee, subtotal = calculate_24h_rental(p_dt_obj, r_dt_obj, base_rate, 300.0, 59)
-                                                    driver_fee = (full_days + (1 if billed_hrs > 0 else 0)) * 1000.0 if "Driver" in drive_mode else 0.0
-                                                    
-                                                    try:
-                                                        tiers_df = pd.read_sql_query("SELECT min_days, discount_pct FROM discount_tiers ORDER BY min_days DESC", conn)
-                                                        discount_pct = next((float(r['discount_pct']) for _, r in tiers_df.iterrows() if full_days >= r['min_days']), 0.0)
-                                                    except: discount_pct = 0.0
-        
-                                                    savings = subtotal * discount_pct
-                                                    discounted_subtotal = subtotal - savings
-                                                    
-                                                    applied_renter_fee = dynamic_renter_fee if full_days >= 4 else 0.0
-                                                    platform_fee = discounted_subtotal * applied_renter_fee
-                                                    
-                                                    # 🚚 SMART ZONAL DISTANCE CALCULATOR (Landmark & City Aware)
-                                                    def get_zone_distance(address):
-                                                        """Intelligently recognizes specific landmarks, malls, and terminals and maps them to accurate distances."""
-                                                        addr = str(address).lower() if address else ""
                                                         
-                                                        if any(k in addr for k in ["estancia", "capitol commons", "kapitolyo", "ortigas", "megamall", "shang", "tiendesitas", "pasig"]):
-                                                            return 3.0
-                                                        elif any(k in addr for k in ["terminal 3", "t3", "terminal 1", "t1", "terminal 2", "t2", "terminal 4", "t4", "naia", "airport", "pasay", "moa", "mall of asia", "solaire", "okada", "bay area", "villamor", "silay"]):
-                                                            return 12.5
-                                                        elif any(k in addr for k in ["bgc", "bonifacio", "taguig", "market market", "high street"]):
-                                                            return 6.0
-                                                        elif any(k in addr for k in ["makati", "ayala", "rockwell", "legaspi", "salcedo"]):
-                                                            return 8.0
-                                                        elif any(k in addr for k in ["quezon city", "qc", "cubao", "timog", "trinoma", "sm north", "greenhills"]):
-                                                            return 15.0
-                                                        elif any(k in addr for k in ["antipolo", "rizal", "cainta", "taytay", "baguio", "session road"]):
-                                                            return 18.0
-                                                        elif any(k in addr for k in ["bulacan", "malolos", "meycauayan", "marilao", "san jose del monte", "sjdm", "bacolod"]):
-                                                            return 25.0
-                                                        elif any(k in addr for k in ["cavite", "tagaytay", "laguna", "nuvali", "batangas", "pampanga", "clark", "cebu", "davao"]):
-                                                            return 55.0
-                                                        return 15.0 # Default fallback distance
-        
-                                                    # Leg 1: Owner Parking to Pickup
-                                                    outbound_km = get_zone_distance(p_exact)
-                                                    delivery_fee = get_dynamic_delivery_fee(outbound_km)
-        
-                                                    # Leg 2: Return to Owner Parking
-                                                    return_km = get_zone_distance(r_exact)
-                                                    return_fee = get_dynamic_delivery_fee(return_km)
-                                                    
-                                                    total_logistics_fee = delivery_fee + return_fee
-                                                    grand_total = discounted_subtotal + platform_fee + driver_fee + total_logistics_fee
-        
-                                                    st.markdown("#### 🧾 Cost Breakdown (Estimated)")
-                                                    plural = "day" if full_days == 1 else "days"
-                                                    
-                                                    rows = [f"<tr><td class='bill-label'>Base Rental (₱{base_rate:,.2f} x {full_days} {plural})</td><td style='text-align:right; font-weight:bold;'>₱{base_cost:,.2f}</td></tr>"]
-                                                    
-                                                    if billed_hrs > 0: 
-                                                        rows.append(f"<tr><td style='color:#d35400;'>Hourly Extension</td><td style='text-align:right; color:#d35400;'>+₱{ext_fee:,.2f}</td></tr>")
-                                                    
-                                                    if savings > 0: 
-                                                        rows.append(f"<tr><td style='color:#cc0000;'>Duration Discount ({int(discount_pct * 100)}%)</td><td style='text-align:right; color:#cc0000;'>-₱{savings:,.2f}</td></tr>")
-                                                    
-                                                    rows.append(f"<tr><td style='padding: 8px; color: #16A34A;'>{operator_name} Fee ({int(applied_renter_fee * 100)}%)</td><td style='text-align:right; color:#27ae60;'>+₱{platform_fee:,.2f}</td></tr>")
-                                                    
-                                                    if "Driver" in drive_mode: 
-                                                        rows.append(f"<tr><td style='color:#003399;'>Driver Fee</td><td style='text-align:right; color:#003399;'>+₱{driver_fee:,.2f}</td></tr>")
+                                                        pickup_loc = st.text_input("Pickup Location / Delivery Address", value=parking_location, key=f"ploc_{car['id']}_{cat}")
+                                                        return_loc = st.text_input("Return Location / Drop-off Address", value=parking_location, key=f"rloc_{car['id']}_{cat}")
+                                                        destination = st.text_input("Declared Trip Route / Destination", placeholder="e.g., Tagaytay or Subic", key=f"dest_{car['id']}_{cat}")
                                                         
-                                                    rows.append(f"<tr><td style='color:#555;'>Delivery Fee (From Base: {outbound_km} km)</td><td style='text-align:right; color:#555;'>+₱{delivery_fee:,.2f}</td></tr>")
-                                                    rows.append(f"<tr><td style='color:#555;'>Return Fee (To Base: {return_km} km)</td><td style='text-align:right; color:#555;'>+₱{return_fee:,.2f}</td></tr>")
-                                                    
-                                                    bill_html = f"<div class='bill-box'><table class='table-bill' style='width:100%;'>{''.join(rows)}<tr style='border-top:2px solid #000;'><td class='bill-label' style='font-weight:900;'>ESTIMATED TOTAL</td><td style='text-align:right; font-weight:900; font-size:1.1em;'>₱{grand_total:,.2f}</td></tr></table></div>"
-                                                    
-                                                    st.markdown(bill_html, unsafe_allow_html=True)
-                                                    st.divider()
-        
-                                                except Exception as e:
-                                                    st.error(f"Error calculating rate: {e}")
-                                                    can_book = False
-        
-                                            st.warning("💳 **RFID POLICY:** You must load your own toll funds. Excess load is **not refunded**. Empty RFID penalty: **₱100 fine** + toll costs.")
-                                            
-                                            agree_to_rfid = st.checkbox("I agree to the RFID rules and ₱100 penalty.", key=f"rfid_agree_{car['id']}_{cat}")
-                                            is_disabled = (not can_book) or (not agree_to_rfid)
+                                                        if st.button("PROCEED TO SUMMARY", key=f"btn_s0_{car['id']}_{cat}", use_container_width=True):
+                                                            if not destination.strip():
+                                                                st.error("Please specify your trip route or destination.")
+                                                            else:
+                                                                st.session_state[stage_key] = 1
+                                                                st.rerun()
 
-                                            if st.button("1. REQUEST BOOKING & SUBMIT FOR HOST APPROVAL", key=f"conf_{car['id']}_{cat}", type="primary", use_container_width=True, disabled=is_disabled):
-                                                p_dt_str = p_dt_obj.strftime("%Y-%m-%d %H:%M")
-                                                r_dt_str = r_dt_obj.strftime("%Y-%m-%d %H:%M")
-                                                
-                                                overlap_check = pd.read_sql_query("""
-                                                    SELECT booking_ref FROM bookings 
-                                                    WHERE vehicle_id = ? 
-                                                    AND status NOT IN ('CANCELLED', 'REJECTED', 'COMPLETED')
-                                                    AND pickup_time < ? 
-                                                    AND return_time > ?
-                                                """, conn, params=(car['id'], r_dt_str, p_dt_str))
-
-                                                if not overlap_check.empty:
-                                                    st.error("⚠️ Sorry! This vehicle was just booked by someone else for these dates. Please select different dates.")
-                                                    st.stop()
-
-                                                if dest and p_exact and r_exact and luzon_agree:
-                                                    if car['owner_username'] == renter_user:
-                                                        st.error("⚠️ You cannot rent your own registered vehicle.")
-                                                    else:
-                                                        with st.spinner("Submitting request to host..."):
-                                                            b_ref = str(random.randint(100000, 999999))
-                                                            is_drvr_int = 1 if "Driver" in drive_mode else 0
+                                                    # --- STAGE 1: CONFIRMATION & DISTANCE APPROVAL ---
+                                                    elif st.session_state[stage_key] == 1:
+                                                        st.write("### 📋 Booking Summary")
+                                                        st.write(f"🚗 **Vehicle:** {car['make']} {car['model']}")
+                                                        st.write(f"📅 **Pickup:** {st.session_state.get(f'd1_{car['id']}_{cat}')} at {st.session_state.get(f't1_{car['id']}_{cat}')}")
+                                                        st.write(f"📅 **Return:** {st.session_state.get(f'd2_{car['id']}_{cat}')} at {st.session_state.get(f't2_{car['id']}_{cat}')}")
+                                                        st.write(f"🛣️ **Destination:** {st.session_state.get(f'dest_{car['id']}_{cat}')}")
+                                                        
+                                                        if st.button("SUBMIT FOR HOST DISTANCE APPROVAL", key=f"btn_s1_{car['id']}_{cat}", type="primary", use_container_width=True):
+                                                            booking_ref = str(random.randint(100000, 999999))
+                                                            
+                                                            s_d1 = st.session_state.get(f"d1_{car['id']}_{cat}", datetime.date.today())
+                                                            s_t1 = st.session_state.get(f"t1_{car['id']}_{cat}", datetime.time(9,0))
+                                                            s_d2 = st.session_state.get(f"d2_{car['id']}_{cat}", s_d1)
+                                                            s_t2 = st.session_state.get(f"t2_{car['id']}_{cat}", datetime.time(9,0))
+                                                            
+                                                            pickup_dt = datetime.datetime.combine(s_d1, s_t1)
+                                                            return_dt = datetime.datetime.combine(s_d2, s_t2)
+                                                            days_calc = max(1, (return_dt - pickup_dt).days)
+                                                            total_amount = base_rate * days_calc
                                                             
                                                             conn.execute("""
-                                                                INSERT INTO bookings (renter_username, vehicle_id, pickup_time, return_time, amount, status, destination, pickup_loc, return_loc, with_driver, booking_ref) 
-                                                                VALUES (?, ?, ?, ?, ?, 'PENDING_APPROVAL', ?, ?, ?, ?, ?)
-                                                            """, (renter_user, car['id'], p_dt_str, r_dt_str, grand_total, dest, f"Pickup: {p_exact}", f"Return: {r_exact}", is_drvr_int, b_ref))
+                                                                INSERT INTO bookings (
+                                                                    booking_ref, vehicle_id, renter_username, pickup_time, return_time,
+                                                                    pickup_loc, return_loc, destination, amount, status
+                                                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL')
+                                                            """, (booking_ref, car['id'], st.session_state.username, str(pickup_dt), str(return_dt), 
+                                                                  st.session_state.get(f"ploc_{car['id']}_{cat}", ""), 
+                                                                  st.session_state.get(f"rloc_{car['id']}_{cat}", ""), 
+                                                                  st.session_state.get(f"dest_{car['id']}_{cat}", ""), 
+                                                                  total_amount))
                                                             conn.commit()
-
-                                                            st.session_state[ref_key] = b_ref
-                                                            st.session_state[stage_key] = 1 
+                                                            
+                                                            st.success(f"Booking request submitted! Ref #{booking_ref}. Awaiting host distance review.")
+                                                            st.session_state[stage_key] = 0
+                                                            time.sleep(1.5)
                                                             st.rerun()
-                                                else:
-                                                    st.error("⚠️ ACTION REQUIRED: Please fill in your Destination, Specific Pickup/Return Addresses, and check the travel agreement box before confirming.")
 
-                                        # -------------------------------------------------------------
-                                        # CHECKOUT STAGE 1: WAITING FOR HOST DISTANCE APPROVAL & CHAT
-                                        # -------------------------------------------------------------
-                                        elif st.session_state[stage_key] == 1:
-                                            b_ref = st.session_state.get(ref_key)
-                                            
-                                            st.markdown(f"""
-                                                <div style="background-color: #FEF3C7; border: 1px solid #F59E0B; padding: 20px; border-radius: 12px; border-left: 6px solid #D97706; margin-bottom: 20px;">
-                                                    <h4 style="color: #92400E; margin-top: 0; margin-bottom: 8px;">⏳ Awaiting Host Distance Review (Ref: #{b_ref})</h4>
-                                                    <p style="color: #78350F; font-size: 15px; margin-bottom: 0;">
-                                                        Your booking request has been sent to the car owner. The owner is reviewing your pickup and return locations from their parking base ({parking_location}). <b>Please use your My Bookings tab to check approval and make your payment.</b>
-                                                    </p>
-                                                </div>
-                                            """, unsafe_allow_html=True)
+                                                    # --- STAGE 2: XENDIT GATEWAY & RECEIPT UPLOAD ---
+                                                    elif st.session_state[stage_key] == 2:
+                                                        b_ref = st.session_state.get(ref_key)
+                                                        pay_url = st.session_state.get(f"pay_url_{car['id']}")
 
-                                            status_df = pd.read_sql_query("SELECT status FROM bookings WHERE booking_ref = ?", conn, params=(b_ref,))
-                                            current_db_status = status_df.iloc[0]['status'] if not status_df.empty else 'PENDING_APPROVAL'
+                                                        amt_df = pd.read_sql_query("SELECT amount FROM bookings WHERE booking_ref = ?", conn, params=(b_ref,))
+                                                        owed_amount = float(amt_df.iloc[0]['amount']) if not amt_df.empty else 0.0
 
-                                            if current_db_status in ['APPROVED_BY_HOST', 'CONFIRMED']:
-                                                st.success("🎉 **Host Accepted Distance!** Go to **'My Bookings'** tab to complete your payment.")
+                                                        st.markdown(f"""
+                                                        <div style="background-color: #EFF6FF; border: 1px solid #BFDBFE; padding: 20px; border-radius: 12px; border-left: 6px solid #2563EB; margin-bottom: 20px;">
+                                                            <h4 style="color: #1E3A8A; margin-top: 0; margin-bottom: 8px;">💳 Secure Payment (Ref: #{b_ref})</h4>
+                                                            <p style="color: #1D4ED8; font-size: 15px; margin-bottom: 0;">
+                                                                Total Amount Due: <b>₱{owed_amount:,.2f}</b><br>
+                                                                Please complete your payment via Xendit, then take a screenshot of your payment confirmation (showing the reference number) and upload it below for Admin verification.
+                                                            </p>
+                                                        </div>
+                                                        """, unsafe_allow_html=True)
 
-                                            c_back, c_refresh = st.columns([1, 1])
-                                            if c_back.button("Cancel Request", key=f"canc_req_{car['id']}_{cat}", use_container_width=True):
-                                                conn.execute("DELETE FROM bookings WHERE booking_ref = ?", (b_ref,))
-                                                conn.commit()
-                                                st.session_state[stage_key] = 0
-                                                if ref_key in st.session_state: del st.session_state[ref_key]
-                                                st.rerun()
-                                            if c_refresh.button("🔄 Refresh Status", key=f"ref_status_{car['id']}_{cat}", use_container_width=True):
-                                                st.rerun()
-                                        # -------------------------------------------------------------
-                                        # CHECKOUT STAGE 2: XENDIT GATEWAY & RECEIPT UPLOAD
-                                        # -------------------------------------------------------------
-                                        elif st.session_state[stage_key] == 2:
-                                            b_ref = st.session_state.get(ref_key)
-                                            pay_url = st.session_state.get(f"pay_url_{car['id']}")
+                                                        if pay_url:
+                                                            st.link_button("👉 CLICK HERE TO PAY VIA XENDIT", pay_url, type="primary", use_container_width=True)
 
-                                            amt_df = pd.read_sql_query("SELECT amount FROM bookings WHERE booking_ref = ?", conn, params=(b_ref,))
-                                            owed_amount = float(amt_df.iloc[0]['amount']) if not amt_df.empty else 0.0
+                                                        st.divider()
+                                                        st.write("#### 📤 Upload Xendit Payment Screenshot")
+                                                        st.caption("Upload your payment success screenshot containing the transaction reference number.")
+                                                        xendit_receipt = st.file_uploader("Upload Xendit Receipt", type=['jpg', 'png', 'jpeg'], key=f"x_rec_{car['id']}_{cat}")
 
-                                            st.markdown(f"""
-                                            <div style="background-color: #EFF6FF; border: 1px solid #BFDBFE; padding: 20px; border-radius: 12px; border-left: 6px solid #2563EB; margin-bottom: 20px;">
-                                                <h4 style="color: #1E3A8A; margin-top: 0; margin-bottom: 8px;">💳 Secure Payment (Ref: #{b_ref})</h4>
-                                                <p style="color: #1D4ED8; font-size: 15px; margin-bottom: 0;">
-                                                    Total Amount Due: <b>₱{owed_amount:,.2f}</b><br>
-                                                    Please complete your payment via Xendit, then take a screenshot of your payment confirmation (showing the reference number) and upload it below for Admin verification.
-                                                </p>
-                                            </div>
-                                            """, unsafe_allow_html=True)
+                                                        c_back, c_sub = st.columns([1, 1])
+                                                        if c_back.button("Cancel Booking", key=f"canc_x_{car['id']}_{cat}", use_container_width=True):
+                                                            conn.execute("DELETE FROM bookings WHERE booking_ref = ?", (b_ref,))
+                                                            conn.commit()
+                                                            st.session_state[stage_key] = 0
+                                                            if ref_key in st.session_state: del st.session_state[ref_key]
+                                                            st.rerun()
 
-                                            if pay_url:
-                                                st.link_button("👉 CLICK HERE TO PAY VIA XENDIT", pay_url, type="primary", use_container_width=True)
+                                                        if c_sub.button("SUBMIT PAYMENT PROOF TO ADMIN", type="primary", use_container_width=True, key=f"sub_x_{car['id']}_{cat}"):
+                                                            if xendit_receipt:
+                                                                receipt_bytes = xendit_receipt.read()
+                                                                conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE booking_ref = ?", (receipt_bytes, b_ref))
+                                                                receipt_path = f"/data/uploads/chat_images/receipt_{b_ref}.jpg"
+                                                                with open(receipt_path, "wb") as f: f.write(receipt_bytes)
 
-                                            st.divider()
-                                            st.write("#### 📤 Upload Xendit Payment Screenshot")
-                                            st.caption("Upload your payment success screenshot containing the transaction reference number.")
-                                            xendit_receipt = st.file_uploader("Upload Xendit Receipt", type=['jpg', 'png', 'jpeg'], key=f"x_rec_{car['id']}_{cat}")
+                                                                owner_username = car['owner_username']
+                                                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                                                             (b_ref, renter_user, owner_username, "Xendit Payment Proof Uploaded for Admin Verification.", receipt_path))
+                                                                conn.commit()
 
-                                            c_back, c_sub = st.columns([1, 1])
-                                            if c_back.button("Cancel Booking", key=f"canc_x_{car['id']}_{cat}", use_container_width=True):
-                                                conn.execute("DELETE FROM bookings WHERE booking_ref = ?", (b_ref,))
-                                                conn.commit()
-                                                st.session_state[stage_key] = 0
-                                                if ref_key in st.session_state: del st.session_state[ref_key]
-                                                st.rerun()
+                                                                # Alert Admin and Affiliate
+                                                                try:
+                                                                    aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
+                                                                    if not aff_data.empty:
+                                                                        send_alert_email(
+                                                                            to_email="contact@driveelite.ph",
+                                                                            subject=f"CNF: Xendit Proof Verification Needed for #{b_ref}",
+                                                                            body=f"Renter @{renter_user} uploaded Xendit payment proof for booking #{b_ref}. Please verify."
+                                                                        )
+                                                                        send_alert_email(
+                                                                            to_email=aff_data.iloc[0]['email'],
+                                                                            subject=f"🚗 DriveElite: Payment Proof Uploaded (#{b_ref})",
+                                                                            body=f"Hello {aff_data.iloc[0]['full_name']},\n\nRenter uploaded payment proof for booking #{b_ref}. Admin is verifying."
+                                                                        )
+                                                                except: pass
 
-                                            if c_sub.button("SUBMIT PAYMENT PROOF TO ADMIN", type="primary", use_container_width=True, key=f"sub_x_{car['id']}_{cat}"):
-                                                if xendit_receipt:
-                                                    receipt_bytes = xendit_receipt.read()
-                                                    conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE booking_ref = ?", (receipt_bytes, b_ref))
-                                                    receipt_path = f"/data/uploads/chat_images/receipt_{b_ref}.jpg"
-                                                    with open(receipt_path, "wb") as f: f.write(receipt_bytes)
-
-                                                    owner_username = car['owner_username']
-                                                    conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                                                 (b_ref, renter_user, owner_username, "Xendit Payment Proof Uploaded for Admin Verification.", receipt_path))
-                                                    conn.commit()
-
-                                                    # Alert Admin and Affiliate
-                                                    try:
-                                                        aff_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(owner_username,))
-                                                        if not aff_data.empty:
-                                                            send_alert_email(
-                                                                to_email="contact@driveelite.ph",
-                                                                subject=f"CNF: Xendit Proof Verification Needed for #{b_ref}",
-                                                                body=f"Renter @{renter_user} uploaded Xendit payment proof for booking #{b_ref}. Please verify."
-                                                            )
-                                                            send_alert_email(
-                                                                to_email=aff_data.iloc[0]['email'],
-                                                                subject=f"🚗 DriveElite: Payment Proof Uploaded (#{b_ref})",
-                                                                body=f"Hello {aff_data.iloc[0]['full_name']},\n\nRenter uploaded payment proof for booking #{b_ref}. Admin is verifying."
-                                                            )
-                                                    except: pass
-
-                                                    st.success("✅ Payment proof submitted to Admin for verification!")
-                                                    st.session_state[stage_key] = 0
-                                                    if ref_key in st.session_state: del st.session_state[ref_key]
-                                                    st.rerun()
-                                                else:
-                                                    st.error("Please upload your payment screenshot.")
+                                                                st.success("✅ Payment proof submitted to Admin for verification!")
+                                                                st.session_state[stage_key] = 0
+                                                                if ref_key in st.session_state: del st.session_state[ref_key]
+                                                                st.rerun()
+                                                            else:
+                                                                st.error("Please upload your payment screenshot.")
 
     # ==========================================
     # 📅 MY BOOKINGS (MAIN TAB 1)
