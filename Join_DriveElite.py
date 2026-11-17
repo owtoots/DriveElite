@@ -599,12 +599,7 @@ if reg_type in ["Affiliate", "Renter"]:
             g_id = st.file_uploader("Upload Government ID", type=['jpg', 'png', 'jpeg'])
             l_id = st.file_uploader("Upload Driver's License", type=['jpg', 'png', 'jpeg'])
             
-            # 🚨 INJECTED VEHICLE PHOTO UPLOADER (ONLY FOR AFFILIATES)
-            if reg_type == "Affiliate":
-                st.markdown("#### 🚗 Vehicle Verification")
-                v_photo = st.file_uploader("Upload a clear photo of your primary vehicle", type=['jpg', 'png', 'jpeg'])
-            else:
-                v_photo = None
+            
             
             if st.form_submit_button("NEXT: REVIEW & SIGN AGREEMENT"):
                 if pwd != cpwd:
