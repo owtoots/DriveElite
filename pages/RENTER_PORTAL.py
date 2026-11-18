@@ -589,16 +589,19 @@ def main():
                                                             if ref_key in st.session_state: del st.session_state[ref_key]
                                                             st.rerun()
 
-                                                        if c_sub.button("SUBMIT PAYMENT PROOF TO ADMIN", type="primary", use_container_width=True, key=f"sub_x_{car['id']}_{cat}_{tab_index}"):
+                                                        if st.button("SUBMIT PAYMENT PROOF TO ADMIN", type="primary", use_container_width=True, key=f"sub_x_{car['id']}_{cat}_{tab_index}"):
                                                             if xendit_receipt:
                                                                 receipt_bytes = xendit_receipt.read()
                                                                 conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE booking_ref = ?", (receipt_bytes, b_ref))
                                                                 receipt_path = f"/data/uploads/chat_images/receipt_{b_ref}.jpg"
-                                                                with open(receipt_path, "wb") as f: f.write(receipt_bytes)
+                                                                with open(receipt_path, "wb") as f:
+                                                                    f.write(receipt_bytes)
 
                                                                 owner_username = car['owner_username']
-                                                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
-                                                                             (b_ref, renter_user, owner_username, "Payment Proof Uploaded for Admin Verification.", receipt_path))
+                                                                conn.execute(
+                                                                    "INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                                                    (b_ref, renter_user, owner_username, "Payment Proof Uploaded for Admin Verification.", receipt_path)
+                                                                )
                                                                 conn.commit()
 
                                                                 try:
@@ -614,11 +617,13 @@ def main():
                                                                             subject=f"🚗 DriveElite: Payment Proof Uploaded (#{b_ref})",
                                                                             body=f"Hello {aff_data.iloc[0]['full_name']},\n\nRenter uploaded payment proof for booking #{b_ref}. Admin is verifying."
                                                                         )
-                                                                except: pass
+                                                                except:
+                                                                    pass
 
                                                                 st.success("✅ Payment proof submitted to Admin for verification!")
                                                                 st.session_state[stage_key] = 0
-                                                                if ref_key in st.session_state: del st.session_state[ref_key]
+                                                                if ref_key in st.session_state:
+                                                                    del st.session_state[ref_key]
                                                                 st.rerun()
                                                             else:
                                                                 st.error("Please upload your payment screenshot.")
@@ -699,8 +704,8 @@ def main():
                             st.session_state[stage_key] = 0
                             time.sleep(1.5)
                             st.rerun()
-                            else:
-                                st.error("Please upload a screenshot of your payment receipt.")
+                        else:
+                            st.error("Please upload a screenshot of your payment receipt.")
 
                     # --- CHAT SYSTEM (For Active Trips & Approvals) ---
                     if b['status'] in ['PENDING_APPROVAL', 'PENDING', 'VERIFYING', 'APPROVED_BY_HOST', 'CONFIRMED', 'ONGOING']:
