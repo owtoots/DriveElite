@@ -17,9 +17,12 @@ from database_utils import get_connection, send_sms_alert, send_alert_email
 import calendar
 from datetime import timedelta
 from streamlit_autorefresh import st_autorefresh
-from database_utils import get_connection, init_db, patch_database
+from database_utils import init_db, patch_database
 import urllib.parse
 
+# ==========================================
+# OPENSTREETMAP & OSRM DISTANCE ROUTING
+# ==========================================
 @st.cache_data(show_spinner=False, ttl=86400)
 def get_gps_coordinates(address):
     """Converts a text address into (lat, lon) using OpenStreetMap."""
@@ -195,7 +198,7 @@ def main():
         }
     </style>
     """, unsafe_allow_html=True)
-   
+    
     # ==========================================
     # 3. DATABASE CONNECTION & SETUP
     # ==========================================
@@ -491,16 +494,28 @@ def main():
                                                             if not destination.strip():
                                                                 st.error("Please specify your trip route or destination.")
                                                             else:
+                                                                # 🛡️ FIX: Save data to permanent session state to prevent state loss
+                                                                st.session_state[f"saved_d1_{car['id']}"] = d1
+                                                                st.session_state[f"saved_t1_{car['id']}"] = t1
+                                                                st.session_state[f"saved_d2_{car['id']}"] = d2
+                                                                st.session_state[f"saved_t2_{car['id']}"] = t2
+                                                                st.session_state[f"saved_ploc_{car['id']}"] = pickup_loc
+                                                                st.session_state[f"saved_rloc_{car['id']}"] = return_loc
+                                                                st.session_state[f"saved_dest_{car['id']}"] = destination
+                                                                
                                                                 st.session_state[stage_key] = 1
                                                                 st.rerun()
 
-                                                   # --- STAGE 1: CONFIRMATION & DISTANCE APPROVAL ---
+                                                    # --- STAGE 1: CONFIRMATION & DISTANCE APPROVAL ---
                                                     elif st.session_state[stage_key] == 1:
-                                                        s_d1 = st.session_state.get(f"d1_{car['id']}_{cat}_{tab_index}", datetime.date.today())
-                                                        s_t1 = st.session_state.get(f"t1_{car['id']}_{cat}_{tab_index}", datetime.time(9,0))
-                                                        s_d2 = st.session_state.get(f"d2_{car['id']}_{cat}_{tab_index}", s_d1)
-                                                        s_t2 = st.session_state.get(f"t2_{car['id']}_{cat}_{tab_index}", datetime.time(9,0))
-                                                        dest_val = st.session_state.get(f"dest_{car['id']}_{cat}_{tab_index}", "Not Specified")
+                                                        # 🛡️ FIX: Retrieve from the permanent saved keys
+                                                        s_d1 = st.session_state.get(f"saved_d1_{car['id']}", datetime.date.today())
+                                                        s_t1 = st.session_state.get(f"saved_t1_{car['id']}", datetime.time(9,0))
+                                                        s_d2 = st.session_state.get(f"saved_d2_{car['id']}", s_d1)
+                                                        s_t2 = st.session_state.get(f"saved_t2_{car['id']}", datetime.time(9,0))
+                                                        dest_val = st.session_state.get(f"saved_dest_{car['id']}", "Not Specified")
+                                                        pickup_address = st.session_state.get(f"saved_ploc_{car['id']}", parking_location)
+                                                        return_address = st.session_state.get(f"saved_rloc_{car['id']}", parking_location)
                                                         
                                                         pickup_dt = datetime.datetime.combine(s_d1, s_t1)
                                                         return_dt = datetime.datetime.combine(s_d2, s_t2)
@@ -520,17 +535,18 @@ def main():
                                                         discount_amount = gross_rental * discount_pct
                                                         net_rental = gross_rental - discount_amount
                                                         
-                                                        pickup_address = st.session_state.get(f"ploc_{car['id']}_{cat}_{tab_index}", parking_location)
-                                                        return_address = st.session_state.get(f"rloc_{car['id']}_{cat}_{tab_index}", parking_location)
-                                                        
+                                                        # --- API ROUTING DELIVERY LEG CALCULATION ---
                                                         def get_leg_fee(addr, base_location):
                                                             if not addr: return 0.0
+                                                            
                                                             clean_addr = addr.strip().lower()
                                                             clean_base = (base_location or "").strip().lower()
                                                             
+                                                            # 1. FAST SHORTCUT: If strings overlap, assume 0 distance
                                                             if clean_base and (clean_addr == clean_base or clean_base in clean_addr or clean_addr in clean_base):
                                                                 return 0.0
                                                             
+                                                            # 2. SMART API ROUTING: Convert to GPS and get driving distance
                                                             base_coords = get_gps_coordinates(base_location)
                                                             addr_coords = get_gps_coordinates(addr)
                                                             
@@ -539,6 +555,7 @@ def main():
                                                                 if dist_km is not None:
                                                                     return get_dynamic_delivery_fee(dist_km)
                                                             
+                                                            # 3. SAFETY FALLBACK
                                                             try:
                                                                 tier_row = conn.execute("SELECT fee FROM delivery_tiers ORDER BY max_km ASC LIMIT 1").fetchone()
                                                                 return float(tier_row[0]) if tier_row else 350.0 
@@ -550,6 +567,7 @@ def main():
                                                         total_delivery_fee = pickup_leg_fee + return_leg_fee
                                                         total_online_bill = net_rental + total_delivery_fee
                                                         
+                                                        # --- HTML EXCEL-STYLE TRIP LEDGER ---
                                                         st.write(f"### 📋 Trip Ledger: {car['make']} {car['model']}")
                                                         st.caption(f"📍 **Pickup:** {pickup_address} | 🛬 **Return:** {return_address}")
                                                         
@@ -644,10 +662,10 @@ def main():
                                                         </div>
                                                         """, unsafe_allow_html=True)
 
-                                                        # 🚨 DYNAMIC CHECK: Is Admin set to Xendit or Manual BPI?
                                                         if gateway_mode == "XENDIT":
                                                             if pay_url:
                                                                 st.link_button("👉 CLICK HERE TO PAY VIA XENDIT", pay_url, type="primary", use_container_width=True)
+                                                                st.warning("⚠️ **IMPORTANT:** After paying via Xendit, you MUST screenshot your success page and upload it below. The vehicle host will not be notified to prepare your car until the platform Admin verifies your receipt.")
                                                             else:
                                                                 st.info("Xendit Invoice URL will appear in 'My Bookings' once verified.")
                                                         else:
@@ -673,7 +691,7 @@ def main():
                                                             if ref_key in st.session_state: del st.session_state[ref_key]
                                                             st.rerun()
 
-                                                        if st.button("SUBMIT PAYMENT PROOF TO ADMIN", type="primary", use_container_width=True, key=f"sub_x_{car['id']}_{cat}_{tab_index}"):
+                                                        if c_sub.button("SUBMIT PAYMENT PROOF TO ADMIN", type="primary", use_container_width=True, key=f"sub_x_{car['id']}_{cat}_{tab_index}"):
                                                             if xendit_receipt:
                                                                 receipt_bytes = xendit_receipt.read()
                                                                 conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE booking_ref = ?", (receipt_bytes, b_ref))
@@ -752,7 +770,6 @@ def main():
                         owed_amount = float(b['amount'])
                         st.write(f"**Total Amount Due:** :green[**₱{owed_amount:,.2f}**]")
                         
-                        # 🚨 DYNAMIC CHECK: Matches Admin settings
                         if gateway_mode == "XENDIT":
                             st.info("Xendit Secure Gateway Active.")
                             st.link_button("👉 PROCEED TO XENDIT SECURE CHECKOUT", "https://checkout.xendit.co/web/", type="primary", use_container_width=True)
@@ -853,8 +870,8 @@ def main():
                                     except Exception:
                                         pass
 
-                                    st.session_state[input_key] = ""
-                                    st.rerun()
+                                st.session_state[input_key] = ""
+                                st.rerun()
 
                         st.caption("ℹ️ **Logistics & Security Deposit Policy:** If pickup or return locations are modified after payment to a further distance, the incremental logistics fee will be automatically **deducted from your ₱5,000 security deposit** upon trip completion.")
 
