@@ -502,16 +502,13 @@ def main():
                                                         s_t2 = st.session_state.get(f"t2_{car['id']}_{cat}_{tab_index}", datetime.time(9,0))
                                                         dest_val = st.session_state.get(f"dest_{car['id']}_{cat}_{tab_index}", "Not Specified")
                                                         
-                                                        # 1. CALCULATE DATES & DAYS FIRST BEFORE USING THEM
                                                         pickup_dt = datetime.datetime.combine(s_d1, s_t1)
                                                         return_dt = datetime.datetime.combine(s_d2, s_t2)
                                                         days_calc = max(1, (return_dt - pickup_dt).days)
                                                         
-                                                        # 2. NOW days_calc IS SAFELY DEFINED FOR MATH
                                                         gross_rental = base_rate * days_calc
                                                         discount_pct = 0.0
                                                         
-                                                        # --- DYNAMIC ADMIN DISCOUNT TIERS ---
                                                         try:
                                                             disc_row = conn.execute("SELECT discount_pct FROM discount_tiers WHERE min_days <= ? ORDER BY min_days DESC LIMIT 1", (days_calc,)).fetchone()
                                                             if disc_row:
@@ -523,44 +520,36 @@ def main():
                                                         discount_amount = gross_rental * discount_pct
                                                         net_rental = gross_rental - discount_amount
                                                         
-                                                        # --- CAPTURE ACTUAL LOCATIONS ---
                                                         pickup_address = st.session_state.get(f"ploc_{car['id']}_{cat}_{tab_index}", parking_location)
                                                         return_address = st.session_state.get(f"rloc_{car['id']}_{cat}_{tab_index}", parking_location)
                                                         
-                                                        # --- API ROUTING DELIVERY LEG CALCULATION ---
                                                         def get_leg_fee(addr, base_location):
                                                             if not addr: return 0.0
-                                                        
                                                             clean_addr = addr.strip().lower()
                                                             clean_base = (base_location or "").strip().lower()
-                                                        
-                                                        # 1. FAST SHORTCUT: If strings overlap, assume 0 distance
-                                                        if clean_base and (clean_addr == clean_base or clean_base in clean_addr or clean_addr in clean_base):
-                                                            return 0.0
-                                                        
-                                                        # 2. SMART API ROUTING: Convert to GPS and get driving distance
-                                                        base_coords = get_gps_coordinates(base_location)
-                                                        addr_coords = get_gps_coordinates(addr)
-                                                        
-                                                        if base_coords and addr_coords:
-                                                            dist_km = get_osrm_driving_distance(base_coords, addr_coords)
-                                                            if dist_km is not None:
-                                                                # Feed the actual distance into your existing dynamic pricing formula
-                                                                return get_dynamic_delivery_fee(dist_km)
-                                                        
-                                                        # 3. SAFETY FALLBACK: If the free API fails or cannot find the obscure address
-                                                        try:
-                                                            tier_row = conn.execute("SELECT fee FROM delivery_tiers ORDER BY max_km ASC LIMIT 1").fetchone()
-                                                            return float(tier_row[0]) if tier_row else 350.0 
-                                                        except Exception:
-                                                            return 350.0 
+                                                            
+                                                            if clean_base and (clean_addr == clean_base or clean_base in clean_addr or clean_addr in clean_base):
+                                                                return 0.0
+                                                            
+                                                            base_coords = get_gps_coordinates(base_location)
+                                                            addr_coords = get_gps_coordinates(addr)
+                                                            
+                                                            if base_coords and addr_coords:
+                                                                dist_km = get_osrm_driving_distance(base_coords, addr_coords)
+                                                                if dist_km is not None:
+                                                                    return get_dynamic_delivery_fee(dist_km)
+                                                            
+                                                            try:
+                                                                tier_row = conn.execute("SELECT fee FROM delivery_tiers ORDER BY max_km ASC LIMIT 1").fetchone()
+                                                                return float(tier_row[0]) if tier_row else 350.0 
+                                                            except Exception:
+                                                                return 350.0 
 
-                                                    pickup_leg_fee = get_leg_fee(pickup_address, parking_location)
-                                                    return_leg_fee = get_leg_fee(return_address, parking_location)
-                                                    total_delivery_fee = pickup_leg_fee + return_leg_fee
-                                                    total_online_bill = net_rental + total_delivery_fee
+                                                        pickup_leg_fee = get_leg_fee(pickup_address, parking_location)
+                                                        return_leg_fee = get_leg_fee(return_address, parking_location)
+                                                        total_delivery_fee = pickup_leg_fee + return_leg_fee
+                                                        total_online_bill = net_rental + total_delivery_fee
                                                         
-                                                        # --- HTML EXCEL-STYLE TRIP LEDGER ---
                                                         st.write(f"### 📋 Trip Ledger: {car['make']} {car['model']}")
                                                         st.caption(f"📍 **Pickup:** {pickup_address} | 🛬 **Return:** {return_address}")
                                                         
