@@ -18,6 +18,42 @@ import calendar
 from datetime import timedelta
 from streamlit_autorefresh import st_autorefresh
 from database_utils import get_connection, init_db, patch_database
+import urllib.parse
+
+@st.cache_data(show_spinner=False, ttl=86400)
+def get_gps_coordinates(address):
+    """Converts a text address into (lat, lon) using OpenStreetMap."""
+    if not address: return None
+    # Appending Philippines ensures the API searches locally
+    query = urllib.parse.quote(f"{address}, Philippines")
+    url = f"https://nominatim.openstreetmap.org/search?q={query}&format=json&limit=1"
+    req = urllib.request.Request(url, headers={'User-Agent': 'DriveElite/1.0'})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode())
+            if data:
+                return float(data[0]['lat']), float(data[0]['lon'])
+    except Exception:
+        pass
+    return None
+
+@st.cache_data(show_spinner=False, ttl=86400)
+def get_osrm_driving_distance(coord1, coord2):
+    """Calculates driving distance in KM between two coordinates using OSRM."""
+    if not coord1 or not coord2: return None
+    lat1, lon1 = coord1
+    lat2, lon2 = coord2
+    # OSRM format requires Longitude,Latitude
+    url = f"http://router.project-osrm.org/route/v1/driving/{lon1},{lat1};{lon2},{lat2}?overview=false"
+    req = urllib.request.Request(url, headers={'User-Agent': 'DriveElite/1.0'})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode())
+            if data.get('routes'):
+                return data['routes'][0]['distance'] / 1000.0  # Convert meters to KM
+    except Exception:
+        pass
+    return None
 
 def main():
     # ==========================================
@@ -491,32 +527,38 @@ def main():
                                                         pickup_address = st.session_state.get(f"ploc_{car['id']}_{cat}_{tab_index}", parking_location)
                                                         return_address = st.session_state.get(f"rloc_{car['id']}_{cat}_{tab_index}", parking_location)
                                                         
-                                                        # --- BULLETPROOF DELIVERY LEG CALCULATION ---
-                                                        def get_leg_fee(addr, base_location):
-                                                            if not addr:
-                                                                return 0.0
-                                                            
-                                                            clean_addr = addr.strip().lower()
-                                                            clean_base = (base_location or "").strip().lower()
-                                                            
-                                                            # Only free if it explicitly matches the parking base
-                                                            if clean_base and clean_addr == clean_base:
-                                                                return 0.0
-                                                                
-                                                            # If it doesn't match, attempt database tier, otherwise force 350.0
-                                                            try:
-                                                                tier_row = conn.execute("SELECT fee FROM delivery_tiers ORDER BY max_km ASC LIMIT 1").fetchone()
-                                                                if tier_row and tier_row[0] is not None and float(tier_row[0]) > 0:
-                                                                    return float(tier_row[0])
-                                                                else:
-                                                                    return 350.0 # Force fallback if table is empty
-                                                            except Exception:
-                                                                return 350.0 # Force fallback if table doesn't exist
+                                                        # --- API ROUTING DELIVERY LEG CALCULATION ---
+                                                    def get_leg_fee(addr, base_location):
+                                                        if not addr: return 0.0
+                                                        
+                                                        clean_addr = addr.strip().lower()
+                                                        clean_base = (base_location or "").strip().lower()
+                                                        
+                                                        # 1. FAST SHORTCUT: If strings overlap, assume 0 distance
+                                                        if clean_base and (clean_addr == clean_base or clean_base in clean_addr or clean_addr in clean_base):
+                                                            return 0.0
+                                                        
+                                                        # 2. SMART API ROUTING: Convert to GPS and get driving distance
+                                                        base_coords = get_gps_coordinates(base_location)
+                                                        addr_coords = get_gps_coordinates(addr)
+                                                        
+                                                        if base_coords and addr_coords:
+                                                            dist_km = get_osrm_driving_distance(base_coords, addr_coords)
+                                                            if dist_km is not None:
+                                                                # Feed the actual distance into your existing dynamic pricing formula
+                                                                return get_dynamic_delivery_fee(dist_km)
+                                                        
+                                                        # 3. SAFETY FALLBACK: If the free API fails or cannot find the obscure address
+                                                        try:
+                                                            tier_row = conn.execute("SELECT fee FROM delivery_tiers ORDER BY max_km ASC LIMIT 1").fetchone()
+                                                            return float(tier_row[0]) if tier_row else 350.0 
+                                                        except Exception:
+                                                            return 350.0 
 
-                                                        pickup_leg_fee = get_leg_fee(pickup_address, parking_location)
-                                                        return_leg_fee = get_leg_fee(return_address, parking_location)
-                                                        total_delivery_fee = pickup_leg_fee + return_leg_fee
-                                                        total_online_bill = net_rental + total_delivery_fee
+                                                    pickup_leg_fee = get_leg_fee(pickup_address, parking_location)
+                                                    return_leg_fee = get_leg_fee(return_address, parking_location)
+                                                    total_delivery_fee = pickup_leg_fee + return_leg_fee
+                                                    total_online_bill = net_rental + total_delivery_fee
                                                         
                                                         # --- HTML EXCEL-STYLE TRIP LEDGER ---
                                                         st.write(f"### 📋 Trip Ledger: {car['make']} {car['model']}")
