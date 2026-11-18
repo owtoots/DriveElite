@@ -490,16 +490,30 @@ def main():
                                                         pickup_address = st.session_state.get(f"ploc_{car['id']}_{cat}_{tab_index}", parking_location)
                                                         return_address = st.session_state.get(f"rloc_{car['id']}_{cat}_{tab_index}", parking_location)
                                                         
-                                                        # --- 3. DYNAMIC DELIVERY LEG CALCULATIONS FROM TIERS ---
-                                                        def get_leg_fee(addr, base_base):
-                                                            if not addr or addr.strip().lower() == parking_location.strip().lower():
-                                                                return 0.0
-                                                            try:
-                                                                # Pulls fee from admin delivery tiers (defaults to 350 if custom distance tier isn't matched)
-                                                                tier_row = conn.execute("SELECT fee FROM delivery_tiers ORDER BY max_km ASC LIMIT 1").fetchone()
-                                                                return float(tier_row[0]) if tier_row else 350.0
-                                                            except:
+                                                        # --- 3. PROPER DYNAMIC DELIVERY LEG CALCULATIONS ---
+                                                        def get_leg_fee(addr, base_location):
+                                                            if not addr or not base_location:
                                                                 return 350.0
+                                                            
+                                                            clean_addr = addr.strip().lower()
+                                                            clean_base = base_location.strip().lower()
+                                                            
+                                                            # If it's the exact same garage base, fee is 0
+                                                            if clean_addr == clean_base or clean_addr in clean_base or clean_base in clean_addr:
+                                                                return 0.0
+                                                                
+                                                            # If different, check if admin delivery tiers exist in DB
+                                                            try:
+                                                                # Pull standard delivery fee tier or compute based on standard drop-off rate
+                                                                tier_rows = conn.execute("SELECT max_km, fee FROM delivery_tiers ORDER BY max_km ASC").fetchall()
+                                                                if tier_rows:
+                                                                    # Default to a standard inter-city delivery fee if tiers are configured
+                                                                    return float(tier_rows[-1][1]) if len(tier_rows) > 1 else float(tier_rows[0][1])
+                                                            except:
+                                                                pass
+                                                                
+                                                            # Fallback standard inter-city delivery fee (e.g., Taguig/Pasay to Pasig)
+                                                            return 450.0
 
                                                         pickup_leg_fee = get_leg_fee(pickup_address, parking_location)
                                                         return_leg_fee = get_leg_fee(return_address, parking_location)
