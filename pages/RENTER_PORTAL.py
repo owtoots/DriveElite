@@ -567,7 +567,7 @@ def main():
                                                             st.success(f"Booking request submitted! Ref #{booking_ref}. Awaiting host distance review.")
                                                             st.session_state[stage_key] = 0
                                                             time.sleep(1.5)
-                                                            st.rerun())
+                                                            st.rerun()
 
                                                     # --- STAGE 2: DYNAMIC GATEWAY (XENDIT OR MANUAL_QR) ---
                                                     elif st.session_state[stage_key] == 2:
