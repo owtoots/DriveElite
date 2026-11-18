@@ -476,10 +476,8 @@ def main():
                                                     if stage_key not in st.session_state: 
                                                         st.session_state[stage_key] = 0
                                                     
-                                                    # 1. PULL UNAVAILABLE DATES
                                                     unavailable_dates = get_booked_dates(car['id'], conn)
                                                     
-                                                    # 2. SHOW UNAVAILABLE DATES IN UI
                                                     if unavailable_dates:
                                                         formatted_dates = ", ".join(sorted([d.strftime('%b %d') for d in unavailable_dates]))
                                                         st.warning(f"📅 **Currently Booked On:** {formatted_dates}")
@@ -497,13 +495,11 @@ def main():
                                                         destination = st.text_input("Declared Trip Route / Destination", placeholder="e.g., Tagaytay or Subic", key=f"dest_{car['id']}_{cat}_{tab_index}")
                                                         
                                                         if st.button("PROCEED TO SUMMARY", key=f"btn_s0_{car['id']}_{cat}_{tab_index}", use_container_width=True):
-                                                            # 3. GENERATE REQUESTED DATE RANGE
                                                             requested_days = set()
                                                             delta = d2 - d1
                                                             for i in range(delta.days + 1):
                                                                 requested_days.add(d1 + timedelta(days=i))
                                                             
-                                                            # 4. STRICT OVERLAP VALIDATION
                                                             overlapping = requested_days.intersection(unavailable_dates)
                                                             
                                                             if overlapping:
@@ -511,30 +507,32 @@ def main():
                                                             elif not destination.strip():
                                                                 st.error("Please specify your trip route or destination.")
                                                             else:
-                                                                # 🛡️ Save to permanent session state so it survives the re-run
-                                                                st.session_state[f"mem_d1_{car['id']}"] = d1
-                                                                st.session_state[f"mem_t1_{car['id']}"] = t1
-                                                                st.session_state[f"mem_d2_{car['id']}"] = d2
-                                                                st.session_state[f"mem_t2_{car['id']}"] = t2
-                                                                st.session_state[f"mem_ploc_{car['id']}"] = pickup_loc
-                                                                st.session_state[f"mem_rloc_{car['id']}"] = return_loc
-                                                                st.session_state[f"mem_dest_{car['id']}"] = destination
+                                                                # 🛡️ BULLETPROOF MEMORY: Pack everything into a single safe dictionary
+                                                                st.session_state[f"safe_data_{car['id']}"] = {
+                                                                    "d1": d1,
+                                                                    "t1": t1,
+                                                                    "d2": d2,
+                                                                    "t2": t2,
+                                                                    "ploc": pickup_loc,
+                                                                    "rloc": return_loc,
+                                                                    "dest": destination
+                                                                }
                                                                 
                                                                 st.session_state[stage_key] = 1
                                                                 st.rerun()
 
                                                     # --- STAGE 1: CONFIRMATION & DISTANCE APPROVAL ---
-
-                                                    # --- STAGE 1: CONFIRMATION & DISTANCE APPROVAL ---
                                                     elif st.session_state[stage_key] == 1:
-                                                        # 🛡️ FIX: Retrieve from the permanent saved keys
-                                                        s_d1 = st.session_state.get(f"saved_d1_{car['id']}", datetime.date.today())
-                                                        s_t1 = st.session_state.get(f"saved_t1_{car['id']}", datetime.time(9,0))
-                                                        s_d2 = st.session_state.get(f"saved_d2_{car['id']}", s_d1)
-                                                        s_t2 = st.session_state.get(f"saved_t2_{car['id']}", datetime.time(9,0))
-                                                        dest_val = st.session_state.get(f"saved_dest_{car['id']}", "Not Specified")
-                                                        pickup_address = st.session_state.get(f"saved_ploc_{car['id']}", parking_location)
-                                                        return_address = st.session_state.get(f"saved_rloc_{car['id']}", parking_location)
+                                                        # 🛡️ BULLETPROOF MEMORY: Read directly from the secure dictionary
+                                                        safe_data = st.session_state.get(f"safe_data_{car['id']}", {})
+                                                        
+                                                        s_d1 = safe_data.get("d1", datetime.date.today())
+                                                        s_t1 = safe_data.get("t1", datetime.time(9,0))
+                                                        s_d2 = safe_data.get("d2", s_d1)
+                                                        s_t2 = safe_data.get("t2", datetime.time(9,0))
+                                                        dest_val = safe_data.get("dest", "Not Specified")
+                                                        pickup_address = safe_data.get("ploc", parking_location)
+                                                        return_address = safe_data.get("rloc", parking_location)
                                                         
                                                         pickup_dt = datetime.datetime.combine(s_d1, s_t1)
                                                         return_dt = datetime.datetime.combine(s_d2, s_t2)
