@@ -670,7 +670,8 @@ def main():
                             
                             r_phone = b.get('renter_contact', '')
                             if r_phone:
-                                st.markdown(f'<a href="tel:{r_phone}"><button style="width:100%; background-color:#10B981; color:white; border:none; padding:8px; border-radius:8px; font-weight:bold; cursor:pointer; margin-bottom:10px; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);">📞 Call Renter ({r_phone}) for Urgent Negotiation</button></a>', unsafe_allow_html=True)
+                                # REMOVED the visible phone number from the button text
+                                st.markdown(f'<a href="tel:{r_phone}"><button style="width:100%; background-color:#10B981; color:white; border:none; padding:8px; border-radius:8px; font-weight:bold; cursor:pointer; margin-bottom:10px; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);">📞 Call for Urgent Negotiation</button></a>', unsafe_allow_html=True)
 
                             with st.expander("💬 Chat & Negotiate Distance with Renter", expanded=True):
                                 chat_win = st.container(height=200, border=True)
@@ -822,6 +823,7 @@ def main():
                             with c_call:
                                 r_phone = b.get('renter_contact', '')
                                 if r_phone:
+                                    # ONLY shows the icon and label
                                     st.markdown(f'<a href="tel:{r_phone}"><button style="width:100%; background-color:#10B981; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);">📞 Call Renter</button></a>', unsafe_allow_html=True)
                                     
                             with c_refresh:
