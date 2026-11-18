@@ -324,13 +324,19 @@ def main():
         st.session_state.temp_msg_affiliate = ""
 
     def save_file(uploaded_file):
-        if uploaded_file:
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{timestamp}_{uploaded_file.name}"
-            path = os.path.join(UPLOAD_DIR, filename)
-            with open(path, "wb") as f: f.write(uploaded_file.getbuffer())
-            return path
-        return None
+    if uploaded_file:
+        # Ensure the persistent Render mount exists
+        PERSISTENT_DIR = "/data/uploads"
+        os.makedirs(PERSISTENT_DIR, exist_ok=True)
+        
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{timestamp}_{uploaded_file.name}"
+        path = os.path.join(PERSISTENT_DIR, filename)
+        
+        with open(path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        return path
+    return None
 
     def save_chat_image(uploaded_file, booking_ref):
         if uploaded_file:
