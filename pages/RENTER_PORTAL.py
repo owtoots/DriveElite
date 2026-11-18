@@ -491,22 +491,27 @@ def main():
                                                         pickup_address = st.session_state.get(f"ploc_{car['id']}_{cat}_{tab_index}", parking_location)
                                                         return_address = st.session_state.get(f"rloc_{car['id']}_{cat}_{tab_index}", parking_location)
                                                         
-                                                        # --- STRICT DELIVERY LEG CALCULATION ---
+                                                        # --- BULLETPROOF DELIVERY LEG CALCULATION ---
                                                         def get_leg_fee(addr, base_location):
-                                                            if not addr or not base_location:
+                                                            if not addr:
                                                                 return 0.0
                                                             
                                                             clean_addr = addr.strip().lower()
-                                                            clean_base = base_location.strip().lower()
+                                                            clean_base = (base_location or "").strip().lower()
                                                             
-                                                            if clean_addr == clean_base:
+                                                            # Only free if it explicitly matches the parking base
+                                                            if clean_base and clean_addr == clean_base:
                                                                 return 0.0
                                                                 
+                                                            # If it doesn't match, attempt database tier, otherwise force 350.0
                                                             try:
                                                                 tier_row = conn.execute("SELECT fee FROM delivery_tiers ORDER BY max_km ASC LIMIT 1").fetchone()
-                                                                return float(tier_row[0]) if tier_row else 350.0
-                                                            except:
-                                                                return 350.0
+                                                                if tier_row and tier_row[0] is not None and float(tier_row[0]) > 0:
+                                                                    return float(tier_row[0])
+                                                                else:
+                                                                    return 350.0 # Force fallback if table is empty
+                                                            except Exception:
+                                                                return 350.0 # Force fallback if table doesn't exist
 
                                                         pickup_leg_fee = get_leg_fee(pickup_address, parking_location)
                                                         return_leg_fee = get_leg_fee(return_address, parking_location)
