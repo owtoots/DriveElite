@@ -458,7 +458,7 @@ def main():
                                                                 st.session_state[stage_key] = 1
                                                                 st.rerun()
 
-                                                    # --- STAGE 1: CONFIRMATION & DISTANCE APPROVAL ---
+                                                   # --- STAGE 1: CONFIRMATION & DISTANCE APPROVAL ---
                                                     elif st.session_state[stage_key] == 1:
                                                         s_d1 = st.session_state.get(f"d1_{car['id']}_{cat}_{tab_index}", datetime.date.today())
                                                         s_t1 = st.session_state.get(f"t1_{car['id']}_{cat}_{tab_index}", datetime.time(9,0))
