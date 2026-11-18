@@ -407,11 +407,15 @@ def main():
         pdf.multi_cell(0, 6, "3. Speed Limits & Violations: Strictly adhere to all local traffic rules. Any NCAP camera citations, traffic violations, or fines incurred during the rental period will be charged directly to the renter to protect the vehicle's LTO demerit points.")
         pdf.set_x(10)
         pdf.multi_cell(0, 6, "4. Geographic Limits: Driving is strictly restricted to Mainland Luzon / Regional coverage. Inter-island ferry transport (RoRo) is strictly prohibited unless agreed.")
+        
+        # --- NEW 5TH RULE FOR RFID ---
+        pdf.set_x(10)
+        pdf.multi_cell(0, 6, "5. RFID Policy: Renter must estimate and load the RFID appropriately for their total itinerary. Excess RFID load is non-refundable. Failure to cover toll balances will result in a Php 100 penalty + load fee deducted from the deposit.")
+        
         pdf.ln(10)
         
         pdf.set_font("Helvetica", 'B', 12)
         pdf.cell(190, 10, "DIGITAL SIGNATORIES:", ln=1)
-        
         y_sig = pdf.get_y() + 2
         if y_sig > 220:
             pdf.add_page()
@@ -925,7 +929,7 @@ def main():
                                         c1, c2 = st.columns(2)
                                         
                                         with c1:
-                                            c_fuel = st.selectbox("Current Fuel Level", ["Full", "3/4", "1/2", "1/4", "Empty"], key=f"fuel_{b['id']}")
+                                            c_fuel = st.selectbox("Current Fuel Level", ["Full (Required)", "3/4", "1/2", "1/4", "Empty"], key=f"fuel_{b['id']}")
                                             c_deposit = st.checkbox("Php5,000 Cash Deposit Received", value=False, key=f"dep_{b['id']}")
                                             c_aircon = st.checkbox("❄️ Aircon Confirmed (Cold & Working)", value=True, key=f"aircon_{b['id']}")
                                         
@@ -933,7 +937,7 @@ def main():
                                             c_ext = st.checkbox("Exterior inspected (No new damage)", value=True, key=f"ext_{b['id']}")
                                             c_int = st.checkbox("Interior is clean/odor-free", value=True, key=f"int_{b['id']}")
                                             c_tools = st.checkbox("Tools/Spare tire verified", value=True, key=f"tools_{b['id']}")
-                                            c_rfid = st.checkbox("💳 RFID Handover & Reminded to Load", value=True, key=f"rfid_{b['id']}")
+                                            c_rfid = st.checkbox("💳 RFID Handover (Advised Renter: Over-load is non-refundable. Under-load incurs ₱100 fine)", value=True, key=f"rfid_{b['id']}")
                                         
                                         st.write("### 📸 2. Photo Evidence (Min. 6)")
                                         st.caption("Tap below to upload from your gallery or use your phone's camera.")
@@ -1075,14 +1079,15 @@ def main():
                                         st.caption("Standard penalty for the car (Php 300/hr)")
                                         late_fee = l_hrs * 300.0
                                         
-                                        fuel_cost = st.number_input("Refuel Receipt (Php)", min_value=0.0, step=100.0, key=f"f_cost_{b['id']}")
-                                        cleaning_fee = st.number_input("Cleaning/Smoking Fine (Php)", value=0.0, step=500.0, key=f"c_fine_{b['id']}")
+                                        fuel_cost = st.number_input("Refuel Penalty (Php)", min_value=0.0, step=100.0, key=f"f_cost_{b['id']}")
+                                        cleaning_fee = st.number_input("Car Wash / Heavy Soiling Fine (Php)", value=0.0, step=500.0, key=f"c_fine_{b['id']}")
                                         
                                         st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
-                                        st.write("##### 🛣️ Tolls & Travel Expenses")
-                                        rfid_usage = st.number_input("Tolls Consumed (Php)", min_value=0.0, step=50.0, value=0.0, key=f"r_use_{b['id']}")
-                                        rfid_replenished = st.number_input("Tolls Loaded (Php)", min_value=0.0, step=50.0, value=0.0, key=f"r_load_{b['id']}")
-                                        rfid_penalty = st.checkbox("Apply 100 Php fine (Failure to load)", key=f"r_pen_{b['id']}")
+                                        st.write("##### 🛣️ Tolls & RFID Deductions")
+                                        st.caption("Excess load is non-refundable. Unpaid tolls incur ₱100 fine + load fee.")
+                                        rfid_shortfall = st.number_input("Unpaid Toll Balance / Load Needed (Php)", min_value=0.0, step=50.0, value=0.0, key=f"r_short_{b['id']}")
+                                        rfid_load_fee = st.number_input("Convenience/Load Fee (Php)", min_value=0.0, step=10.0, value=0.0, key=f"r_load_fee_{b['id']}")
+                                        rfid_penalty = st.checkbox("Apply ₱100 fine (Failure to load enough)", key=f"r_pen_{b['id']}")
 
                                     with c2:
                                         st.write("##### Driver/Owner Liabilities & Adjustments")
@@ -1092,13 +1097,20 @@ def main():
                                         if settlement_type == "Self-Drive":
                                             d_ok = st.checkbox("No Damage Found", value=True, key=f"d_{b['id']}")
                                             if not d_ok:
+                                                st.warning("⚠️ **Damage Matrix:** ₱4,000 per panel repainted OR ₱1,500 per panel for Paintless Dent Repair (PDR).")
                                                 img_damage = st.file_uploader("Upload Damage Photos", type=['jpg','png','jpeg'], accept_multiple_files=True, key=f"p_dam_{b['id']}")
                                                 if img_damage:
                                                     d_cols = st.columns(3)
                                                     for idx, dmg_file in enumerate(img_damage):
                                                         with d_cols[idx % 3]:
                                                             st.image(dmg_file, use_container_width=True)
-                                                damage_fee = st.number_input("Estimated Damage Amount (Php)", step=500.0, key=f"d_est_{b['id']}")
+                                                            
+                                                p_repaint = st.number_input("Panels to Repaint (₱4k/each)", min_value=0, step=1, key=f"p_rep_{b['id']}")
+                                                p_pdr = st.number_input("Panels for PDR (₱1.5k/each)", min_value=0, step=1, key=f"p_pdr_{b['id']}")
+                                                custom_damage = st.number_input("Other Damage Fees (Php)", min_value=0.0, step=500.0, key=f"d_est_{b['id']}")
+                                                
+                                                damage_fee = (p_repaint * 4000.0) + (p_pdr * 1500.0) + custom_damage
+                                                st.markdown(f"**Total Damage Assessed:** <span style='color:#DC2626;'>₱{damage_fee:,.2f}</span>", unsafe_allow_html=True)
                                         else:
                                             st.info("🛡️ **With Driver Mode:** The Driver is responsible for the vehicle. Damage liability is waived for the Renter.")
                                         
@@ -1118,7 +1130,7 @@ def main():
 
                                 # Master Calculation
                                 fine_amount = 100.0 if rfid_penalty else 0.0
-                                rfid_fee = max(0.0, rfid_usage - rfid_replenished) + fine_amount
+                                rfid_fee = rfid_shortfall + rfid_load_fee + fine_amount
                                 
                                 total_deduct = late_fee + fuel_cost + cleaning_fee + damage_fee + rfid_fee + driver_extras
                                 refund_amount = max(0, 5000.0 - total_deduct)
