@@ -645,22 +645,22 @@ def main():
                     # 1. PENDING APPROVAL (Host Distance Review Stage)
                     # ------------------------------------------------------------------
                     if b['status'] == 'PENDING_APPROVAL':
-                        with st.container(border=True):
-                            st.markdown(f"### ⏳ Action Required: Distance Review for Ref: {b_ref_display}")
-                            st.write(f"**Vehicle:** {b['make']} {b['model']} ({b['plate']}) | **Renter:** {b['renter_name']}")
-                            
-                            p_fee = float(b.get('delivery_fee', 0.0))
-                            r_fee = float(b.get('return_fee', 0.0))
-                            
-                            st.markdown(f"""
-                            <div style="background-color: #FEF3C7; border: 1px solid #F59E0B; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                                <b>Requested Handover Locations & Logistics:</b><br>
-                                🛫 <b>Pickup Address:</b> {b.get('pickup_loc', 'Parking Base')} (Leg Fee: ₱{p_fee:,.2f})<br>
-                                🛬 <b>Return Address:</b> {b.get('return_loc', 'Parking Base')} (Leg Fee: ₱{r_fee:,.2f})<br>
-                                🛣️ <b>Route/Destination:</b> {b.get('destination', 'N/A')}<br>
-                                💰 <b>Total Amount (Inc. Logistics):</b> ₱{b['amount']:,.2f}
-                            </div>
-                            """, unsafe_allow_html=True)
+                    with st.container(border=True):
+                        st.markdown(f"### ⏳ Action Required: Distance Review for Ref: {b_ref_display}")
+                        st.write(f"**Vehicle:** {b['make']} {b['model']} ({b['plate']}) | **Renter:** {b['renter_name']}")
+                        
+                        p_fee = float(b.get('delivery_fee', 0.0))
+                        r_fee = float(b.get('return_fee', 0.0))
+                        
+                        st.markdown(f"""
+                        <div style="background-color: #FEF3C7; border: 1px solid #F59E0B; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <b>Requested Handover Locations & Logistics:</b><br>
+                            🛫 <b>1st Leg (Pickup):</b> {b.get('pickup_loc', 'N/A')} (Leg Fee: ₱{p_fee:,.2f})<br>
+                            🛬 <b>2nd Leg (Return):</b> {b.get('return_loc', 'N/A')} (Leg Fee: ₱{r_fee:,.2f})<br>
+                            🛣️ <b>Route/Destination:</b> {b.get('destination', 'N/A')}<br>
+                            💰 <b>Total Online Payment (Inc. Logistics):</b> ₱{b['amount']:,.2f}
+                        </div>
+                        """, unsafe_allow_html=True)
                             
                             # Chat for distance negotiation before approval
                             b_ref_str = str(b['booking_ref'])
