@@ -810,7 +810,18 @@ def main():
                     # --- CHAT SYSTEM (For Active Trips & Approvals) ---
                     if b['status'] in ['PENDING_APPROVAL', 'PENDING', 'VERIFYING', 'APPROVED_BY_HOST', 'CONFIRMED', 'ONGOING']:
                         st.divider()
-                        st.markdown(f"#### 💬 Coordinate with Host (Ref: #{b['booking_ref']})")
+                        
+                        c_title, c_call = st.columns([3, 1])
+                        with c_title:
+                            st.markdown(f"#### 💬 Coordinate with Host (Ref: #{b['booking_ref']})")
+                        with c_call:
+                            try:
+                                host_df = pd.read_sql_query("SELECT contact_number FROM platform_users WHERE username=?", conn, params=(b['owner_username'],))
+                                if not host_df.empty and host_df.iloc[0]['contact_number']:
+                                    host_phone = host_df.iloc[0]['contact_number']
+                                    st.markdown(f'<a href="tel:{host_phone}"><button style="width:100%; background-color:#10B981; color:white; border:none; padding:8px 12px; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:2px; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);">📞 Call Host</button></a>', unsafe_allow_html=True)
+                            except: pass
+                            
                         b_ref_str = str(b['booking_ref'])
                         
                         st_autorefresh(interval=10000, key=f"chat_ping_{b_ref_str}")
