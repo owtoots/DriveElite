@@ -476,7 +476,13 @@ def main():
                                                     if stage_key not in st.session_state: 
                                                         st.session_state[stage_key] = 0
                                                     
+                                                    # 1. PULL UNAVAILABLE DATES
                                                     unavailable_dates = get_booked_dates(car['id'], conn)
+                                                    
+                                                    # 2. SHOW UNAVAILABLE DATES IN UI
+                                                    if unavailable_dates:
+                                                        formatted_dates = ", ".join(sorted([d.strftime('%b %d') for d in unavailable_dates]))
+                                                        st.warning(f"📅 **Currently Booked On:** {formatted_dates}")
                                                     
                                                     # --- STAGE 0: SELECT DATES & LOCATIONS ---
                                                     if st.session_state[stage_key] == 0:
@@ -491,20 +497,33 @@ def main():
                                                         destination = st.text_input("Declared Trip Route / Destination", placeholder="e.g., Tagaytay or Subic", key=f"dest_{car['id']}_{cat}_{tab_index}")
                                                         
                                                         if st.button("PROCEED TO SUMMARY", key=f"btn_s0_{car['id']}_{cat}_{tab_index}", use_container_width=True):
-                                                            if not destination.strip():
+                                                            # 3. GENERATE REQUESTED DATE RANGE
+                                                            requested_days = set()
+                                                            delta = d2 - d1
+                                                            for i in range(delta.days + 1):
+                                                                requested_days.add(d1 + timedelta(days=i))
+                                                            
+                                                            # 4. STRICT OVERLAP VALIDATION
+                                                            overlapping = requested_days.intersection(unavailable_dates)
+                                                            
+                                                            if overlapping:
+                                                                st.error("🚨 **Overlapping Schedule Detected!** The vehicle is already booked on your selected dates. Please adjust your schedule or look for an available similar vehicle.")
+                                                            elif not destination.strip():
                                                                 st.error("Please specify your trip route or destination.")
                                                             else:
-                                                                # 🛡️ FIX: Save data to permanent session state to prevent state loss
-                                                                st.session_state[f"saved_d1_{car['id']}"] = d1
-                                                                st.session_state[f"saved_t1_{car['id']}"] = t1
-                                                                st.session_state[f"saved_d2_{car['id']}"] = d2
-                                                                st.session_state[f"saved_t2_{car['id']}"] = t2
-                                                                st.session_state[f"saved_ploc_{car['id']}"] = pickup_loc
-                                                                st.session_state[f"saved_rloc_{car['id']}"] = return_loc
-                                                                st.session_state[f"saved_dest_{car['id']}"] = destination
+                                                                # 🛡️ Save to permanent session state so it survives the re-run
+                                                                st.session_state[f"mem_d1_{car['id']}"] = d1
+                                                                st.session_state[f"mem_t1_{car['id']}"] = t1
+                                                                st.session_state[f"mem_d2_{car['id']}"] = d2
+                                                                st.session_state[f"mem_t2_{car['id']}"] = t2
+                                                                st.session_state[f"mem_ploc_{car['id']}"] = pickup_loc
+                                                                st.session_state[f"mem_rloc_{car['id']}"] = return_loc
+                                                                st.session_state[f"mem_dest_{car['id']}"] = destination
                                                                 
                                                                 st.session_state[stage_key] = 1
                                                                 st.rerun()
+
+                                                    # --- STAGE 1: CONFIRMATION & DISTANCE APPROVAL ---
 
                                                     # --- STAGE 1: CONFIRMATION & DISTANCE APPROVAL ---
                                                     elif st.session_state[stage_key] == 1:
