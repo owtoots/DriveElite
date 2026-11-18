@@ -54,7 +54,7 @@ def main():
         border-radius: 8px !important;
     }
     
-    /* 🚨 MASSIVE MENU ARROW (Matched to Green Theme) */
+    /* MASSIVE MENU ARROW (Matched to Green Theme) */
     [data-testid="collapsedControl"], [data-testid="stSidebarCollapsedControl"] {
         position: fixed !important;  
         display: flex !important;
@@ -93,13 +93,13 @@ def main():
         flex-direction: column !important;
     }
     [data-testid="stSidebarUserContent"] {
-        order: 1 !important; /* Forces Logo to the Top */
+        order: 1 !important; 
         padding-top: 2rem !important;
-        padding-bottom: 1.5rem !important; /* 🚨 Gap below logo */
+        padding-bottom: 1.5rem !important; 
     }
     [data-testid="stSidebarNav"] {
-        order: 2 !important; /* Forces Menu below Logo */
-        padding-top: 1rem !important; /* 🚨 Gap above menu */
+        order: 2 !important; 
+        padding-top: 1rem !important; 
     }
     
     [data-testid="stForm"], .stForm, div[data-testid="stExpander"], div.stMetric {
@@ -110,7 +110,7 @@ def main():
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
     }
     
-    /* 🚨 FRESH GREEN DASHBOARD BUTTONS (SMALLER, NOT BOLD) */
+    /* FRESH GREEN DASHBOARD BUTTONS */
     div.stButton > button, 
     [data-testid="stFormSubmitButton"] > button,
     [data-testid="stPopover"] > button,
@@ -141,7 +141,6 @@ def main():
         -webkit-text-fill-color: #FFFFFF !important;
     }
 
-    /* Ensure the little popover dropdown arrow turns white */
     [data-testid="stPopover"] > button svg,
     div[data-testid="stPopover"] > button svg {
         fill: #FFFFFF !important;
@@ -176,7 +175,6 @@ def main():
         city_clean = city.strip().title()
         province_clean = province.strip().title()
         
-        # Simple automatic island group/region mapping based on province
         visayas_provinces = ["Cebu", "Negros Occidental", "Iloilo", "Bohol", "Leyte", "Negros Oriental", "Capiz", "Aklan"]
         mindanao_provinces = ["Davao Del Sur", "Cagayan De Oro", "Misamis Oriental", "Zamboanga Del Sur", "South Cotabato", "Agusan Del Norte"]
         
@@ -185,9 +183,8 @@ def main():
         elif any(p.lower() in province_clean.lower() for p in mindanao_provinces):
             region = "Mindanao"
         else:
-            region = "Luzon" # Default fallback for Metro Manila, Cavite, Laguna, Pampanga, etc.
+            region = "Luzon" 
 
-        # Insert into city expansion registry if it doesn't exist yet
         try:
             conn.execute("""
                 INSERT OR IGNORE INTO platform_cities (region, province, city, status) 
@@ -623,7 +620,7 @@ def main():
     except Exception: pass 
 
     # ==========================================
-    # 6. TABS (Added PROFILE & BANK Tab)
+    # 6. TABS
     # ==========================================
     tabs = st.tabs(["BOOKINGS & HANDOVER", "MY ASSETS", "ADD ASSET", "ADD DRIVER", "PROFILE & BANK", "REVIEWS"])
 
@@ -642,17 +639,16 @@ def main():
                     vehicle_info = f"{str(b['pickup_time'])[:16]} | {b['make']} {b['model']} ({b['plate']})"
                     
                     # ------------------------------------------------------------------
-                    # ------------------------------------------------------------------
                     # 1. PENDING APPROVAL (Host Distance Review Stage)
                     # ------------------------------------------------------------------
                     if b['status'] == 'PENDING_APPROVAL':
                         with st.container(border=True):
                             st.markdown(f"### ⏳ Action Required: Distance Review for Ref: {b_ref_display}")
                             st.write(f"**Vehicle:** {b['make']} {b['model']} ({b['plate']}) | **Renter:** {b['renter_name']}")
-                                                        
+                                                                        
                             p_fee = float(b.get('delivery_fee', 0.0))
                             r_fee = float(b.get('return_fee', 0.0))
-                                                        
+                                                                        
                             st.markdown(f"""
                             <div style="background-color: #FEF3C7; border: 1px solid #F59E0B; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                                 <b>Requested Handover Locations & Logistics:</b><br>
@@ -697,7 +693,6 @@ def main():
                                             if b['renter_email']:
                                                 send_alert_email(b['renter_email'], f"💬 DriveElite: Message from Host regarding #{b_ref_str}", f"Hello {b['renter_name']},\n\nYour host sent a message regarding booking #{b_ref_str}:\n\n\"{chat_txt.strip()}\"\n\nLog in to your renter portal to reply.")
                                         except: pass
-
                                         st.session_state[input_key_app] = ""
                                         st.rerun()
 
@@ -719,7 +714,7 @@ def main():
                     # ------------------------------------------------------------------
                     # 2. PENDING / VERIFYING / APPROVED_BY_HOST (Awaiting Payment / Verification)
                     # ------------------------------------------------------------------
-                    elif b['status'] in ['PENDING_APPROVAL', 'PENDING', 'VERIFYING', 'APPROVED_BY_HOST']:
+                    elif b['status'] in ['PENDING', 'VERIFYING', 'APPROVED_BY_HOST']:
                         with st.container(border=True):
                             c_icon, c_info = st.columns([1, 15])
                             with c_icon: st.markdown("<h2>⏳</h2>", unsafe_allow_html=True)
@@ -730,18 +725,18 @@ def main():
                                 elif b['status'] == 'PENDING':
                                     st.warning("🔒 **AWAITING RENTER PAYMENT.** Renter reserved dates but hasn't uploaded a receipt yet.")
                                 elif b['status'] == 'VERIFYING':
-                                    st.info("🔒 **VERIFYING RECEIPT.** Renter uploaded proof of payment. Waiting for Admin to confirm funds.")
+                                    with st.container(border=True):
+                                        st.markdown(f"### 🛡️ Payment Verification in Progress (Ref: {b_ref_display})")
+                                        st.write(f"**Vehicle:** {b['make']} {b['model']} | **Renter:** {b['renter_name']}")
+                                        st.info("⏳ The renter has submitted their payment receipt. The platform Admin is currently verifying the funds. **You do not need to do anything yet.** You will be notified to prepare for handover once the Admin secures the payment and changes this booking to CONFIRMED.")
 
                     # ------------------------------------------------------------------
                     # 3. CONFIRMED / ONGOING (Handover & Active Trip Stages)
                     # ------------------------------------------------------------------
-                    else:
-                        if b['status'] == 'CONFIRMED':
-                            exp_title = f"✅ [CONFIRMED & PAID] Ref: {b_ref_display} | {vehicle_info}"
-                        else:
-                            exp_title = f"🚙 [ONGOING] Ref: {b_ref_display} | {vehicle_info}"
+                    elif b['status'] in ['CONFIRMED', 'ONGOING']:
+                        exp_title = f"🚙 [{b['status']}] Ref: {b_ref_display} | {vehicle_info}"
                             
-                        with st.expander(exp_title):
+                        with st.expander(exp_title, expanded=True):
                             if b['status'] == 'CONFIRMED':
                                 st.success("✅ **PAYMENT VERIFIED BY ADMIN.** Funds are secured. You may now proceed with the official digital handover.")
                     
@@ -806,6 +801,7 @@ def main():
                                     
                             st.divider()
 
+                            # --- CHAT INTERFACE ---
                             b_ref_str = str(b['booking_ref'])
                             st_autorefresh(interval=10000, key=f"chat_ping_affiliate_{b_ref_str}")
                             
@@ -903,6 +899,7 @@ def main():
                                         
                             st.divider()
 
+                            # --- WORKFLOW: HANDOVER VS SETTLEMENT ---
                             if b['status'] == 'CONFIRMED':
                                 st.info(" ℹ️ **ACTION REQUIRED:** Complete the Digital Handover with the Renter present.")
                                 with st.expander("📋 Official Handover & Photo Evidence", expanded=True):
@@ -1134,7 +1131,7 @@ def main():
                                     background_color="#FFFFFF", 
                                     height=140, 
                                     width=350, 
-                                    key=f"sret_canvas_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']} "
+                                    key=f"sret_canvas_{b['id']}_{st.session_state[f'clr_sret_{b['id']}']}"
                                 )
                                 if st.button("Clear Renter Pad", use_container_width=True, key=f"btn_clr_sret_{b['id']}"): 
                                     st.session_state[f"clr_sret_{b['id']}"] += 1
@@ -1253,7 +1250,7 @@ def main():
             loc_col1, loc_col2, loc_col3 = st.columns(3)
             garage_brgy = loc_col1.text_input("Barangay", placeholder="e.g., Kapitolyo")
             garage_city = loc_col2.text_input("City / Municipality", placeholder="e.g., Pasig City")
-            garage_prov = loc_col3.text_input("Province / Metro Area", placeholder="e.g., Metro Manila or Cebu") # 👈 Added Province input
+            garage_prov = loc_col3.text_input("Province / Metro Area", placeholder="e.g., Metro Manila or Cebu") 
 
             st.write("#### ⚙️ Operational Specs")
             c5, c6, c7, c8 = st.columns(4)
@@ -1303,7 +1300,7 @@ def main():
                           car_img_path, or_path, cr_path, ins_path, cat, 
                           FIXED_RATES.get(cat, 0), new_ref_no, is_with_driver, tp, pf, combined_location))
                     
-                    # 2. 🌍 TRIGGER AUTO-DISCOVERY HOOK FOR ADMIN EXPANSION RADAR
+                    # 2. TRIGGER AUTO-DISCOVERY HOOK FOR ADMIN EXPANSION RADAR
                     auto_register_city_hook(conn, garage_prov, garage_city)
                     
                     conn.commit()
