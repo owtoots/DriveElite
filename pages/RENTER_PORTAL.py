@@ -786,7 +786,8 @@ def main():
                             if pd.notna(dynamic_pay_url) and dynamic_pay_url:
                                 st.link_button("👉 PROCEED TO XENDIT SECURE CHECKOUT", dynamic_pay_url, type="primary", use_container_width=True)
                             else:
-                                st.button("👉 XENDIT CHECKOUT (DISABLED IN TEST MODE)", disabled=True, use_container_width=True)
+                                # 🛡️ ADDED UNIQUE KEY TO PREVENT CRASH IN LOOP
+                                st.button("👉 XENDIT CHECKOUT (DISABLED IN TEST MODE)", disabled=True, use_container_width=True, key=f"disabled_xen_{b['id']}")
                                 
                             st.warning("⚠️ **TESTING MODE:** Please bypass the gateway and directly upload a dummy receipt screenshot below to continue testing the Admin verification workflow.")
                         else:
