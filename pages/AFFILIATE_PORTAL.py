@@ -648,10 +648,15 @@ def main():
                                                                         
                             p_fee = float(b.get('delivery_fee', 0.0))
                             r_fee = float(b.get('return_fee', 0.0))
+                            
+                            # Safely format dates for display
+                            p_time_str = str(b.get('pickup_time'))[:16]
+                            r_time_str = str(b.get('return_time'))[:16]
                                                                         
                             st.markdown(f"""
                             <div style="background-color: #FEF3C7; border: 1px solid #F59E0B; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                                 <b>Requested Handover Locations & Logistics:</b><br>
+                                📅 <b>Schedule:</b> {p_time_str} to {r_time_str}<br>
                                 🛫 <b>1st Leg (Pickup):</b> {b.get('pickup_loc', 'N/A')} (Leg Fee: ₱{p_fee:,.2f})<br>
                                 🛬 <b>2nd Leg (Return):</b> {b.get('return_loc', 'N/A')} (Leg Fee: ₱{r_fee:,.2f})<br>
                                 🛣️ <b>Route/Destination:</b> {b.get('destination', 'N/A')}<br>
