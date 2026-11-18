@@ -458,17 +458,17 @@ def main():
                                                                 st.session_state[stage_key] = 1
                                                                 st.rerun()
 
-                                                   # --- STAGE 1: CONFIRMATION & DISTANCE APPROVAL ---
-                                                elif st.session_state[stage_key] == 1:
-                                                    s_d1 = st.session_state.get(f"d1_{car['id']}_{cat}_{tab_index}", datetime.date.today())
-                                                    s_t1 = st.session_state.get(f"t1_{car['id']}_{cat}_{tab_index}", datetime.time(9,0))
-                                                    s_d2 = st.session_state.get(f"d2_{car['id']}_{cat}_{tab_index}", s_d1)
-                                                    s_t2 = st.session_state.get(f"t2_{car['id']}_{cat}_{tab_index}", datetime.time(9,0))
-                                                    dest_val = st.session_state.get(f"dest_{car['id']}_{cat}_{tab_index}", "Not Specified")
-                                                    
-                                                    pickup_dt = datetime.datetime.combine(s_d1, s_t1)
-                                                    return_dt = datetime.datetime.combine(s_d2, s_t2)
-                                                    days_calc = max(1, (return_dt - pickup_dt).days)
+                                                    # --- STAGE 1: CONFIRMATION & DISTANCE APPROVAL ---
+                                                    elif st.session_state[stage_key] == 1:
+                                                        s_d1 = st.session_state.get(f"d1_{car['id']}_{cat}_{tab_index}", datetime.date.today())
+                                                        s_t1 = st.session_state.get(f"t1_{car['id']}_{cat}_{tab_index}", datetime.time(9,0))
+                                                        s_d2 = st.session_state.get(f"d2_{car['id']}_{cat}_{tab_index}", s_d1)
+                                                        s_t2 = st.session_state.get(f"t2_{car['id']}_{cat}_{tab_index}", datetime.time(9,0))
+                                                        dest_val = st.session_state.get(f"dest_{car['id']}_{cat}_{tab_index}", "Not Specified")
+                                                        
+                                                        pickup_dt = datetime.datetime.combine(s_d1, s_t1)
+                                                        return_dt = datetime.datetime.combine(s_d2, s_t2)
+                                                        days_calc = max(1, (return_dt - pickup_dt).days)
                                                     
                                                     gross_rental = base_rate * days_calc
                                                     discount_pct = 0.0
