@@ -459,143 +459,136 @@ def main():
                                                                 st.rerun()
 
                                                    # --- STAGE 1: CONFIRMATION & DISTANCE APPROVAL ---
-                                                    elif st.session_state[stage_key] == 1:
-                                                        s_d1 = st.session_state.get(f"d1_{car['id']}_{cat}_{tab_index}", datetime.date.today())
-                                                        s_t1 = st.session_state.get(f"t1_{car['id']}_{cat}_{tab_index}", datetime.time(9,0))
-                                                        s_d2 = st.session_state.get(f"d2_{car['id']}_{cat}_{tab_index}", s_d1)
-                                                        s_t2 = st.session_state.get(f"t2_{car['id']}_{cat}_{tab_index}", datetime.time(9,0))
-                                                        dest_val = st.session_state.get(f"dest_{car['id']}_{cat}_{tab_index}", "Not Specified")
-                                                        
-                                                        pickup_dt = datetime.datetime.combine(s_d1, s_t1)
-                                                        return_dt = datetime.datetime.combine(s_d2, s_t2)
-                                                        days_calc = max(1, (return_dt - pickup_dt).days)
-                                                        
-                                                        gross_rental = base_rate * days_calc
+                                                elif st.session_state[stage_key] == 1:
+                                                    s_d1 = st.session_state.get(f"d1_{car['id']}_{cat}_{tab_index}", datetime.date.today())
+                                                    s_t1 = st.session_state.get(f"t1_{car['id']}_{cat}_{tab_index}", datetime.time(9,0))
+                                                    s_d2 = st.session_state.get(f"d2_{car['id']}_{cat}_{tab_index}", s_d1)
+                                                    s_t2 = st.session_state.get(f"t2_{car['id']}_{cat}_{tab_index}", datetime.time(9,0))
+                                                    dest_val = st.session_state.get(f"dest_{car['id']}_{cat}_{tab_index}", "Not Specified")
+                                                    
+                                                    pickup_dt = datetime.datetime.combine(s_d1, s_t1)
+                                                    return_dt = datetime.datetime.combine(s_d2, s_t2)
+                                                    days_calc = max(1, (return_dt - pickup_dt).days)
+                                                    
+                                                    gross_rental = base_rate * days_calc
+                                                    discount_pct = 0.0
+                                                    
+                                                    # --- DYNAMIC ADMIN DISCOUNT TIERS ---
+                                                    try:
+                                                        disc_row = conn.execute("SELECT discount_pct FROM discount_tiers WHERE min_days <= ? ORDER BY min_days DESC LIMIT 1", (days_calc,)).fetchone()
+                                                        if disc_row:
+                                                            raw_disc = float(disc_row[0])
+                                                            discount_pct = raw_disc / 100.0 if raw_disc > 1.0 else raw_disc
+                                                    except Exception:
                                                         discount_pct = 0.0
+                                                            
+                                                    discount_amount = gross_rental * discount_pct
+                                                    net_rental = gross_rental - discount_amount
+                                                    
+                                                    # --- CAPTURE ACTUAL LOCATIONS ---
+                                                    pickup_address = st.session_state.get(f"ploc_{car['id']}_{cat}_{tab_index}", parking_location)
+                                                    return_address = st.session_state.get(f"rloc_{car['id']}_{cat}_{tab_index}", parking_location)
+                                                    
+                                                    # --- STRICT DELIVERY LEG CALCULATION ---
+                                                    def get_leg_fee(addr, base_location):
+                                                        if not addr or not base_location:
+                                                            return 0.0
                                                         
-                                                        # --- 1. DYNAMIC ADMIN DISCOUNT TIERS ---
+                                                        clean_addr = addr.strip().lower()
+                                                        clean_base = base_location.strip().lower()
+                                                        
+                                                        # Only free if it precisely matches the garage base string
+                                                        if clean_addr == clean_base:
+                                                            return 0.0
+                                                            
+                                                        # Otherwise, pull standard delivery fee from database tiers (defaulting to 350 per leg)
                                                         try:
-                                                            disc_row = conn.execute("SELECT discount_pct FROM discount_tiers WHERE min_days <= ? ORDER BY min_days DESC LIMIT 1", (days_calc,)).fetchone()
-                                                            if disc_row:
-                                                                raw_disc = float(disc_row[0])
-                                                                # Handles both decimal (0.10) and percentage (10.0) formats stored in DB
-                                                                discount_pct = raw_disc / 100.0 if raw_disc > 1.0 else raw_disc
-                                                        except Exception:
-                                                            discount_pct = 0.0
-                                                                
-                                                        discount_amount = gross_rental * discount_pct
-                                                        net_rental = gross_rental - discount_amount
-                                                        
-                                                        # --- 2. CAPTURE ACTUAL LOCATIONS ---
-                                                        pickup_address = st.session_state.get(f"ploc_{car['id']}_{cat}_{tab_index}", parking_location)
-                                                        return_address = st.session_state.get(f"rloc_{car['id']}_{cat}_{tab_index}", parking_location)
-                                                        
-                                                        # --- 3. PROPER DYNAMIC DELIVERY LEG CALCULATIONS ---
-                                                        def get_leg_fee(addr, base_location):
-                                                            if not addr or not base_location:
-                                                                return 350.0
-                                                            
-                                                            clean_addr = addr.strip().lower()
-                                                            clean_base = base_location.strip().lower()
-                                                            
-                                                            # If it's the exact same garage base, fee is 0
-                                                            if clean_addr == clean_base or clean_addr in clean_base or clean_base in clean_addr:
-                                                                return 0.0
-                                                                
-                                                            # If different, check if admin delivery tiers exist in DB
-                                                            try:
-                                                                # Pull standard delivery fee tier or compute based on standard drop-off rate
-                                                                tier_rows = conn.execute("SELECT max_km, fee FROM delivery_tiers ORDER BY max_km ASC").fetchall()
-                                                                if tier_rows:
-                                                                    # Default to a standard inter-city delivery fee if tiers are configured
-                                                                    return float(tier_rows[-1][1]) if len(tier_rows) > 1 else float(tier_rows[0][1])
-                                                            except:
-                                                                pass
-                                                                
-                                                            # Fallback standard inter-city delivery fee (e.g., Taguig/Pasay to Pasig)
-                                                            return 450.0
+                                                            tier_row = conn.execute("SELECT fee FROM delivery_tiers ORDER BY max_km ASC LIMIT 1").fetchone()
+                                                            return float(tier_row[0]) if tier_row else 350.0
+                                                        except:
+                                                            return 350.0
 
-                                                        pickup_leg_fee = get_leg_fee(pickup_address, parking_location)
-                                                        return_leg_fee = get_leg_fee(return_address, parking_location)
-                                                        total_delivery_fee = pickup_leg_fee + return_leg_fee
-                                                        total_online_bill = net_rental + total_delivery_fee
+                                                    pickup_leg_fee = get_leg_fee(pickup_address, parking_location)
+                                                    return_leg_fee = get_leg_fee(return_address, parking_location)
+                                                    total_delivery_fee = pickup_leg_fee + return_leg_fee
+                                                    total_online_bill = net_rental + total_delivery_fee
+                                                    
+                                                    # --- HTML EXCEL-STYLE TRIP LEDGER ---
+                                                    st.write(f"### 📋 Trip Ledger: {car['make']} {car['model']}")
+                                                    st.caption(f"📍 **Pickup:** {pickup_address} | 🛬 **Return:** {return_address}")
+                                                    
+                                                    ledger_html = f"""
+                                                    <div style="overflow-x: auto; margin-bottom: 20px;">
+                                                        <table style="width: 100%; border-collapse: collapse; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; background-color: #FFFFFF; border: 1px solid #CBD5E1;">
+                                                            <thead>
+                                                                <tr style="background-color: #F1F5F9; color: #1E293B; border-bottom: 2px solid #CBD5E1;">
+                                                                    <th style="padding: 10px 14px; text-align: left; font-weight: 700; border-right: 1px solid #CBD5E1;">Cost Breakdown Item</th>
+                                                                    <th style="padding: 10px 14px; text-align: right; font-weight: 700;">Amount (₱)</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <tr style="border-bottom: 1px solid #E2E8F0;">
+                                                                    <td style="padding: 9px 14px; color: #334155; border-right: 1px solid #E2E8F0;"><b>Base Rental</b> (₱{base_rate:,.2f} × {days_calc} days)</td>
+                                                                    <td style="padding: 9px 14px; text-align: right; color: #334155;">₱{gross_rental:,.2f}</td>
+                                                                </tr>
+                                                                <tr style="border-bottom: 1px solid #E2E8F0;">
+                                                                    <td style="padding: 9px 14px; color: #334155; border-right: 1px solid #E2E8F0;"><b>Multi-Day Discount</b> ({discount_pct*100:.0f}%)</td>
+                                                                    <td style="padding: 9px 14px; text-align: right; color: #16A34A;">- ₱{discount_amount:,.2f}</td>
+                                                                </tr>
+                                                                <tr style="border-bottom: 1px solid #E2E8F0;">
+                                                                    <td style="padding: 9px 14px; color: #334155; border-right: 1px solid #E2E8F0;"><b>1st Leg (Pickup):</b> {pickup_address}</td>
+                                                                    <td style="padding: 9px 14px; text-align: right; color: #334155;">₱{pickup_leg_fee:,.2f}</td>
+                                                                </tr>
+                                                                <tr style="border-bottom: 1px solid #E2E8F0;">
+                                                                    <td style="padding: 9px 14px; color: #334155; border-right: 1px solid #E2E8F0;"><b>2nd Leg (Return):</b> {return_address}</td>
+                                                                    <td style="padding: 9px 14px; text-align: right; color: #334155;">₱{return_leg_fee:,.2f}</td>
+                                                                </tr>
+                                                                <tr style="background-color: #F8FAFC; border-top: 2px solid #CBD5E1;">
+                                                                    <td style="padding: 11px 14px; color: #0F172A; font-weight: 800; border-right: 1px solid #CBD5E1;">TOTAL ONLINE PAYMENT DUE</td>
+                                                                    <td style="padding: 11px 14px; text-align: right; color: #2563EB; font-weight: 800; font-size: 15px;">₱{total_online_bill:,.2f}</td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                    """
+                                                    st.markdown(ledger_html, unsafe_allow_html=True)
+                                                    
+                                                    st.info("💵 **Security Deposit:** A refundable **₱5,000 cash deposit** is required, but it is **not** included in this online bill. It is paid directly in cash to the car host upon physical vehicle handover.")
+                                                    
+                                                    st.error(
+                                                        "**🚨 STRICT PLATFORM RULES:**\n"
+                                                        "- **No RoRo or Inter-island travel allowed.** Vehicles must remain strictly on the mainland.\n"
+                                                        "- **RFID is required** if passing through Metro Manila or provincial tollways.\n"
+                                                        "- The **₱5,000 security deposit** is mandatory. If your delivery locations change, incremental logistics fees will be deducted from this deposit."
+                                                    )
+                                                    
+                                                    if st.button("AGREE & SUBMIT FOR HOST DISTANCE APPROVAL", key=f"btn_s1_{car['id']}_{cat}_{tab_index}", type="primary", use_container_width=True):
+                                                        booking_ref = str(random.randint(100000, 999999))
                                                         
-                                                        # --- HTML EXCEL-STYLE TRIP LEDGER ---
-                                                        st.write(f"### 📋 Trip Ledger: {car['make']} {car['model']}")
-                                                        st.caption(f"📍 **Pickup:** {pickup_address} | 🛬 **Return:** {return_address}")
+                                                        conn.execute("""
+                                                            INSERT INTO bookings (
+                                                                booking_ref, vehicle_id, renter_username, pickup_time, return_time,
+                                                                pickup_loc, return_loc, destination, delivery_fee, return_fee, amount, status
+                                                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL')
+                                                        """, (
+                                                            booking_ref, 
+                                                            car['id'], 
+                                                            st.session_state.username, 
+                                                            str(pickup_dt), 
+                                                            str(return_dt), 
+                                                            pickup_address, 
+                                                            return_address, 
+                                                            dest_val, 
+                                                            pickup_leg_fee, 
+                                                            return_leg_fee, 
+                                                            total_online_bill
+                                                        ))
+                                                        conn.commit()
                                                         
-                                                        ledger_html = f"""
-                                                        <div style="overflow-x: auto; margin-bottom: 20px;">
-                                                            <table style="width: 100%; border-collapse: collapse; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; background-color: #FFFFFF; border: 1px solid #CBD5E1;">
-                                                                <thead>
-                                                                    <tr style="background-color: #F1F5F9; color: #1E293B; border-bottom: 2px solid #CBD5E1;">
-                                                                        <th style="padding: 10px 14px; text-align: left; font-weight: 700; border-right: 1px solid #CBD5E1;">Cost Breakdown Item</th>
-                                                                        <th style="padding: 10px 14px; text-align: right; font-weight: 700;">Amount (₱)</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    <tr style="border-bottom: 1px solid #E2E8F0;">
-                                                                        <td style="padding: 9px 14px; color: #334155; border-right: 1px solid #E2E8F0;"><b>Base Rental</b> (₱{base_rate:,.2f} × {days_calc} days)</td>
-                                                                        <td style="padding: 9px 14px; text-align: right; color: #334155;">₱{gross_rental:,.2f}</td>
-                                                                    </tr>
-                                                                    <tr style="border-bottom: 1px solid #E2E8F0;">
-                                                                        <td style="padding: 9px 14px; color: #334155; border-right: 1px solid #E2E8F0;"><b>Multi-Day Discount</b> ({discount_pct*100:.0f}%)</td>
-                                                                        <td style="padding: 9px 14px; text-align: right; color: #16A34A;">- ₱{discount_amount:,.2f}</td>
-                                                                    </tr>
-                                                                    <tr style="border-bottom: 1px solid #E2E8F0;">
-                                                                        <td style="padding: 9px 14px; color: #334155; border-right: 1px solid #E2E8F0;"><b>1st Leg (Pickup):</b> {pickup_address}</td>
-                                                                        <td style="padding: 9px 14px; text-align: right; color: #334155;">₱{pickup_leg_fee:,.2f}</td>
-                                                                    </tr>
-                                                                    <tr style="border-bottom: 1px solid #E2E8F0;">
-                                                                        <td style="padding: 9px 14px; color: #334155; border-right: 1px solid #E2E8F0;"><b>2nd Leg (Return):</b> {return_address}</td>
-                                                                        <td style="padding: 9px 14px; text-align: right; color: #334155;">₱{return_leg_fee:,.2f}</td>
-                                                                    </tr>
-                                                                    <tr style="background-color: #F8FAFC; border-top: 2px solid #CBD5E1;">
-                                                                        <td style="padding: 11px 14px; color: #0F172A; font-weight: 800; border-right: 1px solid #CBD5E1;">TOTAL ONLINE PAYMENT DUE</td>
-                                                                        <td style="padding: 11px 14px; text-align: right; color: #2563EB; font-weight: 800; font-size: 15px;">₱{total_online_bill:,.2f}</td>
-                                                                    </tr>
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                        """
-                                                        st.markdown(ledger_html, unsafe_allow_html=True)
-                                                        
-                                                        st.info("💵 **Security Deposit:** A refundable **₱5,000 cash deposit** is required, but it is **not** included in this online bill. It is paid directly in cash to the car host upon physical vehicle handover.")
-                                                        
-                                                        st.error(
-                                                            "**🚨 STRICT PLATFORM RULES:**\n"
-                                                            "- **No RoRo or Inter-island travel allowed.** Vehicles must remain strictly on the mainland.\n"
-                                                            "- **RFID is required** if passing through Metro Manila or provincial tollways.\n"
-                                                            "- The **₱5,000 security deposit** is mandatory. If your delivery locations change, incremental logistics fees will be deducted from this deposit."
-                                                        )
-                                                        
-                                                        if st.button("AGREE & SUBMIT FOR HOST DISTANCE APPROVAL", key=f"btn_s1_{car['id']}_{cat}_{tab_index}", type="primary", use_container_width=True):
-                                                            booking_ref = str(random.randint(100000, 999999))
-                                                            
-                                                            conn.execute("""
-                                                                INSERT INTO bookings (
-                                                                    booking_ref, vehicle_id, renter_username, pickup_time, return_time,
-                                                                    pickup_loc, return_loc, destination, delivery_fee, return_fee, amount, status
-                                                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL')
-                                                            """, (
-                                                                booking_ref, 
-                                                                car['id'], 
-                                                                st.session_state.username, 
-                                                                str(pickup_dt), 
-                                                                str(return_dt), 
-                                                                pickup_address, 
-                                                                return_address, 
-                                                                dest_val, 
-                                                                pickup_leg_fee, 
-                                                                return_leg_fee, 
-                                                                total_online_bill
-                                                            ))
-                                                            conn.commit()
-                                                            
-                                                            st.success(f"Booking request submitted! Ref #{booking_ref}. Awaiting host distance review.")
-                                                            st.session_state[stage_key] = 0
-                                                            time.sleep(1.5)
-                                                            st.rerun()
+                                                        st.success(f"Booking request submitted! Ref #{booking_ref}. Awaiting host distance review.")
+                                                        st.session_state[stage_key] = 0
+                                                        time.sleep(1.5)
+                                                        st.rerun()
 
                                                     # --- STAGE 2: DYNAMIC GATEWAY (XENDIT OR MANUAL_QR) ---
                                                     elif st.session_state[stage_key] == 2:
