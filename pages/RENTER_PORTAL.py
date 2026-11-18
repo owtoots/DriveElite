@@ -753,13 +753,13 @@ def main():
                         st.write(f"**Total Amount Due:** :green[**₱{owed_amount:,.2f}**]")
                         
                         # 🚨 DYNAMIC CHECK: Matches Admin settings
-                    if gateway_mode == "XENDIT":
-                        st.info("Xendit Secure Gateway Active.")
-                        st.link_button("👉 PROCEED TO XENDIT SECURE CHECKOUT", "https://checkout.xendit.co/web/", type="primary", use_container_width=True)
-                        st.warning("⚠️ **IMPORTANT:** After paying via Xendit, you MUST screenshot your success page and upload it below. The vehicle host will not be notified to prepare your car until the platform Admin verifies your receipt.")
-                    else:
-                        with st.container(border=True):
-                            st.markdown("#### 🏦 Manual Bank Transfer")
+                        if gateway_mode == "XENDIT":
+                            st.info("Xendit Secure Gateway Active.")
+                            st.link_button("👉 PROCEED TO XENDIT SECURE CHECKOUT", "https://checkout.xendit.co/web/", type="primary", use_container_width=True)
+                            st.warning("⚠️ **IMPORTANT:** After paying via Xendit, you MUST screenshot your success page and upload it below. The vehicle host will not be notified to prepare your car until the platform Admin verifies your receipt.")
+                        else:
+                            with st.container(border=True):
+                                st.markdown("#### 🏦 Manual Bank Transfer")
                                 st.write("**Bank:** BPI")
                                 st.write("**Account Name:** Romeo Albao Jr.")
                                 st.write("**Account Number:** 0180 0206 08")
@@ -773,24 +773,22 @@ def main():
                         st.write("#### 📤 Upload Proof of Payment (Showing Reference No.)")
                         receipt_file = st.file_uploader("Upload Receipt", type=['jpg', 'png', 'jpeg'], key=f"my_rec_{b['id']}")
                         
-                        if st.button("AGREE & SUBMIT FOR HOST DISTANCE APPROVAL", key=f"btn_s1_{car['id']}_{cat}_{tab_index}", type="primary", use_container_width=True):
-                            booking_ref = str(random.randint(100000, 999999))
-                            
-                            conn.execute("""
-                                INSERT INTO bookings (
-                                    booking_ref, vehicle_id, renter_username, pickup_time, return_time,
-                                    pickup_loc, return_loc, destination, delivery_fee, return_fee, amount, status
-                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL')
-                            """, (booking_ref, car['id'], st.session_state.username, str(pickup_dt), str(return_dt), 
-                                  pickup_address, return_address, dest_val, pickup_leg_fee, return_leg_fee, total_online_bill))
-                            conn.commit()
-                            
-                            st.success(f"Booking request submitted! Ref #{booking_ref}. Awaiting host distance review.")
-                            st.session_state[stage_key] = 0
-                            time.sleep(1.5)
-                            st.rerun()
-                        else:
-                            st.error("Please upload a screenshot of your payment receipt.")
+                        if st.button("SUBMIT PAYMENT RECEIPT TO ADMIN", type="primary", use_container_width=True, key=f"my_val_{b['id']}"):
+                            if receipt_file:
+                                receipt_bytes = receipt_file.read()
+                                conn.execute("UPDATE bookings SET receipt_img = ?, status = 'VERIFYING' WHERE id = ?", (receipt_bytes, b['id']))
+                                receipt_path = f"/data/uploads/chat_images/receipt_{b['booking_ref']}.jpg"
+                                with open(receipt_path, "wb") as f: 
+                                    f.write(receipt_bytes)
+                                
+                                conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)", 
+                                             (str(b['booking_ref']), renter_user, b['owner_username'], "Payment Receipt Uploaded for Admin Verification.", receipt_path))
+                                conn.commit()
+                                st.success("✅ Receipt submitted! Status updated to VERIFYING. Waiting for Admin confirmation.")
+                                time.sleep(1.5)
+                                st.rerun()
+                            else:
+                                st.error("Please upload a screenshot of your payment receipt.")
 
                     # --- CHAT SYSTEM (For Active Trips & Approvals) ---
                     if b['status'] in ['PENDING_APPROVAL', 'PENDING', 'VERIFYING', 'APPROVED_BY_HOST', 'CONFIRMED', 'ONGOING']:
