@@ -528,11 +528,11 @@ def main():
                                                         return_address = st.session_state.get(f"rloc_{car['id']}_{cat}_{tab_index}", parking_location)
                                                         
                                                         # --- API ROUTING DELIVERY LEG CALCULATION ---
-                                                    def get_leg_fee(addr, base_location):
-                                                        if not addr: return 0.0
+                                                        def get_leg_fee(addr, base_location):
+                                                            if not addr: return 0.0
                                                         
-                                                        clean_addr = addr.strip().lower()
-                                                        clean_base = (base_location or "").strip().lower()
+                                                            clean_addr = addr.strip().lower()
+                                                            clean_base = (base_location or "").strip().lower()
                                                         
                                                         # 1. FAST SHORTCUT: If strings overlap, assume 0 distance
                                                         if clean_base and (clean_addr == clean_base or clean_base in clean_addr or clean_addr in clean_base):
@@ -764,12 +764,13 @@ def main():
                         st.write(f"**Total Amount Due:** :green[**₱{owed_amount:,.2f}**]")
                         
                         # 🚨 DYNAMIC CHECK: Matches Admin settings
-                        if gateway_mode == "XENDIT":
-                            st.info("Xendit Secure Gateway Active.")
-                            st.link_button("👉 PROCEED TO XENDIT SECURE CHECKOUT", "https://checkout.xendit.co/web/", type="primary", use_container_width=True)
-                        else:
-                            with st.container(border=True):
-                                st.markdown("#### 🏦 Manual Bank Transfer")
+                    if gateway_mode == "XENDIT":
+                        st.info("Xendit Secure Gateway Active.")
+                        st.link_button("👉 PROCEED TO XENDIT SECURE CHECKOUT", "https://checkout.xendit.co/web/", type="primary", use_container_width=True)
+                        st.warning("⚠️ **IMPORTANT:** After paying via Xendit, you MUST screenshot your success page and upload it below. The vehicle host will not be notified to prepare your car until the platform Admin verifies your receipt.")
+                    else:
+                        with st.container(border=True):
+                            st.markdown("#### 🏦 Manual Bank Transfer")
                                 st.write("**Bank:** BPI")
                                 st.write("**Account Name:** Romeo Albao Jr.")
                                 st.write("**Account Number:** 0180 0206 08")
