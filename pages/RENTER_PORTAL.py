@@ -473,22 +473,36 @@ def main():
                                                         gross_rental = base_rate * days_calc
                                                         discount_pct = 0.0
                                                         
-                                                        if days_calc > 1:
-                                                            try:
-                                                                disc_row = conn.execute("SELECT discount_pct FROM discount_tiers WHERE min_days <= ? ORDER BY min_days DESC LIMIT 1", (days_calc,)).fetchone()
-                                                                if disc_row:
-                                                                    discount_pct = float(disc_row[0]) / 100.0 if float(disc_row[0]) > 1 else float(disc_row[0])
-                                                            except:
-                                                                if days_calc >= 10: discount_pct = 0.10
+                                                        # --- 1. DYNAMIC ADMIN DISCOUNT TIERS ---
+                                                        try:
+                                                            disc_row = conn.execute("SELECT discount_pct FROM discount_tiers WHERE min_days <= ? ORDER BY min_days DESC LIMIT 1", (days_calc,)).fetchone()
+                                                            if disc_row:
+                                                                raw_disc = float(disc_row[0])
+                                                                # Handles both decimal (0.10) and percentage (10.0) formats stored in DB
+                                                                discount_pct = raw_disc / 100.0 if raw_disc > 1.0 else raw_disc
+                                                        except Exception:
+                                                            discount_pct = 0.0
                                                                 
                                                         discount_amount = gross_rental * discount_pct
                                                         net_rental = gross_rental - discount_amount
                                                         
+                                                        # --- 2. CAPTURE ACTUAL LOCATIONS ---
                                                         pickup_address = st.session_state.get(f"ploc_{car['id']}_{cat}_{tab_index}", parking_location)
                                                         return_address = st.session_state.get(f"rloc_{car['id']}_{cat}_{tab_index}", parking_location)
                                                         
-                                                        pickup_leg_fee = 350.0 if pickup_address.lower() != parking_location.lower() else 0.0
-                                                        return_leg_fee = 350.0 if return_address.lower() != parking_location.lower() else 0.0
+                                                        # --- 3. DYNAMIC DELIVERY LEG CALCULATIONS FROM TIERS ---
+                                                        def get_leg_fee(addr, base_base):
+                                                            if not addr or addr.strip().lower() == parking_location.strip().lower():
+                                                                return 0.0
+                                                            try:
+                                                                # Pulls fee from admin delivery tiers (defaults to 350 if custom distance tier isn't matched)
+                                                                tier_row = conn.execute("SELECT fee FROM delivery_tiers ORDER BY max_km ASC LIMIT 1").fetchone()
+                                                                return float(tier_row[0]) if tier_row else 350.0
+                                                            except:
+                                                                return 350.0
+
+                                                        pickup_leg_fee = get_leg_fee(pickup_address, parking_location)
+                                                        return_leg_fee = get_leg_fee(return_address, parking_location)
                                                         total_delivery_fee = pickup_leg_fee + return_leg_fee
                                                         total_online_bill = net_rental + total_delivery_fee
                                                         
@@ -515,11 +529,11 @@ def main():
                                                                         <td style="padding: 9px 14px; text-align: right; color: #16A34A;">- ₱{discount_amount:,.2f}</td>
                                                                     </tr>
                                                                     <tr style="border-bottom: 1px solid #E2E8F0;">
-                                                                        <td style="padding: 9px 14px; color: #334155; border-right: 1px solid #E2E8F0;"><b>Pickup Delivery Leg</b></td>
+                                                                        <td style="padding: 9px 14px; color: #334155; border-right: 1px solid #E2E8F0;"><b>1st Leg (Pickup):</b> {pickup_address}</td>
                                                                         <td style="padding: 9px 14px; text-align: right; color: #334155;">₱{pickup_leg_fee:,.2f}</td>
                                                                     </tr>
                                                                     <tr style="border-bottom: 1px solid #E2E8F0;">
-                                                                        <td style="padding: 9px 14px; color: #334155; border-right: 1px solid #E2E8F0;"><b>Return Delivery Leg</b></td>
+                                                                        <td style="padding: 9px 14px; color: #334155; border-right: 1px solid #E2E8F0;"><b>2nd Leg (Return):</b> {return_address}</td>
                                                                         <td style="padding: 9px 14px; text-align: right; color: #334155;">₱{return_leg_fee:,.2f}</td>
                                                                     </tr>
                                                                     <tr style="background-color: #F8FAFC; border-top: 2px solid #CBD5E1;">
