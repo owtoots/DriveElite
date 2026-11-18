@@ -405,17 +405,17 @@ def main():
                                                     img_str = str(img_p).strip()
                                                     filename = os.path.basename(img_str)
                                                     
-                                                    if os.path.exists(img_str):
+                                                    # Check persistent Render disk first
+                                                    persistent_path = f"/data/uploads/{filename}"
+                                                    local_fallback = os.path.join(os.getcwd(), "data", "uploads", filename)
+                                                    
+                                                    if os.path.exists(persistent_path):
+                                                        resolved_img_path = persistent_path
+                                                    elif os.path.exists(img_str):
                                                         resolved_img_path = img_str
-                                                    else:
-                                                        render_path = f"/data/uploads/{filename}"
-                                                        local_path = os.path.join(os.getcwd(), "data", "uploads", filename)
-                                                        script_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "uploads", filename)
-                                                        
-                                                        if os.path.exists(render_path): resolved_img_path = render_path
-                                                        elif os.path.exists(local_path): resolved_img_path = local_path
-                                                        elif os.path.exists(script_path): resolved_img_path = script_path
-
+                                                    elif os.path.exists(local_fallback):
+                                                        resolved_img_path = local_fallback
+                                                
                                                 if resolved_img_path:
                                                     st.image(resolved_img_path, use_container_width=True)
                                                 else:
@@ -470,6 +470,10 @@ def main():
                                                         return_dt = datetime.datetime.combine(s_d2, s_t2)
                                                         days_calc = max(1, (return_dt - pickup_dt).days)
                                                         
+                                                        # 🚨 DEFINE THE ADDRESSES HERE FIRST
+                                                        pickup_address = st.session_state.get(f"ploc_{car['id']}_{cat}_{tab_index}", parking_location)
+                                                        return_address = st.session_state.get(f"rloc_{car['id']}_{cat}_{tab_index}", parking_location)
+                                                        
                                                         gross_rental = base_rate * days_calc
                                                         discount_pct = 0.0
                                                         
@@ -484,26 +488,11 @@ def main():
                                                         discount_amount = gross_rental * discount_pct
                                                         net_rental = gross_rental - discount_amount
                                                         
-                                                        # Delivery leg calculations
+                                                        # Now pickup_address is safely defined before this line runs!
                                                         pickup_leg_fee = 350.0 if pickup_address.lower() != parking_location.lower() else 0.0
                                                         return_leg_fee = 350.0 if return_address.lower() != parking_location.lower() else 0.0
                                                         total_delivery_fee = pickup_leg_fee + return_leg_fee
-                                                        
-                                                        # 🚨 EXCLUDE SECURITY DEPOSIT FROM ONLINE BILL (Paid directly in cash to host)
                                                         total_online_bill = net_rental + total_delivery_fee
-                                                        
-                                                        st.write(f"### 📋 Trip Ledger: {car['make']} {car['model']}")
-                                                        st.caption(f"📍 **Pickup:** {pickup_address} | 🛬 **Return:** {return_address}")
-                                                        
-                                                        st.markdown(f"""
-                                                        | Cost Breakdown | Amount (₱) |
-                                                        |---|---:|
-                                                        | **Base Rental** (₱{base_rate:,.2f} x {days_calc} days) | ₱{gross_rental:,.2f} |
-                                                        | **Multi-Day Discount** ({discount_pct*100:.0f}%) | - ₱{discount_amount:,.2f} |
-                                                        | **Pickup Delivery Leg** | ₱{pickup_leg_fee:,.2f} |
-                                                        | **Return Delivery Leg** | ₱{return_leg_fee:,.2f} |
-                                                        | **Total Online Payment Due** | **₱{total_online_bill:,.2f}** |
-                                                        """)
                                                         
                                                         st.info("💵 **Security Deposit:** A refundable **₱5,000 cash deposit** is required, but it is **not** included in this online bill. It is paid directly in cash to the car host upon physical vehicle handover.")
                                                         
