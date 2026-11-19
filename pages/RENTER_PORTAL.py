@@ -356,7 +356,10 @@ def main():
     st.divider()
 
     try:
-        promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('RENTER', 'ALL USERS') LIMIT 1", conn)
+        promo_df = pd.read_sql_query(
+            "SELECT title, message FROM admin_promos WHERE active = 1 AND UPPER(TRIM(target)) IN ('RENTER', 'RENTERS', 'ALL USERS', 'ALL') ORDER BY id DESC LIMIT 1",
+            conn
+        )
         if not promo_df.empty:
             title = promo_df.iloc[0]['title']
             msg = promo_df.iloc[0]['message']
