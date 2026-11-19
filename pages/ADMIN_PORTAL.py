@@ -325,7 +325,7 @@ def main():
         pending_renters = conn.execute("SELECT COUNT(*) FROM platform_users WHERE (admin_status = 'PENDING' OR admin_status IS NULL) AND role = 'RENTER'").fetchone()[0]
         pending_affiliates = conn.execute("SELECT COUNT(*) FROM platform_users WHERE (admin_status = 'PENDING' OR admin_status IS NULL) AND role = 'AFFILIATE'").fetchone()[0]
         pending_drivers = conn.execute("SELECT COUNT(*) FROM drivers WHERE admin_status = 'PENDING'").fetchone()[0]
-        pending_payments = conn.execute("SELECT COUNT(*) FROM bookings WHERE status IN ('PENDING', 'VERIFYING')").fetchone()[0]]
+        pending_payments = conn.execute("SELECT COUNT(*) FROM bookings WHERE status IN ('PENDING', 'VERIFYING')").fetchone()[0]
         total_pendings = pending_renters + pending_affiliates + pending_drivers + pending_payments
 
         if total_pendings > 0:
