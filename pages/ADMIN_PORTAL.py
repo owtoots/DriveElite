@@ -325,7 +325,7 @@ def main():
         pending_renters = conn.execute("SELECT COUNT(*) FROM platform_users WHERE (admin_status = 'PENDING' OR admin_status IS NULL) AND role = 'RENTER'").fetchone()[0]
         pending_affiliates = conn.execute("SELECT COUNT(*) FROM platform_users WHERE (admin_status = 'PENDING' OR admin_status IS NULL) AND role = 'AFFILIATE'").fetchone()[0]
         pending_drivers = conn.execute("SELECT COUNT(*) FROM drivers WHERE admin_status = 'PENDING'").fetchone()[0]
-        pending_payments = conn.execute("SELECT COUNT(*) FROM bookings WHERE status = 'PENDING'").fetchone()[0]
+        pending_payments = conn.execute("SELECT COUNT(*) FROM bookings WHERE status IN ('PENDING', 'VERIFYING')").fetchone()[0]]
         total_pendings = pending_renters + pending_affiliates + pending_drivers + pending_payments
 
         if total_pendings > 0:
@@ -688,9 +688,54 @@ def main():
 
     # --- TAB 5: PROMOS & DB & HOUSEKEEPING SUITE ---
     with tabs[5]:
+        st.subheader("📢 Quick Platform Broadcast")
+
+        # Ensure table exists
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_promos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT,
+                message TEXT,
+                target TEXT DEFAULT 'ALL USERS',
+                active INTEGER DEFAULT 1
+            )
+        """)
+        conn.commit()
+
+        with st.form("admin_broadcast_form", clear_on_submit=True):
+            b_target = st.selectbox("Target Audience", ["ALL USERS", "RENTER", "AFFILIATE"])
+            b_title = st.text_input("Announcement Title", placeholder="e.g., Holiday Notice or System Update")
+            b_msg = st.text_area("Message", placeholder="Type your quick announcement here...")
+            
+            if st.form_submit_button("📢 PUBLISH BROADCAST", type="primary", use_container_width=True):
+                if b_title.strip() and b_msg.strip():
+                    conn.execute("UPDATE admin_promos SET active = 0 WHERE target = ?", (b_target,))
+                    conn.execute(
+                        "INSERT INTO admin_promos (title, message, target, active) VALUES (?, ?, ?, 1)",
+                        (b_title.strip(), b_msg.strip(), b_target)
+                    )
+                    conn.commit()
+                    st.success(f"✅ Broadcast live for **{b_target}**!")
+                    st.rerun()
+                else:
+                    st.error("Please enter both a title and a message.")
+
+        active_promos = pd.read_sql_query("SELECT id, target, title, message FROM admin_promos WHERE active = 1 ORDER BY id DESC", conn)
+        if not active_promos.empty:
+            st.write("#### 🟢 Currently Active Broadcasts")
+            for _, row in active_promos.iterrows():
+                c1, c2 = st.columns([4, 1])
+                c1.info(f"**[{row['target']}] {row['title']}:** {row['message']}")
+                if c2.button("Turn Off", key=f"off_promo_{row['id']}", use_container_width=True):
+                    conn.execute("UPDATE admin_promos SET active = 0 WHERE id = ?", (row['id'],))
+                    conn.commit()
+                    st.rerun()
+
+        st.divider()
         render_platform_settings(conn)
         st.divider()
         render_admin_discount_table(conn)
+    
         
         st.divider()
         st.markdown("<h3 style='text-align: center; color: #ef4444;'>👥 Master User Directory & Selective Deletion</h3>", unsafe_allow_html=True)
