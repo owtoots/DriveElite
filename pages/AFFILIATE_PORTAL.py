@@ -586,7 +586,10 @@ def main():
     # 📢 STATIC BROADCAST BANNER
     # ==========================================
     try:
-        promo_df = pd.read_sql_query("SELECT title, message FROM admin_promos WHERE active = 1 AND target IN ('AFFILIATE', 'ALL USERS') LIMIT 1", conn)
+        promo_df = pd.read_sql_query(
+            "SELECT title, message FROM admin_promos WHERE active = 1 AND UPPER(TRIM(target)) IN ('AFFILIATE', 'AFFILIATES', 'ALL USERS', 'ALL') ORDER BY id DESC LIMIT 1",
+            conn
+        )
         
         if not promo_df.empty:
             title = promo_df.iloc[0]['title']
