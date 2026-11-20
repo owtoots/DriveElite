@@ -314,7 +314,8 @@ def main():
             except Exception:
                 pass
         return booked_days
-     def generate_booked_calendar_html(unavailable_dates, ref_d1, ref_d2):
+
+    def generate_booked_calendar_html(unavailable_dates, ref_d1, ref_d2):
         today = datetime.date.today()
         months_to_show = [(ref_d1.year, ref_d1.month)]
         if (ref_d2.year, ref_d2.month) != (ref_d1.year, ref_d1.month):
@@ -338,14 +339,12 @@ def main():
                     else:
                         cur = datetime.date(y, m, day)
                         if cur in unavailable_dates:
-                            # Booked date with obvious red X
                             html += f'''
                             <div style="position: relative; background-color: #FEE2E2; color: #DC2626; border: 1px solid #EF4444; border-radius: 5px; padding: 4px 0; font-weight: 800;" title="Booked">
                                 <span style="opacity: 0.45;">{day}</span>
                                 <span style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #DC2626; font-weight: 900;">✕</span>
                             </div>'''
                         elif ref_d1 <= cur <= ref_d2:
-                            # Renter's currently selected booking dates
                             html += f'<div style="background-color: #DBEAFE; color: #1D4ED8; border: 1px solid #3B82F6; border-radius: 5px; padding: 4px 0; font-weight: 800;" title="Your Selection">{day}</div>'
                         elif cur < today:
                             html += f'<div style="color: #94A3B8; padding: 4px 0;">{day}</div>'
@@ -354,6 +353,12 @@ def main():
             html += '</div></div>'
 
         html += '''</div>
+        <div style="text-align: center; font-size: 11px; color: #475569; margin-top: 8px;">
+            <span style="color: #DC2626; font-weight: 700;">✕ Red</span> = Booked &nbsp;|&nbsp;
+            <span style="color: #1D4ED8; font-weight: 700;">Blue</span> = Selected &nbsp;|&nbsp;
+            <span style="color: #16A34A; font-weight: 700;">Green</span> = Available
+        </div>'''
+        return html
         <div style="text-align: center; font-size: 11px; color: #475569; margin-top: 8px;">
             <span style="color: #DC2626; font-weight: 700;">✕ Red</span> = Booked &nbsp;|&nbsp;
             <span style="color: #1D4ED8; font-weight: 700;">Blue</span> = Selected &nbsp;|&nbsp;
