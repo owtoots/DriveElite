@@ -60,7 +60,7 @@ def get_osrm_driving_distance(coord1, coord2):
 def create_xendit_invoice(booking_ref, amount, description, payer_email=None):
     """Generates a Xendit Hosted Checkout URL using Render Env Vars or st.secrets."""
     api_key = None
-    for key_name in ["XENDIT_SECRET_KEY", "xendit_secret_key", "XENDIT_API_KEY", "xendit_api_key"]:
+    for key_name in ["xendit_active_key", "XENDIT_ACTIVE_KEY", "XENDIT_SECRET_KEY", "xendit_secret_key", "XENDIT_API_KEY"]:
         val = os.environ.get(key_name)
         if not val:
             try:
