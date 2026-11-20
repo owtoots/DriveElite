@@ -314,7 +314,52 @@ def main():
             except Exception:
                 pass
         return booked_days
-        
+     def generate_booked_calendar_html(unavailable_dates, ref_d1, ref_d2):
+        today = datetime.date.today()
+        months_to_show = [(ref_d1.year, ref_d1.month)]
+        if (ref_d2.year, ref_d2.month) != (ref_d1.year, ref_d1.month):
+            months_to_show.append((ref_d2.year, ref_d2.month))
+
+        html = '<div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 6px;">'
+        for y, m in months_to_show:
+            month_name = calendar.month_name[m]
+            html += f'''
+            <div style="background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 10px; padding: 10px; width: 100%; max-width: 240px;">
+                <div style="text-align: center; font-weight: 800; color: #0F172A; margin-bottom: 8px; font-size: 14px;">{month_name} {y}</div>
+                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; text-align: center; font-size: 11px; font-weight: 700; color: #64748B; margin-bottom: 4px;">
+                    <div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; text-align: center; font-size: 12px; font-weight: 600;">
+            '''
+            for week in calendar.monthcalendar(y, m):
+                for day in week:
+                    if day == 0:
+                        html += '<div></div>'
+                    else:
+                        cur = datetime.date(y, m, day)
+                        if cur in unavailable_dates:
+                            # Booked date with obvious red X
+                            html += f'''
+                            <div style="position: relative; background-color: #FEE2E2; color: #DC2626; border: 1px solid #EF4444; border-radius: 5px; padding: 4px 0; font-weight: 800;" title="Booked">
+                                <span style="opacity: 0.45;">{day}</span>
+                                <span style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #DC2626; font-weight: 900;">✕</span>
+                            </div>'''
+                        elif ref_d1 <= cur <= ref_d2:
+                            # Renter's currently selected booking dates
+                            html += f'<div style="background-color: #DBEAFE; color: #1D4ED8; border: 1px solid #3B82F6; border-radius: 5px; padding: 4px 0; font-weight: 800;" title="Your Selection">{day}</div>'
+                        elif cur < today:
+                            html += f'<div style="color: #94A3B8; padding: 4px 0;">{day}</div>'
+                        else:
+                            html += f'<div style="background-color: #DCFCE7; color: #16A34A; border: 1px solid #86EFAC; border-radius: 5px; padding: 4px 0;">{day}</div>'
+            html += '</div></div>'
+
+        html += '''</div>
+        <div style="text-align: center; font-size: 11px; color: #475569; margin-top: 8px;">
+            <span style="color: #DC2626; font-weight: 700;">✕ Red</span> = Booked &nbsp;|&nbsp;
+            <span style="color: #1D4ED8; font-weight: 700;">Blue</span> = Selected &nbsp;|&nbsp;
+            <span style="color: #16A34A; font-weight: 700;">Green</span> = Available
+        </div>'''
+        return html   
     def get_dynamic_delivery_fee(total_km):
         try:
             if total_km <= 5.0:
@@ -533,7 +578,11 @@ def main():
                                                     
                                                     if unavailable_dates:
                                                         formatted_dates = ", ".join(sorted([d.strftime('%b %d') for d in unavailable_dates]))
-                                                        st.warning(f"📅 **Currently Booked On:** {formatted_dates}")
+                                                        # Read the renter's currently selected pickup/return dates so the calendar follows them
+                                                        sel_d1 = st.session_state.get(f"d1_{car['id']}_{cat}_{tab_index}", datetime.date.today())
+                                                        sel_d2 = st.session_state.get(f"d2_{car['id']}_{cat}_{tab_index}", sel_d1)
+                                                        with st.expander(f"📅 Currently Booked On: {formatted_dates} (Click for Calendar)", expanded=False):
+                                                            st.markdown(generate_booked_calendar_html(unavailable_dates, sel_d1, sel_d2), unsafe_allow_html=True)
                                                     
                                                     # --- STAGE 0: SELECT DATES & LOCATIONS ---
                                                     if st.session_state[stage_key] == 0:
