@@ -57,7 +57,53 @@ def get_osrm_driving_distance(coord1, coord2):
     except Exception:
         pass
     return None
+    def create_xendit_invoice(booking_ref, amount, description, payer_email=None):
+    """Generates a Xendit Hosted Checkout URL using Render Env Vars or st.secrets."""
+    api_key = None
+    for key_name in ["XENDIT_SECRET_KEY", "xendit_secret_key", "XENDIT_API_KEY", "xendit_api_key"]:
+        val = os.environ.get(key_name)
+        if not val:
+            try:
+                val = st.secrets.get(key_name)
+            except Exception:
+                val = None
+        if val:
+            api_key = str(val).strip()
+            break
 
+    if not api_key:
+        return None, "Xendit key not found in Render Environment Variables or st.secrets."
+
+    url = "https://api.xendit.co/v2/invoices"
+    auth_str = base64.b64encode(f"{api_key}:".encode("utf-8")).decode("utf-8")
+
+    payload = {
+        "external_id": f"DRIVEELITE-{booking_ref}",
+        "amount": float(amount),
+        "currency": "PHP",
+        "description": description,
+        "invoice_duration": 86400
+    }
+    if payer_email and "@" in str(payer_email):
+        payload["payer_email"] = str(payer_email)
+
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Basic {auth_str}",
+            "Content-Type": "application/json"
+        },
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data.get("invoice_url"), None
+    except urllib.error.HTTPError as e:
+        return None, f"Xendit API Error {e.code}: {e.read().decode('utf-8')}"
+    except Exception as e:
+        return None, str(e)
 def main():
     # ==========================================
     # 1. PAGE CONFIG & LOGO
@@ -211,6 +257,9 @@ def main():
         except: pass
         try: conn.execute("ALTER TABLE bookings ADD COLUMN receipt_img BLOB"); conn.commit()
         except: pass
+        
+        try: conn.execute("ALTER TABLE bookings ADD COLUMN pay_url TEXT"); conn.commit()
+        except: pass   
         try:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS chat_messages (
@@ -223,6 +272,7 @@ def main():
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            
             conn.commit()
         except: pass
 
