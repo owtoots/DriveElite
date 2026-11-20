@@ -594,8 +594,20 @@ def main():
                                                         d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}_{tab_index}")
                                                         t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}_{tab_index}")
                                                         
-                                                        pickup_loc = st.text_input("Pickup Location / Delivery Address", value=parking_location, key=f"ploc_{car['id']}_{cat}_{tab_index}")
-                                                        return_loc = st.text_input("Return Location / Drop-off Address", value=parking_location, key=f"rloc_{car['id']}_{cat}_{tab_index}")
+                                                        pickup_loc_input = st.text_input(
+                                                            "Pickup Location / Delivery Address (Leave blank for Base Pickup)",
+                                                            value="",
+                                                            placeholder="e.g., Ayala Malls Capitol Central, Bacolod City, Negros Occidental",
+                                                            key=f"ploc_{car['id']}_{cat}_{tab_index}"
+                                                        )
+                                                        return_loc_input = st.text_input(
+                                                            "Return Location / Drop-off Address (Leave blank for Base Return)",
+                                                            value="",
+                                                            placeholder="e.g., Lopues East, Villamonte, Bacolod City, Negros Occidental",
+                                                            key=f"rloc_{car['id']}_{cat}_{tab_index}"
+                                                        )
+                                                        pickup_loc = pickup_loc_input.strip() if pickup_loc_input.strip() else parking_location
+                                                        return_loc = return_loc_input.strip() if return_loc_input.strip() else parking_location
                                                         destination = st.text_input("Declared Trip Route / Destination", placeholder="e.g., Tagaytay or Subic", key=f"dest_{car['id']}_{cat}_{tab_index}")
                                                         
                                                         if st.button("PROCEED TO SUMMARY", key=f"btn_s0_{car['id']}_{cat}_{tab_index}", use_container_width=True):
@@ -658,33 +670,38 @@ def main():
                                                         
                                                         # --- API ROUTING DELIVERY LEG CALCULATION ---
                                                         def get_leg_fee(addr, base_location):
-                                                            if not addr: return 0.0
-                                                            
+                                                            if not addr:
+                                                                return 0.0, "Base Pickup"
+
                                                             clean_addr = addr.strip().lower()
                                                             clean_base = (base_location or "").strip().lower()
-                                                            
-                                                            # 1. FAST SHORTCUT: If strings overlap, assume 0 distance
-                                                            if clean_base and (clean_addr == clean_base or clean_base in clean_addr or clean_addr in clean_base):
-                                                                return 0.0
-                                                            
+
+                                                            # 1. Exact match only (prevents broad city names from zeroing out the fee)
+                                                            if clean_base and clean_addr == clean_base:
+                                                                return 0.0, "0.0 km (Base)"
+
+                                                            # Append the car's city if the renter didn't include it
+                                                            city_hint = base_location.split(",")[-1].strip() if base_location and "," in base_location else ""
+                                                            search_addr = addr if (not city_hint or city_hint.lower() in clean_addr) else f"{addr}, {city_hint}"
+
                                                             # 2. SMART API ROUTING: Convert to GPS and get driving distance
                                                             base_coords = get_gps_coordinates(base_location)
-                                                            addr_coords = get_gps_coordinates(addr)
-                                                            
+                                                            addr_coords = get_gps_coordinates(search_addr)
+
+                                                            # Fallback: If landmark isn't in OSM, retry using barangay + city
+                                                            if not addr_coords and "," in search_addr:
+                                                                addr_coords = get_gps_coordinates(search_addr.split(",", 1)[1].strip())
+
                                                             if base_coords and addr_coords:
                                                                 dist_km = get_osrm_driving_distance(base_coords, addr_coords)
                                                                 if dist_km is not None:
-                                                                    return get_dynamic_delivery_fee(dist_km)
-                                                            
-                                                            # 3. SAFETY FALLBACK
-                                                            try:
-                                                                tier_row = conn.execute("SELECT fee FROM delivery_tiers ORDER BY max_km ASC LIMIT 1").fetchone()
-                                                                return float(tier_row[0]) if tier_row else 350.0 
-                                                            except Exception:
-                                                                return 350.0 
+                                                                    return get_dynamic_delivery_fee(dist_km), f"{dist_km:.1f} km"
 
-                                                        pickup_leg_fee = get_leg_fee(pickup_address, parking_location)
-                                                        return_leg_fee = get_leg_fee(return_address, parking_location)
+                                                            # 3. SAFETY FALLBACK (Never silently charge ₱0.00 on a failed lookup)
+                                                            return 350.0, "Est. Flat Rate"
+
+                                                        pickup_leg_fee, pickup_dist_lbl = get_leg_fee(pickup_address, parking_location)
+                                                        return_leg_fee, return_dist_lbl = get_leg_fee(return_address, parking_location)
                                                         total_delivery_fee = pickup_leg_fee + return_leg_fee
                                                         total_online_bill = net_rental + total_delivery_fee
                                                         
