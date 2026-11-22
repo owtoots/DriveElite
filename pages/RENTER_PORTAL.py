@@ -97,33 +97,15 @@ def create_xendit_invoice(booking_ref, amount, description, payer_email=None):
         method="POST"
     )
     try:
+        try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             return data.get("invoice_url"), None
     except urllib.error.HTTPError as e:
         return None, f"Xendit API Error {e.code}: {e.read().decode('utf-8')}"
     except Exception as e:
-        with b_tabs[0]:
-                    if to_approve_df.empty:
-                        st.info("No booking requests waiting for host approval.")
-                    else:
-                        for _, b in to_approve_df.iterrows():
-                            render_renter_booking(b)
-
-                with b_tabs[1]:
-                    if approved_df.empty:
-                        st.info("No approved or active trips right now.")
-                    else:
-                        for _, b in approved_df.iterrows():
-                            render_renter_booking(b)
-
-                with b_tabs[2]:
-                    if completed_df.empty:
-                        st.info("No completed trips yet.")
-                    else:
-                        for _, b in completed_df.iterrows():
-                            render_renter_booking(b)
         return None, str(e)
+
 def main():
     # ==========================================
     # 1. PAGE CONFIG & LOGO
@@ -1013,7 +995,28 @@ def main():
                             st.markdown(f"**Your Rating:** {stars}")
                             if pd.notna(b['review']) and str(b['review']).strip():
                                 st.info(f"💬 \"{b['review']}\"")
-                                
+
+                with b_tabs[0]:
+                    if to_approve_df.empty:
+                        st.info("No booking requests waiting for host approval.")
+                    else:
+                        for _, b in to_approve_df.iterrows():
+                            render_renter_booking(b)
+
+                with b_tabs[1]:
+                    if approved_df.empty:
+                        st.info("No approved or active trips right now.")
+                    else:
+                        for _, b in approved_df.iterrows():
+                            render_renter_booking(b)
+
+                with b_tabs[2]:
+                    if completed_df.empty:
+                        st.info("No completed trips yet.")
+                    else:
+                        for _, b in completed_df.iterrows():
+                            render_renter_booking(b)
+
         except Exception as e:
             st.error(f"Could not load bookings: {e}")
 
