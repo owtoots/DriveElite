@@ -97,7 +97,6 @@ def create_xendit_invoice(booking_ref, amount, description, payer_email=None):
         method="POST"
     )
     try:
-        try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             return data.get("invoice_url"), None
