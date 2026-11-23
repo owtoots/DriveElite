@@ -32,13 +32,13 @@ def get_gps_coordinates(address):
     url = f"https://nominatim.openstreetmap.org/search?q={query}&format=json&limit=1"
     req = urllib.request.Request(url, headers={'User-Agent': 'DriveElite/1.0'})
     try:
-        with urllib.request.urlopen(req, timeout=5) as response:
-            data = json.loads(response.read().decode())
-            if data:
-                return float(data[0]['lat']), float(data[0]['lon'])
-    except Exception:
-        pass
-    return None
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data.get("invoice_url"), None
+    except urllib.error.HTTPError as e:
+        return None, f"Xendit API Error {e.code}: {e.read().decode('utf-8')}"
+    except Exception as e:
+        return None, str(e)
 
 @st.cache_data(show_spinner=False, ttl=86400)
 def get_osrm_driving_distance(coord1, coord2):
