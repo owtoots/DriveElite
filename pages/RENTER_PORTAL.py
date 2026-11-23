@@ -23,40 +23,62 @@ import urllib.parse
 # ==========================================
 # OPENSTREETMAP & OSRM DISTANCE ROUTING
 # ==========================================
-@st.cache_data(show_spinner=False, ttl=86400)
-def get_gps_coordinates(address):
-    """Converts a text address into (lat, lon) using OpenStreetMap."""
-    if not address: return None
-    # Appending Philippines ensures the API searches locally
-    query = urllib.parse.quote(f"{address}, Philippines")
-    url = f"https://nominatim.openstreetmap.org/search?q={query}&format=json&limit=1"
-    req = urllib.request.Request(url, headers={'User-Agent': 'DriveElite/1.0'})
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            return data.get("invoice_url"), None
-    except urllib.error.HTTPError as e:
-        return None, f"Xendit API Error {e.code}: {e.read().decode('utf-8')}"
-    except Exception as e:
-        return None, str(e)
+def _haversine_road_km(coord1, coord2):
+    """Estimates driving distance (straight-line km * 1.35 road factor) if OSRM times out."""
+    lat1, lon1 = map(math.radians, coord1)
+    lat2, lon2 = map(math.radians, coord2)
+    dlat, dlon = lat2 - lat1, lon2 - lon1
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+    return 6371.0 * 2 * math.asin(math.sqrt(a)) * 1.35
 
-@st.cache_data(show_spinner=False, ttl=86400)
-def get_osrm_driving_distance(coord1, coord2):
-    """Calculates driving distance in KM between two coordinates using OSRM."""
-    if not coord1 or not coord2: return None
-    lat1, lon1 = coord1
-    lat2, lon2 = coord2
-    # OSRM format requires Longitude,Latitude
-    url = f"http://router.project-osrm.org/route/v1/driving/{lon1},{lat1};{lon2},{lat2}?overview=false"
-    req = urllib.request.Request(url, headers={'User-Agent': 'DriveElite/1.0'})
+def get_gps_coordinates(address):
+    """Converts a text address into (lat, lon) using Photon, falling back to Nominatim."""
+    if not address:
+        return None
+    query = urllib.parse.quote(f"{address}, Philippines")
+    headers = {'User-Agent': 'DriveElite/1.0 (contact@driveelite.ph)'}
+
+    # 1. Photon (handles informal PH mall names)
     try:
-        with urllib.request.urlopen(req, timeout=5) as response:
-            data = json.loads(response.read().decode())
-            if data.get('routes'):
-                return data['routes'][0]['distance'] / 1000.0  # Convert meters to KM
+        url = f"https://photon.komoot.io/api/?q={query}&limit=1"
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read().decode())
+            if data.get('features'):
+                lon, lat = data['features'][0]['geometry']['coordinates']
+                return float(lat), float(lon)
     except Exception:
         pass
+
+    # 2. Nominatim fallback
+    try:
+        url = f"https://nominatim.openstreetmap.org/search?q={query}&format=json&limit=1"
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read().decode())
+            if data:
+                return float(data[0]['lat']), float(data[0]['lon'])
+    except Exception:
+        pass
+
     return None
+
+def get_osrm_driving_distance(coord1, coord2):
+    """Calculates driving distance in KM using OSRM (HTTPS), with road-factor fallback."""
+    if not coord1 or not coord2:
+        return None
+    lat1, lon1 = coord1
+    lat2, lon2 = coord2
+    url = f"https://router.project-osrm.org/route/v1/driving/{lon1},{lat1};{lon2},{lat2}?overview=false"
+    req = urllib.request.Request(url, headers={'User-Agent': 'DriveElite/1.0 (contact@driveelite.ph)'})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode())
+            if data.get('routes'):
+                return data['routes'][0]['distance'] / 1000.0
+    except Exception:
+        pass
+    return _haversine_road_km(coord1, coord2)
 def create_xendit_invoice(booking_ref, amount, description, payer_email=None):
     """Generates a Xendit Hosted Checkout URL using Render Env Vars or st.secrets."""
     api_key = None
@@ -676,32 +698,30 @@ def main():
                                                         def get_leg_fee(addr, base_location):
                                                             if not addr:
                                                                 return 0.0, "Base Pickup"
-                                                    
+                                                        
                                                             clean_addr = addr.strip().lower()
                                                             clean_base = (base_location or "").strip().lower()
-                                                    
-                                                            # 1. Exact match only (prevents broad city names from zeroing out the fee)
+                                                        
                                                             if clean_base and clean_addr == clean_base:
                                                                 return 0.0, "0.0 km (Base)"
-                                                    
-                                                            # Append the car's city if the renter didn't include it
-                                                            city_hint = base_location.split(",")[-1].strip() if base_location and "," in base_location else ""
-                                                            search_addr = addr if (not city_hint or city_hint.lower() in clean_addr) else f"{addr}, {city_hint}"
-                                                    
-                                                            # 2. SMART API ROUTING: Convert to GPS and get driving distance
+                                                        
                                                             base_coords = get_gps_coordinates(base_location)
-                                                            addr_coords = get_gps_coordinates(search_addr)
-                                                    
-                                                            # Fallback: If landmark isn't in OSM, retry using barangay + city
-                                                            if not addr_coords and "," in search_addr:
-                                                                addr_coords = get_gps_coordinates(search_addr.split(",", 1)[1].strip())
-                                                    
+                                                            addr_coords = get_gps_coordinates(addr)
+                                                        
+                                                            # Fallback 1: If no city was typed and raw lookup failed, try appending garage city
+                                                            if not addr_coords and "," not in addr and base_location and "," in base_location:
+                                                                city_hint = base_location.split(",")[-1].strip()
+                                                                addr_coords = get_gps_coordinates(f"{addr}, {city_hint}")
+                                                        
+                                                            # Fallback 2: If landmark wasn't found, retry using barangay/city after the first comma
+                                                            if not addr_coords and "," in addr:
+                                                                addr_coords = get_gps_coordinates(addr.split(",", 1)[1].strip())
+                                                        
                                                             if base_coords and addr_coords:
                                                                 dist_km = get_osrm_driving_distance(base_coords, addr_coords)
                                                                 if dist_km is not None:
                                                                     return get_dynamic_delivery_fee(dist_km), f"{dist_km:.1f} km"
-                                                    
-                                                            # 3. SAFETY FALLBACK (Never silently charge ₱0.00 on a failed lookup)
+                                                        
                                                             return 350.0, "Est. Flat Rate"
                                                     
                                                         pickup_leg_fee, pickup_dist_lbl = get_leg_fee(pickup_address, parking_location)
