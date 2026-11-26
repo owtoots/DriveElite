@@ -790,7 +790,52 @@ def main():
                                                                 total_online_bill
                                                             ))
                                                             conn.commit()
+                                                            
+                                    
+                                                            # --- EMAIL NOTIFICATIONS: NEW BOOKING ---
+                                                            try:
+                                                                # 1. Notify Affiliate (Host)
+                                                                host_df = pd.read_sql_query(
+                                                                    "SELECT email, full_name FROM platform_users WHERE username=?",
+                                                                    conn, params=(car['owner_username'],)
+                                                                )
+                                                                if not host_df.empty and host_df.iloc[0]['email']:
+                                                                    send_alert_email(
+                                                                        to_email=host_df.iloc[0]['email'],
+                                                                        subject=f"🚗 DriveElite: New Booking Request #{booking_ref}",
+                                                                        body=(
+                                                                            f"Hello {host_df.iloc[0]['full_name']},\n\n"
+                                                                            f"You have a new booking request from @{st.session_state.username} for your {car['make']} {car['model']} ({plate_no}).\n\n"
+                                                                            f"Ref: #{booking_ref}\n"
+                                                                            f"Dates: {str(pickup_dt)[:16]} to {str(return_dt)[:16]}\n"
+                                                                            f"Pickup: {pickup_address}\n"
+                                                                            f"Return: {return_address}\n"
+                                                                            f"Destination: {dest_val}\n"
+                                                                            f"Total Online Bill: PHP {total_online_bill:,.2f}\n\n"
+                                                                            f"Please log in to your Affiliate Portal to review and approve or decline this request."
+                                                                        )
+                                                                    )
 
+                                                                # 2. Confirm to Renter
+                                                                renter_df = pd.read_sql_query(
+                                                                    "SELECT email, full_name FROM platform_users WHERE username=?",
+                                                                    conn, params=(st.session_state.username,)
+                                                                )
+                                                                if not renter_df.empty and renter_df.iloc[0]['email']:
+                                                                    send_alert_email(
+                                                                        to_email=renter_df.iloc[0]['email'],
+                                                                        subject=f"📋 DriveElite: Booking Request Submitted (#{booking_ref})",
+                                                                        body=(
+                                                                            f"Hello {renter_df.iloc[0]['full_name']},\n\n"
+                                                                            f"Your booking request for the {car['make']} {car['model']} has been sent to the host for approval.\n\n"
+                                                                            f"Ref: #{booking_ref}\n"
+                                                                            f"Dates: {str(pickup_dt)[:16]} to {str(return_dt)[:16]}\n"
+                                                                            f"Total Online Bill: PHP {total_online_bill:,.2f}\n\n"
+                                                                            f"We will email you as soon as the host approves so you can proceed to payment."
+                                                                        )
+                                                                    )
+                                                            except Exception as e:
+                                                                print(f"Booking email error: {e}")
                                                             st.success(f"Booking request submitted! Ref #{booking_ref}. Awaiting host distance review.")
                                                             st.session_state[stage_key] = 0
                                                             time.sleep(1.5)
@@ -894,6 +939,39 @@ def main():
                                     conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)",
                                                  (str(b['booking_ref']), renter_user, b['owner_username'], "Payment Receipt Uploaded for Admin Verification.", receipt_path))
                                     conn.commit()
+                                    conn.commit()
+
+                                    # --- EMAIL NOTIFICATIONS: RECEIPT UPLOADED ---
+                                    try:
+                                        admin_email = os.environ.get("ADMIN_EMAIL", "contact@driveelite.ph")
+                                        send_alert_email(
+                                            to_email=admin_email,
+                                            subject=f"💳 DriveElite Admin: Payment Receipt Uploaded (#{b['booking_ref']})",
+                                            body=(
+                                                f"Renter @{renter_user} has uploaded a payment receipt for Booking #{b['booking_ref']} "
+                                                f"({b['make']} {b['model']}, Amount: PHP {float(b['amount']):,.2f}).\n\n"
+                                                f"Please log in to the Admin Command Center -> Financials -> Payment Verification to confirm."
+                                            )
+                                        )
+
+                                        host_df = pd.read_sql_query(
+                                            "SELECT email, full_name FROM platform_users WHERE username=?",
+                                            conn, params=(b['owner_username'],)
+                                        )
+                                        if not host_df.empty and host_df.iloc[0]['email']:
+                                            send_alert_email(
+                                                to_email=host_df.iloc[0]['email'],
+                                                subject=f"🧾 DriveElite: Payment Submitted for Booking #{b['booking_ref']}",
+                                                body=(
+                                                    f"Hello {host_df.iloc[0]['full_name']},\n\n"
+                                                    f"Renter @{renter_user} has uploaded their payment receipt for Booking #{b['booking_ref']} ({b['make']} {b['model']}).\n\n"
+                                                    f"Admin is currently verifying the payment. You will receive another email once confirmed."
+                                                )
+                                            )
+                                    except Exception as e:
+                                        print(f"Receipt email error: {e}")
+
+                                    st.success("✅ Receipt submitted! Status updated to VERIFYING. Waiting for Admin confirmation.")
                                     st.success("✅ Receipt submitted! Status updated to VERIFYING. Waiting for Admin confirmation.")
                                     time.sleep(1.5)
                                     st.rerun()
