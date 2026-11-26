@@ -397,7 +397,7 @@ def main():
                             # Send native SMTP approval email
                             subject = "✅ DriveElite: Your Affiliate Account is Approved!"
                             body = f"Hello {r['full_name']},\n\nYour DriveElite Affiliate account (@{r['username']}) has been officially approved by the Admin.\n\nYou can now log in, upload your fleet, and start accepting bookings.\n\nWelcome to the platform!"
-                            send_approval_email(r.get('email', ''), subject, body)
+                            send_alert_email(r.get('email', ''), subject, body)
                             
                             st.success("Affiliate approved successfully!")
                             time.sleep(1)
@@ -464,6 +464,21 @@ def main():
                             if st.button("✅ APPROVE & ACTIVATE VEHICLE", key=f"v_app_{r['id']}", type="primary", use_container_width=True):
                                 conn.execute("UPDATE vehicles SET admin_status = 'APPROVED', booking_status = 'AVAILABLE', approved_price = ? WHERE id = ?", (final_price, r['id']))
                                 conn.commit()
+                                try:
+                                    owner_df = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(r['owner_username'],))
+                                    if not owner_df.empty and owner_df.iloc[0]['email']:
+                                        send_alert_email(
+                                            to_email=owner_df.iloc[0]['email'],
+                                            subject=f"🚗 DriveElite: Your {r['make']} {r['model']} is Now Live!",
+                                            body=(
+                                                f"Hello {owner_df.iloc[0]['full_name']},\n\n"
+                                                f"Your vehicle {r['make']} {r['model']} ({r['plate']}) has been approved by Admin and is now AVAILABLE on the DriveElite Showroom.\n\n"
+                                                f"Approved Daily Rate: PHP {final_price:,.2f}/day\n\n"
+                                                f"You will be notified by email as soon as a renter submits a booking request."
+                                            )
+                                        )
+                                except Exception as e:
+                                    print(f"Vehicle approval email error: {e}")
                                 st.success("Vehicle successfully activated on showroom!")
                                 time.sleep(1); st.rerun()
             except Exception as e: 
@@ -519,7 +534,7 @@ def main():
                 st.caption("Review uploaded payment receipts and reference numbers, then confirm to lock escrow and notify the affiliate host.")
 
                 pending_bpi = pd.read_sql_query("""
-                    SELECT b.*, u.full_name as Renter, v.make, v.model, v.plate,
+                    SSELECT b.*, u.full_name as Renter, u.email as renter_email, v.make, v.model, v.plate,
                            u_owner.email as host_email, u_owner.full_name as host_name
                     FROM bookings b 
                     JOIN platform_users u ON b.renter_username = u.username 
@@ -575,6 +590,25 @@ def main():
                                         )
                                 except Exception as e:
                                     print(f"Failed to email host notification: {e}")
+
+                                # 3. Notify Renter that payment is verified
+                                try:
+                                    renter_email = row.get('renter_email')
+                                    if renter_email:
+                                        send_alert_email(
+                                            to_email=renter_email,
+                                            subject=f"✅ DriveElite: Payment Confirmed! Booking {b_ref_display}",
+                                            body=(
+                                                f"Hello {row['Renter']},\n\n"
+                                                f"Your payment of PHP {float(row['amount']):,.2f} for Booking {b_ref_display} "
+                                                f"({row['make']} {row['model']}) has been verified and confirmed by Admin.\n\n"
+                                                f"Dates: {str(row['pickup_time'])[:10]} to {str(row['return_time'])[:10]}\n\n"
+                                                f"Please coordinate with your host ({row['host_name']}) in your Renter Portal for vehicle handover. "
+                                                f"Remember to prepare your refundable PHP 5,000 cash security deposit."
+                                            )
+                                        )
+                                except Exception as e:
+                                    print(f"Failed to email renter confirmation: {e}")
 
                                 st.success(f"✅ Payment for {b_ref_display} confirmed! Escrow locked and affiliate host notified for handover preparation.")
                                 time.sleep(1.5)
@@ -678,6 +712,20 @@ def main():
                                 if penalty_to_deduct > 0:
                                     conn.execute("UPDATE platform_users SET penalty_balance = penalty_balance - ? WHERE username = ?", (penalty_to_deduct, aff_username))
                                 conn.commit()
+                                try:
+                                    aff_email_row = conn.execute("SELECT email, full_name FROM platform_users WHERE username = ?", (aff_username,)).fetchone()
+                                    if aff_email_row and aff_email_row[0]:
+                                        send_alert_email(
+                                            to_email=aff_email_row[0],
+                                            subject=f"💸 DriveElite: Payout Disbursed for Booking {p['Ref']}",
+                                            body=(
+                                                f"Hello {aff_email_row[1]},\n\n"
+                                                f"Your payout of PHP {final_payout:,.2f} for Booking {p['Ref']} has been processed and marked as PAID.\n\n"
+                                                f"Thank you for hosting with DriveElite!"
+                                            )
+                                        )
+                                except Exception as e:
+                                    print(f"Payout email error: {e}")
                                 st.success("Payout executed via Xendit disbursement loop.")
                                 time.sleep(1); st.rerun()
         except Exception as e: st.error(f"Financial Engine Error: {e}")
