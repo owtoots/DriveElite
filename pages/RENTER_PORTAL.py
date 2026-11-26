@@ -436,6 +436,76 @@ def main():
                     st.rerun()
                 else:
                     st.error("❌ Invalid credentials or account pending Admin approval.")
+        # --- FORGOT PASSWORD FLOW ---
+        role_filter = "RENTER"  # Change to "AFFILIATE" in AFFILIATE_PORTAL.py
+        reset_key = f"pwd_reset_{role_filter}"
+
+        with st.expander("🔑 Forgot Password?"):
+            if reset_key not in st.session_state:
+                fp_email = st.text_input("Enter your registered Email Address", key=f"fp_email_{role_filter}")
+                if st.button("Send 6-Digit Reset Code", key=f"fp_send_{role_filter}", use_container_width=True):
+                    clean_email = fp_email.strip()
+                    user_df = pd.read_sql_query(
+                        "SELECT username, full_name, email FROM platform_users WHERE LOWER(TRIM(email)) = LOWER(?) AND role = ?",
+                        conn, params=(clean_email, role_filter)
+                    )
+                    if user_df.empty:
+                        st.error("❌ No account found with that email address.")
+                    else:
+                        u_row = user_df.iloc[0]
+                        otp_code = str(random.randint(100000, 999999))
+                        st.session_state[reset_key] = {
+                            "username": u_row["username"],
+                            "email": u_row["email"],
+                            "code": otp_code,
+                            "expires": time.time() + 900  # 15 minutes
+                        }
+                        try:
+                            send_alert_email(
+                                to_email=u_row["email"],
+                                subject="🔑 DriveElite: Password Reset Code",
+                                body=(
+                                    f"Hello {u_row['full_name']},\n\n"
+                                    f"Your password reset code is: {otp_code}\n\n"
+                                    f"Username: {u_row['username']}\n"
+                                    f"This code expires in 15 minutes. If you did not request this, you can ignore this email."
+                                )
+                            )
+                            st.success(f"✅ Reset code sent to {u_row['email']}! Check your inbox or spam folder.")
+                            time.sleep(1)
+                            st.rerun()
+                        except Exception as e:
+                            st.session_state.pop(reset_key, None)
+                            st.error(f"⚠️ Could not send reset email: {e}")
+            else:
+                r_data = st.session_state[reset_key]
+                st.info(f"Enter the 6-digit code sent to **{r_data['email']}** (Username: `{r_data['username']}`).")
+                entered_code = st.text_input("6-Digit Code", key=f"fp_code_{role_filter}")
+                new_pw = st.text_input("New Password", type="password", key=f"fp_pw1_{role_filter}")
+                confirm_pw = st.text_input("Confirm New Password", type="password", key=f"fp_pw2_{role_filter}")
+
+                c_res1, c_res2 = st.columns(2)
+                if c_res1.button("✅ Update Password", key=f"fp_save_{role_filter}", type="primary", use_container_width=True):
+                    if time.time() > r_data["expires"]:
+                        st.error("⏳ Code expired. Please request a new one.")
+                        st.session_state.pop(reset_key, None)
+                    elif entered_code.strip() != r_data["code"]:
+                        st.error("❌ Invalid reset code.")
+                    elif len(new_pw) < 6:
+                        st.error("❌ Password must be at least 6 characters.")
+                    elif new_pw != confirm_pw:
+                        st.error("❌ Passwords do not match.")
+                    else:
+                        conn.execute("UPDATE platform_users SET password = ? WHERE username = ?", (new_pw, r_data["username"]))
+                        conn.commit()
+                        st.session_state.pop(reset_key, None)
+                        st.success("✅ Password updated! You can now log in above.")
+                        time.sleep(1.5)
+                        st.rerun()
+
+                if c_res2.button("Cancel", key=f"fp_cancel_{role_filter}", use_container_width=True):
+                    st.session_state.pop(reset_key, None)
+                    st.rerun()
         st.stop()
 
     renter_user = st.session_state.username
