@@ -508,24 +508,24 @@ In the case of total loss (including theft), the LESSEE assumes financial respon
 # 7. 🚗 MAIN REGISTRATION SCREEN
 # ==========================================
 st.title("🚗 Join DriveElite")
-st.write("Philippines' Premier Peer-to-Peer Car Sharing Platform") 
-
 # --- OPTION 3: THE VALUE PROPOSITION BOX ---
 st.markdown("""
 <div style='text-align: center; padding: 25px; background-color: #FFFFFF; border-radius: 12px; border: 1px solid #E2E8F0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-top: 20px; margin-bottom: 40px;'>
-<h3 style='color: #0F172A; margin-top: 0; margin-bottom: 5px; font-size: 1.5em;'>WHY JOIN DRIVEELITE?</h3>
-<p style='font-weight: 700; color: #2563EB; font-size: 1.1em; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px;'>One Platform. Two Opportunities.</p>
-    
-<div style='display: flex; justify-content: center; gap: 30px; flex-wrap: wrap;'>
-<div style='background-color: #F8FAFC; padding: 15px 25px; border-radius: 8px; border: 1px solid #E2E8F0; flex: 1; min-width: 250px;'>
-<h4 style='margin-top: 0; color: #0F172A;'>💼 EARN</h4>
-<span style='color: #475569; font-size: 0.95em;'>Park your car with us and become an Affiliate today.</span>
-</div>
-<div style='background-color: #F8FAFC; padding: 15px 25px; border-radius: 8px; border: 1px solid #E2E8F0; flex: 1; min-width: 250px;'>
-<h4 style='margin-top: 0; color: #0F172A;'>🚙 DRIVE</h4>
-<span style='color: #475569; font-size: 0.95em;'>Rent from our exclusive fleet with total confidence.</span>
-</div>
-</div>
+    <h3 style='color: #0F172A; margin-top: 0; margin-bottom: 5px; font-size: 1.5em;'>WHY JOIN DRIVEELITE?</h3>
+    <p style='font-weight: 700; color: #2563EB; font-size: 1.1em; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;'>One Platform. Two Opportunities.</p>
+    <p style='text-align: center; color: #475569; font-size: 15px; font-weight: 600; margin-top: 0; margin-bottom: 20px;'>
+        🇵🇭 Nationwide Coverage: Car owners can register vehicles from anywhere in the Philippines.
+    </p>
+    <div style='display: flex; justify-content: center; gap: 30px; flex-wrap: wrap;'>
+        <div style='background-color: #F8FAFC; padding: 15px 25px; border-radius: 8px; border: 1px solid #E2E8F0; flex: 1; min-width: 250px;'>
+            <h4 style='margin-top: 0; color: #0F172A;'>💼 EARN</h4>
+            <span style='color: #475569; font-size: 0.95em;'>List your car from anywhere in Luzon, Visayas, or Mindanao and become an Affiliate today.</span>
+        </div>
+        <div style='background-color: #F8FAFC; padding: 15px 25px; border-radius: 8px; border: 1px solid #E2E8F0; flex: 1; min-width: 250px;'>
+            <h4 style='margin-top: 0; color: #0F172A;'>🚙 DRIVE</h4>
+            <span style='color: #475569; font-size: 0.95em;'>Rent from our exclusive fleet with total confidence.</span>
+        </div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
