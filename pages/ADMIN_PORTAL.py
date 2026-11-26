@@ -611,7 +611,8 @@ def main():
 
             # --- FINANCIAL LEDGER (TAB 1) ---
             with f_tabs[1]:
-                if df.empty: st.info("No recorded transactions.")
+                if df.empty:
+                    st.info("No recorded transactions.")
                 else:
                     df['gateway_fee'] = df['gateway_fee'].fillna(0)
                     
@@ -630,6 +631,16 @@ def main():
                         'Total_Paid_By_Renter': '₱{:,.2f}', 'Affiliate_Net_Payout': '₱{:,.2f}', 
                         'Platform_Gross_Cut': '₱{:,.2f}', 'Platform_EWT': '₱{:,.2f}', 'Platform_Net_Income': '₱{:,.2f}'
                     }), use_container_width=True, hide_index=True)
+
+                    st.divider()
+                    confirm_fin = st.checkbox("Confirm: Wipe all test bookings & financial ledger rows", key="confirm_fin_wipe")
+                    if st.button("🧹 CLEAR FINANCIALS & BOOKINGS ONLY", type="primary", disabled=not confirm_fin, key="btn_fin_wipe"):
+                        conn.execute("DELETE FROM bookings")
+                        conn.execute("DELETE FROM chat_messages")
+                        conn.commit()
+                        st.success("✅ Financial ledger and bookings cleared! Vehicles and users are intact.")
+                        time.sleep(1.5)
+                        st.rerun()
 
             # --- AUTOMATED PAYOUTS (TAB 2) ---
             with f_tabs[2]:
