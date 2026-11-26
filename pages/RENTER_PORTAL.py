@@ -490,26 +490,27 @@ def main():
         if available_cars.empty:
             st.info("Our fleet is currently fully booked. Please check back later!")
         else:
-            if 'location' in available_cars.columns:
-                available_cars['clean_city'] = available_cars['location'].apply(lambda x: str(x).split(',')[-1].strip() if pd.notnull(x) else "Metro Manila")
-                cities = ["All Cities"] + sorted(available_cars['clean_city'].unique().tolist())
+            # --- SERVICE TYPE FILTER (SELF-DRIVE VS. WITH DRIVER) ---
+            if 'is_with_driver' not in available_cars.columns:
+                available_cars['is_with_driver'] = 0
+            available_cars['is_with_driver'] = pd.to_numeric(available_cars['is_with_driver'], errors='coerce').fillna(0).astype(int)
+
+            service_filter = st.radio(
+                "🚘 Service Mode:",
+                ["All Vehicles", "🚗 Self-Drive", "🧑‍✈️ With Driver"],
+                horizontal=True,
+                key="renter_service_mode_filter"
+            )
+
+            if service_filter == "🚗 Self-Drive":
+                available_cars = available_cars[available_cars['is_with_driver'] == 0].copy()
+            elif service_filter == "🧑‍✈️ With Driver":
+                available_cars = available_cars[available_cars['is_with_driver'] == 1].copy()
+
+            if available_cars.empty:
+                st.info(f"No vehicles available under **{service_filter}** right now. Try switching service mode or check back soon!")
             else:
-                cities = ["All Cities", "Metro Manila"]
-                available_cars['clean_city'] = "Metro Manila"
-
-            city_tabs = st.tabs([f"🏙️ {c}" for c in cities])
-
-            for tab_index, city_name in enumerate(cities):
-                with city_tabs[tab_index]:
-
-                    if city_name == "All Cities":
-                        city_cars = available_cars.copy()
-                    else:
-                        city_cars = available_cars[available_cars['clean_city'] == city_name].copy()
-
-                    if city_cars.empty:
-                        st.info(f"No vehicles currently available in {city_name}. Check back soon as we expand!")
-                    else:
+                # Keep your existing city_tabs and category_tabs code inside this `else:` block
                         if 'category' in city_cars.columns:
                             categories = ["All"] + sorted(city_cars['category'].dropna().unique().tolist())
                         elif 'type' in city_cars.columns:
