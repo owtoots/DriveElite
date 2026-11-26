@@ -510,15 +510,34 @@ def main():
             if available_cars.empty:
                 st.info(f"No vehicles available under **{service_filter}** right now. Try switching service mode or check back soon!")
             else:
-                # Keep your existing city_tabs and category_tabs code inside this `else:` block
-                        if 'category' in city_cars.columns:
-                            categories = ["All"] + sorted(city_cars['category'].dropna().unique().tolist())
-                        elif 'type' in city_cars.columns:
-                            categories = ["All"] + sorted(city_cars['type'].dropna().unique().tolist())
-                        else:
-                            categories = ["All"]
+                if 'location' in available_cars.columns:
+                    available_cars['clean_city'] = available_cars['location'].apply(lambda x: str(x).split(',')[-1].strip() if pd.notnull(x) else "Metro Manila")
+                    cities = ["All Cities"] + sorted(available_cars['clean_city'].unique().tolist())
+                else:
+                    cities = ["All Cities", "Metro Manila"]
+                    available_cars['clean_city'] = "Metro Manila"
 
-                        category_tabs = st.tabs(categories)
+                city_tabs = st.tabs([f"🏙️ {c}" for c in cities])
+
+                for tab_index, city_name in enumerate(cities):
+                    with city_tabs[tab_index]:
+
+                        if city_name == "All Cities":
+                            city_cars = available_cars.copy()
+                        else:
+                            city_cars = available_cars[available_cars['clean_city'] == city_name].copy()
+
+                        if city_cars.empty:
+                            st.info(f"No vehicles currently available in {city_name}. Check back soon as we expand!")
+                        else:
+                            if 'category' in city_cars.columns:
+                                categories = ["All"] + sorted(city_cars['category'].dropna().unique().tolist())
+                            elif 'type' in city_cars.columns:
+                                categories = ["All"] + sorted(city_cars['type'].dropna().unique().tolist())
+                            else:
+                                categories = ["All"]
+
+                            category_tabs = st.tabs(categories)
 
                         for cat_idx, cat in enumerate(categories):
                             with category_tabs[cat_idx]:
@@ -940,7 +959,6 @@ def main():
                                     conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text, image_path) VALUES (?, ?, ?, ?, ?)",
                                                  (str(b['booking_ref']), renter_user, b['owner_username'], "Payment Receipt Uploaded for Admin Verification.", receipt_path))
                                     conn.commit()
-                                    conn.commit()
 
                                     # --- EMAIL NOTIFICATIONS: RECEIPT UPLOADED ---
                                     try:
@@ -972,7 +990,6 @@ def main():
                                     except Exception as e:
                                         print(f"Receipt email error: {e}")
 
-                                    st.success("✅ Receipt submitted! Status updated to VERIFYING. Waiting for Admin confirmation.")
                                     st.success("✅ Receipt submitted! Status updated to VERIFYING. Waiting for Admin confirmation.")
                                     time.sleep(1.5)
                                     st.rerun()
