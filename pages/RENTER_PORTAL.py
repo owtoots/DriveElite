@@ -5,20 +5,15 @@ import time
 import random
 import os
 import sys
-import smtplib
 import math
 import urllib.request
 import urllib.error
+import urllib.parse
 import json
 import base64
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from database_utils import get_connection, send_sms_alert, send_alert_email
 import calendar
 from datetime import timedelta
-from streamlit_autorefresh import st_autorefresh
-from database_utils import init_db, patch_database
-import urllib.parse
+from database_utils import get_connection, send_sms_alert, send_alert_email, init_db, patch_database
 
 # ==========================================
 # OPENSTREETMAP & OSRM DISTANCE ROUTING
@@ -79,6 +74,7 @@ def get_osrm_driving_distance(coord1, coord2):
     except Exception:
         pass
     return _haversine_road_km(coord1, coord2)
+
 def create_xendit_invoice(booking_ref, amount, description, payer_email=None):
     """Generates a Xendit Hosted Checkout URL using Render Env Vars or st.secrets."""
     api_key = None
@@ -132,14 +128,14 @@ def main():
     # 1. PAGE CONFIG & LOGO
     # ==========================================
     st.set_page_config(page_title="DriveElite Renter", layout="wide", initial_sidebar_state="expanded")
-    
+
     logo_path = "logo.png"
     if not os.path.exists(logo_path):
         logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logo.png")
-        
+
     try:
         st.sidebar.image(logo_path, width=140)
-    except:
+    except Exception:
         st.sidebar.markdown("## DriveElite")
 
     # ==========================================
@@ -267,7 +263,7 @@ def main():
         }
     </style>
     """, unsafe_allow_html=True)
-    
+
     # ==========================================
     # 3. DATABASE CONNECTION & SETUP
     # ==========================================
@@ -275,14 +271,13 @@ def main():
 
     def patch_database_tables():
         try: conn.execute("CREATE TABLE IF NOT EXISTS admin_promos (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, message TEXT, target TEXT DEFAULT 'ALL USERS', active INTEGER DEFAULT 1)"); conn.commit()
-        except: pass
+        except Exception: pass
         try: conn.execute("ALTER TABLE vehicles ADD COLUMN location TEXT DEFAULT 'Metro Manila'"); conn.commit()
-        except: pass
+        except Exception: pass
         try: conn.execute("ALTER TABLE bookings ADD COLUMN receipt_img BLOB"); conn.commit()
-        except: pass
-        
+        except Exception: pass
         try: conn.execute("ALTER TABLE bookings ADD COLUMN pay_url TEXT"); conn.commit()
-        except: pass   
+        except Exception: pass
         try:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS chat_messages (
@@ -295,9 +290,8 @@ def main():
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            
             conn.commit()
-        except: pass
+        except Exception: pass
 
     patch_database_tables()
     os.makedirs("/data/uploads/chat_images", exist_ok=True)
@@ -320,7 +314,8 @@ def main():
     # ==========================================
     # 4. UTILITIES & HELPERS
     # ==========================================
-    if "temp_msg_renter" not in st.session_state: st.session_state.temp_msg_renter = ""
+    if "temp_msg_renter" not in st.session_state:
+        st.session_state.temp_msg_renter = ""
 
     def get_booked_dates(vehicle_id, conn):
         query = "SELECT pickup_time, return_time FROM bookings WHERE vehicle_id = ? AND status IN ('CONFIRMED', 'ONGOING', 'PENDING', 'APPROVED_BY_HOST')"
@@ -384,7 +379,8 @@ def main():
             '<span style="color: #16A34A; font-weight: 700;">Green</span> = Available'
             '</div>'
         )
-        return html   
+        return html
+
     def get_dynamic_delivery_fee(total_km):
         try:
             if total_km <= 5.0:
@@ -392,9 +388,9 @@ def main():
             base_taxi_fare = 150.0
             fuel_and_time_rate = 50.0
             driver_buffer = 20.0
-            return_taxi_estimate = total_km * 45.0 
+            return_taxi_estimate = total_km * 45.0
             calculated_fee = base_taxi_fare + (total_km * fuel_and_time_rate) + return_taxi_estimate + driver_buffer
-            return round(calculated_fee, -2) 
+            return round(calculated_fee, -2)
         except Exception:
             return 800.0
 
@@ -426,26 +422,6 @@ def main():
             return path
         return ""
 
-    def send_alert_email(to_email, subject, body):
-        sender_email = "contact@driveelite.ph" 
-        sender_password = os.environ.get("EMAIL_PASSWORD") 
-        if not sender_password: 
-            return False
-        try:
-            msg = MIMEMultipart()
-            msg['From'] = f"DriveElite Platform <{sender_email}>"
-            msg['To'] = to_email
-            msg['Subject'] = subject
-            msg.attach(MIMEText(body, 'plain'))
-            
-            with smtplib.SMTP_SSL('mail.driveelite.ph', 465) as server:
-                server.login(sender_email, sender_password)
-                server.send_message(msg)
-            return True
-        except Exception as e:
-            print(f"Failed to send email: {e}")
-            return False
-
     # ==========================================
     # 5. AUTHENTICATION FLOW
     # ==========================================
@@ -458,7 +434,7 @@ def main():
                 if not user.empty:
                     st.session_state.logged_in, st.session_state.username, st.session_state.role = True, u, 'RENTER'
                     st.rerun()
-                else: 
+                else:
                     st.error("❌ Invalid credentials or account pending Admin approval.")
         st.stop()
 
@@ -493,10 +469,11 @@ def main():
                     <span>{msg}</span>
                 </div>
             """, unsafe_allow_html=True)
-    except Exception: pass 
+    except Exception:
+        pass
 
     main_tabs = st.tabs(["🌟 VEHICLE SHOWROOM", "📅 MY BOOKINGS"])
-    
+
     # ==========================================
     # 🚘 RENTER SHOWROOM (MAIN TAB 0)
     # ==========================================
@@ -519,17 +496,17 @@ def main():
             else:
                 cities = ["All Cities", "Metro Manila"]
                 available_cars['clean_city'] = "Metro Manila"
-            
+
             city_tabs = st.tabs([f"🏙️ {c}" for c in cities])
-            
+
             for tab_index, city_name in enumerate(cities):
                 with city_tabs[tab_index]:
-                    
+
                     if city_name == "All Cities":
                         city_cars = available_cars.copy()
                     else:
                         city_cars = available_cars[available_cars['clean_city'] == city_name].copy()
-                        
+
                     if city_cars.empty:
                         st.info(f"No vehicles currently available in {city_name}. Check back soon as we expand!")
                     else:
@@ -539,9 +516,9 @@ def main():
                             categories = ["All"] + sorted(city_cars['type'].dropna().unique().tolist())
                         else:
                             categories = ["All"]
-                            
+
                         category_tabs = st.tabs(categories)
-                        
+
                         for cat_idx, cat in enumerate(categories):
                             with category_tabs[cat_idx]:
                                 if cat == "All":
@@ -549,66 +526,63 @@ def main():
                                 else:
                                     filter_col = 'category' if 'category' in city_cars.columns else 'type'
                                     category_cars = city_cars[city_cars[filter_col] == cat].copy()
-                                
+
                                 if category_cars.empty:
                                     st.info(f"No {cat} vehicles available in {city_name} right now.")
                                 else:
                                     display_cars = category_cars.head(8).reset_index(drop=True)
                                     grid_cols = st.columns(4)
-                                    
+
                                     for idx, car in display_cars.iterrows():
-                                        with grid_cols[idx % 4]: 
+                                        with grid_cols[idx % 4]:
                                             with st.container(border=True):
-                                                
+
                                                 img_p = car.get('vehicle_img')
                                                 resolved_img_path = None
-                                                
+
                                                 if pd.notnull(img_p) and str(img_p).strip():
                                                     img_str = str(img_p).strip()
                                                     filename = os.path.basename(img_str)
-                                                    
-                                                    # Check persistent Render disk first
+
                                                     persistent_path = f"/data/uploads/{filename}"
                                                     local_fallback = os.path.join(os.getcwd(), "data", "uploads", filename)
-                                                    
+
                                                     if os.path.exists(persistent_path):
                                                         resolved_img_path = persistent_path
                                                     elif os.path.exists(img_str):
                                                         resolved_img_path = img_str
                                                     elif os.path.exists(local_fallback):
                                                         resolved_img_path = local_fallback
-                                                
+
                                                 if resolved_img_path:
                                                     st.image(resolved_img_path, use_container_width=True)
                                                 else:
                                                     st.image("https://placehold.co/600x400?text=No+Photo+Found", use_container_width=True)
-                                                
+
                                                 base_rate = float(car.get('daily_rate') or car.get('approved_price') or 0.0)
                                                 st.markdown(f"#### {car['make']} {car['model']}\n**Year:** {car['year']}", unsafe_allow_html=True)
-                                                
+
                                                 parking_location = car.get('location', 'Metro Manila')
                                                 plate_no = car.get('plate', 'N/A')
                                                 st.caption(f"📍 Parking Base: **{parking_location}** (Plate: {plate_no})")
-                                                
+
                                                 st.markdown(f"<h5 style='color: #2563EB;'>₱{base_rate:,.2f} / day</h5>", unsafe_allow_html=True)
-                                                
+
                                                 # --- BOTTOM: POPOVER CHECKOUT MANAGER ---
                                                 with st.popover(f"⚡ BOOK {car['model'].upper()} NOW", use_container_width=True):
                                                     stage_key = f"chk_stage_{car['id']}_{cat}_{tab_index}"
-                                                    ref_key = f"pend_ref_{car['id']}_{cat}_{tab_index}"
-                                                    if stage_key not in st.session_state: 
+                                                    if stage_key not in st.session_state:
                                                         st.session_state[stage_key] = 0
-                                                    
+
                                                     unavailable_dates = get_booked_dates(car['id'], conn)
-                                                    
+
                                                     if unavailable_dates:
                                                         formatted_dates = ", ".join(sorted([d.strftime('%b %d') for d in unavailable_dates]))
-                                                        # Read the renter's currently selected pickup/return dates so the calendar follows them
                                                         sel_d1 = st.session_state.get(f"d1_{car['id']}_{cat}_{tab_index}", datetime.date.today())
                                                         sel_d2 = st.session_state.get(f"d2_{car['id']}_{cat}_{tab_index}", sel_d1)
                                                         with st.expander(f"📅 Currently Booked On: {formatted_dates} (Click for Calendar)", expanded=False):
                                                             st.markdown(generate_booked_calendar_html(unavailable_dates, sel_d1, sel_d2), unsafe_allow_html=True)
-                                                    
+
                                                     # --- STAGE 0: SELECT DATES & LOCATIONS ---
                                                     if st.session_state[stage_key] == 0:
                                                         today = datetime.date.today()
@@ -616,7 +590,7 @@ def main():
                                                         t1 = st.time_input("Pickup Time", value=datetime.time(9, 0), key=f"t1_{car['id']}_{cat}_{tab_index}")
                                                         d2 = st.date_input("Return Date", min_value=d1, value=d1, key=f"d2_{car['id']}_{cat}_{tab_index}")
                                                         t2 = st.time_input("Return Time", value=datetime.time(9, 0), key=f"t2_{car['id']}_{cat}_{tab_index}")
-                                                        
+
                                                         pickup_loc_input = st.text_input(
                                                             "Pickup Location / Delivery Address (Leave blank for Base Pickup)",
                                                             value="",
@@ -632,21 +606,20 @@ def main():
                                                         pickup_loc = pickup_loc_input.strip() if pickup_loc_input.strip() else parking_location
                                                         return_loc = return_loc_input.strip() if return_loc_input.strip() else parking_location
                                                         destination = st.text_input("Declared Trip Route / Destination", placeholder="e.g., Tagaytay or Subic", key=f"dest_{car['id']}_{cat}_{tab_index}")
-                                                        
+
                                                         if st.button("PROCEED TO SUMMARY", key=f"btn_s0_{car['id']}_{cat}_{tab_index}", use_container_width=True):
                                                             requested_days = set()
                                                             delta = d2 - d1
                                                             for i in range(delta.days + 1):
                                                                 requested_days.add(d1 + timedelta(days=i))
-                                                            
+
                                                             overlapping = requested_days.intersection(unavailable_dates)
-                                                            
+
                                                             if overlapping:
                                                                 st.error("🚨 **Overlapping Schedule Detected!** The vehicle is already booked on your selected dates. Please adjust your schedule or look for an available similar vehicle.")
                                                             elif not destination.strip():
                                                                 st.error("Please specify your trip route or destination.")
                                                             else:
-                                                                # 🛡️ BULLETPROOF MEMORY: Pack everything into a single safe dictionary
                                                                 st.session_state[f"safe_data_{car['id']}"] = {
                                                                     "d1": d1,
                                                                     "t1": t1,
@@ -656,15 +629,13 @@ def main():
                                                                     "rloc": return_loc,
                                                                     "dest": destination
                                                                 }
-                                                                
                                                                 st.session_state[stage_key] = 1
                                                                 st.rerun()
 
                                                     # --- STAGE 1: CONFIRMATION & DISTANCE APPROVAL ---
                                                     elif st.session_state[stage_key] == 1:
-                                                        # Read directly from the saved Stage 0 dictionary
                                                         safe_data = st.session_state.get(f"safe_data_{car['id']}", {})
-                                                    
+
                                                         s_d1 = safe_data.get("d1", datetime.date.today())
                                                         s_t1 = safe_data.get("t1", datetime.time(9, 0))
                                                         s_d2 = safe_data.get("d2", s_d1)
@@ -672,14 +643,14 @@ def main():
                                                         dest_val = safe_data.get("dest", "Not Specified")
                                                         pickup_address = safe_data.get("ploc", parking_location)
                                                         return_address = safe_data.get("rloc", parking_location)
-                                                    
+
                                                         pickup_dt = datetime.datetime.combine(s_d1, s_t1)
                                                         return_dt = datetime.datetime.combine(s_d2, s_t2)
                                                         days_calc = max(1, (return_dt - pickup_dt).days)
-                                                    
+
                                                         gross_rental = base_rate * days_calc
                                                         discount_pct = 0.0
-                                                    
+
                                                         try:
                                                             disc_row = conn.execute(
                                                                 "SELECT discount_pct FROM discount_tiers WHERE min_days <= ? ORDER BY min_days DESC LIMIT 1",
@@ -690,49 +661,63 @@ def main():
                                                                 discount_pct = raw_disc / 100.0 if raw_disc > 1.0 else raw_disc
                                                         except Exception:
                                                             discount_pct = 0.0
-                                                    
+
                                                         discount_amount = gross_rental * discount_pct
                                                         net_rental = gross_rental - discount_amount
-                                                    
+
                                                         # --- API ROUTING DELIVERY LEG CALCULATION ---
                                                         def get_leg_fee(addr, base_location):
                                                             if not addr:
                                                                 return 0.0, "Base Pickup"
-                                                        
+
                                                             clean_addr = addr.strip().lower()
                                                             clean_base = (base_location or "").strip().lower()
-                                                        
+
                                                             if clean_base and clean_addr == clean_base:
                                                                 return 0.0, "0.0 km (Base)"
-                                                        
+
                                                             base_coords = get_gps_coordinates(base_location)
                                                             addr_coords = get_gps_coordinates(addr)
-                                                        
+
                                                             # Fallback 1: If no city was typed and raw lookup failed, try appending garage city
                                                             if not addr_coords and "," not in addr and base_location and "," in base_location:
                                                                 city_hint = base_location.split(",")[-1].strip()
                                                                 addr_coords = get_gps_coordinates(f"{addr}, {city_hint}")
-                                                        
+
                                                             # Fallback 2: If landmark wasn't found, retry using barangay/city after the first comma
                                                             if not addr_coords and "," in addr:
                                                                 addr_coords = get_gps_coordinates(addr.split(",", 1)[1].strip())
-                                                        
+
                                                             if base_coords and addr_coords:
                                                                 dist_km = get_osrm_driving_distance(base_coords, addr_coords)
                                                                 if dist_km is not None:
                                                                     return get_dynamic_delivery_fee(dist_km), f"{dist_km:.1f} km"
-                                                        
+
                                                             return 350.0, "Est. Flat Rate"
-                                                    
-                                                        pickup_leg_fee, pickup_dist_lbl = get_leg_fee(pickup_address, parking_location)
-                                                        return_leg_fee, return_dist_lbl = get_leg_fee(return_address, parking_location)
+
+                                                        # Lock fees in safe_data so reruns don't recalculate or get rate-limited
+                                                        if "pickup_leg_fee" not in safe_data:
+                                                            with st.spinner("Calculating delivery distance..."):
+                                                                p_fee, p_lbl = get_leg_fee(pickup_address, parking_location)
+                                                                r_fee, r_lbl = get_leg_fee(return_address, parking_location)
+                                                                safe_data["pickup_leg_fee"] = p_fee
+                                                                safe_data["pickup_dist_lbl"] = p_lbl
+                                                                safe_data["return_leg_fee"] = r_fee
+                                                                safe_data["return_dist_lbl"] = r_lbl
+                                                                st.session_state[f"safe_data_{car['id']}"] = safe_data
+
+                                                        pickup_leg_fee = safe_data["pickup_leg_fee"]
+                                                        pickup_dist_lbl = safe_data["pickup_dist_lbl"]
+                                                        return_leg_fee = safe_data["return_leg_fee"]
+                                                        return_dist_lbl = safe_data["return_dist_lbl"]
+
                                                         total_delivery_fee = pickup_leg_fee + return_leg_fee
                                                         total_online_bill = net_rental + total_delivery_fee
-                                                    
+
                                                         # --- HTML EXCEL-STYLE TRIP LEDGER ---
                                                         st.write(f"### 📋 Trip Ledger: {car['make']} {car['model']}")
                                                         st.caption(f"📍 **Pickup:** {pickup_address} | 🛬 **Return:** {return_address}")
-                                                    
+
                                                         ledger_html = f"""
                                                         <div style="overflow-x: auto; margin-bottom: 20px;">
                                                             <table style="width: 100%; border-collapse: collapse; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; background-color: #FFFFFF; border: 1px solid #CBD5E1;">
@@ -768,24 +753,24 @@ def main():
                                                         </div>
                                                         """
                                                         st.markdown(ledger_html, unsafe_allow_html=True)
-                                                    
+
                                                         st.info("💵 **Security Deposit:** A refundable **₱5,000 cash deposit** is required, but it is **not** included in this online bill. It is paid directly in cash to the car host upon physical vehicle handover.")
-                                                    
+
                                                         st.error(
                                                             "**🚨 STRICT PLATFORM RULES:**\n"
                                                             "- **No RoRo or Inter-island travel allowed.** Vehicles must remain strictly on the mainland.\n"
                                                             "- **RFID is required** if passing through Metro Manila or provincial tollways.\n"
                                                             "- The **₱5,000 security deposit** is mandatory. If your delivery locations change, incremental logistics fees will be deducted from this deposit."
                                                         )
-                                                    
+
                                                         c_back_s1, c_sub_s1 = st.columns([1, 2])
                                                         if c_back_s1.button("⬅️ EDIT", key=f"back_s1_{car['id']}_{cat}_{tab_index}", use_container_width=True):
                                                             st.session_state[stage_key] = 0
                                                             st.rerun()
-                                                    
+
                                                         if c_sub_s1.button("AGREE & SUBMIT FOR HOST APPROVAL", key=f"btn_s1_{car['id']}_{cat}_{tab_index}", type="primary", use_container_width=True):
                                                             booking_ref = str(random.randint(100000, 999999))
-                                                    
+
                                                             conn.execute("""
                                                                 INSERT INTO bookings (
                                                                     booking_ref, vehicle_id, renter_username, pickup_time, return_time,
@@ -805,7 +790,7 @@ def main():
                                                                 total_online_bill
                                                             ))
                                                             conn.commit()
-                                                    
+
                                                             st.success(f"Booking request submitted! Ref #{booking_ref}. Awaiting host distance review.")
                                                             st.session_state[stage_key] = 0
                                                             time.sleep(1.5)
@@ -816,7 +801,7 @@ def main():
     # ==========================================
     with main_tabs[1]:
         st.header("📅 My Booking History")
-        
+
         try:
             my_bookings = pd.read_sql_query("""
                 SELECT b.*, v.make, v.model, v.plate, v.owner_username
@@ -825,11 +810,10 @@ def main():
                 WHERE b.renter_username = ?
                 ORDER BY b.id DESC
             """, conn, params=(renter_user,))
-            
+
             if my_bookings.empty:
                 st.info("You haven't made any bookings yet. Head over to the Vehicle Showroom to start your journey!")
             else:
-                # Filter into 3 clean groups
                 to_approve_df = my_bookings[my_bookings['status'].isin(['PENDING_APPROVAL'])]
                 approved_df   = my_bookings[my_bookings['status'].isin(['APPROVED_BY_HOST', 'PENDING', 'VERIFYING', 'CONFIRMED', 'ONGOING'])]
                 completed_df  = my_bookings[my_bookings['status'].isin(['COMPLETED', 'CANCELLED', 'REJECTED'])]
@@ -850,7 +834,7 @@ def main():
                         with c2:
                             st.info(b['status'])
 
-                    # 🚨 DYNAMIC CHECK: Only show payment gateway when ready for payment
+                        # 🚨 DYNAMIC CHECK: Only show payment gateway when ready for payment
                         if b['status'] in ['APPROVED_BY_HOST', 'PENDING']:
                             st.markdown(f"**Amount Due:** ₱{float(b['amount']):,.2f}")
 
@@ -887,7 +871,7 @@ def main():
                                     s1, c_img, s2 = st.columns([1, 1, 1])
                                     with c_img:
                                         try: st.image("bpi_qr.png", use_container_width=True)
-                                        except: st.info("[BPI QR IMAGE GOES HERE]")
+                                        except Exception: st.info("[BPI QR IMAGE GOES HERE]")
 
                             st.divider()
                             st.write("#### 📤 Upload Proof of Payment (Showing Reference No.)")
@@ -913,7 +897,7 @@ def main():
                     # --- CHAT SYSTEM (For Active Trips & Approvals) ---
                     if b['status'] in ['PENDING_APPROVAL', 'PENDING', 'VERIFYING', 'APPROVED_BY_HOST', 'CONFIRMED', 'ONGOING']:
                         st.divider()
-                        
+
                         c_title, c_call = st.columns([3, 1])
                         with c_title:
                             st.markdown(f"#### 💬 Coordinate with Host (Ref: #{b['booking_ref']})")
@@ -922,14 +906,12 @@ def main():
                                 host_df = pd.read_sql_query("SELECT contact_number FROM platform_users WHERE username=?", conn, params=(b['owner_username'],))
                                 if not host_df.empty and host_df.iloc[0]['contact_number']:
                                     host_phone = host_df.iloc[0]['contact_number']
-                                    # ONLY shows the icon and label
                                     st.markdown(f'<a href="tel:{host_phone}"><button style="width:100%; background-color:#10B981; color:white; border:none; padding:8px 12px; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:2px; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);">📞 Call Host</button></a>', unsafe_allow_html=True)
-                            except: pass
-                            
+                            except Exception:
+                                pass
+
                         b_ref_str = str(b['booking_ref'])
-                        
-                        st_autorefresh(interval=10000, key=f"chat_ping_{b_ref_str}")
-                        
+
                         chat_win = st.container(height=250, border=True)
                         with chat_win:
                             try:
@@ -959,10 +941,11 @@ def main():
                                 st.error("Could not load chat.")
 
                         input_key = f"chat_input_{b_ref_str}"
-                        if input_key not in st.session_state: st.session_state[input_key] = ""
-                        
-                        c_msg, c_btn = st.columns([4, 1])
-                        with c_msg: 
+                        if input_key not in st.session_state:
+                            st.session_state[input_key] = ""
+
+                        c_msg, c_btn, c_ref = st.columns([4, 1, 1])
+                        with c_msg:
                             chat_val = st.text_input("Reply", key=input_key, label_visibility="collapsed", placeholder="Negotiate distance or parking handover...")
                         with c_btn:
                             if st.button("Send", type="primary", use_container_width=True, key=f"send_btn_{b_ref_str}"):
@@ -971,7 +954,7 @@ def main():
                                     conn.execute("INSERT INTO chat_messages (booking_ref, sender_username, receiver_username, message_text) VALUES (?, ?, ?, ?)",
                                                  (b_ref_str, renter_user, b['owner_username'], message_body))
                                     conn.commit()
-                                    
+
                                     try:
                                         host_data = pd.read_sql_query("SELECT email, full_name FROM platform_users WHERE username=?", conn, params=(b['owner_username'],))
                                         if not host_data.empty:
@@ -987,6 +970,9 @@ def main():
 
                                 st.session_state[input_key] = ""
                                 st.rerun()
+                        with c_ref:
+                            if st.button("🔄 Refresh", use_container_width=True, key=f"ref_chat_{b_ref_str}"):
+                                st.rerun()
 
                         st.caption("ℹ️ **Logistics & Security Deposit Policy:** If pickup or return locations are modified after payment to a further distance, the incremental logistics fee will be automatically **deducted from your ₱5,000 security deposit** upon trip completion.")
 
@@ -998,12 +984,12 @@ def main():
                                 st.write("**Rate your experience:**")
                                 star_click = st.feedback("stars", key=f"stars_{b['id']}")
                                 new_review = st.text_area("Share your thoughts about the vehicle and host...", key=f"rev_text_{b['id']}")
-                                
+
                                 if st.button("Submit Review", type="primary", key=f"sub_rev_{b['id']}"):
                                     if star_click is None:
                                         st.error("Please click on the stars to leave a rating!")
                                     else:
-                                        final_rating = star_click + 1 
+                                        final_rating = star_click + 1
                                         conn.execute("UPDATE bookings SET rating = ?, review = ? WHERE id = ?", (final_rating, new_review, b['id']))
                                         conn.commit()
                                         st.success("Thank you! Your review has been published.")
