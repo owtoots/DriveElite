@@ -814,9 +814,13 @@ def main():
             if my_bookings.empty:
                 st.info("You haven't made any bookings yet. Head over to the Vehicle Showroom to start your journey!")
             else:
-                to_approve_df = my_bookings[my_bookings['status'].isin(['PENDING_APPROVAL'])]
-                approved_df   = my_bookings[my_bookings['status'].isin(['APPROVED_BY_HOST', 'PENDING', 'VERIFYING', 'CONFIRMED', 'ONGOING'])]
-                completed_df  = my_bookings[my_bookings['status'].isin(['COMPLETED', 'CANCELLED', 'REJECTED'])]
+                # Normalize status text so casing/spaces never hide a booking
+                my_bookings['status_clean'] = my_bookings['status'].astype(str).str.strip().str.upper()
+
+                to_approve_df = my_bookings[my_bookings['status_clean'].isin(['PENDING_APPROVAL'])]
+                completed_df  = my_bookings[my_bookings['status_clean'].isin(['COMPLETED', 'CANCELLED', 'REJECTED'])]
+                # Catch all approved/active statuses so nothing can ever fall through the cracks
+                approved_df   = my_bookings[~my_bookings['status_clean'].isin(['PENDING_APPROVAL', 'COMPLETED', 'CANCELLED', 'REJECTED'])]
 
                 b_tabs = st.tabs([
                     f"⏳ To Be Approved ({len(to_approve_df)})",
@@ -834,8 +838,10 @@ def main():
                         with c2:
                             st.info(b['status'])
 
+                        status_clean = str(b['status']).strip().upper()
+
                         # 🚨 DYNAMIC CHECK: Only show payment gateway when ready for payment
-                        if b['status'] in ['APPROVED_BY_HOST', 'PENDING']:
+                        if status_clean in ['APPROVED', 'APPROVED_BY_HOST', 'HOST_APPROVED', 'AWAITING_PAYMENT', 'PENDING']:
                             st.markdown(f"**Amount Due:** ₱{float(b['amount']):,.2f}")
 
                             if gateway_mode == "XENDIT":
