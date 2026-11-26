@@ -714,20 +714,53 @@ def main():
                                         st.rerun()
 
                             col_app, col_rej = st.columns(2)
-                            if col_app.button("✅ APPROVE DISTANCE & ENABLE PAYMENT", key=f"app_dist_{b['id']}", use_container_width=True):
+                           if col_app.button("✅ APPROVE DISTANCE & ENABLE PAYMENT", key=f"app_dist_{b['id']}", use_container_width=True):
                                 conn.execute("UPDATE bookings SET status = 'APPROVED_BY_HOST' WHERE id = ?", (b['id'],))
                                 conn.commit()
-                                st.success("✅ Distance approved! Renter can now proceed to payment.")
+
+                                # --- EMAIL NOTIFICATION: BOOKING APPROVED ---
+                                try:
+                                    if b.get('renter_email'):
+                                        send_alert_email(
+                                            to_email=b['renter_email'],
+                                            subject=f"✅ DriveElite: Booking Approved! Proceed to Payment ({b_ref_display})",
+                                            body=(
+                                                f"Hello {b['renter_name']},\n\n"
+                                                f"Great news! Your host has approved your booking request for the {b['make']} {b['model']} ({b['plate']}).\n\n"
+                                                f"Ref: {b_ref_display}\n"
+                                                f"Dates: {p_time_str} to {r_time_str}\n"
+                                                f"Amount Due: PHP {float(b['amount']):,.2f}\n\n"
+                                                f"Please log in to your Renter Portal -> My Bookings -> Approved & Active to complete your payment and upload your receipt."
+                                            )
+                                        )
+                                except Exception as e:
+                                    print(f"Approval email error: {e}")
+
+                                st.success("✅ Distance approved! Renter has been notified to proceed to payment.")
                                 time.sleep(1)
                                 st.rerun()
-                                
                             if col_rej.button("❌ REJECT BOOKING", key=f"rej_dist_{b['id']}", use_container_width=True):
                                 conn.execute("UPDATE bookings SET status = 'REJECTED' WHERE id = ?", (b['id'],))
                                 conn.commit()
-                                st.warning("Booking request rejected.")
+
+                                # --- EMAIL NOTIFICATION: BOOKING REJECTED ---
+                                try:
+                                    if b.get('renter_email'):
+                                        send_alert_email(
+                                            to_email=b['renter_email'],
+                                            subject=f"❌ DriveElite: Booking Request Declined ({b_ref_display})",
+                                            body=(
+                                                f"Hello {b['renter_name']},\n\n"
+                                                f"Unfortunately, the host could not accommodate your booking request for the {b['make']} {b['model']} ({b_ref_display}) on your selected dates/locations.\n\n"
+                                                f"Please log in to the DriveElite Showroom to select another available vehicle."
+                                            )
+                                        )
+                                except Exception as e:
+                                    print(f"Rejection email error: {e}")
+
+                                st.warning("Booking request rejected and renter notified.")
                                 time.sleep(1)
                                 st.rerun()
-
                     # ------------------------------------------------------------------
                     # 2. PENDING / VERIFYING / APPROVED_BY_HOST (Awaiting Payment / Verification)
                     # ------------------------------------------------------------------
