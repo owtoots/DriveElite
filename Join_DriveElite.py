@@ -181,8 +181,33 @@ with st.sidebar:
         background-color: #15803D !important;
         transform: translateY(0px) !important;
     }
+
+    /* Enlarge Radio Label ("I want to register as a:") & Options */
+    div[data-testid="stRadio"] > label p {
+        font-size: 20px !important;
+        font-weight: 700 !important;
+        color: #0F172A !important;
+        margin-bottom: 8px !important;
+    }
+    div[data-testid="stRadio"] div[role="radiogroup"] label p {
+        font-size: 18px !important;
+        font-weight: 600 !important;
+    }
+    div[data-testid="stRadio"] div[role="radiogroup"] {
+        gap: 20px !important;
+    }
+
+    /* Enlarge Form Labels & Inputs */
+    [data-testid="stWidgetLabel"] p {
+        font-size: 16px !important;
+        font-weight: 600 !important;
+    }
+    input, textarea {
+        font-size: 16px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
+
 
 # ==========================================
 # 4. NAVIGATION ROUTER
