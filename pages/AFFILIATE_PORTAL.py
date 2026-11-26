@@ -673,7 +673,7 @@ def main():
                             
                             # Chat for distance negotiation before approval
                             b_ref_str = str(b['booking_ref'])
-                            st_autorefresh(interval=10000, key=f"chat_ping_app_{b_ref_str}")
+                            
                             
                             r_phone = b.get('renter_contact', '')
                             if r_phone:
@@ -714,7 +714,7 @@ def main():
                                         st.rerun()
 
                             col_app, col_rej = st.columns(2)
-                           if col_app.button("✅ APPROVE DISTANCE & ENABLE PAYMENT", key=f"app_dist_{b['id']}", use_container_width=True):
+                            if col_app.button("✅ APPROVE DISTANCE & ENABLE PAYMENT", key=f"app_dist_{b['id']}", use_container_width=True):
                                 conn.execute("UPDATE bookings SET status = 'APPROVED_BY_HOST' WHERE id = ?", (b['id'],))
                                 conn.commit()
 
@@ -853,7 +853,7 @@ def main():
 
                             # --- CHAT INTERFACE ---
                             b_ref_str = str(b['booking_ref'])
-                            st_autorefresh(interval=10000, key=f"chat_ping_affiliate_{b_ref_str}")
+                            
                             
                             c_title, c_call, c_refresh = st.columns([2, 1, 1])
                             
@@ -1368,7 +1368,28 @@ def main():
                     auto_register_city_hook(conn, garage_prov, garage_city)
                     
                     conn.commit()
+                    conn.commit()
+
+                    # --- EMAIL NOTIFICATION: NEW VEHICLE PENDING APPROVAL ---
+                    try:
+                        admin_email = os.environ.get("ADMIN_EMAIL", "contact@driveelite.ph")
+                        send_alert_email(
+                            to_email=admin_email,
+                            subject=f"🚗 DriveElite Admin: New Vehicle Pending Approval (#{new_ref_no})",
+                            body=(
+                                f"Hello Admin,\n\n"
+                                f"Affiliate @{st.session_state.username} has submitted a new vehicle for approval:\n\n"
+                                f"Ref: #{new_ref_no}\n"
+                                f"Vehicle: {ye} {ma.title()} {mo.title()} ({pl.upper()})\n"
+                                f"Location: {combined_location}, {garage_prov.strip().title()}\n\n"
+                                f"Please log in to the Admin Command Center -> Assets to review documents and set the approved rate."
+                            )
+                        )
+                    except Exception as e:
+                        print(f"New vehicle email error: {e}")
+
                     st.success(f"SUCCESS: Vehicle Submitted! Ref #{new_ref_no} & City registered to expansion radar.")
+                  
                 else: 
                     st.error("Please fill all required fields (including Garage Barangay, City, and Province) and upload all documents.")
 
