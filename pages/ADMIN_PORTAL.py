@@ -374,25 +374,28 @@ def main():
                             conn.execute("UPDATE platform_users SET admin_status = 'APPROVED' WHERE id = ?", (r['id'],))
                             conn.commit()
 
-                            # --- EMAIL NOTIFICATION: RENTER APPROVED ---
-                            try:
-                                renter_mail = r.get('email', '')
-                                if renter_mail:
-                                    send_alert_email(
-                                        to_email=renter_mail,
-                                        subject="🚗 DriveElite: Your Renter Account is Approved!",
-                                        body=(
-                                            f"Hello {r['full_name']},\n\n"
-                                            f"Good news! Your DriveElite Renter account (@{r['username']}) has been approved by Admin.\n\n"
-                                            f"You can now log in to the Renter Portal, browse available vehicles across regions, and submit booking requests.\n\n"
-                                            f"Welcome to DriveElite!"
-                                        )
-                                    )
-                            except Exception as e:
-                                print(f"Renter approval email error: {e}")
+                            renter_mail = str(r.get('email') or '').strip()
+                            if renter_mail and "@" in renter_mail:
+                                subject = "🚗 DriveElite: Your Renter Account is Approved!"
+                                body = (
+                                    f"Hello {r['full_name']},\n\n"
+                                    f"Your DriveElite Renter account (@{r['username']}) has been officially approved by Admin.\n\n"
+                                    f"You can now log in to the Renter Portal, browse available vehicles, and submit booking requests.\n\n"
+                                    f"Welcome to DriveElite!"
+                                )
+                                try:
+                                    res = send_alert_email(renter_mail, subject, body)
+                                    if res is False or (isinstance(res, tuple) and not res[0]):
+                                        st.warning(f"⚠️ Account approved, but email failed to send to {renter_mail}: {res}")
+                                    else:
+                                        st.success(f"✅ Renter approved and email sent to {renter_mail}!")
+                                except Exception as e:
+                                    st.warning(f"⚠️ Account approved, but email error for {renter_mail}: {e}")
+                            else:
+                                st.warning("⚠️ Renter approved, but no valid email address was found on their account.")
 
-                            st.success("Renter approved successfully!")
-                            time.sleep(1); st.rerun()
+                            time.sleep(1.5)
+                            st.rerun()
             except Exception as e: st.warning(f"Error loading renters: {e}")
 
         with p_tabs[1]:
@@ -565,7 +568,7 @@ def main():
                 st.caption("Review uploaded payment receipts and reference numbers, then confirm to lock escrow and notify the affiliate host.")
 
                 pending_bpi = pd.read_sql_query("""
-                    SSELECT b.*, u.full_name as Renter, u.email as renter_email, v.make, v.model, v.plate,
+                    SELECT b.*, u.full_name as Renter, u.email as renter_email, v.make, v.model, v.plate,
                            u_owner.email as host_email, u_owner.full_name as host_name
                     FROM bookings b 
                     JOIN platform_users u ON b.renter_username = u.username 
