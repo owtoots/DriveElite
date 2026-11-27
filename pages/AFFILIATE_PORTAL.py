@@ -5,7 +5,7 @@ import sqlite3
 import os
 import random
 import time
-from PIL import Image
+from PIL import Image, ImageOps
 import numpy as np
 from fpdf import FPDF
 from streamlit_drawable_canvas import st_canvas
@@ -320,27 +320,51 @@ def main():
     if "temp_msg_affiliate" not in st.session_state:
         st.session_state.temp_msg_affiliate = ""
 
+    def _optimize_and_save_image(uploaded_file, target_dir, prefix, max_size=(1200, 1200), quality=85):
+        os.makedirs(target_dir, exist_ok=True)
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        base_name, ext = os.path.splitext(uploaded_file.name)
+        ext_lower = ext.lower()
+
+        if ext_lower in ['.jpg', '.jpeg', '.png', '.webp']:
+            try:
+                img = Image.open(uploaded_file)
+                img = ImageOps.exif_transpose(img)  # Fix phone photo rotation
+
+                if img.mode in ("RGBA", "P"):
+                    bg = Image.new("RGB", img.size, (255, 255, 255))
+                    if img.mode == "RGBA":
+                        bg.paste(img, mask=img.split()[3])
+                    else:
+                        bg.paste(img)
+                    img = bg
+                elif img.mode != "RGB":
+                    img = img.convert("RGB")
+
+                img.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+                filename = f"{prefix}{timestamp}_{base_name}.jpg"
+                path = os.path.join(target_dir, filename)
+                img.save(path, format="JPEG", quality=quality, optimize=True, progressive=True)
+                return path
+            except Exception as e:
+                print(f"Image optimization fallback: {e}")
+
+        # Fallback for PDFs or non-image files
+        filename = f"{prefix}{timestamp}_{uploaded_file.name}"
+        path = os.path.join(target_dir, filename)
+        with open(path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        return path
+
     def save_file(uploaded_file):
         if uploaded_file:
-            PERSISTENT_DIR = "/data/uploads"
-            os.makedirs(PERSISTENT_DIR, exist_ok=True)
-            
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{timestamp}_{uploaded_file.name}"
-            path = os.path.join(PERSISTENT_DIR, filename)
-            
-            with open(path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-            return path
+            return _optimize_and_save_image(uploaded_file, "/data/uploads", prefix="", max_size=(1200, 1200), quality=85)
         return None
 
     def save_chat_image(uploaded_file, booking_ref):
         if uploaded_file:
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"chat_{booking_ref}_{timestamp}_{uploaded_file.name}"
-            path = os.path.join(UPLOAD_DIR, filename)
-            with open(path, "wb") as f: f.write(uploaded_file.getbuffer())
-            return path
+            return _optimize_and_save_image(uploaded_file, UPLOAD_DIR, prefix=f"chat_{booking_ref}_", max_size=(1000, 1000), quality=80)
         return ""
 
     def save_canvas_image(image_data, prefix):
